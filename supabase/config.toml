@@ -1,1 +1,4 @@
 project_id = "fcvwogaqarkuqvumyqqm"
+
+[functions.mercadolivre-auth]
+verify_jwt = true
