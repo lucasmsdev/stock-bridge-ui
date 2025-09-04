@@ -1,20 +1,26 @@
 import { useState } from "react";
-import { Outlet, Navigate, useLocation } from "react-router-dom";
+import { Outlet, Navigate } from "react-router-dom";
 import { AppSidebar } from "./AppSidebar";
 import { Button } from "@/components/ui/button";
-import { Menu } from "lucide-react";
-
-// Mock authentication state
-const useAuth = () => {
-  return { isAuthenticated: true, user: { name: "João Silva", email: "joao@unistock.com" } };
-};
+import { Menu, Loader2 } from "lucide-react";
+import { useAuth } from "@/hooks/useAuth";
 
 export const AppLayout = () => {
-  const { isAuthenticated } = useAuth();
+  const { user, isLoading } = useAuth();
   const [sidebarOpen, setSidebarOpen] = useState(true);
-  const location = useLocation();
 
-  if (!isAuthenticated) {
+  if (isLoading) {
+    return (
+      <div className="min-h-screen bg-gradient-subtle flex items-center justify-center">
+        <div className="text-center space-y-4">
+          <Loader2 className="h-8 w-8 text-primary animate-spin mx-auto" />
+          <p className="text-muted-foreground">Carregando...</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (!user) {
     return <Navigate to="/login" replace />;
   }
 

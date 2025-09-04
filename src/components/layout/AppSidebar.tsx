@@ -1,15 +1,14 @@
-import { NavLink, useNavigate } from "react-router-dom";
+import { NavLink } from "react-router-dom";
 import { 
   LayoutDashboard, 
   Package, 
   ShoppingCart, 
   Plug, 
-  LogOut,
-  User
+  LogOut
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
-import { Separator } from "@/components/ui/separator";
+import { useAuth } from "@/hooks/useAuth";
 
 interface AppSidebarProps {
   isCollapsed: boolean;
@@ -23,11 +22,18 @@ const navItems = [
 ];
 
 export const AppSidebar = ({ isCollapsed }: AppSidebarProps) => {
-  const navigate = useNavigate();
+  const { user, signOut } = useAuth();
 
-  const handleLogout = () => {
-    // Mock logout functionality
-    navigate("/login");
+  const handleLogout = async () => {
+    await signOut();
+  };
+
+  const getUserInitials = (email: string) => {
+    return email.split('@')[0].slice(0, 2).toUpperCase();
+  };
+
+  const getUserDisplayName = (email: string) => {
+    return email.split('@')[0];
   };
 
   return (
@@ -75,15 +81,15 @@ export const AppSidebar = ({ isCollapsed }: AppSidebarProps) => {
             <div className="flex items-center space-x-3">
               <Avatar className="h-8 w-8">
                 <AvatarFallback className="bg-primary text-primary-foreground">
-                  JS
+                  {user?.email ? getUserInitials(user.email) : 'US'}
                 </AvatarFallback>
               </Avatar>
               <div className="flex-1 min-w-0">
                 <p className="text-sm font-medium text-foreground truncate">
-                  João Silva
+                  {user?.email ? getUserDisplayName(user.email) : 'Usuário'}
                 </p>
                 <p className="text-xs text-muted-foreground truncate">
-                  joao@unistock.com
+                  {user?.email || 'usuario@unistock.com'}
                 </p>
               </div>
             </div>

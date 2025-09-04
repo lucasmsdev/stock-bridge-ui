@@ -1,24 +1,98 @@
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { Loader2 } from "lucide-react";
+import { useToast } from "@/hooks/use-toast";
+import { supabase } from "@/integrations/supabase/client";
 
 export default function MercadoLivreCallback() {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
+  const { toast } = useToast();
+  const [isProcessing, setIsProcessing] = useState(true);
 
   useEffect(() => {
-    // Simulate capturing the code parameter from URL
-    const code = searchParams.get('code');
-    console.log('Mercado Livre callback - Code captured:', code);
+    const processCallback = async () => {
+      const code = searchParams.get('code');
+      const error = searchParams.get('error');
 
-    // Simulate API call delay
-    const timer = setTimeout(() => {
-      // Redirect to integrations page after 2 seconds
-      navigate('/integrations');
-    }, 2000);
+      // Check for authorization errors
+      if (error) {
+        console.error('Mercado Livre authorization error:', error);
+        toast({
+          title: "Erro na autorização",
+          description: "Não foi possível conectar com o Mercado Livre. Tente novamente.",
+          variant: "destructive",
+        });
+        navigate('/integrations');
+        return;
+      }
 
-    return () => clearTimeout(timer);
-  }, [navigate, searchParams]);
+      if (!code) {
+        console.error('No authorization code received');
+        toast({
+          title: "Erro na autorização",
+          description: "Código de autorização não recebido. Tente novamente.",
+          variant: "destructive",
+        });
+        navigate('/integrations');
+        return;
+      }
+
+      try {
+        // Get current session
+        const { data: { session } } = await supabase.auth.getSession();
+        
+        if (!session) {
+          toast({
+            title: "Erro de autenticação",
+            description: "Você precisa estar logado para conectar integrações.",
+            variant: "destructive",
+          });
+          navigate('/login');
+          return;
+        }
+
+        // Call the mercadolivre-auth edge function
+        const { data, error: functionError } = await supabase.functions.invoke('mercadolivre-auth', {
+          body: {
+            code,
+            redirect_uri: `${window.location.origin}/callback/mercadolivre`
+          }
+        });
+
+        if (functionError) {
+          console.error('Edge function error:', functionError);
+          toast({
+            title: "Erro na integração",
+            description: "Não foi possível completar a integração. Tente novamente.",
+            variant: "destructive",
+          });
+          navigate('/integrations');
+          return;
+        }
+
+        // Success
+        toast({
+          title: "Integração realizada com sucesso!",
+          description: "Mercado Livre conectado ao seu UniStock.",
+        });
+        navigate('/integrations');
+
+      } catch (error) {
+        console.error('Unexpected error during callback processing:', error);
+        toast({
+          title: "Erro inesperado",
+          description: "Ocorreu um erro durante a integração. Tente novamente.",
+          variant: "destructive",
+        });
+        navigate('/integrations');
+      } finally {
+        setIsProcessing(false);
+      }
+    };
+
+    processCallback();
+  }, [navigate, searchParams, toast]);
 
   return (
     <div className="min-h-screen bg-background flex items-center justify-center">

@@ -108,8 +108,18 @@ export default function Integrations() {
   const [disconnectingId, setDisconnectingId] = useState<string | null>(null);
 
   const handleConnect = (platformId: string) => {
-    // Mock connection logic
-    console.log(`Connecting to ${platformId}`);
+    if (platformId === 'mercadolivre') {
+      // Replace with your actual Mercado Livre App ID
+      const appId = 'YOUR_MERCADOLIVRE_APP_ID'; // TODO: Replace with actual App ID
+      const redirectUri = `${window.location.origin}/callback/mercadolivre`;
+      const authUrl = `https://auth.mercadolibre.com.br/authorization?response_type=code&client_id=${appId}&redirect_uri=${encodeURIComponent(redirectUri)}`;
+      
+      // Redirect to Mercado Livre authorization page
+      window.location.href = authUrl;
+    } else {
+      // Mock connection logic for other platforms
+      console.log(`Connecting to ${platformId}`);
+    }
   };
 
   const handleDisconnect = (integrationId: string) => {
