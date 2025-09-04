@@ -10,6 +10,7 @@ import Dashboard from "./pages/Dashboard";
 import Products from "./pages/Products";
 import Orders from "./pages/Orders";
 import Integrations from "./pages/Integrations";
+import MercadoLivreCallback from "./pages/callback/MercadoLivreCallback";
 
 const queryClient = new QueryClient();
 
@@ -23,6 +24,7 @@ const App = () => (
           {/* Public Routes */}
           <Route path="/login" element={<Login />} />
           <Route path="/signup" element={<Signup />} />
+          <Route path="/callback/mercadolivre" element={<MercadoLivreCallback />} />
           
           {/* Protected Routes */}
           <Route path="/" element={<AppLayout />}>
