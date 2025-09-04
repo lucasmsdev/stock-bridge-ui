@@ -2,95 +2,127 @@
 @tailwind components;
 @tailwind utilities;
 
-/* Definition of the design system. All colors, gradients, fonts, etc should be defined here. 
+/* UniStock Design System - All colors, gradients, fonts, etc defined here. 
 All colors MUST be HSL.
 */
 
 @layer base {
   :root {
-    --background: 0 0% 100%;
-    --foreground: 222.2 84% 4.9%;
+    /* Base colors */
+    --background: 244 48% 98%;
+    --foreground: 215 25% 20%;
 
+    /* Card components */
     --card: 0 0% 100%;
-    --card-foreground: 222.2 84% 4.9%;
+    --card-foreground: 215 25% 20%;
 
+    /* Popover components */
     --popover: 0 0% 100%;
-    --popover-foreground: 222.2 84% 4.9%;
+    --popover-foreground: 215 25% 20%;
 
-    --primary: 222.2 47.4% 11.2%;
-    --primary-foreground: 210 40% 98%;
+    /* UniStock Brand Colors */
+    --primary: 221 68% 65%; /* #6890e4 - Friendly blue */
+    --primary-foreground: 0 0% 100%;
+    --primary-hover: 221 68% 58%;
+    --primary-glow: 221 68% 75%;
 
-    --secondary: 210 40% 96.1%;
-    --secondary-foreground: 222.2 47.4% 11.2%;
+    --success: 74 65% 65%; /* #c3e468 - Vibrant lime green */
+    --success-foreground: 74 65% 15%;
+    --success-muted: 74 65% 95%;
 
-    --muted: 210 40% 96.1%;
-    --muted-foreground: 215.4 16.3% 46.9%;
+    /* Neutral grays */
+    --secondary: 220 14% 96%;
+    --secondary-foreground: 215 25% 20%;
 
-    --accent: 210 40% 96.1%;
-    --accent-foreground: 222.2 47.4% 11.2%;
+    --muted: 220 14% 96%;
+    --muted-foreground: 215 10% 45%;
 
-    --destructive: 0 84.2% 60.2%;
-    --destructive-foreground: 210 40% 98%;
+    --accent: 220 14% 96%;
+    --accent-foreground: 215 25% 20%;
 
-    --border: 214.3 31.8% 91.4%;
-    --input: 214.3 31.8% 91.4%;
-    --ring: 222.2 84% 4.9%;
+    /* Status colors */
+    --destructive: 0 65% 58%;
+    --destructive-foreground: 0 0% 100%;
+
+    --warning: 38 85% 58%;
+    --warning-foreground: 0 0% 100%;
+
+    /* UI elements */
+    --border: 220 13% 88%;
+    --input: 220 13% 91%;
+    --ring: 221 68% 65%;
+
+    /* Gradients */
+    --gradient-primary: linear-gradient(135deg, hsl(221 68% 65%), hsl(250 68% 68%));
+    --gradient-success: linear-gradient(135deg, hsl(74 65% 65%), hsl(100 65% 68%));
+    --gradient-subtle: linear-gradient(180deg, hsl(244 48% 98%), hsl(240 48% 96%));
+
+    /* Shadows */
+    --shadow-soft: 0 2px 8px hsl(215 25% 20% / 0.08);
+    --shadow-medium: 0 4px 16px hsl(215 25% 20% / 0.12);
+    --shadow-primary: 0 8px 24px hsl(221 68% 65% / 0.24);
+
+    /* Animations */
+    --transition-smooth: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    --transition-fast: all 0.15s ease-out;
 
     --radius: 0.5rem;
-
-    --sidebar-background: 0 0% 98%;
-
-    --sidebar-foreground: 240 5.3% 26.1%;
-
-    --sidebar-primary: 240 5.9% 10%;
-
-    --sidebar-primary-foreground: 0 0% 98%;
-
-    --sidebar-accent: 240 4.8% 95.9%;
-
-    --sidebar-accent-foreground: 240 5.9% 10%;
-
-    --sidebar-border: 220 13% 91%;
-
-    --sidebar-ring: 217.2 91.2% 59.8%;
   }
 
   .dark {
-    --background: 222.2 84% 4.9%;
+    /* Base colors */
+    --background: 215 25% 12%;
     --foreground: 210 40% 98%;
 
-    --card: 222.2 84% 4.9%;
+    /* Card components */
+    --card: 215 25% 15%;
     --card-foreground: 210 40% 98%;
 
-    --popover: 222.2 84% 4.9%;
+    /* Popover components */
+    --popover: 215 25% 15%;
     --popover-foreground: 210 40% 98%;
 
-    --primary: 210 40% 98%;
-    --primary-foreground: 222.2 47.4% 11.2%;
+    /* UniStock Brand Colors (adjusted for dark mode) */
+    --primary: 221 68% 68%; /* Slightly lighter in dark mode */
+    --primary-foreground: 215 25% 12%;
+    --primary-hover: 221 68% 75%;
+    --primary-glow: 221 68% 80%;
 
-    --secondary: 217.2 32.6% 17.5%;
+    --success: 74 65% 68%; /* Slightly lighter in dark mode */
+    --success-foreground: 215 25% 12%;
+    --success-muted: 74 25% 18%;
+
+    /* Neutral grays (dark mode) */
+    --secondary: 215 25% 18%;
     --secondary-foreground: 210 40% 98%;
 
-    --muted: 217.2 32.6% 17.5%;
-    --muted-foreground: 215 20.2% 65.1%;
+    --muted: 215 25% 18%;
+    --muted-foreground: 215 10% 65%;
 
-    --accent: 217.2 32.6% 17.5%;
+    --accent: 215 25% 18%;
     --accent-foreground: 210 40% 98%;
 
-    --destructive: 0 62.8% 30.6%;
+    /* Status colors (dark mode) */
+    --destructive: 0 65% 65%;
     --destructive-foreground: 210 40% 98%;
 
-    --border: 217.2 32.6% 17.5%;
-    --input: 217.2 32.6% 17.5%;
-    --ring: 212.7 26.8% 83.9%;
-    --sidebar-background: 240 5.9% 10%;
-    --sidebar-foreground: 240 4.8% 95.9%;
-    --sidebar-primary: 224.3 76.3% 48%;
-    --sidebar-primary-foreground: 0 0% 100%;
-    --sidebar-accent: 240 3.7% 15.9%;
-    --sidebar-accent-foreground: 240 4.8% 95.9%;
-    --sidebar-border: 240 3.7% 15.9%;
-    --sidebar-ring: 217.2 91.2% 59.8%;
+    --warning: 38 85% 65%;
+    --warning-foreground: 215 25% 12%;
+
+    /* UI elements (dark mode) */
+    --border: 215 25% 22%;
+    --input: 215 25% 20%;
+    --ring: 221 68% 68%;
+
+    /* Gradients (dark mode) */
+    --gradient-primary: linear-gradient(135deg, hsl(221 68% 68%), hsl(250 68% 72%));
+    --gradient-success: linear-gradient(135deg, hsl(74 65% 68%), hsl(100 65% 72%));
+    --gradient-subtle: linear-gradient(180deg, hsl(215 25% 12%), hsl(215 25% 8%));
+
+    /* Shadows (dark mode) */
+    --shadow-soft: 0 2px 8px hsl(215 25% 8% / 0.4);
+    --shadow-medium: 0 4px 16px hsl(215 25% 8% / 0.6);
+    --shadow-primary: 0 8px 24px hsl(221 68% 68% / 0.3);
   }
 }
 
