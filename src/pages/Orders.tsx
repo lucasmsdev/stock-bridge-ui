@@ -241,9 +241,12 @@ export default function Orders() {
             </TableHeader>
             <TableBody>
               {filteredOrders.map((order) => (
-                <TableRow key={order.id} className="cursor-pointer hover:bg-muted/50">
+                <TableRow 
+                  key={order.id} 
+                  className="cursor-pointer hover:bg-muted/50 transition-colors hover:shadow-soft"
+                >
                   <TableCell>
-                    <code className="text-sm bg-muted px-2 py-1 rounded font-medium">
+                    <code className="text-sm bg-muted px-2 py-1 rounded font-medium hover:bg-muted/80 transition-colors">
                       {order.id}
                     </code>
                   </TableCell>

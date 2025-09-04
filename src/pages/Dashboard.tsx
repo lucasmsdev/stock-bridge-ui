@@ -100,13 +100,17 @@ export default function Dashboard() {
 
       {/* Metrics Cards */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-        {metrics.map((metric) => (
-          <Card key={metric.title} className="shadow-soft hover:shadow-medium transition-shadow">
+        {metrics.map((metric, index) => (
+          <Card 
+            key={metric.title} 
+            className="shadow-soft hover:shadow-medium transition-all duration-200 hover:scale-[1.02] hover:-translate-y-1 cursor-pointer"
+            style={{ animationDelay: `${index * 0.1}s` }}
+          >
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
               <CardTitle className="text-sm font-medium text-muted-foreground">
                 {metric.title}
               </CardTitle>
-              <metric.icon className={`h-4 w-4 ${metric.color}`} />
+              <metric.icon className={`h-4 w-4 ${metric.color} transition-transform hover:scale-110`} />
             </CardHeader>
             <CardContent>
               <div className="text-2xl font-bold text-foreground">{metric.value}</div>
@@ -176,20 +180,27 @@ export default function Dashboard() {
               </TableHeader>
               <TableBody>
                 {recentOrders.map((order) => (
-                  <TableRow key={order.id}>
-                    <TableCell className="font-medium">{order.id}</TableCell>
+                  <TableRow 
+                    key={order.id} 
+                    className="hover:bg-muted/50 transition-colors cursor-pointer"
+                  >
+                    <TableCell className="font-medium">
+                      <code className="text-xs bg-muted px-2 py-1 rounded hover:bg-muted/80 transition-colors">
+                        {order.id}
+                      </code>
+                    </TableCell>
                     <TableCell>
                       <div className="flex items-center gap-2">
-                        <span>{order.channelIcon}</span>
-                        <span className="text-sm">{order.channel}</span>
+                        <span className="text-lg hover:scale-110 transition-transform">{order.channelIcon}</span>
+                        <span className="text-sm font-medium">{order.channel}</span>
                       </div>
                     </TableCell>
-                    <TableCell>{order.customer}</TableCell>
-                    <TableCell className="font-medium">{order.value}</TableCell>
+                    <TableCell className="hover:text-foreground transition-colors">{order.customer}</TableCell>
+                    <TableCell className="font-medium text-success">{order.value}</TableCell>
                     <TableCell>
                       <Badge 
                         variant="secondary" 
-                        className={`${order.statusColor} text-white`}
+                        className={`${order.statusColor} text-white hover:opacity-90 transition-opacity`}
                       >
                         {order.status}
                       </Badge>

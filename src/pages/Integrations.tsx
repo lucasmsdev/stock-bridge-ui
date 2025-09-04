@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Plus, Settings, Unlink, ExternalLink, CheckCircle2 } from "lucide-react";
+import { Plus, Settings, Unlink, ExternalLink, CheckCircle2, Plug } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -134,11 +134,14 @@ export default function Integrations() {
         {connectedIntegrations.length > 0 ? (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
             {connectedIntegrations.map((integration) => (
-              <Card key={integration.id} className="shadow-soft hover:shadow-medium transition-shadow">
+              <Card 
+                key={integration.id} 
+                className="shadow-soft hover:shadow-medium transition-all duration-200 hover:scale-[1.02] hover:-translate-y-1"
+              >
                 <CardHeader className="pb-3">
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-3">
-                      <div className="text-2xl">{integration.logo}</div>
+                      <div className="text-2xl hover:scale-110 transition-transform">{integration.logo}</div>
                       <div>
                         <CardTitle className="text-lg">{integration.platform}</CardTitle>
                         <CardDescription>{integration.storeName}</CardDescription>
@@ -146,7 +149,7 @@ export default function Integrations() {
                     </div>
                     <Badge 
                       variant="secondary" 
-                      className={`${integration.statusColor} text-white`}
+                      className={`${integration.statusColor} text-white hover:opacity-90 transition-opacity`}
                     >
                       {integration.status === "Ativo" && (
                         <CheckCircle2 className="w-3 h-3 mr-1" />
@@ -212,8 +215,20 @@ export default function Integrations() {
           </div>
         ) : (
           <Card className="shadow-soft">
-            <CardContent className="pt-6 text-center">
-              <p className="text-muted-foreground">Nenhuma integração conectada ainda</p>
+            <CardContent className="pt-12 pb-12 text-center">
+              <div className="max-w-md mx-auto">
+                <Plug className="mx-auto h-16 w-16 text-muted-foreground mb-6" />
+                <h3 className="text-xl font-semibold text-foreground mb-2">
+                  Nenhuma integração conectada
+                </h3>
+                <p className="text-muted-foreground mb-6">
+                  Conecte seu primeiro canal de vendas para começar a sincronizar produtos e pedidos automaticamente.
+                </p>
+                <Button className="bg-gradient-primary hover:bg-primary-hover hover:shadow-primary transition-all duration-200">
+                  <Plus className="mr-2 h-4 w-4" />
+                  Conectar Primeiro Canal
+                </Button>
+              </div>
             </CardContent>
           </Card>
         )}
@@ -229,17 +244,21 @@ export default function Integrations() {
         </div>
         
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-          {availableIntegrations.map((platform) => (
-            <Card key={platform.id} className="shadow-soft hover:shadow-medium transition-all group">
+          {availableIntegrations.map((platform, index) => (
+            <Card 
+              key={platform.id} 
+              className="shadow-soft hover:shadow-medium transition-all duration-200 group hover:scale-[1.02] hover:-translate-y-1"
+              style={{ animationDelay: `${index * 0.1}s` }}
+            >
               <CardHeader className="pb-3">
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-3">
-                    <div className="text-2xl">{platform.logo}</div>
+                    <div className="text-2xl group-hover:scale-110 transition-transform">{platform.logo}</div>
                     <div>
                       <CardTitle className="text-lg flex items-center gap-2">
                         {platform.name}
                         {platform.popular && (
-                          <Badge variant="secondary" className="bg-primary text-primary-foreground">
+                          <Badge variant="secondary" className="bg-primary text-primary-foreground animate-glow">
                             Popular
                           </Badge>
                         )}
@@ -255,7 +274,7 @@ export default function Integrations() {
               <CardContent>
                 <Button 
                   onClick={() => handleConnect(platform.id)}
-                  className="w-full bg-gradient-primary hover:bg-primary-hover group-hover:shadow-primary"
+                  className="w-full bg-gradient-primary hover:bg-primary-hover group-hover:shadow-primary transition-all duration-200 hover:scale-[1.02]"
                 >
                   <Plus className="w-4 h-4 mr-2" />
                   Conectar {platform.name}
