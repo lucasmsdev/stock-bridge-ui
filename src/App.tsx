@@ -11,6 +11,7 @@ import Dashboard from "./pages/Dashboard";
 import Products from "./pages/Products";
 import Orders from "./pages/Orders";
 import Integrations from "./pages/Integrations";
+import Help from "./pages/Help";
 import MercadoLivreCallback from "./pages/callback/MercadoLivreCallback";
 
 const queryClient = new QueryClient();
@@ -35,6 +36,7 @@ const App = () => (
               <Route path="products" element={<Products />} />
               <Route path="orders" element={<Orders />} />
               <Route path="integrations" element={<Integrations />} />
+              <Route path="help" element={<Help />} />
             </Route>
 
             {/* Catch all route - redirect to dashboard */}

@@ -69,39 +69,7 @@ const availableIntegrations = [
 ];
 
 const connectedIntegrations = [
-  {
-    id: "shopify-001",
-    platform: "Shopify",
-    storeName: "Minha Loja de Camisetas",
-    logo: "🛍️",
-    status: "Ativo",
-    statusColor: "bg-success",
-    lastSync: "2024-01-15 14:30",
-    products: 156,
-    orders: 1234
-  },
-  {
-    id: "mercadolivre-001", 
-    platform: "Mercado Livre",
-    storeName: "Loja Premium ML",
-    logo: "🛒",
-    status: "Ativo", 
-    statusColor: "bg-success",
-    lastSync: "2024-01-15 14:25",
-    products: 98,
-    orders: 567
-  },
-  {
-    id: "amazon-001",
-    platform: "Amazon",
-    storeName: "Amazon Seller Account",
-    logo: "📦", 
-    status: "Erro de Sincronização",
-    statusColor: "bg-destructive",
-    lastSync: "2024-01-14 09:15",
-    products: 45,
-    orders: 89
-  }
+  // As integrações conectadas serão carregadas dinamicamente do Supabase
 ];
 
 export default function Integrations() {
@@ -110,7 +78,7 @@ export default function Integrations() {
   const handleConnect = (platformId: string) => {
     if (platformId === 'mercadolivre') {
       // Replace with your actual Mercado Livre App ID
-      const appId = 'YOUR_MERCADOLIVRE_APP_ID'; // TODO: Replace with actual App ID
+      const appId = '5615590729373432';
       const redirectUri = `${window.location.origin}/callback/mercadolivre`;
       const authUrl = `https://auth.mercadolibre.com.br/authorization?response_type=code&client_id=${appId}&redirect_uri=${encodeURIComponent(redirectUri)}`;
       
@@ -309,7 +277,7 @@ export default function Integrations() {
             ou consulte nossa documentação para mais informações.
           </p>
           <div className="flex gap-2">
-            <Button variant="outline">
+            <Button variant="outline" onClick={() => window.location.href = '/help'}>
               Ver Documentação
             </Button>
             <Button variant="outline">

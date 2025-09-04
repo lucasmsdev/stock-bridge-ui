@@ -4,6 +4,7 @@ import {
   Package, 
   ShoppingCart, 
   Plug, 
+  HelpCircle,
   LogOut
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -19,6 +20,7 @@ const navItems = [
   { title: "Produtos", href: "/products", icon: Package },
   { title: "Pedidos", href: "/orders", icon: ShoppingCart },
   { title: "Integrações", href: "/integrations", icon: Plug },
+  { title: "Ajuda", href: "/help", icon: HelpCircle },
 ];
 
 export const AppSidebar = ({ isCollapsed }: AppSidebarProps) => {
