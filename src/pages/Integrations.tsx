@@ -80,7 +80,7 @@ export default function Integrations() {
       // Replace with your actual Mercado Livre App ID
       const appId = '5615590729373432';
       const redirectUri = `${window.location.origin}/callback/mercadolivre`;
-      const authUrl = `https://auth.mercadolibre.com.br/authorization?response_type=code&client_id=${appId}&redirect_uri=${encodeURIComponent(redirectUri)}`;
+      const authUrl = `https://auth.mercadolibre.com/authorization?response_type=code&client_id=${appId}&redirect_uri=${encodeURIComponent(redirectUri)}`;
       
       // Redirect to Mercado Livre authorization page
       window.location.href = authUrl;
