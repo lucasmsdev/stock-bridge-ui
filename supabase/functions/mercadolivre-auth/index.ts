@@ -119,6 +119,19 @@ serve(async (req) => {
     }
 
     const tokenData = await tokenResponse.json();
+    
+    // Validate that we actually received valid tokens
+    if (!tokenData.access_token || tokenData.access_token.trim() === '') {
+      console.error('No access token received from Mercado Livre:', tokenData);
+      return new Response(
+        JSON.stringify({ error: 'Failed to obtain valid access token from Mercado Livre' }), 
+        { 
+          status: 400, 
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
+        }
+      );
+    }
+    
     console.log('Successfully obtained tokens from Mercado Livre');
 
     // Save or update integration in database
@@ -201,6 +214,7 @@ serve(async (req) => {
 
   } catch (error) {
     console.error('Unexpected error in mercadolivre-auth function:', error);
+    console.error('Error details:', error.message);
     return new Response(
       JSON.stringify({ error: 'Internal server error' }), 
       { 

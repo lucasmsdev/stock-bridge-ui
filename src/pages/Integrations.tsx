@@ -113,7 +113,12 @@ export default function Integrations() {
         return;
       }
 
-      setConnectedIntegrations(integrations || []);
+      // Only show integrations that have valid access tokens
+      const validIntegrations = (integrations || []).filter(
+        integration => integration.access_token && integration.access_token.trim() !== ''
+      );
+      
+      setConnectedIntegrations(validIntegrations);
     } catch (error) {
       console.error('Unexpected error loading integrations:', error);
     } finally {
