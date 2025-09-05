@@ -1,5 +1,5 @@
-import { useState } from "react";
-import { Plus, Settings, Unlink, ExternalLink, CheckCircle2, Plug } from "lucide-react";
+import { useState, useEffect } from "react";
+import { Plus, Settings, Unlink, ExternalLink, CheckCircle2, Plug, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -15,6 +15,8 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
+import { supabase } from "@/integrations/supabase/client";
+import { useToast } from "@/hooks/use-toast";
 
 // Mock data
 const availableIntegrations = [
@@ -68,16 +70,59 @@ const availableIntegrations = [
   }
 ];
 
-const connectedIntegrations = [
-  // As integrações conectadas serão carregadas dinamicamente do Supabase
-];
+const platformLogos = {
+  mercadolivre: "🛒",
+  shopify: "🛍️", 
+  amazon: "📦",
+  magento: "🏪",
+  woocommerce: "🛒",
+  vtex: "🏬"
+};
 
 export default function Integrations() {
   const [disconnectingId, setDisconnectingId] = useState<string | null>(null);
+  const [connectedIntegrations, setConnectedIntegrations] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const { toast } = useToast();
+
+  useEffect(() => {
+    loadConnectedIntegrations();
+  }, []);
+
+  const loadConnectedIntegrations = async () => {
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      
+      if (!user) {
+        setLoading(false);
+        return;
+      }
+
+      const { data: integrations, error } = await supabase
+        .from('integrations')
+        .select('*')
+        .eq('user_id', user.id);
+
+      if (error) {
+        console.error('Error loading integrations:', error);
+        toast({
+          title: "Erro ao carregar integrações",
+          description: "Não foi possível carregar suas integrações conectadas.",
+          variant: "destructive",
+        });
+        return;
+      }
+
+      setConnectedIntegrations(integrations || []);
+    } catch (error) {
+      console.error('Unexpected error loading integrations:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const handleConnect = (platformId: string) => {
     if (platformId === 'mercadolivre') {
-      // Replace with your actual Mercado Livre App ID
       const appId = '5615590729373432';
       const redirectUri = `${window.location.origin}/callback/mercadolivre`;
       const authUrl = `https://auth.mercadolibre.com/authorization?response_type=code&client_id=${appId}&redirect_uri=${encodeURIComponent(redirectUri)}`;
@@ -86,14 +131,49 @@ export default function Integrations() {
       window.location.href = authUrl;
     } else {
       // Mock connection logic for other platforms
-      console.log(`Connecting to ${platformId}`);
+      toast({
+        title: "Em desenvolvimento",
+        description: `A integração com ${platformId} estará disponível em breve.`,
+      });
     }
   };
 
-  const handleDisconnect = (integrationId: string) => {
-    // Mock disconnection logic
-    console.log(`Disconnecting ${integrationId}`);
-    setDisconnectingId(null);
+  const handleDisconnect = async (integrationId: string) => {
+    try {
+      setDisconnectingId(integrationId);
+      
+      const { error } = await supabase
+        .from('integrations')
+        .delete()
+        .eq('id', integrationId);
+
+      if (error) {
+        console.error('Error disconnecting integration:', error);
+        toast({
+          title: "Erro ao desconectar",
+          description: "Não foi possível desconectar a integração. Tente novamente.",
+          variant: "destructive",
+        });
+        return;
+      }
+
+      toast({
+        title: "Integração desconectada",
+        description: "A integração foi removida com sucesso.",
+      });
+
+      // Reload integrations
+      await loadConnectedIntegrations();
+    } catch (error) {
+      console.error('Unexpected error disconnecting integration:', error);
+      toast({
+        title: "Erro inesperado",
+        description: "Ocorreu um erro ao desconectar a integração.",
+        variant: "destructive",
+      });
+    } finally {
+      setDisconnectingId(null);
+    }
   };
 
   return (
@@ -109,7 +189,11 @@ export default function Integrations() {
       {/* Connected Integrations */}
       <div className="space-y-4">
         <h2 className="text-xl font-semibold text-foreground">Canais Conectados</h2>
-        {connectedIntegrations.length > 0 ? (
+        {loading ? (
+          <div className="flex justify-center py-8">
+            <Loader2 className="h-8 w-8 text-primary animate-spin" />
+          </div>
+        ) : connectedIntegrations.length > 0 ? (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
             {connectedIntegrations.map((integration) => (
               <Card 
@@ -119,38 +203,29 @@ export default function Integrations() {
                 <CardHeader className="pb-3">
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-3">
-                      <div className="text-2xl hover:scale-110 transition-transform">{integration.logo}</div>
+                      <div className="text-2xl hover:scale-110 transition-transform">
+                        {platformLogos[integration.platform] || "🔌"}
+                      </div>
                       <div>
-                        <CardTitle className="text-lg">{integration.platform}</CardTitle>
-                        <CardDescription>{integration.storeName}</CardDescription>
+                        <CardTitle className="text-lg capitalize">{integration.platform}</CardTitle>
+                        <CardDescription>
+                          Conectado em {new Date(integration.created_at).toLocaleDateString('pt-BR')}
+                        </CardDescription>
                       </div>
                     </div>
                     <Badge 
                       variant="secondary" 
-                      className={`${integration.statusColor} text-white hover:opacity-90 transition-opacity`}
+                      className="bg-green-500 text-white hover:opacity-90 transition-opacity"
                     >
-                      {integration.status === "Ativo" && (
-                        <CheckCircle2 className="w-3 h-3 mr-1" />
-                      )}
-                      {integration.status}
+                      <CheckCircle2 className="w-3 h-3 mr-1" />
+                      Ativo
                     </Badge>
                   </div>
                 </CardHeader>
                 
                 <CardContent className="space-y-4">
-                  <div className="grid grid-cols-2 gap-4 text-sm">
-                    <div>
-                      <div className="text-muted-foreground">Produtos</div>
-                      <div className="font-medium">{integration.products}</div>
-                    </div>
-                    <div>
-                      <div className="text-muted-foreground">Pedidos</div>
-                      <div className="font-medium">{integration.orders}</div>
-                    </div>
-                  </div>
-                  
                   <div className="text-xs text-muted-foreground">
-                    Última sincronização: {integration.lastSync}
+                    Última atualização: {new Date(integration.updated_at).toLocaleDateString('pt-BR')}
                   </div>
                   
                   <Separator />
@@ -163,15 +238,24 @@ export default function Integrations() {
                     
                     <AlertDialog>
                       <AlertDialogTrigger asChild>
-                        <Button variant="outline" size="sm" className="text-destructive hover:text-destructive">
-                          <Unlink className="w-4 h-4" />
+                        <Button 
+                          variant="outline" 
+                          size="sm" 
+                          className="text-destructive hover:text-destructive"
+                          disabled={disconnectingId === integration.id}
+                        >
+                          {disconnectingId === integration.id ? (
+                            <Loader2 className="w-4 h-4 animate-spin" />
+                          ) : (
+                            <Unlink className="w-4 h-4" />
+                          )}
                         </Button>
                       </AlertDialogTrigger>
                       <AlertDialogContent>
                         <AlertDialogHeader>
                           <AlertDialogTitle>Desconectar Integração</AlertDialogTitle>
                           <AlertDialogDescription>
-                            Tem certeza que deseja desconectar {integration.platform} - {integration.storeName}? 
+                            Tem certeza que deseja desconectar a integração com {integration.platform}? 
                             Esta ação interromperá a sincronização automática de produtos e pedidos.
                           </AlertDialogDescription>
                         </AlertDialogHeader>
