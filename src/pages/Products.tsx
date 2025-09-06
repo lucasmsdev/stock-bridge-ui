@@ -1,5 +1,5 @@
-import { useState } from "react";
-import { Plus, Search, MoreHorizontal, Edit, ExternalLink, Package } from "lucide-react";
+import { useState, useEffect } from "react";
+import { Plus, Search, MoreHorizontal, Edit, ExternalLink, Package, Download, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -19,67 +19,105 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "@/hooks/useAuth";
+import { useToast } from "@/hooks/use-toast";
 
-// Mock data
-const products = [
-  {
-    id: 1,
-    name: "Camiseta Básica Preta",
-    image: "https://images.unsplash.com/photo-1521572163474-6864f9cf17ab?w=60&h=60&fit=crop&crop=center",
-    sku: "TSHIRT-BLK-G",
-    stock: 58,
-    price: "R$ 39,90",
-    channels: ["🛍️", "🛒", "📦"]
-  },
-  {
-    id: 2,
-    name: "Calça Jeans Masculina",
-    image: "https://images.unsplash.com/photo-1542272454315-7ad85ba6c8f4?w=60&h=60&fit=crop&crop=center",
-    sku: "JEANS-M-42",
-    stock: 23,
-    price: "R$ 89,90",
-    channels: ["🛍️", "🛒"]
-  },
-  {
-    id: 3,
-    name: "Tênis Esportivo",
-    image: "https://images.unsplash.com/photo-1549298916-b41d501d3772?w=60&h=60&fit=crop&crop=center",
-    sku: "SHOES-SP-42",
-    stock: 15,
-    price: "R$ 159,90",
-    channels: ["🛍️", "📦"]
-  },
-  {
-    id: 4,
-    name: "Vestido Floral",
-    image: "https://images.unsplash.com/photo-1515372039744-b8f02a3ae446?w=60&h=60&fit=crop&crop=center",
-    sku: "DRESS-FL-M",
-    stock: 0,
-    price: "R$ 79,90",
-    channels: ["🛒"]
-  },
-  {
-    id: 5,
-    name: "Mochila Executiva",
-    image: "https://images.unsplash.com/photo-1553062407-98eeb64c6a62?w=60&h=60&fit=crop&crop=center",
-    sku: "BAG-EXE-BK",
-    stock: 34,
-    price: "R$ 129,90",
-    channels: ["🛍️", "🛒", "📦"]
-  }
-];
+interface Product {
+  id: string;
+  name: string;
+  sku: string;
+  stock: number;
+  user_id: string;
+  created_at: string;
+  updated_at: string;
+}
 
 export default function Products() {
+  const { user } = useAuth();
+  const { toast } = useToast();
   const [searchTerm, setSearchTerm] = useState("");
-  const [selectedProducts, setSelectedProducts] = useState<number[]>([]);
-  const [showEmptyState, setShowEmptyState] = useState(false);
+  const [selectedProducts, setSelectedProducts] = useState<string[]>([]);
+  const [products, setProducts] = useState<Product[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [isImporting, setIsImporting] = useState(false);
+
+  // Load products from Supabase
+  useEffect(() => {
+    if (user) {
+      loadProducts();
+    }
+  }, [user]);
+
+  const loadProducts = async () => {
+    try {
+      setIsLoading(true);
+      const { data, error } = await supabase
+        .from('products')
+        .select('*')
+        .eq('user_id', user?.id)
+        .order('created_at', { ascending: false });
+
+      if (error) {
+        console.error('Error loading products:', error);
+        toast({
+          title: "Erro ao carregar produtos",
+          description: "Não foi possível carregar seus produtos.",
+          variant: "destructive",
+        });
+        return;
+      }
+
+      setProducts(data || []);
+    } catch (error) {
+      console.error('Unexpected error loading products:', error);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const importProducts = async () => {
+    try {
+      setIsImporting(true);
+      const { data, error } = await supabase.functions.invoke('import-products', {
+        body: { platform: 'mercadolivre' }
+      });
+
+      if (error) {
+        console.error('Error importing products:', error);
+        toast({
+          title: "Erro na importação",
+          description: "Não foi possível importar os produtos do Mercado Livre.",
+          variant: "destructive",
+        });
+        return;
+      }
+
+      toast({
+        title: "Produtos importados!",
+        description: `${data.count} produtos foram importados com sucesso.`,
+      });
+
+      // Reload products after import
+      await loadProducts();
+    } catch (error) {
+      console.error('Unexpected error importing products:', error);
+      toast({
+        title: "Erro na importação",
+        description: "Ocorreu um erro inesperado ao importar os produtos.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsImporting(false);
+    }
+  };
 
   const filteredProducts = products.filter(product =>
     product.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
     product.sku.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
-  const toggleProductSelection = (productId: number) => {
+  const toggleProductSelection = (productId: string) => {
     setSelectedProducts(prev =>
       prev.includes(productId)
         ? prev.filter(id => id !== productId)
@@ -105,12 +143,20 @@ export default function Products() {
             Nenhum produto encontrado
           </h3>
           <p className="text-muted-foreground mb-6">
-            Você ainda não tem produtos em seu catálogo. Que tal importar do seu primeiro canal?
+            Você ainda não tem produtos em seu catálogo. Comece importando do seu primeiro canal conectado!
           </p>
           <div className="flex flex-col sm:flex-row gap-3 justify-center">
-            <Button className="bg-gradient-primary hover:bg-primary-hover">
-              <Plus className="mr-2 h-4 w-4" />
-              Importar Produtos
+            <Button 
+              className="bg-gradient-primary hover:bg-primary-hover"
+              onClick={importProducts}
+              disabled={isImporting}
+            >
+              {isImporting ? (
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+              ) : (
+                <Download className="mr-2 h-4 w-4" />
+              )}
+              {isImporting ? "Importando..." : "Importar do Mercado Livre"}
             </Button>
             <Button variant="outline">
               Ver Integrações
@@ -131,9 +177,17 @@ export default function Products() {
             Gerencie seu catálogo centralizado de produtos
           </p>
         </div>
-        <Button className="bg-gradient-primary hover:bg-primary-hover hover:shadow-primary transition-all duration-200">
-          <Plus className="mr-2 h-4 w-4" />
-          Importar Produtos
+        <Button 
+          className="bg-gradient-primary hover:bg-primary-hover hover:shadow-primary transition-all duration-200"
+          onClick={importProducts}
+          disabled={isImporting}
+        >
+          {isImporting ? (
+            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+          ) : (
+            <Download className="mr-2 h-4 w-4" />
+          )}
+          {isImporting ? "Importando..." : "Importar do Mercado Livre"}
         </Button>
       </div>
 
@@ -188,7 +242,14 @@ export default function Products() {
       </Card>
 
       {/* Products Table or Empty State */}
-      {filteredProducts.length === 0 && searchTerm === "" ? (
+      {isLoading ? (
+        <Card className="shadow-soft">
+          <CardContent className="pt-12 pb-12 text-center">
+            <Loader2 className="mx-auto h-8 w-8 animate-spin text-muted-foreground mb-4" />
+            <p className="text-muted-foreground">Carregando produtos...</p>
+          </CardContent>
+        </Card>
+      ) : products.length === 0 ? (
         <EmptyProductsState />
       ) : (
         <Card className="shadow-soft">
@@ -235,11 +296,9 @@ export default function Products() {
                       </TableCell>
                       <TableCell>
                         <div className="flex items-center gap-3">
-                          <img
-                            src={product.image}
-                            alt={product.name}
-                            className="w-10 h-10 rounded-lg object-cover hover:scale-105 transition-transform"
-                          />
+                          <div className="w-10 h-10 rounded-lg bg-muted flex items-center justify-center">
+                            <Package className="h-5 w-5 text-muted-foreground" />
+                          </div>
                           <div>
                             <div className="font-medium">{product.name}</div>
                           </div>
@@ -259,16 +318,10 @@ export default function Products() {
                         </Badge>
                       </TableCell>
                       <TableCell className="font-medium">
-                        {product.price}
+                        -
                       </TableCell>
                       <TableCell>
-                        <div className="flex gap-1">
-                          {product.channels.map((channel, idx) => (
-                            <span key={idx} className="text-lg hover:scale-110 transition-transform">
-                              {channel}
-                            </span>
-                          ))}
-                        </div>
+                        <span className="text-lg">🛍️</span>
                       </TableCell>
                       <TableCell>
                         <DropdownMenu>
