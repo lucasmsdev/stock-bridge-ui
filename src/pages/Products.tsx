@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { Plus, Search, MoreHorizontal, Edit, ExternalLink, Package, Download, Loader2 } from "lucide-react";
+import { Plus, Search, MoreHorizontal, Edit, ExternalLink, Package, Download, Loader2, ChevronDown } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -19,6 +19,13 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { useToast } from "@/hooks/use-toast";
@@ -33,19 +40,36 @@ interface Product {
   updated_at: string;
 }
 
+interface Integration {
+  id: string;
+  platform: string;
+  access_token: string;
+  user_id: string;
+}
+
+const platformNames: Record<string, string> = {
+  mercadolivre: "Mercado Livre",
+  shopify: "Shopify",
+  amazon: "Amazon",
+  aliexpress: "AliExpress",
+};
+
 export default function Products() {
   const { user } = useAuth();
   const { toast } = useToast();
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedProducts, setSelectedProducts] = useState<string[]>([]);
   const [products, setProducts] = useState<Product[]>([]);
+  const [integrations, setIntegrations] = useState<Integration[]>([]);
+  const [selectedChannel, setSelectedChannel] = useState<string>("all");
   const [isLoading, setIsLoading] = useState(true);
   const [isImporting, setIsImporting] = useState(false);
 
-  // Load products from Supabase
+  // Load products and integrations from Supabase
   useEffect(() => {
     if (user) {
       loadProducts();
+      loadIntegrations();
     }
   }, [user]);
 
@@ -76,18 +100,44 @@ export default function Products() {
     }
   };
 
-  const importProducts = async () => {
+  const loadIntegrations = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('integrations')
+        .select('id, platform, access_token, user_id')
+        .eq('user_id', user?.id)
+        .not('access_token', 'is', null);
+
+      if (error) {
+        console.error('Error loading integrations:', error);
+        return;
+      }
+
+      // Filter only integrations with valid access tokens
+      const activeIntegrations = (data || []).filter(
+        integration => integration.access_token && integration.access_token.trim() !== ''
+      );
+      
+      setIntegrations(activeIntegrations);
+    } catch (error) {
+      console.error('Unexpected error loading integrations:', error);
+    }
+  };
+
+  const importProducts = async (platform: string) => {
     try {
       setIsImporting(true);
+      const platformName = platformNames[platform] || platform;
+      
       const { data, error } = await supabase.functions.invoke('import-products', {
-        body: { platform: 'mercadolivre' }
+        body: { platform }
       });
 
       if (error) {
         console.error('Error importing products:', error);
         toast({
           title: "Erro na importação",
-          description: "Não foi possível importar os produtos do Mercado Livre.",
+          description: `Não foi possível importar os produtos do ${platformName}.`,
           variant: "destructive",
         });
         return;
@@ -95,7 +145,7 @@ export default function Products() {
 
       toast({
         title: "Produtos importados!",
-        description: `${data.count} produtos foram importados com sucesso.`,
+        description: `${data.count} produtos foram importados com sucesso do ${platformName}.`,
       });
 
       // Reload products after import
@@ -112,10 +162,14 @@ export default function Products() {
     }
   };
 
-  const filteredProducts = products.filter(product =>
-    product.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    product.sku.toLowerCase().includes(searchTerm.toLowerCase())
-  );
+  const filteredProducts = products.filter(product => {
+    const matchesSearch = product.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      product.sku.toLowerCase().includes(searchTerm.toLowerCase());
+    
+    // For now, we don't filter by channel since we need to add channel info to products table
+    // This will be implemented in the next step when the database is updated
+    return matchesSearch;
+  });
 
   const toggleProductSelection = (productId: string) => {
     setSelectedProducts(prev =>
@@ -146,21 +200,40 @@ export default function Products() {
             Você ainda não tem produtos em seu catálogo. Comece importando do seu primeiro canal conectado!
           </p>
           <div className="flex flex-col sm:flex-row gap-3 justify-center">
-            <Button 
-              className="bg-gradient-primary hover:bg-primary-hover"
-              onClick={importProducts}
-              disabled={isImporting}
-            >
-              {isImporting ? (
-                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-              ) : (
-                <Download className="mr-2 h-4 w-4" />
-              )}
-              {isImporting ? "Importando..." : "Importar do Mercado Livre"}
-            </Button>
-            <Button variant="outline">
-              Ver Integrações
-            </Button>
+            {integrations.length > 0 ? (
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button 
+                    className="bg-gradient-primary hover:bg-primary-hover"
+                    disabled={isImporting}
+                  >
+                    {isImporting ? (
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    ) : (
+                      <Download className="mr-2 h-4 w-4" />
+                    )}
+                    {isImporting ? "Importando..." : "Importar Produtos"}
+                    <ChevronDown className="ml-2 h-4 w-4" />
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end" className="bg-popover border border-border shadow-medium z-50">
+                  {integrations.map((integration) => (
+                    <DropdownMenuItem 
+                      key={integration.id}
+                      className="hover:bg-muted cursor-pointer"
+                      onClick={() => importProducts(integration.platform)}
+                    >
+                      <Download className="mr-2 h-4 w-4" />
+                      Do {platformNames[integration.platform] || integration.platform}
+                    </DropdownMenuItem>
+                  ))}
+                </DropdownMenuContent>
+              </DropdownMenu>
+            ) : (
+              <Button variant="outline">
+                Ver Integrações
+              </Button>
+            )}
           </div>
         </div>
       </CardContent>
@@ -177,18 +250,40 @@ export default function Products() {
             Gerencie seu catálogo centralizado de produtos
           </p>
         </div>
-        <Button 
-          className="bg-gradient-primary hover:bg-primary-hover hover:shadow-primary transition-all duration-200"
-          onClick={importProducts}
-          disabled={isImporting}
-        >
-          {isImporting ? (
-            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-          ) : (
-            <Download className="mr-2 h-4 w-4" />
-          )}
-          {isImporting ? "Importando..." : "Importar do Mercado Livre"}
-        </Button>
+        {integrations.length > 0 ? (
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button 
+                className="bg-gradient-primary hover:bg-primary-hover hover:shadow-primary transition-all duration-200"
+                disabled={isImporting}
+              >
+                {isImporting ? (
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                ) : (
+                  <Download className="mr-2 h-4 w-4" />
+                )}
+                {isImporting ? "Importando..." : "Importar Produtos"}
+                <ChevronDown className="ml-2 h-4 w-4" />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="bg-popover border border-border shadow-medium z-50">
+              {integrations.map((integration) => (
+                <DropdownMenuItem 
+                  key={integration.id}
+                  className="hover:bg-muted cursor-pointer"
+                  onClick={() => importProducts(integration.platform)}
+                >
+                  <Download className="mr-2 h-4 w-4" />
+                  Do {platformNames[integration.platform] || integration.platform}
+                </DropdownMenuItem>
+              ))}
+            </DropdownMenuContent>
+          </DropdownMenu>
+        ) : (
+          <Button variant="outline" disabled>
+            Nenhum canal conectado
+          </Button>
+        )}
       </div>
 
       {/* Bulk Actions Toolbar */}
@@ -224,7 +319,7 @@ export default function Products() {
       {/* Filters and Search */}
       <Card className="shadow-soft">
         <CardContent className="pt-6">
-          <div className="flex items-center gap-4">
+          <div className="flex items-center gap-4 flex-wrap">
             <div className="relative flex-1 max-w-md">
               <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground h-4 w-4" />
               <Input
@@ -234,6 +329,23 @@ export default function Products() {
                 onChange={(e) => setSearchTerm(e.target.value)}
               />
             </div>
+            
+            <div className="min-w-[180px]">
+              <Select value={selectedChannel} onValueChange={setSelectedChannel}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Filtrar por canal" />
+                </SelectTrigger>
+                <SelectContent className="bg-popover border border-border shadow-medium z-50">
+                  <SelectItem value="all">Todos os Canais</SelectItem>
+                  {integrations.map((integration) => (
+                    <SelectItem key={integration.platform} value={integration.platform}>
+                      {platformNames[integration.platform] || integration.platform}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            
             <div className="flex items-center gap-2 text-sm text-muted-foreground">
               <span>{filteredProducts.length} produtos encontrados</span>
             </div>
