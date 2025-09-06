@@ -74,8 +74,32 @@ serve(async (req) => {
     console.log('Found integration for platform:', platform);
 
     if (platform === 'mercadolivre') {
-      // Step 1: Get user items IDs
-      const itemsResponse = await fetch(`https://api.mercadolibre.com/users/me/items/search`, {
+      // Step 1: Get user info to obtain user ID
+      const userInfoResponse = await fetch(`https://api.mercadolibre.com/users/me`, {
+        method: 'GET',
+        headers: {
+          'Authorization': `Bearer ${integration.access_token}`,
+        },
+      });
+
+      if (!userInfoResponse.ok) {
+        const errorText = await userInfoResponse.text();
+        console.error('Error fetching user info:', errorText);
+        return new Response(
+          JSON.stringify({ error: 'Failed to fetch user info from Mercado Livre' }), 
+          { 
+            status: 500, 
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
+          }
+        );
+      }
+
+      const userInfo = await userInfoResponse.json();
+      const mlUserId = userInfo.id;
+      console.log('Mercado Livre User ID:', mlUserId);
+
+      // Step 2: Get user items IDs using the actual user ID
+      const itemsResponse = await fetch(`https://api.mercadolibre.com/users/${mlUserId}/items/search`, {
         method: 'GET',
         headers: {
           'Authorization': `Bearer ${integration.access_token}`,
@@ -110,7 +134,7 @@ serve(async (req) => {
 
       console.log(`Found ${itemIds.length} items to import`);
 
-      // Step 2: Get detailed information for all items
+      // Step 3: Get detailed information for all items
       const idsString = itemIds.join(',');
       const detailsResponse = await fetch(`https://api.mercadolibre.com/items?ids=${idsString}`, {
         method: 'GET',
@@ -134,7 +158,7 @@ serve(async (req) => {
       const detailsData = await detailsResponse.json();
       console.log(`Retrieved details for ${detailsData.length} items`);
 
-      // Step 3: Map and prepare products for insertion
+      // Step 4: Map and prepare products for insertion
       const productsToInsert = [];
 
       for (const itemResponse of detailsData) {
@@ -166,7 +190,7 @@ serve(async (req) => {
 
       console.log(`Prepared ${productsToInsert.length} products for insertion`);
 
-      // Step 4: Upsert products into database
+      // Step 5: Upsert products into database
       const { data: insertedProducts, error: insertError } = await supabaseClient
         .from('products')
         .upsert(productsToInsert, { 
