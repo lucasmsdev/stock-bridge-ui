@@ -9,6 +9,7 @@ import Login from "./pages/auth/Login";
 import Signup from "./pages/auth/Signup";
 import Dashboard from "./pages/Dashboard";
 import Products from "./pages/Products";
+import ProductDetails from "./pages/ProductDetails";
 import Orders from "./pages/Orders";
 import Integrations from "./pages/Integrations";
 import Help from "./pages/Help";
@@ -34,6 +35,7 @@ const App = () => (
               <Route index element={<Navigate to="/dashboard" replace />} />
               <Route path="dashboard" element={<Dashboard />} />
               <Route path="products" element={<Products />} />
+              <Route path="products/:id" element={<ProductDetails />} />
               <Route path="orders" element={<Orders />} />
               <Route path="integrations" element={<Integrations />} />
               <Route path="help" element={<Help />} />

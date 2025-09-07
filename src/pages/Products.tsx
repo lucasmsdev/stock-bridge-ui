@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { Link } from "react-router-dom";
 import { Plus, Search, MoreHorizontal, Edit, ExternalLink, Package, Download, Loader2, ChevronDown } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -412,7 +413,12 @@ export default function Products() {
                             <Package className="h-5 w-5 text-muted-foreground" />
                           </div>
                           <div>
-                            <div className="font-medium">{product.name}</div>
+                            <Link 
+                              to={`/products/${product.sku}`}
+                              className="font-medium text-primary hover:text-primary-hover hover:underline transition-colors"
+                            >
+                              {product.name}
+                            </Link>
                           </div>
                         </div>
                       </TableCell>

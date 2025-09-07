@@ -5,3 +5,6 @@ verify_jwt = true
 
 [functions.import-products]
 verify_jwt = true
+
+[functions.get-product-details]
+verify_jwt = true
