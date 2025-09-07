@@ -37,6 +37,14 @@ const availableIntegrations = [
     popular: true
   },
   {
+    id: "shopee",
+    name: "Shopee",
+    description: "Conecte-se ao maior marketplace de vendas online do Sudeste Asiático",
+    logo: "🛒",
+    color: "bg-orange-600",
+    popular: true
+  },
+  {
     id: "amazon",
     name: "Amazon",
     description: "Venda seus produtos na maior plataforma de e-commerce do mundo",
@@ -73,6 +81,7 @@ const availableIntegrations = [
 const platformLogos = {
   mercadolivre: "🛒",
   shopify: "🛍️", 
+  shopee: "🛒",
   amazon: "📦",
   magento: "🏪",
   woocommerce: "🛒",
