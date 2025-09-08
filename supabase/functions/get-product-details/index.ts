@@ -11,7 +11,7 @@ interface ChannelStock {
   channel: string;
   channelId: string;
   stock: number;
-  status: 'synchronized' | 'divergent' | 'not_published';
+  status: 'synchronized' | 'divergent' | 'not_published' | 'synced' | 'error' | 'not_found';
   images?: string[];
 }
 
@@ -161,91 +161,84 @@ serve(async (req) => {
 
 async function getMercadoLivreStock(accessToken: string, sku: string): Promise<ChannelStock> {
   try {
-    // First, get user info to get the seller ID
-    const userResponse = await fetch('https://api.mercadolibre.com/users/me', {
+    console.log(`Fetching Mercado Livre stock for SKU: ${sku}`);
+    
+    // Get user info first
+    const userResponse = await fetch(`https://api.mercadolibre.com/users/me`, {
       headers: {
-        'Authorization': `Bearer ${accessToken}`,
-      },
+        'Authorization': `Bearer ${accessToken}`
+      }
     });
 
     if (!userResponse.ok) {
-      throw new Error(`Mercado Livre user API error: ${userResponse.status}`);
+      console.error(`Failed to get user info from Mercado Livre: ${userResponse.status}`);
+      throw new Error('Failed to get user info from Mercado Livre');
     }
 
     const userData = await userResponse.json();
     const sellerId = userData.id;
+    console.log(`Mercado Livre seller ID: ${sellerId}`);
 
-    // Search for items by the seller
-    const searchResponse = await fetch(
-      `https://api.mercadolibre.com/users/${sellerId}/items/search?limit=50`,
-      {
-        headers: {
-          'Authorization': `Bearer ${accessToken}`,
-        },
-      }
-    );
-
+    // Search for items by this seller
+    const searchResponse = await fetch(`https://api.mercadolibre.com/sites/MLB/search?seller_id=${sellerId}&limit=50`);
+    
     if (!searchResponse.ok) {
-      throw new Error(`Mercado Livre search API error: ${searchResponse.status}`);
+      console.error(`Failed to search items from Mercado Livre: ${searchResponse.status}`);
+      throw new Error('Failed to search items from Mercado Livre');
     }
 
     const searchData = await searchResponse.json();
+    console.log(`Found ${searchData.results?.length || 0} items for seller`);
     
-    // Find item with matching SKU
-    for (const itemId of searchData.results || []) {
-      try {
-        const itemResponse = await fetch(`https://api.mercadolibre.com/items/${itemId}`, {
-          headers: {
-            'Authorization': `Bearer ${accessToken}`,
-          },
-        });
-
-        if (itemResponse.ok) {
-          const itemData = await itemResponse.json();
-          
-          // Check if this item matches our SKU
-          // Mercado Livre pode armazenar o SKU em diferentes campos
-          const matchesSKU = (
-            itemData.seller_custom_field === sku || // Campo personalizado do vendedor
-            itemId === sku || // ID do próprio item
-            (itemData.attributes && itemData.attributes.some((attr: any) => 
-              attr.id === 'SELLER_SKU' && attr.value_name === sku
-            )) // SKU nos atributos
-          );
-
-          if (matchesSKU) {
-            // Extract images from the item
-            const images = itemData.pictures ? itemData.pictures.map((pic: any) => pic.url || pic.secure_url).filter(Boolean) : [];
-            
-            return {
-              channel: 'mercadolivre',
-              channelId: itemId,
-              stock: itemData.available_quantity || 0,
-              status: 'synchronized', // Will be recalculated in main function
-              images: images
-            };
-          }
-        }
-      } catch (itemError) {
-        console.error(`Error fetching item ${itemId}:`, itemError);
-        continue;
+    // Find item with matching SKU in seller_custom_field
+    let targetItemId = null;
+    for (const item of searchData.results || []) {
+      console.log(`Checking item ${item.id} with custom field: ${item.seller_custom_field}`);
+      if (item.seller_custom_field === sku) {
+        targetItemId = item.id;
+        console.log(`Found matching item: ${targetItemId}`);
+        break;
       }
     }
 
-    // Item not found
+    if (!targetItemId) {
+      console.log(`No item found with SKU: ${sku}`);
+      return {
+        channel: 'mercadolivre',
+        channelId: 'N/A',
+        stock: 0,
+        status: 'not_published' as const,
+        images: []
+      };
+    }
+
+    // Get detailed item information
+    const itemResponse = await fetch(`https://api.mercadolibre.com/items/${targetItemId}`);
+    
+    if (!itemResponse.ok) {
+      console.error(`Failed to get item details from Mercado Livre: ${itemResponse.status}`);
+      throw new Error('Failed to get item details from Mercado Livre');
+    }
+
+    const itemData = await itemResponse.json();
+    console.log(`Item stock: ${itemData.available_quantity}`);
+    
     return {
       channel: 'mercadolivre',
-      channelId: '-',
-      stock: 0,
-      status: 'not_published'
+      channelId: targetItemId,
+      stock: itemData.available_quantity || 0,
+      status: 'synced' as const,
+      images: itemData.pictures?.slice(0, 3).map((pic: any) => pic.secure_url) || []
     };
+
   } catch (error) {
-    console.error('Error in getMercadoLivreStock:', error);
+    console.error('Error fetching Mercado Livre stock:', error);
     return {
       channel: 'mercadolivre',
-      channelId: '-',
+      channelId: 'Error',
       stock: 0,
-      status: 'not_published'
+      status: 'error' as const,
+      images: []
     };
   }
 }

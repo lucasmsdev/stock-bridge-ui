@@ -1,4 +1,4 @@
-import { TrendingUp, Package, ShoppingCart, Plug2, DollarSign } from "lucide-react";
+import { TrendingUp, Package, ShoppingCart, Plug2, DollarSign, Loader2 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { 
@@ -9,85 +9,148 @@ import {
   TableHeader, 
   TableRow 
 } from "@/components/ui/table";
+import { useEffect, useState } from "react";
+import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "@/hooks/useAuth";
+import { useToast } from "@/hooks/use-toast";
+import {
+  ChartContainer,
+  ChartTooltip,
+  ChartTooltipContent,
+  ChartConfig,
+} from "@/components/ui/chart";
+import { Bar, BarChart, XAxis, YAxis } from "recharts";
 
-// Mock data
-const metrics = [
-  {
-    title: "Vendas Totais (Hoje)",
-    value: "R$ 1.890,50",
-    icon: DollarSign,
-    trend: "+12%",
-    color: "text-success"
-  },
-  {
-    title: "Pedidos Recebidos (Hoje)",
-    value: "32",
-    icon: ShoppingCart,
-    trend: "+8%", 
-    color: "text-primary"
-  },
-  {
-    title: "Itens em Estoque",
-    value: "1.456",
-    icon: Package,
-    trend: "-2%",
-    color: "text-warning"
-  },
-  {
-    title: "Canais Ativos",
-    value: "3",
-    icon: Plug2,
-    trend: "0%",
-    color: "text-muted-foreground"
-  }
-];
+interface DashboardMetrics {
+  todayRevenue: number;
+  todayOrders: number;
+  totalProducts: number;
+  salesLast7Days: Array<{
+    date: string;
+    revenue: number;
+  }>;
+}
 
-const recentOrders = [
-  {
-    id: "#12345",
-    channel: "Shopify",
-    channelIcon: "🛍️",
-    customer: "Maria Silva",
-    value: "R$ 89,90",
-    status: "Processando",
-    statusColor: "bg-primary"
-  },
-  {
-    id: "#12344",
-    channel: "Mercado Livre",
-    channelIcon: "🛒",
-    customer: "João Santos", 
-    value: "R$ 156,70",
-    status: "Enviado",
-    statusColor: "bg-success"
-  },
-  {
-    id: "#12343",
-    channel: "Amazon",
-    channelIcon: "📦",
-    customer: "Ana Costa",
-    value: "R$ 234,50",
-    status: "Entregue",
-    statusColor: "bg-success"
-  },
-  {
-    id: "#12342",
-    channel: "Shopify",
-    channelIcon: "🛍️",
-    customer: "Carlos Lima",
-    value: "R$ 67,80",
-    status: "Cancelado",
-    statusColor: "bg-destructive"
-  }
-];
+interface MetricCard {
+  title: string;
+  value: string;
+  icon: any;
+  trend: string;
+  color: string;
+}
 
-const salesData = [
-  { channel: "Shopify", sales: 850, color: "bg-primary" },
-  { channel: "Mercado Livre", sales: 620, color: "bg-success" },
-  { channel: "Amazon", sales: 420, color: "bg-warning" }
-];
+const chartConfig = {
+  revenue: {
+    label: "Receita",
+    color: "hsl(var(--primary))",
+  },
+} satisfies ChartConfig;
+
+const formatCurrency = (value: number) => {
+  return new Intl.NumberFormat('pt-BR', {
+    style: 'currency',
+    currency: 'BRL'
+  }).format(value);
+};
+
+const formatDate = (dateStr: string) => {
+  const date = new Date(dateStr);
+  return date.toLocaleDateString('pt-BR', { month: 'short', day: 'numeric' });
+};
 
 export default function Dashboard() {
+  const [metrics, setMetrics] = useState<MetricCard[]>([]);
+  const [salesData, setSalesData] = useState<Array<{ date: string; revenue: number; }>>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const { user } = useAuth();
+  const { toast } = useToast();
+
+  const loadDashboardMetrics = async () => {
+    if (!user) return;
+
+    try {
+      setIsLoading(true);
+      console.log('Calling get-dashboard-metrics function...');
+
+      const { data, error } = await supabase.functions.invoke('get-dashboard-metrics');
+
+      if (error) {
+        console.error('Error calling dashboard metrics function:', error);
+        throw error;
+      }
+
+      const metricsData: DashboardMetrics = data;
+      console.log('Dashboard metrics received:', metricsData);
+
+      // Calculate metrics cards
+      const metricsCards: MetricCard[] = [
+        {
+          title: "Vendas Totais (Hoje)",
+          value: formatCurrency(metricsData.todayRevenue),
+          icon: DollarSign,
+          trend: "+0%", // We'd need previous day data to calculate this
+          color: "text-success"
+        },
+        {
+          title: "Pedidos Recebidos (Hoje)",
+          value: metricsData.todayOrders.toString(),
+          icon: ShoppingCart,
+          trend: "+0%", // We'd need previous day data to calculate this
+          color: "text-primary"
+        },
+        {
+          title: "Itens em Estoque",
+          value: metricsData.totalProducts.toString(),
+          icon: Package,
+          trend: "0%",
+          color: "text-warning"
+        },
+        {
+          title: "Canais Ativos",
+          value: "2", // Based on available integrations (ML + future Shopify)
+          icon: Plug2,
+          trend: "0%",
+          color: "text-muted-foreground"
+        }
+      ];
+
+      setMetrics(metricsCards);
+      setSalesData(metricsData.salesLast7Days);
+
+      toast({
+        title: "Dashboard atualizado",
+        description: "Métricas carregadas com sucesso!",
+      });
+
+    } catch (error) {
+      console.error('Error loading dashboard metrics:', error);
+      toast({
+        title: "Erro ao carregar métricas",
+        description: "Não foi possível carregar os dados do dashboard. Tente novamente.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    if (user) {
+      loadDashboardMetrics();
+    }
+  }, [user]);
+
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center min-h-[400px]">
+        <div className="flex items-center gap-2 text-muted-foreground">
+          <Loader2 className="h-5 w-5 animate-spin" />
+          Carregando métricas do dashboard...
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-6 animate-fade-in">
       {/* Page Header */}
@@ -131,35 +194,46 @@ export default function Dashboard() {
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
               <TrendingUp className="h-5 w-5 text-primary" />
-              Vendas por Canal (Últimos 7 dias)
+              Vendas (Últimos 7 dias)
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="space-y-4">
-              {salesData.map((item) => (
-                <div key={item.channel} className="flex items-center justify-between">
-                  <div className="flex items-center gap-3">
-                    <div className={`w-3 h-3 rounded-full ${item.color}`} />
-                    <span className="font-medium">{item.channel}</span>
-                  </div>
-                  <div className="flex items-center gap-4">
-                    <div className="w-32 bg-muted rounded-full h-2">
-                      <div 
-                        className={`h-2 rounded-full ${item.color}`}
-                        style={{ width: `${(item.sales / 850) * 100}%` }}
-                      />
-                    </div>
-                    <span className="text-sm font-medium min-w-[80px] text-right">
-                      R$ {item.sales.toLocaleString()}
-                    </span>
-                  </div>
-                </div>
-              ))}
+            <div className="h-[200px]">
+              <ChartContainer config={chartConfig}>
+                <BarChart
+                  data={salesData.map(item => ({
+                    ...item,
+                    displayDate: formatDate(item.date)
+                  }))}
+                >
+                  <XAxis 
+                    dataKey="displayDate" 
+                    tick={{ fontSize: 12 }}
+                    tickLine={false}
+                    axisLine={false}
+                  />
+                  <YAxis hide />
+                  <ChartTooltip 
+                    content={<ChartTooltipContent 
+                      labelFormatter={(label, payload) => {
+                        const originalDate = payload?.[0]?.payload?.date;
+                        return originalDate ? formatDate(originalDate) : label;
+                      }}
+                      formatter={(value) => [formatCurrency(Number(value)), "Receita"]}
+                    />} 
+                  />
+                  <Bar 
+                    dataKey="revenue" 
+                    fill="var(--color-revenue)" 
+                    radius={[2, 2, 0, 0]}
+                  />
+                </BarChart>
+              </ChartContainer>
             </div>
           </CardContent>
         </Card>
 
-        {/* Recent Orders */}
+        {/* Recent Orders Placeholder */}
         <Card className="shadow-soft">
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
@@ -168,47 +242,11 @@ export default function Dashboard() {
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Pedido</TableHead>
-                  <TableHead>Canal</TableHead>
-                  <TableHead>Cliente</TableHead>
-                  <TableHead>Valor</TableHead>
-                  <TableHead>Status</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {recentOrders.map((order) => (
-                  <TableRow 
-                    key={order.id} 
-                    className="hover:bg-muted/50 transition-colors cursor-pointer"
-                  >
-                    <TableCell className="font-medium">
-                      <code className="text-xs bg-muted px-2 py-1 rounded hover:bg-muted/80 transition-colors">
-                        {order.id}
-                      </code>
-                    </TableCell>
-                    <TableCell>
-                      <div className="flex items-center gap-2">
-                        <span className="text-lg hover:scale-110 transition-transform">{order.channelIcon}</span>
-                        <span className="text-sm font-medium">{order.channel}</span>
-                      </div>
-                    </TableCell>
-                    <TableCell className="hover:text-foreground transition-colors">{order.customer}</TableCell>
-                    <TableCell className="font-medium text-success">{order.value}</TableCell>
-                    <TableCell>
-                      <Badge 
-                        variant="secondary" 
-                        className={`${order.statusColor} text-white hover:opacity-90 transition-opacity`}
-                      >
-                        {order.status}
-                      </Badge>
-                    </TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
+            <div className="text-center py-8 text-muted-foreground">
+              <ShoppingCart className="h-12 w-12 mx-auto mb-4 opacity-50" />
+              <p>Nenhum pedido encontrado</p>
+              <p className="text-sm">Os pedidos aparecerão aqui quando você conectar seus canais de venda</p>
+            </div>
           </CardContent>
         </Card>
       </div>

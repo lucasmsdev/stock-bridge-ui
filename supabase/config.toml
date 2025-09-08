@@ -15,5 +15,8 @@ verify_jwt = true
 [functions.get-product-details]
 verify_jwt = true
 
+[functions.get-dashboard-metrics]
+verify_jwt = true
+
 [functions.webhook-listener]
 verify_jwt = false

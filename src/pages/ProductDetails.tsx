@@ -30,7 +30,7 @@ interface ChannelStock {
   channel: string;
   channelId: string;
   stock: number;
-  status: 'synchronized' | 'divergent' | 'not_published';
+  status: 'synchronized' | 'divergent' | 'not_published' | 'synced' | 'error' | 'not_found';
   images?: string[];
 }
 
@@ -54,6 +54,12 @@ const statusConfig = {
     color: "text-green-600",
     bgColor: "bg-green-100 dark:bg-green-900/30",
   },
+  synced: {
+    icon: CheckCircle,
+    label: "Sincronizado",
+    color: "text-green-600",
+    bgColor: "bg-green-100 dark:bg-green-900/30",
+  },
   divergent: {
     icon: AlertTriangle,
     label: "Divergente",
@@ -65,6 +71,18 @@ const statusConfig = {
     label: "Não Publicado",
     color: "text-gray-600",
     bgColor: "bg-gray-100 dark:bg-gray-900/30",
+  },
+  not_found: {
+    icon: XCircle,
+    label: "Não Encontrado",
+    color: "text-gray-600",
+    bgColor: "bg-gray-100 dark:bg-gray-900/30",
+  },
+  error: {
+    icon: XCircle,
+    label: "Erro",
+    color: "text-red-600",
+    bgColor: "bg-red-100 dark:bg-red-900/30",
   },
 };
 
@@ -82,41 +100,38 @@ export default function ProductDetails() {
   }, [user, id]);
 
   const loadProductDetails = async () => {
+    if (!user || !id) return;
+
     try {
       setIsLoading(true);
-      
-      // Call the edge function to get product details with channel stocks
+      console.log('Calling get-product-details function for product:', id);
+
       const { data, error } = await supabase.functions.invoke('get-product-details', {
         body: { sku: id }
       });
 
       if (error) {
-        console.error('Error loading product details:', error);
-        toast({
-          title: "Erro ao carregar detalhes",
-          description: "Não foi possível carregar os detalhes do produto.",
-          variant: "destructive",
-        });
-        return;
+        console.error('Error calling product details function:', error);
+        throw error;
       }
 
-      if (!data) {
-        toast({
-          title: "Produto não encontrado",
-          description: "Não foi possível encontrar este produto.",
-          variant: "destructive",
-        });
-        return;
-      }
-
+      console.log('Product details received:', data);
       setProductDetails(data);
-    } catch (error) {
-      console.error('Unexpected error loading product details:', error);
+
       toast({
-        title: "Erro",
-        description: "Ocorreu um erro inesperado ao carregar os detalhes do produto.",
+        title: "Detalhes carregados",
+        description: `Produto ${data.product.name} carregado com ${data.channelStocks.length} canais verificados`,
+      });
+
+    } catch (error) {
+      console.error('Error loading product details:', error);
+      toast({
+        title: "Erro ao carregar detalhes",
+        description: "Não foi possível carregar os detalhes do produto. Tente novamente.",
         variant: "destructive",
       });
+      // Set empty state to show product not found
+      setProductDetails(null);
     } finally {
       setIsLoading(false);
     }
