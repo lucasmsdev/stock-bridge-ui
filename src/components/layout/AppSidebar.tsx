@@ -5,7 +5,8 @@ import {
   ShoppingCart, 
   Plug, 
   HelpCircle,
-  LogOut
+  LogOut,
+  Calculator
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
@@ -19,6 +20,7 @@ const navItems = [
   { title: "Dashboard", href: "/dashboard", icon: LayoutDashboard },
   { title: "Produtos", href: "/products", icon: Package },
   { title: "Pedidos", href: "/orders", icon: ShoppingCart },
+  { title: "Financeiro", href: "/finance", icon: Calculator },
   { title: "Integrações", href: "/integrations", icon: Plug },
   { title: "Ajuda", href: "/help", icon: HelpCircle },
 ];

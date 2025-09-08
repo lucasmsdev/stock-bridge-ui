@@ -11,6 +11,7 @@ import Dashboard from "./pages/Dashboard";
 import Products from "./pages/Products";
 import ProductDetails from "./pages/ProductDetails";
 import Orders from "./pages/Orders";
+import Finance from "./pages/Finance";
 import Integrations from "./pages/Integrations";
 import Help from "./pages/Help";
 import MercadoLivreCallback from "./pages/callback/MercadoLivreCallback";
@@ -41,6 +42,7 @@ const App = () => (
               <Route path="products" element={<Products />} />
               <Route path="products/:id" element={<ProductDetails />} />
               <Route path="orders" element={<Orders />} />
+              <Route path="finance" element={<Finance />} />
               <Route path="integrations" element={<Integrations />} />
               <Route path="help" element={<Help />} />
             </Route>
