@@ -332,15 +332,7 @@ async function processShopifyWebhook(supabase: any, notification: any) {
   }), {
     headers: { ...corsHeaders, 'Content-Type': 'application/json' },
   });
-
-  } catch (error) {
-    console.error('Error processing webhook:', error);
-    return new Response(JSON.stringify({ error: 'Internal server error' }), {
-      status: 500,
-      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-    });
-  }
-});
+}
 
 async function fetchOrderDetails(resourceUrl: string): Promise<OrderData | null> {
   try {
