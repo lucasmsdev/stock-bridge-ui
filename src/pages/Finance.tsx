@@ -17,7 +17,7 @@ import { Calculator, TrendingUp, DollarSign, Loader2, Package } from "lucide-rea
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { useToast } from "@/hooks/use-toast";
-import { NavLink } from "react-router-dom";
+import { useNavigate } from "react-router-dom";
 
 interface Product {
   id: string;
@@ -55,6 +55,7 @@ export default function Finance() {
   const [isLoading, setIsLoading] = useState(true);
   const { user } = useAuth();
   const { toast } = useToast();
+  const navigate = useNavigate();
 
   // Calculator state
   const [calculatorData, setCalculatorData] = useState<CalculatorData>({
@@ -229,11 +230,9 @@ export default function Finance() {
                               <Button 
                                 variant="outline" 
                                 size="sm"
-                                asChild
+                                onClick={() => navigate(`/products/${product.id}`)}
                               >
-                                <NavLink to={`/products/${product.id}`}>
-                                  Editar
-                                </NavLink>
+                                Editar
                               </Button>
                             </TableCell>
                           </TableRow>
