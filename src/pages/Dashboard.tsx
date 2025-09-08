@@ -59,104 +59,90 @@ const formatDate = (dateStr: string) => {
 };
 
 export default function Dashboard() {
-  const [metrics, setMetrics] = useState<MetricCard[]>([]);
-  const [salesData, setSalesData] = useState<Array<{ date: string; revenue: number; }>>([]);
   const [isLoading, setIsLoading] = useState(true);
-  const [isEmpty, setIsEmpty] = useState(false);
-  const [hasError, setHasError] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [dashboardData, setDashboardData] = useState<DashboardMetrics | null>(null);
   const { user } = useAuth();
   const { toast } = useToast();
 
   const loadDashboardMetrics = async () => {
-    if (!user) return;
+    if (!user) {
+      setIsLoading(false);
+      return;
+    }
 
     try {
+      console.log('=== Starting dashboard metrics load ===');
       setIsLoading(true);
-      setHasError(false);
-      setIsEmpty(false);
+      setError(null);
+      setDashboardData(null);
 
-      const { data, error } = await supabase.functions.invoke('get-dashboard-metrics');
+      console.log('Calling get-dashboard-metrics function...');
+      const { data, error: functionError } = await supabase.functions.invoke('get-dashboard-metrics');
 
-      if (error) {
-        console.error('Error calling dashboard metrics function:', error);
-        throw error;
+      if (functionError) {
+        console.error('Function returned error:', functionError);
+        throw new Error(functionError.message || 'Falha na chamada da função');
       }
 
-      const metricsData: DashboardMetrics = data;
+      if (!data) {
+        console.error('Function returned no data');
+        throw new Error('Nenhum dado retornado pela função');
+      }
 
-      // Check if we have meaningful data
-      const hasData = metricsData && (
-        metricsData.todayRevenue > 0 || 
-        metricsData.todayOrders > 0 || 
-        metricsData.totalProducts > 0 ||
-        (metricsData.salesLast7Days && metricsData.salesLast7Days.length > 0)
+      // Check if the response contains an error
+      if (data.error) {
+        console.error('Function returned error in data:', data.error);
+        throw new Error(data.error);
+      }
+
+      console.log('Dashboard metrics received:', data);
+
+      // Check if we have meaningful data (not just zeros)
+      const hasData = data && (
+        data.todayRevenue > 0 || 
+        data.todayOrders > 0 || 
+        data.totalProducts > 0 ||
+        (data.salesLast7Days && data.salesLast7Days.some((day: { revenue: number }) => day.revenue > 0))
       );
 
-      if (!hasData) {
-        setIsEmpty(true);
-        setIsLoading(false);
-        return;
+      console.log('Has meaningful data:', hasData);
+
+      if (hasData) {
+        setDashboardData(data);
+        toast({
+          title: "Dashboard atualizado",
+          description: "Métricas carregadas com sucesso!",
+        });
+      } else {
+        // Even if no meaningful data, we still set the data so we can show empty state properly
+        setDashboardData(data);
+        console.log('No meaningful data found, showing empty state');
       }
 
-      // Calculate metrics cards
-      const metricsCards: MetricCard[] = [
-        {
-          title: "Vendas Totais (Hoje)",
-          value: formatCurrency(metricsData.todayRevenue),
-          icon: DollarSign,
-          trend: "+0%", // We'd need previous day data to calculate this
-          color: "text-success"
-        },
-        {
-          title: "Pedidos Recebidos (Hoje)",
-          value: metricsData.todayOrders.toString(),
-          icon: ShoppingCart,
-          trend: "+0%", // We'd need previous day data to calculate this
-          color: "text-primary"
-        },
-        {
-          title: "Itens em Estoque",
-          value: metricsData.totalProducts.toString(),
-          icon: Package,
-          trend: "0%",
-          color: "text-warning"
-        },
-        {
-          title: "Canais Ativos",
-          value: "2", // Based on available integrations (ML + future Shopify)
-          icon: Plug2,
-          trend: "0%",
-          color: "text-muted-foreground"
-        }
-      ];
-
-      setMetrics(metricsCards);
-      setSalesData(metricsData.salesLast7Days);
-
-      toast({
-        title: "Dashboard atualizado",
-        description: "Métricas carregadas com sucesso!",
-      });
-
     } catch (error) {
-      console.error('Error loading dashboard metrics:', error);
-      setHasError(true);
+      console.error('=== ERROR loading dashboard metrics ===');
+      console.error('Error details:', error);
+      
+      const errorMessage = error instanceof Error ? error.message : 'Erro desconhecido';
+      setError(`Não foi possível carregar os dados do dashboard: ${errorMessage}`);
+      
       toast({
-        title: "Erro ao carregar métricas",
-        description: "Não foi possível carregar os dados do dashboard. Tente novamente.",
+        title: "Erro ao carregar dashboard",
+        description: errorMessage,
         variant: "destructive",
       });
     } finally {
+      console.log('=== Dashboard metrics load completed ===');
       setIsLoading(false);
     }
   };
 
   useEffect(() => {
-    if (user) {
-      loadDashboardMetrics();
-    }
+    loadDashboardMetrics();
   }, [user]);
 
+  // Loading state
   if (isLoading) {
     return (
       <div className="flex items-center justify-center min-h-[400px]">
@@ -168,7 +154,43 @@ export default function Dashboard() {
     );
   }
 
-  if (isEmpty) {
+  // Error state
+  if (error) {
+    return (
+      <div className="space-y-6 animate-fade-in">
+        <div>
+          <h1 className="text-3xl font-bold text-foreground">Dashboard</h1>
+          <p className="text-muted-foreground">
+            Acompanhe suas vendas e performance em todos os canais
+          </p>
+        </div>
+        
+        <div className="flex flex-col items-center justify-center min-h-[400px] text-center">
+          <TrendingUp className="h-16 w-16 text-destructive/50 mb-4" />
+          <h3 className="text-xl font-semibold text-foreground mb-2">
+            Erro ao carregar o dashboard
+          </h3>
+          <p className="text-muted-foreground max-w-md mb-4">
+            {error}
+          </p>
+          <button 
+            onClick={() => loadDashboardMetrics()}
+            className="px-4 py-2 bg-primary text-primary-foreground rounded-md hover:bg-primary/90 transition-colors"
+          >
+            Tentar novamente
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  // Empty state (no meaningful data)
+  if (!dashboardData || (
+    dashboardData.todayRevenue === 0 && 
+    dashboardData.todayOrders === 0 && 
+    dashboardData.totalProducts === 0 &&
+    (!dashboardData.salesLast7Days || dashboardData.salesLast7Days.every(day => day.revenue === 0))
+  )) {
     return (
       <div className="space-y-6 animate-fade-in">
         <div>
@@ -191,34 +213,37 @@ export default function Dashboard() {
     );
   }
 
-  if (hasError) {
-    return (
-      <div className="space-y-6 animate-fade-in">
-        <div>
-          <h1 className="text-3xl font-bold text-foreground">Dashboard</h1>
-          <p className="text-muted-foreground">
-            Acompanhe suas vendas e performance em todos os canais
-          </p>
-        </div>
-        
-        <div className="flex flex-col items-center justify-center min-h-[400px] text-center">
-          <TrendingUp className="h-16 w-16 text-destructive/50 mb-4" />
-          <h3 className="text-xl font-semibold text-foreground mb-2">
-            Erro ao carregar o dashboard
-          </h3>
-          <p className="text-muted-foreground max-w-md mb-4">
-            Ocorreu um erro ao buscar os dados. Tente recarregar a página.
-          </p>
-          <button 
-            onClick={() => loadDashboardMetrics()}
-            className="px-4 py-2 bg-primary text-primary-foreground rounded-md hover:bg-primary/90 transition-colors"
-          >
-            Tentar novamente
-          </button>
-        </div>
-      </div>
-    );
-  }
+  // Success state - render dashboard with data
+  const metrics: MetricCard[] = [
+    {
+      title: "Vendas Totais (Hoje)",
+      value: formatCurrency(dashboardData.todayRevenue),
+      icon: DollarSign,
+      trend: "+0%",
+      color: "text-success"
+    },
+    {
+      title: "Pedidos Recebidos (Hoje)",
+      value: dashboardData.todayOrders.toString(),
+      icon: ShoppingCart,
+      trend: "+0%",
+      color: "text-primary"
+    },
+    {
+      title: "Itens em Estoque",
+      value: dashboardData.totalProducts.toString(),
+      icon: Package,
+      trend: "0%",
+      color: "text-warning"
+    },
+    {
+      title: "Canais Ativos",
+      value: "2",
+      icon: Plug2,
+      trend: "0%",
+      color: "text-muted-foreground"
+    }
+  ];
 
   return (
     <div className="space-y-6 animate-fade-in">
@@ -270,7 +295,7 @@ export default function Dashboard() {
             <div className="h-[200px]">
               <ChartContainer config={chartConfig}>
                 <BarChart
-                  data={salesData.map(item => ({
+                  data={dashboardData.salesLast7Days.map(item => ({
                     ...item,
                     displayDate: formatDate(item.date)
                   }))}
