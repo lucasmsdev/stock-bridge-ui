@@ -144,17 +144,10 @@ export default function Integrations() {
       // Redirect to Mercado Livre authorization page
       window.location.href = authUrl;
     } else if (platformId === 'shopify') {
-      // For Shopify, we need the shop domain from user
-      const shopDomain = prompt('Digite o domínio da sua loja Shopify (ex: minha-loja):');
-      if (shopDomain) {
-        // Get Shopify app credentials (you'll need to set these)
-        const shopifyApiKey = 'YOUR_SHOPIFY_API_KEY'; // Replace with actual key
-        const redirectUri = `${window.location.origin}/callback/shopify`;
-        const scopes = 'read_products,write_products,read_orders,read_inventory,write_inventory';
-        const authUrl = `https://${shopDomain}.myshopify.com/admin/oauth/authorize?client_id=${shopifyApiKey}&scope=${scopes}&redirect_uri=${encodeURIComponent(redirectUri)}&state=${Date.now()}`;
-        
-        window.location.href = authUrl;
-      }
+      toast({
+        title: "Configuração necessária",
+        description: "A integração com o Shopify requer configuração personalizada. Entre em contato com o suporte.",
+      });
     } else {
       // Mock connection logic for other platforms
       toast({
