@@ -7,9 +7,12 @@ import { useAuth } from "@/hooks/useAuth";
 import { useTheme } from "@/hooks/useTheme";
 
 export const AppLayout = () => {
+  console.log('AppLayout: Component mounting');
   const { user, isLoading } = useAuth();
   const { isDark, toggleTheme } = useTheme();
   const [sidebarOpen, setSidebarOpen] = useState(true);
+
+  console.log('AppLayout: user=', user, 'isLoading=', isLoading);
 
   if (isLoading) {
     return (

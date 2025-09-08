@@ -59,11 +59,14 @@ const formatDate = (dateStr: string) => {
 };
 
 export default function Dashboard() {
+  console.log('Dashboard: Component mounting');
   const [metrics, setMetrics] = useState<MetricCard[]>([]);
   const [salesData, setSalesData] = useState<Array<{ date: string; revenue: number; }>>([]);
   const [isLoading, setIsLoading] = useState(true);
   const { user } = useAuth();
   const { toast } = useToast();
+
+  console.log('Dashboard: user=', user, 'isLoading=', isLoading);
 
   const loadDashboardMetrics = async () => {
     if (!user) return;
