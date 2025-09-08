@@ -104,143 +104,43 @@ export default function ShopifySetup() {
         <div className="text-center space-y-4">
           <div className="flex items-center justify-center gap-2 mb-4">
             <ShoppingBag className="h-8 w-8 text-primary" />
-            <h1 className="text-3xl font-bold text-foreground">Configuração do Shopify</h1>
+            <h1 className="text-3xl font-bold text-foreground">Tutorial: Configuração do Shopify</h1>
           </div>
           <p className="text-muted-foreground">
-            Siga este guia passo a passo para configurar e conectar sua loja Shopify
+            Guia completo para configurar a integração com o Shopify (disponível em breve)
           </p>
-          <Badge variant="secondary" className="bg-blue-500 text-white">
-            Processo único - aproximadamente 10 minutos
+          <Badge variant="secondary" className="bg-orange-500 text-white">
+            Integração em desenvolvimento
           </Badge>
         </div>
 
-        {/* Connection Form */}
-        <Card className="shadow-lg border-2 border-primary/20">
+        {/* Info Card */}
+        <Card className="shadow-lg border-2 border-orange-200 bg-orange-50">
           <CardHeader>
-            <CardTitle className="flex items-center gap-2 text-primary">
-              <CheckCircle2 className="h-5 w-5" />
-              Conectar sua Loja Shopify
-            </CardTitle>
-            <CardDescription>
-              Após configurar sua aplicação Shopify, use este formulário para conectar
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="space-y-2">
-              <Label htmlFor="shop-domain">Domínio da Loja Shopify</Label>
-              <div className="flex gap-2">
-                <div className="flex-1 relative">
-                  <Input
-                    id="shop-domain"
-                    type="text"
-                    placeholder="minhaloja"
-                    value={shopDomain}
-                    onChange={(e) => setShopDomain(e.target.value)}
-                    className="pr-32"
-                    disabled={connecting}
-                  />
-                  <span className="absolute right-3 top-1/2 -translate-y-1/2 text-sm text-muted-foreground">
-                    .myshopify.com
-                  </span>
-                </div>
-              </div>
-              <p className="text-xs text-muted-foreground">
-                Exemplo: se sua loja é "minhaloja.myshopify.com", digite apenas "minhaloja"
-              </p>
-            </div>
-
-            <Button 
-              onClick={handleConnect}
-              className="w-full bg-gradient-primary hover:bg-primary-hover"
-              disabled={connecting || !shopDomain.trim()}
-            >
-              {connecting ? (
-                <>
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  Conectando...
-                </>
-              ) : (
-                <>
-                  <ShoppingBag className="mr-2 h-4 w-4" />
-                  Conectar com Shopify
-                </>
-              )}
-            </Button>
-
-            <div className="p-3 bg-red-50 border border-red-200 rounded-lg">
-              <div className="flex items-start gap-2">
-                <AlertCircle className="h-4 w-4 text-red-600 mt-0.5" />
-                <div className="text-sm text-red-800">
-                  <p className="font-medium">ERRO: Link de instalação inválido</p>
-                  <p>Se você está vendo o erro "O link de instalação do app é inválido", significa que:</p>
-                  <ul className="list-disc list-inside mt-1 space-y-1">
-                    <li>Você ainda não configurou sua aplicação Shopify corretamente</li>
-                    <li>As credenciais (Client ID/Secret) não foram inseridas no sistema</li>
-                    <li>As URLs de redirecionamento não estão configuradas</li>
-                  </ul>
-                  <p className="mt-2 font-medium">Siga TODOS os passos abaixo antes de tentar conectar novamente.</p>
-                </div>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-
-        {/* Troubleshooting Section */}
-        <Card className="shadow-lg border-2 border-red-200 bg-red-50">
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2 text-red-800">
+            <CardTitle className="flex items-center gap-2 text-orange-800">
               <AlertCircle className="h-5 w-5" />
-              ERRO: "redirect_uri is not whitelisted"
+              Integração em Desenvolvimento
             </CardTitle>
-            <CardDescription className="text-red-700">
-              Este erro significa que a URL de callback não está configurada na sua aplicação Shopify
+            <CardDescription className="text-orange-700">
+              A integração com Shopify está sendo finalizada e estará disponível em breve
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
-            <div className="space-y-3 text-sm">
-              <div>
-                <p className="font-bold text-red-800 text-base mb-2">SIGA ESTES PASSOS AGORA:</p>
-                <ol className="list-decimal list-inside space-y-3 text-red-700 ml-4">
-                  <li>
-                    <strong>Abra sua aplicação no Shopify Partners:</strong>
-                    <br />
-                    <a href="https://partners.shopify.com" target="_blank" rel="noopener noreferrer" className="underline text-blue-600">
-                      https://partners.shopify.com
-                    </a>
-                  </li>
-                  <li>
-                    <strong>Vá para sua aplicação → "App setup" → "URLs"</strong>
-                  </li>
-                  <li>
-                    <strong>No campo "App URL", cole:</strong>
-                    <div className="mt-1 p-2 bg-white border border-red-300 rounded font-mono text-xs">
-                      {currentDomain}
-                    </div>
-                  </li>
-                  <li>
-                    <strong>No campo "Allowed redirection URL(s)", cole EXATAMENTE:</strong>
-                    <div className="mt-1 p-2 bg-white border border-red-300 rounded font-mono text-xs">
-                      {currentDomain}/callback/shopify
-                    </div>
-                  </li>
-                  <li>
-                    <strong>Clique em "Save"</strong>
-                  </li>
-                  <li>
-                    <strong>Aguarde 5 minutos e tente conectar novamente</strong>
-                  </li>
-                </ol>
-              </div>
-              
-              <div className="p-4 bg-red-100 border-2 border-red-400 rounded">
-                <p className="font-bold text-red-800">⚠️ MUITO IMPORTANTE:</p>
-                <ul className="list-disc list-inside mt-2 space-y-1 text-red-700">
-                  <li>Cole as URLs EXATAMENTE como mostrado acima</li>
-                  <li>Não adicione espaços extras ou barras no final</li>
-                  <li>Certifique-se de salvar as alterações</li>
-                  <li>As credenciais também precisam estar configuradas no sistema</li>
-                </ul>
-              </div>
+            <div className="text-sm text-orange-700">
+              <p className="font-medium mb-2">Este tutorial mostra como preparar sua aplicação Shopify para quando a integração estiver pronta:</p>
+              <ul className="list-disc list-inside space-y-1">
+                <li>Configure sua aplicação Shopify seguindo os passos abaixo</li>
+                <li>Quando a integração for lançada, sua loja estará pronta para conectar</li>
+                <li>Você será notificado quando a funcionalidade estiver disponível</li>
+              </ul>
+            </div>
+            
+            <div className="flex justify-center">
+              <Button variant="outline" asChild>
+                <a href="/integrations">
+                  Voltar às Integrações
+                </a>
+              </Button>
             </div>
           </CardContent>
         </Card>

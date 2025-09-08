@@ -144,8 +144,11 @@ export default function Integrations() {
       // Redirect to Mercado Livre authorization page
       window.location.href = authUrl;
     } else if (platformId === 'shopify') {
-      // Redirect to Shopify setup page
-      window.location.href = '/shopify-setup';
+      // Show as coming soon
+      toast({
+        title: "Em desenvolvimento",
+        description: "A integração com Shopify estará disponível em breve.",
+      });
     } else {
       // Mock connection logic for other platforms
       toast({
