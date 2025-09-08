@@ -59,21 +59,21 @@ const formatDate = (dateStr: string) => {
 };
 
 export default function Dashboard() {
-  console.log('Dashboard: Component mounting');
   const [metrics, setMetrics] = useState<MetricCard[]>([]);
   const [salesData, setSalesData] = useState<Array<{ date: string; revenue: number; }>>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [isEmpty, setIsEmpty] = useState(false);
+  const [hasError, setHasError] = useState(false);
   const { user } = useAuth();
   const { toast } = useToast();
-
-  console.log('Dashboard: user=', user, 'isLoading=', isLoading);
 
   const loadDashboardMetrics = async () => {
     if (!user) return;
 
     try {
       setIsLoading(true);
-      console.log('Calling get-dashboard-metrics function...');
+      setHasError(false);
+      setIsEmpty(false);
 
       const { data, error } = await supabase.functions.invoke('get-dashboard-metrics');
 
@@ -83,7 +83,20 @@ export default function Dashboard() {
       }
 
       const metricsData: DashboardMetrics = data;
-      console.log('Dashboard metrics received:', metricsData);
+
+      // Check if we have meaningful data
+      const hasData = metricsData && (
+        metricsData.todayRevenue > 0 || 
+        metricsData.todayOrders > 0 || 
+        metricsData.totalProducts > 0 ||
+        (metricsData.salesLast7Days && metricsData.salesLast7Days.length > 0)
+      );
+
+      if (!hasData) {
+        setIsEmpty(true);
+        setIsLoading(false);
+        return;
+      }
 
       // Calculate metrics cards
       const metricsCards: MetricCard[] = [
@@ -127,6 +140,7 @@ export default function Dashboard() {
 
     } catch (error) {
       console.error('Error loading dashboard metrics:', error);
+      setHasError(true);
       toast({
         title: "Erro ao carregar métricas",
         description: "Não foi possível carregar os dados do dashboard. Tente novamente.",
@@ -149,6 +163,58 @@ export default function Dashboard() {
         <div className="flex items-center gap-2 text-muted-foreground">
           <Loader2 className="h-5 w-5 animate-spin" />
           Carregando métricas do dashboard...
+        </div>
+      </div>
+    );
+  }
+
+  if (isEmpty) {
+    return (
+      <div className="space-y-6 animate-fade-in">
+        <div>
+          <h1 className="text-3xl font-bold text-foreground">Dashboard</h1>
+          <p className="text-muted-foreground">
+            Acompanhe suas vendas e performance em todos os canais
+          </p>
+        </div>
+        
+        <div className="flex flex-col items-center justify-center min-h-[400px] text-center">
+          <Package className="h-16 w-16 text-muted-foreground/50 mb-4" />
+          <h3 className="text-xl font-semibold text-foreground mb-2">
+            Ainda não há dados suficientes para exibir o dashboard
+          </h3>
+          <p className="text-muted-foreground max-w-md">
+            Comece importando seus produtos e sincronizando seus pedidos para ver suas métricas aqui.
+          </p>
+        </div>
+      </div>
+    );
+  }
+
+  if (hasError) {
+    return (
+      <div className="space-y-6 animate-fade-in">
+        <div>
+          <h1 className="text-3xl font-bold text-foreground">Dashboard</h1>
+          <p className="text-muted-foreground">
+            Acompanhe suas vendas e performance em todos os canais
+          </p>
+        </div>
+        
+        <div className="flex flex-col items-center justify-center min-h-[400px] text-center">
+          <TrendingUp className="h-16 w-16 text-destructive/50 mb-4" />
+          <h3 className="text-xl font-semibold text-foreground mb-2">
+            Erro ao carregar o dashboard
+          </h3>
+          <p className="text-muted-foreground max-w-md mb-4">
+            Ocorreu um erro ao buscar os dados. Tente recarregar a página.
+          </p>
+          <button 
+            onClick={() => loadDashboardMetrics()}
+            className="px-4 py-2 bg-primary text-primary-foreground rounded-md hover:bg-primary/90 transition-colors"
+          >
+            Tentar novamente
+          </button>
         </div>
       </div>
     );

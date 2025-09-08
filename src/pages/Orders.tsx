@@ -1,5 +1,5 @@
-import { useState } from "react";
-import { Search, Filter, Download } from "lucide-react";
+import { useState, useEffect } from "react";
+import { Search, Filter, Download, ShoppingCart, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -19,106 +19,141 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "@/hooks/useAuth";
+import { useToast } from "@/hooks/use-toast";
 
-// Mock data
-const orders = [
-  {
-    id: "#12345",
-    channel: "Shopify",
-    channelIcon: "🛍️",
-    date: "2024-01-15",
-    customer: "Maria Silva Santos",
-    items: 2,
-    total: "R$ 189,80",
-    status: "Processando",
-    statusColor: "bg-primary"
-  },
-  {
-    id: "#12344",
-    channel: "Mercado Livre",
-    channelIcon: "🛒",
-    date: "2024-01-15",
-    customer: "João Santos Oliveira",
-    items: 1,
-    total: "R$ 156,70",
-    status: "Enviado",
-    statusColor: "bg-success"
-  },
-  {
-    id: "#12343",
-    channel: "Amazon",
-    channelIcon: "📦",
-    date: "2024-01-14",
-    customer: "Ana Costa Lima",
-    items: 3,
-    total: "R$ 234,50",
-    status: "Entregue",
-    statusColor: "bg-success"
-  },
-  {
-    id: "#12342",
-    channel: "Shopify",
-    channelIcon: "🛍️",
-    date: "2024-01-14",
-    customer: "Carlos Lima Silva",
-    items: 1,
-    total: "R$ 67,80",
-    status: "Cancelado",
-    statusColor: "bg-destructive"
-  },
-  {
-    id: "#12341",
-    channel: "Mercado Livre",
-    channelIcon: "🛒",
-    date: "2024-01-13",
-    customer: "Fernanda Rocha",
-    items: 2,
-    total: "R$ 298,40",
-    status: "Aguardando Pagamento",
-    statusColor: "bg-warning"
-  },
-  {
-    id: "#12340",
-    channel: "Amazon",
-    channelIcon: "📦",
-    date: "2024-01-13",
-    customer: "Roberto Alves",
-    items: 1,
-    total: "R$ 89,90",
-    status: "Processando",
-    statusColor: "bg-primary"
-  },
-  {
-    id: "#12339",
-    channel: "Shopify",
-    channelIcon: "🛍️",
-    date: "2024-01-12",
-    customer: "Juliana Mendes",
-    items: 4,
-    total: "R$ 445,60",
-    status: "Enviado",
-    statusColor: "bg-success"
-  },
-  {
-    id: "#12338",
-    channel: "Mercado Livre",
-    channelIcon: "🛒",
-    date: "2024-01-12",
-    customer: "Pedro Henrique",
-    items: 1,
-    total: "R$ 129,90",
-    status: "Entregue",
-    statusColor: "bg-success"
-  }
-];
+interface Order {
+  id: string;
+  user_id: string;
+  order_id_channel: string;
+  platform: string;
+  total_value: number;
+  order_date: string;
+  items: any;
+  created_at: string;
+  updated_at: string;
+}
 
-const channels = ["Todos os Canais", "Shopify", "Mercado Livre", "Amazon"];
+interface FormattedOrder {
+  id: string;
+  channel: string;
+  channelIcon: string;
+  date: string;
+  customer: string;
+  items: number;
+  total: string;
+  status: string;
+  statusColor: string;
+}
+
+const channels = ["Todos os Canais", "Mercado Livre", "Shopify"];
 const statuses = ["Todos os Status", "Processando", "Enviado", "Entregue", "Cancelado", "Aguardando Pagamento"];
+
+const getChannelIcon = (platform: string) => {
+  switch (platform.toLowerCase()) {
+    case 'mercado livre':
+    case 'mercadolivre':
+      return "🛒";
+    case 'shopify':
+      return "🛍️";
+    case 'amazon':
+      return "📦";
+    default:
+      return "🛍️";
+  }
+};
+
+const getRandomStatus = () => {
+  const statusOptions = [
+    { status: "Processando", color: "bg-primary" },
+    { status: "Enviado", color: "bg-success" },
+    { status: "Entregue", color: "bg-success" },
+    { status: "Cancelado", color: "bg-destructive" },
+    { status: "Aguardando Pagamento", color: "bg-warning" }
+  ];
+  return statusOptions[Math.floor(Math.random() * statusOptions.length)];
+};
+
+const formatCurrency = (value: number) => {
+  return new Intl.NumberFormat('pt-BR', {
+    style: 'currency',
+    currency: 'BRL'
+  }).format(value);
+};
 
 export default function Orders() {
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedChannel, setSelectedChannel] = useState("Todos os Canais");
   const [selectedStatus, setSelectedStatus] = useState("Todos os Status");
+  const [orders, setOrders] = useState<FormattedOrder[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [isEmpty, setIsEmpty] = useState(false);
+  const { user } = useAuth();
+  const { toast } = useToast();
+
+  const loadOrders = async () => {
+    if (!user) return;
+
+    try {
+      setIsLoading(true);
+      setIsEmpty(false);
+
+      const { data, error } = await supabase
+        .from('orders')
+        .select('*')
+        .eq('user_id', user.id)
+        .order('order_date', { ascending: false });
+
+      if (error) {
+        console.error('Error loading orders:', error);
+        throw error;
+      }
+
+      if (!data || data.length === 0) {
+        setIsEmpty(true);
+        setOrders([]);
+        setIsLoading(false);
+        return;
+      }
+
+      // Format orders for display
+      const formattedOrders: FormattedOrder[] = data.map((order, index) => {
+        const statusInfo = getRandomStatus();
+        const itemsArray = Array.isArray(order.items) ? order.items : (order.items ? [order.items] : []);
+        
+        return {
+          id: `#${order.order_id_channel}`,
+          channel: order.platform,
+          channelIcon: getChannelIcon(order.platform),
+          date: order.order_date,
+          customer: `Cliente ${index + 1}`, // Since we don't have customer names in the table yet
+          items: itemsArray.length,
+          total: formatCurrency(order.total_value),
+          status: statusInfo.status,
+          statusColor: statusInfo.color
+        };
+      });
+
+      setOrders(formattedOrders);
+
+    } catch (error) {
+      console.error('Error loading orders:', error);
+      toast({
+        title: "Erro ao carregar pedidos",
+        description: "Não foi possível carregar os pedidos. Tente novamente.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    if (user) {
+      loadOrders();
+    }
+  }, [user]);
 
   const filteredOrders = orders.filter(order => {
     const matchesSearch = order.id.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -133,6 +168,46 @@ export default function Orders() {
     const value = parseFloat(order.total.replace("R$ ", "").replace(".", "").replace(",", "."));
     return sum + value;
   }, 0);
+
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center min-h-[400px]">
+        <div className="flex items-center gap-2 text-muted-foreground">
+          <Loader2 className="h-5 w-5 animate-spin" />
+          Carregando pedidos...
+        </div>
+      </div>
+    );
+  }
+
+  if (isEmpty) {
+    return (
+      <div className="space-y-6 animate-fade-in">
+        <div className="flex items-center justify-between">
+          <div>
+            <h1 className="text-3xl font-bold text-foreground">Todos os Pedidos</h1>
+            <p className="text-muted-foreground">
+              Visualize e gerencie pedidos de todos os seus canais
+            </p>
+          </div>
+          <Button variant="outline" className="gap-2">
+            <Download className="h-4 w-4" />
+            Exportar
+          </Button>
+        </div>
+
+        <div className="flex flex-col items-center justify-center min-h-[400px] text-center">
+          <ShoppingCart className="h-16 w-16 text-muted-foreground/50 mb-4" />
+          <h3 className="text-xl font-semibold text-foreground mb-2">
+            Nenhum pedido encontrado
+          </h3>
+          <p className="text-muted-foreground max-w-md">
+            Assim que as vendas forem sincronizadas, seus pedidos aparecerão aqui.
+          </p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6 animate-fade-in">
