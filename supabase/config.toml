@@ -6,6 +6,9 @@ verify_jwt = true
 [functions.shopify-auth]
 verify_jwt = true
 
+[functions.shopify-auth-url]
+verify_jwt = true
+
 [functions.import-products]
 verify_jwt = true
 
