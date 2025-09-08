@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { useParams, Link } from "react-router-dom";
-import { ArrowLeft, Package, CheckCircle, AlertTriangle, XCircle, Loader2 } from "lucide-react";
+import { ArrowLeft, Package, CheckCircle, AlertTriangle, XCircle, Loader2, Calculator } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -12,9 +12,13 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { useToast } from "@/hooks/use-toast";
+import { FinancialDataForm } from "@/components/financial/FinancialDataForm";
+import { ProfitabilityAnalysis } from "@/components/financial/ProfitabilityAnalysis";
+import { ProfitabilityCalculator } from "@/components/financial/ProfitabilityCalculator";
 
 interface Product {
   id: string;
@@ -24,6 +28,9 @@ interface Product {
   user_id: string;
   created_at: string;
   updated_at: string;
+  cost_price?: number;
+  selling_price?: number;
+  ad_spend?: number;
 }
 
 interface ChannelStock {
@@ -92,6 +99,15 @@ export default function ProductDetails() {
   const { toast } = useToast();
   const [productDetails, setProductDetails] = useState<ProductDetailsData | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+
+  const handleProductUpdate = (updatedProduct: Product) => {
+    if (productDetails) {
+      setProductDetails({
+        ...productDetails,
+        product: updatedProduct
+      });
+    }
+  };
 
   useEffect(() => {
     if (user && id) {
@@ -190,14 +206,29 @@ export default function ProductDetails() {
 
   return (
     <div className="space-y-6 animate-fade-in">
-      {/* Header with Back Button */}
-      <div className="flex items-center gap-4">
+      {/* Header with Back Button and Calculator */}
+      <div className="flex items-center justify-between">
         <Link to="/products">
           <Button variant="ghost" size="sm">
             <ArrowLeft className="h-4 w-4 mr-2" />
             Voltar
           </Button>
         </Link>
+        
+        <Dialog>
+          <DialogTrigger asChild>
+            <Button variant="outline" size="sm">
+              <Calculator className="h-4 w-4 mr-2" />
+              Calculadora de Lucro
+            </Button>
+          </DialogTrigger>
+          <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+            <DialogHeader>
+              <DialogTitle>Calculadora de Precificação e Lucro</DialogTitle>
+            </DialogHeader>
+            <ProfitabilityCalculator />
+          </DialogContent>
+        </Dialog>
       </div>
 
       {/* Product Title and SKU */}
@@ -253,6 +284,18 @@ export default function ProductDetails() {
           </CardContent>
         </Card>
       )}
+
+      {/* Financial Data Form */}
+      <FinancialDataForm 
+        product={product} 
+        onUpdate={handleProductUpdate}
+      />
+
+      {/* Profitability Analysis */}
+      <ProfitabilityAnalysis 
+        product={product} 
+        centralStock={centralStock}
+      />
 
       {/* Stock by Channel Table */}
       <Card className="shadow-soft">

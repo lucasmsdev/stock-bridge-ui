@@ -69,7 +69,7 @@ serve(async (req) => {
     // Get product from database
     const { data: product, error: productError } = await supabase
       .from('products')
-      .select('*')
+      .select('id, name, sku, stock, user_id, created_at, updated_at, cost_price, selling_price, ad_spend')
       .eq('sku', sku)
       .eq('user_id', user.id)
       .single();
