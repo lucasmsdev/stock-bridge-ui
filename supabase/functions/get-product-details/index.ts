@@ -12,6 +12,7 @@ interface ChannelStock {
   channelId: string;
   stock: number;
   status: 'synchronized' | 'divergent' | 'not_published';
+  images?: string[];
 }
 
 interface ProductDetailsResponse {
@@ -204,11 +205,15 @@ async function getMercadoLivreStock(accessToken: string, sku: string): Promise<C
           
           // Check if this item matches our SKU (using seller_custom_field or title)
           if (itemData.seller_custom_field === sku || itemId === sku) {
+            // Extract images from the item
+            const images = itemData.pictures ? itemData.pictures.map((pic: any) => pic.url || pic.secure_url).filter(Boolean) : [];
+            
             return {
               channel: 'mercadolivre',
               channelId: itemId,
               stock: itemData.available_quantity || 0,
-              status: 'synchronized' // Will be recalculated in main function
+              status: 'synchronized', // Will be recalculated in main function
+              images: images
             };
           }
         }
