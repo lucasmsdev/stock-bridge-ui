@@ -203,8 +203,17 @@ async function getMercadoLivreStock(accessToken: string, sku: string): Promise<C
         if (itemResponse.ok) {
           const itemData = await itemResponse.json();
           
-          // Check if this item matches our SKU (using seller_custom_field or title)
-          if (itemData.seller_custom_field === sku || itemId === sku) {
+          // Check if this item matches our SKU
+          // Mercado Livre pode armazenar o SKU em diferentes campos
+          const matchesSKU = (
+            itemData.seller_custom_field === sku || // Campo personalizado do vendedor
+            itemId === sku || // ID do próprio item
+            (itemData.attributes && itemData.attributes.some((attr: any) => 
+              attr.id === 'SELLER_SKU' && attr.value_name === sku
+            )) // SKU nos atributos
+          );
+
+          if (matchesSKU) {
             // Extract images from the item
             const images = itemData.pictures ? itemData.pictures.map((pic: any) => pic.url || pic.secure_url).filter(Boolean) : [];
             
