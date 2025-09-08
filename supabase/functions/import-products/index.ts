@@ -171,6 +171,7 @@ serve(async (req) => {
             name: item.title,
             sku: item.seller_sku || item.id,
             stock: item.available_quantity || 0,
+            image_url: item.thumbnail || null,
           };
 
           productsToInsert.push(product);
