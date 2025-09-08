@@ -167,19 +167,56 @@ export default function ShopifySetup() {
               )}
             </Button>
 
-            <div className="p-3 bg-yellow-50 border border-yellow-200 rounded-lg">
+            <div className="p-3 bg-red-50 border border-red-200 rounded-lg">
               <div className="flex items-start gap-2">
-                <AlertCircle className="h-4 w-4 text-yellow-600 mt-0.5" />
-                <div className="text-sm text-yellow-800">
-                  <p className="font-medium">Importante:</p>
-                  <p>Antes de conectar, você deve configurar sua aplicação Shopify seguindo os passos abaixo. O erro "redirect_uri is not whitelisted" significa que você ainda não configurou as URLs corretamente.</p>
+                <AlertCircle className="h-4 w-4 text-red-600 mt-0.5" />
+                <div className="text-sm text-red-800">
+                  <p className="font-medium">ERRO: Link de instalação inválido</p>
+                  <p>Se você está vendo o erro "O link de instalação do app é inválido", significa que:</p>
+                  <ul className="list-disc list-inside mt-1 space-y-1">
+                    <li>Você ainda não configurou sua aplicação Shopify corretamente</li>
+                    <li>As credenciais (Client ID/Secret) não foram inseridas no sistema</li>
+                    <li>As URLs de redirecionamento não estão configuradas</li>
+                  </ul>
+                  <p className="mt-2 font-medium">Siga TODOS os passos abaixo antes de tentar conectar novamente.</p>
                 </div>
               </div>
             </div>
           </CardContent>
         </Card>
 
-        {/* Step 1 */}
+        {/* Troubleshooting Section */}
+        <Card className="shadow-lg border-2 border-red-200 bg-red-50">
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2 text-red-800">
+              <AlertCircle className="h-5 w-5" />
+              Resolvendo: "Link de instalação do app é inválido"
+            </CardTitle>
+            <CardDescription className="text-red-700">
+              Este erro indica que sua aplicação Shopify não está configurada corretamente
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="space-y-3 text-sm">
+              <div>
+                <p className="font-medium text-red-800">Verifique na sua aplicação Shopify:</p>
+                <ol className="list-decimal list-inside space-y-2 text-red-700 ml-4">
+                  <li>Acesse sua aplicação no <a href="https://partners.shopify.com" target="_blank" rel="noopener noreferrer" className="underline">Shopify Partners</a></li>
+                  <li>Vá para "App setup" → "URLs"</li>
+                  <li>Verifique se o <strong>App URL</strong> está definido como: <code className="bg-red-100 px-1 rounded">{currentDomain}</code></li>
+                  <li>Verifique se a <strong>Allowed redirection URL</strong> está definida como: <code className="bg-red-100 px-1 rounded">{currentDomain}/callback/shopify</code></li>
+                  <li>Salve as alterações</li>
+                  <li>Entre em contato com o suporte para configurar as credenciais no sistema</li>
+                </ol>
+              </div>
+              
+              <div className="p-3 bg-red-100 border border-red-300 rounded">
+                <p className="font-medium text-red-800">Importante:</p>
+                <p className="text-red-700">Não tente conectar novamente até que TODAS as configurações estejam corretas e as credenciais tenham sido inseridas no sistema pelo suporte.</p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
         <Card>
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
