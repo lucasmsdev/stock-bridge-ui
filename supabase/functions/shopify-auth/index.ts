@@ -63,8 +63,13 @@ serve(async (req) => {
 
     if (!shopifyApiKey || !shopifyApiSecret) {
       console.error('Shopify credentials not configured');
+      console.log('SHOPIFY_API_KEY:', shopifyApiKey ? 'SET' : 'NOT SET');
+      console.log('SHOPIFY_API_SECRET_KEY:', shopifyApiSecret ? 'SET' : 'NOT SET');
       return new Response(
-        JSON.stringify({ error: 'Shopify credentials not configured' }), 
+        JSON.stringify({ 
+          error: 'Shopify credentials not configured',
+          details: 'Please configure SHOPIFY_API_KEY and SHOPIFY_API_SECRET_KEY in Supabase Edge Function secrets'
+        }), 
         { 
           status: 500, 
           headers: { ...corsHeaders, 'Content-Type': 'application/json' } 

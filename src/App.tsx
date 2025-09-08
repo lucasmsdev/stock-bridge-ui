@@ -15,6 +15,7 @@ import Integrations from "./pages/Integrations";
 import Help from "./pages/Help";
 import MercadoLivreCallback from "./pages/callback/MercadoLivreCallback";
 import ShopifyCallback from "./pages/callback/ShopifyCallback";
+import ShopifySetup from "./pages/ShopifySetup";
 
 const queryClient = new QueryClient();
 
@@ -31,6 +32,7 @@ const App = () => (
             <Route path="/signup" element={<Signup />} />
             <Route path="/callback/mercadolivre" element={<MercadoLivreCallback />} />
             <Route path="/callback/shopify" element={<ShopifyCallback />} />
+            <Route path="/shopify-setup" element={<ShopifySetup />} />
             
             {/* Protected Routes */}
             <Route path="/" element={<AppLayout />}>
