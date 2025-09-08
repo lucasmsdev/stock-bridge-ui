@@ -179,11 +179,16 @@ serve(async (req) => {
       }
 
     } else if (platform === 'shopify') {
-      // Extract shop domain from access token metadata or require it as parameter
-      const shopifyDomain = integration.shop_domain; // We'll need to store this during auth
-      
-      if (!shopifyDomain) {
-        console.error('Shopify shop domain not found');
+      // Get shop domain from integration
+      const { data: shopifyIntegration, error: shopifyError } = await supabaseClient
+        .from('integrations')
+        .select('shop_domain')
+        .eq('user_id', user.id)
+        .eq('platform', 'shopify')
+        .single();
+
+      if (shopifyError || !shopifyIntegration?.shop_domain) {
+        console.error('Shopify shop domain not found:', shopifyError);
         return new Response(
           JSON.stringify({ error: 'Shopify shop domain not configured' }), 
           { 
@@ -193,6 +198,7 @@ serve(async (req) => {
         );
       }
 
+      const shopifyDomain = shopifyIntegration.shop_domain;
       console.log('Fetching products from Shopify shop:', shopifyDomain);
 
       // Step 1: Get products from Shopify

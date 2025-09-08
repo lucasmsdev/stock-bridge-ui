@@ -124,6 +124,7 @@ serve(async (req) => {
       platform: 'shopify',
       access_token: accessToken,
       refresh_token: null, // Shopify doesn't use refresh tokens
+      shop_domain: shop,
       created_at: new Date().toISOString(),
       updated_at: new Date().toISOString(),
     };
