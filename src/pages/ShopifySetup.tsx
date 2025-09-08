@@ -190,29 +190,56 @@ export default function ShopifySetup() {
           <CardHeader>
             <CardTitle className="flex items-center gap-2 text-red-800">
               <AlertCircle className="h-5 w-5" />
-              Resolvendo: "Link de instalação do app é inválido"
+              ERRO: "redirect_uri is not whitelisted"
             </CardTitle>
             <CardDescription className="text-red-700">
-              Este erro indica que sua aplicação Shopify não está configurada corretamente
+              Este erro significa que a URL de callback não está configurada na sua aplicação Shopify
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
             <div className="space-y-3 text-sm">
               <div>
-                <p className="font-medium text-red-800">Verifique na sua aplicação Shopify:</p>
-                <ol className="list-decimal list-inside space-y-2 text-red-700 ml-4">
-                  <li>Acesse sua aplicação no <a href="https://partners.shopify.com" target="_blank" rel="noopener noreferrer" className="underline">Shopify Partners</a></li>
-                  <li>Vá para "App setup" → "URLs"</li>
-                  <li>Verifique se o <strong>App URL</strong> está definido como: <code className="bg-red-100 px-1 rounded">{currentDomain}</code></li>
-                  <li>Verifique se a <strong>Allowed redirection URL</strong> está definida como: <code className="bg-red-100 px-1 rounded">{currentDomain}/callback/shopify</code></li>
-                  <li>Salve as alterações</li>
-                  <li>Entre em contato com o suporte para configurar as credenciais no sistema</li>
+                <p className="font-bold text-red-800 text-base mb-2">SIGA ESTES PASSOS AGORA:</p>
+                <ol className="list-decimal list-inside space-y-3 text-red-700 ml-4">
+                  <li>
+                    <strong>Abra sua aplicação no Shopify Partners:</strong>
+                    <br />
+                    <a href="https://partners.shopify.com" target="_blank" rel="noopener noreferrer" className="underline text-blue-600">
+                      https://partners.shopify.com
+                    </a>
+                  </li>
+                  <li>
+                    <strong>Vá para sua aplicação → "App setup" → "URLs"</strong>
+                  </li>
+                  <li>
+                    <strong>No campo "App URL", cole:</strong>
+                    <div className="mt-1 p-2 bg-white border border-red-300 rounded font-mono text-xs">
+                      {currentDomain}
+                    </div>
+                  </li>
+                  <li>
+                    <strong>No campo "Allowed redirection URL(s)", cole EXATAMENTE:</strong>
+                    <div className="mt-1 p-2 bg-white border border-red-300 rounded font-mono text-xs">
+                      {currentDomain}/callback/shopify
+                    </div>
+                  </li>
+                  <li>
+                    <strong>Clique em "Save"</strong>
+                  </li>
+                  <li>
+                    <strong>Aguarde 5 minutos e tente conectar novamente</strong>
+                  </li>
                 </ol>
               </div>
               
-              <div className="p-3 bg-red-100 border border-red-300 rounded">
-                <p className="font-medium text-red-800">Importante:</p>
-                <p className="text-red-700">Não tente conectar novamente até que TODAS as configurações estejam corretas e as credenciais tenham sido inseridas no sistema pelo suporte.</p>
+              <div className="p-4 bg-red-100 border-2 border-red-400 rounded">
+                <p className="font-bold text-red-800">⚠️ MUITO IMPORTANTE:</p>
+                <ul className="list-disc list-inside mt-2 space-y-1 text-red-700">
+                  <li>Cole as URLs EXATAMENTE como mostrado acima</li>
+                  <li>Não adicione espaços extras ou barras no final</li>
+                  <li>Certifique-se de salvar as alterações</li>
+                  <li>As credenciais também precisam estar configuradas no sistema</li>
+                </ul>
               </div>
             </div>
           </CardContent>
@@ -276,15 +303,20 @@ export default function ShopifySetup() {
 
               <div>
                 <p className="font-medium mb-2">Allowed redirection URL(s):</p>
-                <div className="flex items-center gap-2 p-2 bg-muted rounded">
-                  <code className="flex-1 text-sm">{currentDomain}/callback/shopify</code>
-                  <Button 
-                    size="sm" 
-                    variant="outline"
-                    onClick={() => copyToClipboard(`${currentDomain}/callback/shopify`, 'Redirect URL')}
-                  >
-                    <Copy className="h-3 w-3" />
-                  </Button>
+                <div className="space-y-2">
+                  <div className="flex items-center gap-2 p-2 bg-muted rounded">
+                    <code className="flex-1 text-sm">{currentDomain}/callback/shopify</code>
+                    <Button 
+                      size="sm" 
+                      variant="outline"
+                      onClick={() => copyToClipboard(`${currentDomain}/callback/shopify`, 'Redirect URL')}
+                    >
+                      <Copy className="h-3 w-3" />
+                    </Button>
+                  </div>
+                  <p className="text-xs text-muted-foreground">
+                    ⚠️ Esta é a URL EXATA que você deve colar no campo "Allowed redirection URLs" da sua aplicação Shopify
+                  </p>
                 </div>
               </div>
 

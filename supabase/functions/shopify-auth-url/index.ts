@@ -17,6 +17,8 @@ serve(async (req) => {
 
     const { shop, scopes, redirect_uri, state } = await req.json();
 
+    console.log('Request parameters:', { shop, redirect_uri, state });
+
     if (!shop || !scopes || !redirect_uri || !state) {
       console.error('Missing required parameters');
       return new Response(
@@ -52,7 +54,8 @@ serve(async (req) => {
       `&redirect_uri=${encodeURIComponent(redirect_uri)}` +
       `&state=${state}`;
 
-    console.log('Auth URL generated successfully for shop:', shop);
+    console.log('Generated auth URL for shop:', shop);
+    console.log('Redirect URI being used:', redirect_uri);
 
     return new Response(
       JSON.stringify({ auth_url: authUrl }), 
