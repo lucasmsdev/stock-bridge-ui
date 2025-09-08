@@ -73,6 +73,8 @@ serve(async (req) => {
 
     console.log('Found integration for platform:', platform);
 
+    let productsToInsert = [];
+
     if (platform === 'mercadolivre') {
       // Step 1: Get user info to obtain user ID
       const userInfoResponse = await fetch(`https://api.mercadolibre.com/users/me`, {
@@ -159,8 +161,6 @@ serve(async (req) => {
       console.log(`Retrieved details for ${detailsData.length} items`);
 
       // Step 4: Map and prepare products for insertion
-      const productsToInsert = [];
-
       for (const itemResponse of detailsData) {
         if (itemResponse.code === 200 && itemResponse.body) {
           const item = itemResponse.body;
@@ -178,32 +178,37 @@ serve(async (req) => {
         }
       }
 
-      if (productsToInsert.length === 0) {
-        console.log('No valid products to insert');
+    } else if (platform === 'shopify') {
+      // Extract shop domain from access token metadata or require it as parameter
+      const shopifyDomain = integration.shop_domain; // We'll need to store this during auth
+      
+      if (!shopifyDomain) {
+        console.error('Shopify shop domain not found');
         return new Response(
-          JSON.stringify({ message: 'No valid products found to import', count: 0 }), 
+          JSON.stringify({ error: 'Shopify shop domain not configured' }), 
           { 
-            status: 200, 
+            status: 400, 
             headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
           }
         );
       }
 
-      console.log(`Prepared ${productsToInsert.length} products for insertion`);
+      console.log('Fetching products from Shopify shop:', shopifyDomain);
 
-      // Step 5: Upsert products into database
-      const { data: insertedProducts, error: insertError } = await supabaseClient
-        .from('products')
-        .upsert(productsToInsert, { 
-          onConflict: 'user_id, sku',
-          ignoreDuplicates: false 
-        })
-        .select();
+      // Step 1: Get products from Shopify
+      const productsResponse = await fetch(`https://${shopifyDomain}.myshopify.com/admin/api/2023-10/products.json`, {
+        method: 'GET',
+        headers: {
+          'X-Shopify-Access-Token': integration.access_token,
+          'Content-Type': 'application/json',
+        },
+      });
 
-      if (insertError) {
-        console.error('Error inserting products:', insertError);
+      if (!productsResponse.ok) {
+        const errorText = await productsResponse.text();
+        console.error('Error fetching Shopify products:', errorText);
         return new Response(
-          JSON.stringify({ error: 'Failed to save products to database' }), 
+          JSON.stringify({ error: 'Failed to fetch products from Shopify' }), 
           { 
             status: 500, 
             headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
@@ -211,19 +216,84 @@ serve(async (req) => {
         );
       }
 
-      console.log(`Successfully imported ${productsToInsert.length} products`);
+      const productsData = await productsResponse.json();
+      const products = productsData.products || [];
 
+      if (products.length === 0) {
+        console.log('No products found in Shopify store');
+        return new Response(
+          JSON.stringify({ message: 'No products found in your Shopify store', count: 0 }), 
+          { 
+            status: 200, 
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
+          }
+        );
+      }
+
+      console.log(`Found ${products.length} products to import from Shopify`);
+
+      // Step 2: Map Shopify products to our format
+      for (const product of products) {
+        // Shopify products can have multiple variants
+        for (const variant of product.variants || []) {
+          const productData = {
+            user_id: user.id,
+            name: `${product.title}${variant.title !== 'Default Title' ? ` - ${variant.title}` : ''}`,
+            sku: variant.sku || variant.id.toString(),
+            stock: variant.inventory_quantity || 0,
+            image_url: product.image?.src || null,
+          };
+
+          productsToInsert.push(productData);
+        }
+      }
+    }
+
+    if (productsToInsert.length === 0) {
+      console.log('No valid products to insert');
       return new Response(
-        JSON.stringify({ 
-          message: 'Products imported successfully', 
-          count: productsToInsert.length 
-        }), 
+        JSON.stringify({ message: 'No valid products found to import', count: 0 }), 
         { 
           status: 200, 
           headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
         }
       );
     }
+
+    console.log(`Prepared ${productsToInsert.length} products for insertion`);
+
+    // Step 5: Upsert products into database
+    const { data: insertedProducts, error: insertError } = await supabaseClient
+      .from('products')
+      .upsert(productsToInsert, { 
+        onConflict: 'user_id, sku',
+        ignoreDuplicates: false 
+      })
+      .select();
+
+    if (insertError) {
+      console.error('Error inserting products:', insertError);
+      return new Response(
+        JSON.stringify({ error: 'Failed to save products to database' }), 
+        { 
+          status: 500, 
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
+        }
+      );
+    }
+
+    console.log(`Successfully imported ${productsToInsert.length} products`);
+
+    return new Response(
+      JSON.stringify({ 
+        message: 'Products imported successfully', 
+        count: productsToInsert.length 
+      }), 
+      { 
+        status: 200, 
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
+      }
+    );
 
     return new Response(
       JSON.stringify({ error: 'Platform not supported yet' }), 

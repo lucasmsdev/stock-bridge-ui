@@ -143,6 +143,18 @@ export default function Integrations() {
       
       // Redirect to Mercado Livre authorization page
       window.location.href = authUrl;
+    } else if (platformId === 'shopify') {
+      // For Shopify, we need the shop domain from user
+      const shopDomain = prompt('Digite o domínio da sua loja Shopify (ex: minha-loja):');
+      if (shopDomain) {
+        // Get Shopify app credentials (you'll need to set these)
+        const shopifyApiKey = 'YOUR_SHOPIFY_API_KEY'; // Replace with actual key
+        const redirectUri = `${window.location.origin}/callback/shopify`;
+        const scopes = 'read_products,write_products,read_orders,read_inventory,write_inventory';
+        const authUrl = `https://${shopDomain}.myshopify.com/admin/oauth/authorize?client_id=${shopifyApiKey}&scope=${scopes}&redirect_uri=${encodeURIComponent(redirectUri)}&state=${Date.now()}`;
+        
+        window.location.href = authUrl;
+      }
     } else {
       // Mock connection logic for other platforms
       toast({
@@ -320,7 +332,9 @@ export default function Integrations() {
         </div>
         
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-          {availableIntegrations.map((platform, index) => (
+          {availableIntegrations
+            .filter(platform => !connectedIntegrations.some(connected => connected.platform === platform.id))
+            .map((platform, index) => (
             <Card 
               key={platform.id} 
               className="shadow-soft hover:shadow-medium transition-all duration-200 group hover:scale-[1.02] hover:-translate-y-1"
