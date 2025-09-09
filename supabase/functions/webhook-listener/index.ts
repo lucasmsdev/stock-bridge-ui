@@ -183,6 +183,34 @@ async function processMercadoLivreWebhook(supabase: any, notification: any) {
 
   console.log(`Processing order for user: ${integration.user_id}`);
 
+  // Calculate total order value
+  const totalValue = orderDetails.order_items.reduce((sum, item) => 
+    sum + (item.unit_price * item.quantity), 0);
+
+  // Create order record in our database
+  const { data: createdOrder, error: orderCreateError } = await supabase
+    .from('orders')
+    .insert({
+      user_id: integration.user_id,
+      order_id_channel: orderDetails.id,
+      platform: 'mercadolivre',
+      total_value: totalValue,
+      order_date: orderDetails.date_closed,
+      items: orderDetails.order_items
+    })
+    .select()
+    .single();
+
+  if (orderCreateError) {
+    console.error('Error creating order record:', orderCreateError);
+    return new Response(JSON.stringify({ error: 'Failed to create order record' }), {
+      status: 500,
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+    });
+  }
+
+  console.log('Order record created successfully:', createdOrder.id);
+
   // Process each item in the order
   for (const item of orderDetails.order_items) {
     if (!item.seller_sku) {
@@ -282,6 +310,34 @@ async function processShopifyWebhook(supabase: any, notification: any) {
   }
 
   console.log(`Processing Shopify order for user: ${integration.user_id}`);
+
+  // Calculate total order value
+  const totalValue = notification.line_items.reduce((sum: number, item: any) => 
+    sum + (parseFloat(item.price) * item.quantity), 0);
+
+  // Create order record in our database
+  const { data: createdOrder, error: orderCreateError } = await supabase
+    .from('orders')
+    .insert({
+      user_id: integration.user_id,
+      order_id_channel: notification.id.toString(),
+      platform: 'shopify',
+      total_value: totalValue,
+      order_date: notification.created_at,
+      items: notification.line_items
+    })
+    .select()
+    .single();
+
+  if (orderCreateError) {
+    console.error('Error creating order record:', orderCreateError);
+    return new Response(JSON.stringify({ error: 'Failed to create order record' }), {
+      status: 500,
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+    });
+  }
+
+  console.log('Order record created successfully:', createdOrder.id);
 
   // Process each line item in the order
   for (const lineItem of notification.line_items) {
