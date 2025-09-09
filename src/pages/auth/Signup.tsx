@@ -1,9 +1,10 @@
-import { useState } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import { useState, useEffect } from "react";
+import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { Eye, EyeOff, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
@@ -16,46 +17,78 @@ export default function Signup() {
     email: "",
     password: ""
   });
+  const [selectedPlan, setSelectedPlan] = useState<string>('estrategista');
   const navigate = useNavigate();
   const { toast } = useToast();
+  const [searchParams] = useSearchParams();
+
+  // Get plan from URL parameter
+  useEffect(() => {
+    const planParam = searchParams.get('plan');
+    if (planParam && ['estrategista', 'competidor', 'dominador'].includes(planParam)) {
+      setSelectedPlan(planParam);
+    }
+  }, [searchParams]);
 
   const handleSignup = async (e: React.FormEvent) => {
     e.preventDefault();
+    
+    if (!formData.name || !formData.email || !formData.password) {
+      toast({
+        title: "❌ Campos obrigatórios",
+        description: "Por favor, preencha todos os campos.",
+        variant: "destructive",
+      });
+      return;
+    }
+
     setIsLoading(true);
 
     try {
-      const redirectUrl = `${window.location.origin}/`;
+      const redirectUrl = `${window.location.origin}/app`;
       
-      const { data, error } = await supabase.auth.signUp({
+      const { error } = await supabase.auth.signUp({
         email: formData.email,
         password: formData.password,
         options: {
           emailRedirectTo: redirectUrl,
           data: {
             name: formData.name,
-          }
-        }
+            plan: selectedPlan,
+          },
+        },
       });
 
       if (error) {
-        toast({
-          title: "Erro no cadastro",
-          description: error.message,
-          variant: "destructive",
-        });
+        console.error("Signup error:", error);
+        
+        if (error.message.includes("User already registered")) {
+          toast({
+            title: "❌ Usuário já existe",
+            description: "Este email já está cadastrado. Tente fazer login.",
+            variant: "destructive",
+          });
+        } else {
+          toast({
+            title: "❌ Erro no cadastro",
+            description: error.message || "Ocorreu um erro ao criar sua conta.",
+            variant: "destructive",
+          });
+        }
         return;
       }
 
-      if (data.user) {
-        toast({
-          title: "Conta criada com sucesso!",
-          description: "Bem-vindo ao UniStock",
-        });
-        navigate("/dashboard");
-      }
-    } catch (error) {
       toast({
-        title: "Erro no cadastro",
+        title: "✅ Conta criada com sucesso!",
+        description: "Você será redirecionado para o dashboard.",
+      });
+
+      // Redirect to dashboard
+      navigate("/app");
+    } catch (error) {
+      console.error("Unexpected signup error:", error);
+      toast({
+        title: "❌ Erro inesperado",
         description: "Ocorreu um erro inesperado. Tente novamente.",
         variant: "destructive",
       });
@@ -71,6 +104,12 @@ export default function Signup() {
     }));
   };
 
+  const planNames = {
+    estrategista: 'Estrategista',
+    competidor: 'Competidor', 
+    dominador: 'Dominador'
+  };
+
   return (
     <div className="min-h-screen bg-gradient-subtle flex items-center justify-center p-4">
       <div className="w-full max-w-md animate-fade-in">
@@ -84,6 +123,13 @@ export default function Signup() {
               <CardDescription className="text-muted-foreground">
                 Crie sua conta gratuitamente
               </CardDescription>
+              {selectedPlan !== 'estrategista' && (
+                <div className="flex justify-center mt-4">
+                  <Badge variant="secondary" className="text-sm">
+                    Plano selecionado: {planNames[selectedPlan as keyof typeof planNames]}
+                  </Badge>
+                </div>
+              )}
             </div>
           </CardHeader>
 

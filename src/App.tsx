@@ -17,6 +17,7 @@ import Help from "./pages/Help";
 import MercadoLivreCallback from "./pages/callback/MercadoLivreCallback";
 import ShopifyCallback from "./pages/callback/ShopifyCallback";
 import ShopifySetup from "./pages/ShopifySetup";
+import Landing from "./pages/Landing";
 
 const queryClient = new QueryClient();
 
@@ -36,8 +37,8 @@ const App = () => (
             <Route path="/shopify-setup" element={<ShopifySetup />} />
             
             {/* Protected Routes */}
-            <Route path="/" element={<AppLayout />}>
-              <Route index element={<Navigate to="/dashboard" replace />} />
+            <Route path="/app" element={<AppLayout />}>
+              <Route index element={<Navigate to="/app/dashboard" replace />} />
               <Route path="dashboard" element={<Dashboard />} />
               <Route path="products" element={<Products />} />
               <Route path="products/:id" element={<ProductDetails />} />
@@ -47,8 +48,11 @@ const App = () => (
               <Route path="help" element={<Help />} />
             </Route>
 
-            {/* Catch all route - redirect to dashboard */}
-            <Route path="*" element={<Navigate to="/dashboard" replace />} />
+            {/* Landing page as root */}
+            <Route path="/" element={<Landing />} />
+            
+            {/* Catch all route - redirect to landing */}
+            <Route path="*" element={<Navigate to="/" replace />} />
           </Routes>
         </BrowserRouter>
       </TooltipProvider>

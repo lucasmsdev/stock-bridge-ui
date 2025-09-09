@@ -40,7 +40,7 @@ export default function Login() {
           title: "Login realizado com sucesso!",
           description: "Bem-vindo ao UniStock",
         });
-        navigate("/dashboard");
+        navigate("/app/dashboard");
       }
     } catch (error) {
       toast({

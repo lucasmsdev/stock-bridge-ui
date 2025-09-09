@@ -146,16 +146,19 @@ export type Database = {
           created_at: string
           email: string
           id: string
+          plan: Database["public"]["Enums"]["subscription_plan"] | null
         }
         Insert: {
           created_at?: string
           email: string
           id: string
+          plan?: Database["public"]["Enums"]["subscription_plan"] | null
         }
         Update: {
           created_at?: string
           email?: string
           id?: string
+          plan?: Database["public"]["Enums"]["subscription_plan"] | null
         }
         Relationships: []
       }
@@ -167,7 +170,7 @@ export type Database = {
       [_ in never]: never
     }
     Enums: {
-      [_ in never]: never
+      subscription_plan: "estrategista" | "competidor" | "dominador"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -294,6 +297,8 @@ export type CompositeTypes<
 
 export const Constants = {
   public: {
-    Enums: {},
+    Enums: {
+      subscription_plan: ["estrategista", "competidor", "dominador"],
+    },
   },
 } as const
