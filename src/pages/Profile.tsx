@@ -39,6 +39,17 @@ interface ProfileData {
   avatar_url: string | null;
 }
 
+interface ProfileRow {
+  id: string;
+  email: string;
+  plan: string;
+  created_at: string;
+  full_name?: string | null;
+  company_name?: string | null;
+  avatar_url?: string | null;
+  updated_at?: string;
+}
+
 export default function Profile() {
   const { user, signOut } = useAuth();
   const { currentPlan, getPlanFeatures } = usePlan();
@@ -91,10 +102,11 @@ export default function Profile() {
       }
 
       if (data) {
+        const profileRow = data as ProfileRow;
         setProfileData({
-          full_name: data.full_name || '',
-          company_name: data.company_name || '',
-          avatar_url: data.avatar_url || null
+          full_name: profileRow.full_name || '',
+          company_name: profileRow.company_name || '',
+          avatar_url: profileRow.avatar_url || null
         });
       }
     } catch (error) {
