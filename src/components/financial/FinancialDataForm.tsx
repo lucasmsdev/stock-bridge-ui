@@ -134,14 +134,19 @@ export function FinancialDataForm({ product, onUpdate }: FinancialDataFormProps)
         <Button 
           onClick={handleSave} 
           disabled={isLoading}
-          className="w-full md:w-auto"
+          className="w-full md:w-auto transition-all duration-200 hover:shadow-primary"
         >
           {isLoading ? (
-            <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+            <>
+              <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+              Salvando...
+            </>
           ) : (
-            <Save className="h-4 w-4 mr-2" />
+            <>
+              <Save className="h-4 w-4 mr-2" />
+              Salvar Dados Financeiros
+            </>
           )}
-          {isLoading ? "Salvando..." : "Salvar Dados Financeiros"}
         </Button>
       </CardContent>
     </Card>
