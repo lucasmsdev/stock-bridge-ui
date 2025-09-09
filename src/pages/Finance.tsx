@@ -67,6 +67,9 @@ export default function Finance() {
     desiredMargin: '20'
   });
 
+  // Additional state for simulation section
+  const [simulationPrice, setSimulationPrice] = useState('');
+
   const loadProducts = async () => {
     if (!user) return;
 
@@ -114,12 +117,20 @@ export default function Finance() {
   const adSpend = parseFloat(calculatorData.adSpend) || 0;
   const desiredMargin = parseFloat(calculatorData.desiredMargin) || 0;
 
+  // Section 1: Calculate Ideal Price
   const totalCosts = costPrice + shippingCost + adSpend;
   const idealSellingPrice = totalCosts / (1 - (desiredMargin + marketplaceFees + taxes) / 100);
-  const marketplaceFeeAmount = (idealSellingPrice * marketplaceFees) / 100;
-  const taxAmount = (idealSellingPrice * taxes) / 100;
-  const grossProfit = idealSellingPrice - totalCosts - marketplaceFeeAmount - taxAmount;
-  const roi = adSpend > 0 ? (grossProfit / adSpend) * 100 : 0;
+  const idealMarketplaceFeeAmount = (idealSellingPrice * marketplaceFees) / 100;
+  const idealTaxAmount = (idealSellingPrice * taxes) / 100;
+  const idealGrossProfit = idealSellingPrice - totalCosts - idealMarketplaceFeeAmount - idealTaxAmount;
+
+  // Section 2: Simulate with User Price
+  const userPrice = parseFloat(simulationPrice) || 0;
+  const userMarketplaceFeeAmount = (userPrice * marketplaceFees) / 100;
+  const userTaxAmount = (userPrice * taxes) / 100;
+  const userGrossProfit = userPrice - totalCosts - userMarketplaceFeeAmount - userTaxAmount;
+  const actualMargin = userPrice > 0 ? (userGrossProfit / userPrice) * 100 : 0;
+  const roi = adSpend > 0 ? (userGrossProfit / adSpend) * 100 : 0;
 
   return (
     <div className="space-y-6 animate-fade-in">
@@ -248,13 +259,13 @@ export default function Finance() {
 
         {/* Calculator Tab */}
         <TabsContent value="calculator" className="space-y-6">
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          <div className="grid grid-cols-1 xl:grid-cols-3 gap-6">
             {/* Calculator Form */}
             <Card>
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
                   <Calculator className="h-5 w-5 text-primary" />
-                  Calculadora de Precificação
+                  Dados de Entrada
                 </CardTitle>
               </CardHeader>
               <CardContent className="space-y-4">
@@ -317,7 +328,18 @@ export default function Finance() {
                     placeholder="0,00"
                   />
                 </div>
+              </CardContent>
+            </Card>
 
+            {/* Section 1: Calculate Ideal Price */}
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <TrendingUp className="h-5 w-5 text-green-600" />
+                  Calcular Preço Ideal
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-4">
                 <div className="space-y-2">
                   <Label htmlFor="desiredMargin">Margem de Lucro Desejada (%)</Label>
                   <Input
@@ -329,41 +351,84 @@ export default function Finance() {
                     placeholder="20"
                   />
                 </div>
-              </CardContent>
-            </Card>
 
-            {/* Results */}
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <DollarSign className="h-5 w-5 text-primary" />
-                  Resultados
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-6">
                 {costPrice > 0 ? (
-                  <>
-                    <div className="p-4 bg-gradient-subtle rounded-lg border">
-                      <h3 className="text-lg font-semibold text-foreground mb-2">
+                  <div className="space-y-4">
+                    <div className="p-4 bg-gradient-to-br from-green-50 to-green-100 dark:from-green-900/20 dark:to-green-800/20 rounded-lg border">
+                      <h3 className="text-lg font-semibold text-green-700 dark:text-green-400 mb-2">
                         Preço de Venda Ideal
                       </h3>
-                      <p className="text-3xl font-bold text-primary">
+                      <p className="text-3xl font-bold text-green-700 dark:text-green-400">
                         {formatCurrency(idealSellingPrice)}
                       </p>
                     </div>
 
-                    <div className="grid grid-cols-1 gap-4">
+                    <div className="p-3 bg-muted/50 rounded-lg">
+                      <p className="text-sm text-muted-foreground">Lucro Bruto por Venda</p>
+                      <p className="text-xl font-semibold text-foreground">
+                        {formatCurrency(idealGrossProfit)}
+                      </p>
+                    </div>
+
+                    <div className="space-y-2 text-sm">
+                      <h4 className="font-medium text-foreground">Custos Calculados:</h4>
+                      <div className="space-y-1 text-muted-foreground">
+                        <p>• Taxa marketplace: {formatCurrency(idealMarketplaceFeeAmount)}</p>
+                        <p>• Impostos: {formatCurrency(idealTaxAmount)}</p>
+                      </div>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="text-center py-8 text-muted-foreground">
+                    <TrendingUp className="h-12 w-12 mx-auto mb-4 opacity-50" />
+                    <p>Preencha os dados para calcular o preço ideal</p>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+
+            {/* Section 2: Simulate with User Price */}
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <DollarSign className="h-5 w-5 text-blue-600" />
+                  Simular com Meu Preço
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="space-y-2">
+                  <Label htmlFor="simulationPrice">Seu Preço de Venda (R$)</Label>
+                  <Input
+                    id="simulationPrice"
+                    type="number"
+                    step="0.01"
+                    value={simulationPrice}
+                    onChange={(e) => setSimulationPrice(e.target.value)}
+                    placeholder="0,00"
+                  />
+                </div>
+
+                {userPrice > 0 && costPrice > 0 ? (
+                  <div className="space-y-4">
+                    <div className="grid grid-cols-1 gap-3">
+                      <div className="p-3 bg-gradient-to-br from-blue-50 to-blue-100 dark:from-blue-900/20 dark:to-blue-800/20 rounded-lg">
+                        <p className="text-sm text-blue-600 dark:text-blue-500">Margem de Lucro Realizada</p>
+                        <p className="text-2xl font-bold text-blue-700 dark:text-blue-400">
+                          {actualMargin.toFixed(1)}%
+                        </p>
+                      </div>
+
                       <div className="p-3 bg-muted/50 rounded-lg">
                         <p className="text-sm text-muted-foreground">Lucro Bruto por Venda</p>
                         <p className="text-xl font-semibold text-foreground">
-                          {formatCurrency(grossProfit)}
+                          {formatCurrency(userGrossProfit)}
                         </p>
                       </div>
 
                       {adSpend > 0 && (
-                        <div className="p-3 bg-muted/50 rounded-lg">
-                          <p className="text-sm text-muted-foreground">ROI do Anúncio</p>
-                          <p className="text-xl font-semibold text-foreground">
+                        <div className="p-3 bg-gradient-to-br from-purple-50 to-purple-100 dark:from-purple-900/20 dark:to-purple-800/20 rounded-lg">
+                          <p className="text-sm text-purple-600 dark:text-purple-500">ROI do Anúncio</p>
+                          <p className="text-2xl font-bold text-purple-700 dark:text-purple-400">
                             {roi.toFixed(1)}%
                           </p>
                         </div>
@@ -376,23 +441,25 @@ export default function Finance() {
                         <p>• Custo do produto: {formatCurrency(costPrice)}</p>
                         <p>• Custo de envio: {formatCurrency(shippingCost)}</p>
                         <p>• Gasto com anúncios: {formatCurrency(adSpend)}</p>
-                        <p>• Taxa do marketplace ({marketplaceFees}%): {formatCurrency(marketplaceFeeAmount)}</p>
-                        <p>• Impostos ({taxes}%): {formatCurrency(taxAmount)}</p>
+                        <p>• Taxa marketplace: {formatCurrency(userMarketplaceFeeAmount)}</p>
+                        <p>• Impostos: {formatCurrency(userTaxAmount)}</p>
+                        <hr className="border-t my-1" />
+                        <p className="font-medium">• Total custos: {formatCurrency(totalCosts + userMarketplaceFeeAmount + userTaxAmount)}</p>
                       </div>
                     </div>
 
-                    {grossProfit / idealSellingPrice < 0.1 && (
+                    {actualMargin < 10 && (
                       <div className="p-3 bg-destructive/10 border border-destructive/20 rounded-lg">
                         <p className="text-sm text-destructive font-medium">
-                          ⚠️ Atenção: Margem de lucro muito baixa (menos de 10%)
+                          ⚠️ Margem muito baixa (menos de 10%)
                         </p>
                       </div>
                     )}
-                  </>
+                  </div>
                 ) : (
                   <div className="text-center py-8 text-muted-foreground">
-                    <Calculator className="h-12 w-12 mx-auto mb-4 opacity-50" />
-                    <p>Preencha o preço de custo para ver os cálculos</p>
+                    <DollarSign className="h-12 w-12 mx-auto mb-4 opacity-50" />
+                    <p>Insira seu preço para simular o cenário</p>
                   </div>
                 )}
               </CardContent>
