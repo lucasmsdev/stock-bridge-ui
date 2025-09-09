@@ -6,10 +6,19 @@ import {
   Plug, 
   HelpCircle,
   LogOut,
-  Calculator
+  Calculator,
+  User,
+  ChevronDown
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { useAuth } from "@/hooks/useAuth";
 
 interface AppSidebarProps {
@@ -17,12 +26,12 @@ interface AppSidebarProps {
 }
 
 const navItems = [
-  { title: "Dashboard", href: "/dashboard", icon: LayoutDashboard },
-  { title: "Produtos", href: "/products", icon: Package },
-  { title: "Pedidos", href: "/orders", icon: ShoppingCart },
-  { title: "Financeiro", href: "/finance", icon: Calculator },
-  { title: "Integrações", href: "/integrations", icon: Plug },
-  { title: "Ajuda", href: "/help", icon: HelpCircle },
+  { title: "Dashboard", href: "/app/dashboard", icon: LayoutDashboard },
+  { title: "Produtos", href: "/app/products", icon: Package },
+  { title: "Pedidos", href: "/app/orders", icon: ShoppingCart },
+  { title: "Financeiro", href: "/app/finance", icon: Calculator },
+  { title: "Integrações", href: "/app/integrations", icon: Plug },
+  { title: "Ajuda", href: "/app/help", icon: HelpCircle },
 ];
 
 export const AppSidebar = ({ isCollapsed }: AppSidebarProps) => {
@@ -82,40 +91,77 @@ export const AppSidebar = ({ isCollapsed }: AppSidebarProps) => {
       <div className="p-4 border-t border-border">
         {!isCollapsed ? (
           <div className="space-y-3">
-            <div className="flex items-center space-x-3">
-              <Avatar className="h-8 w-8">
-                <AvatarFallback className="bg-primary text-primary-foreground">
-                  {user?.email ? getUserInitials(user.email) : 'US'}
-                </AvatarFallback>
-              </Avatar>
-              <div className="flex-1 min-w-0">
-                <p className="text-sm font-medium text-foreground truncate">
-                  {user?.email ? getUserDisplayName(user.email) : 'Usuário'}
-                </p>
-                <p className="text-xs text-muted-foreground truncate">
-                  {user?.email || 'usuario@unistock.com'}
-                </p>
-              </div>
-            </div>
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={handleLogout}
-              className="w-full justify-start text-muted-foreground hover:text-foreground"
-            >
-              <LogOut className="mr-2 h-4 w-4" />
-              Sair
-            </Button>
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="ghost" className="w-full justify-start p-0 h-auto hover:bg-muted/70">
+                  <div className="flex items-center space-x-3 w-full">
+                    <Avatar className="h-8 w-8">
+                      <AvatarFallback className="bg-primary text-primary-foreground">
+                        {user?.email ? getUserInitials(user.email) : 'US'}
+                      </AvatarFallback>
+                    </Avatar>
+                    <div className="flex-1 min-w-0 text-left">
+                      <p className="text-sm font-medium text-foreground truncate">
+                        {user?.email ? getUserDisplayName(user.email) : 'Usuário'}
+                      </p>
+                      <p className="text-xs text-muted-foreground truncate">
+                        {user?.email || 'usuario@unistock.com'}
+                      </p>
+                    </div>
+                    <ChevronDown className="h-4 w-4 text-muted-foreground" />
+                  </div>
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="w-56 bg-popover border border-border shadow-medium">
+                <DropdownMenuItem asChild>
+                  <NavLink to="/app/profile" className="flex items-center cursor-pointer">
+                    <User className="mr-2 h-4 w-4" />
+                    Meu Perfil
+                  </NavLink>
+                </DropdownMenuItem>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem 
+                  onClick={handleLogout}
+                  className="cursor-pointer text-destructive focus:text-destructive"
+                >
+                  <LogOut className="mr-2 h-4 w-4" />
+                  Sair
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
           </div>
         ) : (
-          <Button
-            variant="ghost"
-            size="icon"
-            onClick={handleLogout}
-            className="w-full h-8 text-muted-foreground hover:text-foreground"
-          >
-            <LogOut className="h-4 w-4" />
-          </Button>
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button
+                variant="ghost"
+                size="icon"
+                className="w-full h-8 text-muted-foreground hover:text-foreground"
+              >
+                <Avatar className="h-6 w-6">
+                  <AvatarFallback className="bg-primary text-primary-foreground text-xs">
+                    {user?.email ? getUserInitials(user.email) : 'US'}
+                  </AvatarFallback>
+                </Avatar>
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="w-56 bg-popover border border-border shadow-medium">
+              <DropdownMenuItem asChild>
+                <NavLink to="/app/profile" className="flex items-center cursor-pointer">
+                  <User className="mr-2 h-4 w-4" />
+                  Meu Perfil
+                </NavLink>
+              </DropdownMenuItem>
+              <DropdownMenuSeparator />
+              <DropdownMenuItem 
+                onClick={handleLogout}
+                className="cursor-pointer text-destructive focus:text-destructive"
+              >
+                <LogOut className="mr-2 h-4 w-4" />
+                Sair
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
         )}
       </div>
     </div>
