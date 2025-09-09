@@ -87,8 +87,8 @@ export default function Products() {
       if (error) {
         console.error('Error loading products:', error);
         toast({
-          title: "Erro ao carregar produtos",
-          description: "Não foi possível carregar seus produtos.",
+          title: "❌ Erro ao carregar produtos",
+          description: "Não foi possível carregar seus produtos. Tente atualizar a página.",
           variant: "destructive",
         });
         return;
@@ -138,16 +138,16 @@ export default function Products() {
       if (error) {
         console.error('Error importing products:', error);
         toast({
-          title: "Erro na importação",
-          description: `Não foi possível importar os produtos do ${platformName}.`,
+          title: "❌ Falha ao importar produtos",
+          description: `Não foi possível importar os produtos do ${platformName}. Tente novamente.`,
           variant: "destructive",
         });
         return;
       }
 
       toast({
-        title: "Produtos importados!",
-        description: `${data.count} produtos foram importados com sucesso do ${platformName}.`,
+        title: "✅ Produtos importados com sucesso!",
+        description: `${data.count} produtos foram importados do ${platformName}.`,
       });
 
       // Reload products after import
@@ -155,8 +155,8 @@ export default function Products() {
     } catch (error) {
       console.error('Unexpected error importing products:', error);
       toast({
-        title: "Erro na importação",
-        description: "Ocorreu um erro inesperado ao importar os produtos.",
+        title: "❌ Erro inesperado na importação",
+        description: "Ocorreu um erro inesperado ao importar os produtos. Verifique sua conexão e tente novamente.",
         variant: "destructive",
       });
     } finally {

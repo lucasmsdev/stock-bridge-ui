@@ -89,8 +89,8 @@ export default function Finance() {
     } catch (error) {
       console.error('Error loading products:', error);
       toast({
-        title: "Erro ao carregar produtos",
-        description: "Não foi possível carregar os produtos financeiros.",
+        title: "❌ Erro ao carregar produtos financeiros",
+        description: "Não foi possível carregar os dados financeiros. Tente atualizar a página.",
         variant: "destructive",
       });
     } finally {

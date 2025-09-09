@@ -65,14 +65,14 @@ export function FinancialDataForm({ product, onUpdate }: FinancialDataFormProps)
       onUpdate(updatedProduct);
 
       toast({
-        title: "Dados salvos",
+        title: "✅ Dados salvos com sucesso!",
         description: "Os dados financeiros foram atualizados com sucesso.",
       });
 
     } catch (error) {
       console.error('Error updating financial data:', error);
       toast({
-        title: "Erro ao salvar",
+        title: "❌ Erro ao salvar os dados",
         description: "Não foi possível salvar os dados financeiros. Tente novamente.",
         variant: "destructive",
       });
@@ -141,7 +141,7 @@ export function FinancialDataForm({ product, onUpdate }: FinancialDataFormProps)
           ) : (
             <Save className="h-4 w-4 mr-2" />
           )}
-          Salvar Dados Financeiros
+          {isLoading ? "Salvando..." : "Salvar Dados Financeiros"}
         </Button>
       </CardContent>
     </Card>
