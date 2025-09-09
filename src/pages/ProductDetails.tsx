@@ -37,8 +37,9 @@ interface ChannelStock {
   channel: string;
   channelId: string;
   stock: number;
-  status: 'synchronized' | 'divergent' | 'not_published' | 'synced' | 'error' | 'not_found';
+  status: 'synchronized' | 'divergent' | 'not_published' | 'synced' | 'error' | 'not_found' | 'token_expired';
   images?: string[];
+  errorMessage?: string;
 }
 
 interface ProductDetailsData {
@@ -85,9 +86,15 @@ const statusConfig = {
     color: "text-gray-600",
     bgColor: "bg-gray-100 dark:bg-gray-900/30",
   },
+  token_expired: {
+    icon: AlertTriangle,
+    label: "Token Expirado",
+    color: "text-orange-600",
+    bgColor: "bg-orange-100 dark:bg-orange-900/30",
+  },
   error: {
     icon: XCircle,
-    label: "Erro",
+    label: "Erro de Conexão",
     color: "text-red-600",
     bgColor: "bg-red-100 dark:bg-red-900/30",
   },
@@ -383,12 +390,19 @@ export default function ProductDetails() {
                     <TableCell>
                       <div className="flex items-center gap-2">
                         <StatusIcon className={`h-4 w-4 ${statusConfig[channelStock.status].color}`} />
-                        <Badge 
-                          variant="outline" 
-                          className={`${statusConfig[channelStock.status].bgColor} ${statusConfig[channelStock.status].color} border-0`}
-                        >
-                          {statusConfig[channelStock.status].label}
-                        </Badge>
+                        <div className="flex flex-col gap-1">
+                          <Badge 
+                            variant="outline" 
+                            className={`${statusConfig[channelStock.status].bgColor} ${statusConfig[channelStock.status].color} border-0`}
+                          >
+                            {statusConfig[channelStock.status].label}
+                          </Badge>
+                          {channelStock.status === 'token_expired' && (
+                            <span className="text-xs text-muted-foreground">
+                              Reconecte nas Integrações
+                            </span>
+                          )}
+                        </div>
                       </div>
                     </TableCell>
                   </TableRow>

@@ -11,7 +11,7 @@ interface ChannelStock {
   channel: string;
   channelId: string;
   stock: number;
-  status: 'synchronized' | 'divergent' | 'not_published' | 'synced' | 'error' | 'not_found';
+  status: 'synchronized' | 'divergent' | 'not_published' | 'synced' | 'error' | 'not_found' | 'token_expired';
   images?: string[];
 }
 
@@ -183,9 +183,9 @@ async function getMercadoLivreStock(accessToken: string, sku: string): Promise<C
         console.error('Mercado Livre token expired or invalid');
         return {
           channel: 'mercadolivre',
-          channelId: 'Token Expirado',
+          channelId: '-',
           stock: 0,
-          status: 'error' as const,
+          status: 'token_expired' as const,
           images: []
         };
       }
@@ -207,9 +207,9 @@ async function getMercadoLivreStock(accessToken: string, sku: string): Promise<C
         console.error('Mercado Livre search token expired or invalid');
         return {
           channel: 'mercadolivre',
-          channelId: 'Token Expirado',
+          channelId: '-',
           stock: 0,
-          status: 'error' as const,
+          status: 'token_expired' as const,
           images: []
         };
       }
@@ -265,7 +265,7 @@ async function getMercadoLivreStock(accessToken: string, sku: string): Promise<C
     console.error('Error fetching Mercado Livre stock:', error);
     return {
       channel: 'mercadolivre',
-      channelId: 'Erro de Conexão',
+      channelId: '-',
       stock: 0,
       status: 'error' as const,
       images: []
