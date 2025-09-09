@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { Plus, Settings, Unlink, ExternalLink, CheckCircle2, Plug, Loader2 } from "lucide-react";
+import { Plus, Settings, Unlink, ExternalLink, CheckCircle2, Plug, Loader2, Lock } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -17,6 +17,8 @@ import {
 } from "@/components/ui/alert-dialog";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
+import { usePlan } from "@/hooks/usePlan";
+import { UpgradeBanner } from "@/components/ui/upgrade-banner";
 
 // Mock data
 const availableIntegrations = [
@@ -93,6 +95,7 @@ export default function Integrations() {
   const [connectedIntegrations, setConnectedIntegrations] = useState([]);
   const [loading, setLoading] = useState(true);
   const { toast } = useToast();
+  const { canAccess, getUpgradeRequiredMessage } = usePlan();
 
   useEffect(() => {
     loadConnectedIntegrations();
@@ -136,6 +139,16 @@ export default function Integrations() {
   };
 
   const handleConnect = (platformId: string) => {
+    // Check API integration restriction for premium features
+    if ((platformId === 'amazon' || platformId === 'vtex') && !canAccess('hasIntegracaoAPI')) {
+      toast({
+        title: "❌ Funcionalidade premium",
+        description: getUpgradeRequiredMessage('hasIntegracaoAPI'),
+        variant: "destructive",
+      });
+      return;
+    }
+
     if (platformId === 'mercadolivre') {
       const appId = '5615590729373432';
       const redirectUri = `${window.location.origin}/callback/mercadolivre`;
@@ -383,9 +396,17 @@ export default function Integrations() {
                 <Button 
                   onClick={() => handleConnect(platform.id)}
                   className="w-full bg-gradient-primary hover:bg-primary-hover group-hover:shadow-primary transition-all duration-200 hover:scale-[1.02]"
+                  disabled={(platform.id === 'amazon' || platform.id === 'vtex') && !canAccess('hasIntegracaoAPI')}
                 >
-                  <Plus className="w-4 h-4 mr-2" />
-                  Conectar {platform.name}
+                  {(platform.id === 'amazon' || platform.id === 'vtex') && !canAccess('hasIntegracaoAPI') ? (
+                    <Lock className="w-4 h-4 mr-2" />
+                  ) : (
+                    <Plus className="w-4 h-4 mr-2" />
+                  )}
+                  {(platform.id === 'amazon' || platform.id === 'vtex') && !canAccess('hasIntegracaoAPI') 
+                    ? `Premium - ${platform.name}` 
+                    : `Conectar ${platform.name}`
+                  }
                 </Button>
               </CardContent>
             </Card>

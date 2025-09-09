@@ -13,6 +13,7 @@ import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { useToast } from "@/hooks/use-toast";
+import { usePlan } from "@/hooks/usePlan";
 import {
   ChartContainer,
   ChartTooltip,
@@ -64,6 +65,7 @@ export default function Dashboard() {
   const [dashboardData, setDashboardData] = useState<DashboardMetrics | null>(null);
   const { user } = useAuth();
   const { toast } = useToast();
+  const { currentPlan, canAccess } = usePlan();
 
   const loadDashboardMetrics = async () => {
     if (!user) {
@@ -290,12 +292,17 @@ export default function Dashboard() {
   return (
     <div className="space-y-6 animate-fade-in">
       {/* Page Header */}
-      <div>
-        <h1 className="text-3xl font-bold text-foreground">Dashboard</h1>
-        <p className="text-muted-foreground">
-          Acompanhe suas vendas e performance em todos os canais
-        </p>
-      </div>
+        <div>
+          <h1 className="text-3xl font-bold text-foreground">Dashboard</h1>
+          <p className="text-muted-foreground">
+            Acompanhe suas vendas e performance em todos os canais
+          </p>
+          <div className="mt-2">
+            <Badge variant="outline" className="capitalize">
+              Plano {currentPlan}
+            </Badge>
+          </div>
+        </div>
 
       {/* Metrics Cards */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">

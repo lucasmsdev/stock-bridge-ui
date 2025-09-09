@@ -18,6 +18,8 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { useToast } from "@/hooks/use-toast";
 import { useNavigate } from "react-router-dom";
+import { usePlan } from "@/hooks/usePlan";
+import { UpgradeBanner } from "@/components/ui/upgrade-banner";
 
 interface Product {
   id: string;
@@ -56,6 +58,7 @@ export default function Finance() {
   const { user } = useAuth();
   const { toast } = useToast();
   const navigate = useNavigate();
+  const { canAccess, getUpgradeRequiredMessage } = usePlan();
 
   // Calculator state
   const [calculatorData, setCalculatorData] = useState<CalculatorData>({
@@ -143,9 +146,12 @@ export default function Finance() {
       </div>
 
       <Tabs defaultValue="overview" className="space-y-6">
-        <TabsList className="grid w-full grid-cols-2">
+        <TabsList className="grid w-full grid-cols-3">
           <TabsTrigger value="overview">Visão Geral</TabsTrigger>
           <TabsTrigger value="calculator">Calculadora de Precificação</TabsTrigger>
+          <TabsTrigger value="advanced" disabled={!canAccess('hasRelatoriosAvancados')}>
+            Relatórios Avançados
+          </TabsTrigger>
         </TabsList>
 
         {/* Overview Tab */}
@@ -465,6 +471,52 @@ export default function Finance() {
               </CardContent>
             </Card>
           </div>
+        </TabsContent>
+
+        {/* Advanced Reports Tab */}
+        <TabsContent value="advanced" className="space-y-6">
+          {canAccess('hasRelatoriosAvancados') ? (
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <TrendingUp className="h-5 w-5 text-primary" />
+                    Análise de ROI por Produto
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="text-center py-8 text-muted-foreground">
+                    <TrendingUp className="h-12 w-12 mx-auto mb-4 opacity-50" />
+                    <p>Relatório de ROI em desenvolvimento</p>
+                    <p className="text-sm">Análise detalhada de retorno sobre investimento por produto</p>
+                  </div>
+                </CardContent>
+              </Card>
+
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <DollarSign className="h-5 w-5 text-primary" />
+                    Projeção de Lucros
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="text-center py-8 text-muted-foreground">
+                    <DollarSign className="h-12 w-12 mx-auto mb-4 opacity-50" />
+                    <p>Projeções de lucro em desenvolvimento</p>
+                    <p className="text-sm">Previsões baseadas em histórico de vendas</p>
+                  </div>
+                </CardContent>
+              </Card>
+            </div>
+          ) : (
+            <UpgradeBanner
+              title="Relatórios Avançados"
+              description="Acesse análises detalhadas de ROI, projeções de lucro e relatórios personalizados"
+              requiredPlan="competidor"
+              feature="hasRelatoriosAvancados"
+            />
+          )}
         </TabsContent>
       </Tabs>
     </div>

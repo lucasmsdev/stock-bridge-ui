@@ -30,6 +30,8 @@ import {
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { useToast } from "@/hooks/use-toast";
+import { usePlan } from "@/hooks/usePlan";
+import { UpgradeBanner } from "@/components/ui/upgrade-banner";
 
 interface Product {
   id: string;
@@ -59,6 +61,7 @@ const platformNames: Record<string, string> = {
 export default function Products() {
   const { user } = useAuth();
   const { toast } = useToast();
+  const { canImportProducts, getMaxSkus, getUpgradeRequiredMessage } = usePlan();
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedProducts, setSelectedProducts] = useState<string[]>([]);
   const [products, setProducts] = useState<Product[]>([]);
@@ -130,6 +133,16 @@ export default function Products() {
     try {
       setIsImporting(true);
       const platformName = platformNames[platform] || platform;
+      
+      // Check if user can import more products
+      if (!canImportProducts(products.length, 1)) {
+        toast({
+          title: "❌ Limite de produtos atingido",
+          description: getUpgradeRequiredMessage('maxSkus'),
+          variant: "destructive",
+        });
+        return;
+      }
       
       const { data, error } = await supabase.functions.invoke('import-products', {
         body: { platform }
@@ -350,6 +363,7 @@ export default function Products() {
             
             <div className="flex items-center gap-2 text-sm text-muted-foreground">
               <span>{filteredProducts.length} produtos encontrados</span>
+              <span>• Limite: {getMaxSkus() === Infinity ? '∞' : getMaxSkus()} produtos</span>
             </div>
           </div>
         </CardContent>
