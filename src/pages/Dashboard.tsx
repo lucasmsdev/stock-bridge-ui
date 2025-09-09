@@ -107,24 +107,28 @@ export default function Dashboard() {
       todayEnd.setDate(todayEnd.getDate() + 1);
 
       // Get products count
-      const { count: totalProducts } = await supabase
+      const { count: totalProducts, error: productsError } = await supabase
         .from('products')
         .select('*', { count: 'exact', head: true })
         .eq('user_id', user.id);
+
+      if (productsError) {
+        console.error('Error loading products count:', productsError);
+      }
 
       // Try to get orders for today (optional)
       let todayRevenue = 0;
       let todayOrders = 0;
       
       try {
-        const { data: ordersData } = await supabase
+        const { data: ordersData, error: ordersError } = await supabase
           .from('orders')
           .select('total_value')
           .eq('user_id', user.id)
           .gte('order_date', todayStart.toISOString())
           .lt('order_date', todayEnd.toISOString());
 
-        if (ordersData) {
+        if (!ordersError && ordersData) {
           todayRevenue = ordersData.reduce((sum, order) => sum + Number(order.total_value), 0);
           todayOrders = ordersData.length;
         }
@@ -149,11 +153,13 @@ export default function Dashboard() {
 
       setDashboardData(fallbackData);
       
-      if (totalProducts > 0 || todayRevenue > 0 || todayOrders > 0) {
-        toast({
-          title: "Dashboard carregado",
-          description: "Dados básicos carregados com sucesso.",
-        });
+      if (totalProducts || totalProducts === 0) {
+        if (totalProducts > 0 || todayRevenue > 0 || todayOrders > 0) {
+          toast({
+            title: "Dashboard carregado",
+            description: "Dados básicos carregados com sucesso.",
+          });
+        }
       }
 
     } catch (error) {

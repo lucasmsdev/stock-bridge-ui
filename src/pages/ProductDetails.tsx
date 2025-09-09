@@ -121,13 +121,22 @@ export default function ProductDetails() {
     try {
       setIsLoading(true);
       
-      // First get the product data directly from Supabase to get the SKU
-      const { data: productData, error: productError } = await supabase
+      // Check if id is a UUID or SKU
+      const isUUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(id);
+      
+      // Get the product data using appropriate field
+      const query = supabase
         .from('products')
         .select('*')
-        .eq('id', id)
-        .eq('user_id', user.id)
-        .single();
+        .eq('user_id', user.id);
+      
+      if (isUUID) {
+        query.eq('id', id);
+      } else {
+        query.eq('sku', id);
+      }
+      
+      const { data: productData, error: productError } = await query.single();
 
       if (productError || !productData) {
         console.error('Product not found:', productError);
@@ -138,7 +147,10 @@ export default function ProductDetails() {
       console.log('Calling get-product-details function for product SKU:', productData.sku);
 
       const { data, error } = await supabase.functions.invoke('get-product-details', {
-        body: { sku: productData.sku }
+        body: { 
+          sku: productData.sku,
+          id: productData.id 
+        }
       });
 
       if (error) {

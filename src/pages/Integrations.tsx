@@ -251,7 +251,31 @@ export default function Integrations() {
                   <Separator />
                   
                   <div className="flex gap-2">
-                    <Button variant="outline" size="sm" className="flex-1">
+                    <Button 
+                      variant="outline" 
+                      size="sm" 
+                      className="flex-1"
+                      onClick={() => {
+                        if (integration.platform === 'mercadolivre') {
+                          toast({
+                            title: "Configurações do Mercado Livre",
+                            description: "Redirecionando para as configurações da integração...",
+                          });
+                          // Navigate to a management page or show configuration modal
+                          setTimeout(() => {
+                            toast({
+                              title: "Funcionalidade em desenvolvimento",
+                              description: "As configurações avançadas estarão disponíveis em breve.",
+                            });
+                          }, 1000);
+                        } else {
+                          toast({
+                            title: "Configurações em desenvolvimento",
+                            description: `As configurações para ${integration.platform} estarão disponíveis em breve.`,
+                          });
+                        }
+                      }}
+                    >
                       <Settings className="w-4 h-4 mr-2" />
                       Gerenciar
                     </Button>

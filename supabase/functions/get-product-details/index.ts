@@ -55,24 +55,30 @@ serve(async (req) => {
     }
 
     // Parse request body
-    const { sku } = await req.json();
+    const { sku, id } = await req.json();
     
-    if (!sku) {
-      return new Response(JSON.stringify({ error: 'SKU is required' }), {
+    if (!sku && !id) {
+      return new Response(JSON.stringify({ error: 'SKU or ID is required' }), {
         status: 400,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
     }
 
-    console.log(`Getting product details for SKU: ${sku}, User: ${user.id}`);
+    console.log(`Getting product details for ${id ? 'ID' : 'SKU'}: ${id || sku}, User: ${user.id}`);
 
-    // Get product from database
-    const { data: product, error: productError } = await supabase
+    // Get product from database - search by ID first, then by SKU
+    let productQuery = supabase
       .from('products')
       .select('id, name, sku, stock, user_id, created_at, updated_at, cost_price, selling_price, ad_spend')
-      .eq('sku', sku)
-      .eq('user_id', user.id)
-      .single();
+      .eq('user_id', user.id);
+
+    if (id) {
+      productQuery = productQuery.eq('id', id);
+    } else if (sku) {
+      productQuery = productQuery.eq('sku', sku);
+    }
+
+    const { data: product, error: productError } = await productQuery.single();
 
     if (productError || !product) {
       console.error('Product not found:', productError);
@@ -172,7 +178,19 @@ async function getMercadoLivreStock(accessToken: string, sku: string): Promise<C
 
     if (!userResponse.ok) {
       console.error(`Failed to get user info from Mercado Livre: ${userResponse.status}`);
-      throw new Error('Failed to get user info from Mercado Livre');
+      
+      if (userResponse.status === 401) {
+        console.error('Mercado Livre token expired or invalid');
+        return {
+          channel: 'mercadolivre',
+          channelId: 'Token Expirado',
+          stock: 0,
+          status: 'error' as const,
+          images: []
+        };
+      }
+      
+      throw new Error(`Failed to get user info from Mercado Livre: ${userResponse.status}`);
     }
 
     const userData = await userResponse.json();
@@ -184,7 +202,19 @@ async function getMercadoLivreStock(accessToken: string, sku: string): Promise<C
     
     if (!searchResponse.ok) {
       console.error(`Failed to search items from Mercado Livre: ${searchResponse.status}`);
-      throw new Error('Failed to search items from Mercado Livre');
+      
+      if (searchResponse.status === 401) {
+        console.error('Mercado Livre search token expired or invalid');
+        return {
+          channel: 'mercadolivre',
+          channelId: 'Token Expirado',
+          stock: 0,
+          status: 'error' as const,
+          images: []
+        };
+      }
+      
+      throw new Error(`Failed to search items from Mercado Livre: ${searchResponse.status}`);
     }
 
     const searchData = await searchResponse.json();
@@ -207,7 +237,7 @@ async function getMercadoLivreStock(accessToken: string, sku: string): Promise<C
         channel: 'mercadolivre',
         channelId: 'N/A',
         stock: 0,
-        status: 'not_published' as const,
+        status: 'not_found' as const,
         images: []
       };
     }
@@ -217,7 +247,7 @@ async function getMercadoLivreStock(accessToken: string, sku: string): Promise<C
     
     if (!itemResponse.ok) {
       console.error(`Failed to get item details from Mercado Livre: ${itemResponse.status}`);
-      throw new Error('Failed to get item details from Mercado Livre');
+      throw new Error(`Failed to get item details from Mercado Livre: ${itemResponse.status}`);
     }
 
     const itemData = await itemResponse.json();
@@ -235,7 +265,7 @@ async function getMercadoLivreStock(accessToken: string, sku: string): Promise<C
     console.error('Error fetching Mercado Livre stock:', error);
     return {
       channel: 'mercadolivre',
-      channelId: 'Error',
+      channelId: 'Erro de Conexão',
       stock: 0,
       status: 'error' as const,
       images: []
