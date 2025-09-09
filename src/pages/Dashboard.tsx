@@ -239,7 +239,7 @@ export default function Dashboard() {
         <div className="flex flex-col items-center justify-center min-h-[400px] text-center">
           <Package className="h-16 w-16 text-muted-foreground/50 mb-4" />
           <h3 className="text-xl font-semibold text-foreground mb-2">
-            Ainda não há dados suficientes para exibir o dashboard
+            Sem dados o suficiente
           </h3>
           <p className="text-muted-foreground max-w-md">
             Comece importando seus produtos e sincronizando seus pedidos para ver suas métricas aqui.

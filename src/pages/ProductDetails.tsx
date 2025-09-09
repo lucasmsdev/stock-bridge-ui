@@ -120,10 +120,25 @@ export default function ProductDetails() {
 
     try {
       setIsLoading(true);
-      console.log('Calling get-product-details function for product:', id);
+      
+      // First get the product data directly from Supabase to get the SKU
+      const { data: productData, error: productError } = await supabase
+        .from('products')
+        .select('*')
+        .eq('id', id)
+        .eq('user_id', user.id)
+        .single();
+
+      if (productError || !productData) {
+        console.error('Product not found:', productError);
+        setProductDetails(null);
+        return;
+      }
+
+      console.log('Calling get-product-details function for product SKU:', productData.sku);
 
       const { data, error } = await supabase.functions.invoke('get-product-details', {
-        body: { sku: id }
+        body: { sku: productData.sku }
       });
 
       if (error) {
