@@ -139,15 +139,7 @@ export default function Integrations() {
   };
 
   const handleConnect = (platformId: string) => {
-    // Check API integration restriction for premium features
-    if ((platformId === 'amazon' || platformId === 'vtex') && !canAccess('hasIntegracaoAPI')) {
-      toast({
-        title: "❌ Funcionalidade premium",
-        description: getUpgradeRequiredMessage('hasIntegracaoAPI'),
-        variant: "destructive",
-      });
-      return;
-    }
+    // All users can access integrations - no restrictions
 
     if (platformId === 'mercadolivre') {
       const appId = '5615590729373432';
@@ -396,17 +388,9 @@ export default function Integrations() {
                 <Button 
                   onClick={() => handleConnect(platform.id)}
                   className="w-full bg-gradient-primary hover:bg-primary-hover group-hover:shadow-primary transition-all duration-200 hover:scale-[1.02]"
-                  disabled={(platform.id === 'amazon' || platform.id === 'vtex') && !canAccess('hasIntegracaoAPI')}
                 >
-                  {(platform.id === 'amazon' || platform.id === 'vtex') && !canAccess('hasIntegracaoAPI') ? (
-                    <Lock className="w-4 h-4 mr-2" />
-                  ) : (
-                    <Plus className="w-4 h-4 mr-2" />
-                  )}
-                  {(platform.id === 'amazon' || platform.id === 'vtex') && !canAccess('hasIntegracaoAPI') 
-                    ? `Premium - ${platform.name}` 
-                    : `Conectar ${platform.name}`
-                  }
+                  <Plus className="w-4 h-4 mr-2" />
+                  Conectar {platform.name}
                 </Button>
               </CardContent>
             </Card>

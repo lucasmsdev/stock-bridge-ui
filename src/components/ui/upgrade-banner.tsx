@@ -27,9 +27,9 @@ const planNames = {
 };
 
 const planColors = {
-  estrategista: 'border-blue-200 bg-gradient-to-br from-blue-50 to-blue-100',
-  competidor: 'border-green-200 bg-gradient-to-br from-green-50 to-green-100',
-  dominador: 'border-purple-200 bg-gradient-to-br from-purple-50 to-purple-100',
+  estrategista: 'border-blue-200 bg-gradient-to-br from-blue-50 to-blue-100 dark:border-blue-600 dark:from-blue-900/20 dark:to-blue-800/20',
+  competidor: 'border-green-200 bg-gradient-to-br from-green-50 to-green-100 dark:border-green-600 dark:from-green-900/20 dark:to-green-800/20',
+  dominador: 'border-purple-200 bg-gradient-to-br from-purple-50 to-purple-100 dark:border-purple-600 dark:from-purple-900/20 dark:to-purple-800/20',
 };
 
 const buttonColors = {
@@ -75,14 +75,14 @@ export function UpgradeBanner({
   return (
     <Card className={`border-dashed border-2 ${planColors[requiredPlan]} ${className}`}>
       <CardHeader className="text-center pb-3">
-        <div className="mx-auto mb-2 p-3 rounded-full bg-white/60">
-          <Lock className="h-6 w-6 text-gray-600" />
+        <div className="mx-auto mb-2 p-3 rounded-full bg-background/60 border">
+          <Lock className="h-6 w-6 text-muted-foreground" />
         </div>
-        <CardTitle className="text-lg text-gray-800">{title}</CardTitle>
-        <p className="text-sm text-gray-600">{description}</p>
+        <CardTitle className="text-lg text-foreground">{title}</CardTitle>
+        <p className="text-sm text-muted-foreground">{description}</p>
       </CardHeader>
       <CardContent className="text-center space-y-4">
-        <Badge variant="outline" className="border-gray-400 text-gray-700 bg-white/60">
+        <Badge variant="outline" className="border-border text-foreground bg-background/60">
           <PlanIcon className="h-3 w-3 mr-1" />
           Plano {planName} necessário
         </Badge>
