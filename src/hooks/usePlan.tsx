@@ -2,9 +2,21 @@ import { useState, useEffect } from "react";
 import { useAuth } from "./useAuth";
 import { supabase } from "@/integrations/supabase/client";
 
-type PlanType = 'estrategista' | 'competidor' | 'dominador';
+export type PlanType = 'estrategista' | 'competidor' | 'dominador';
 
-interface PlanFeatures {
+// Definição clara de features disponíveis
+export type FeatureName = 
+  | 'AnaliseDeConcorrencia'
+  | 'DashboardDePerformance'
+  | 'ReprecificacaoPorAlerta'
+  | 'PrecificacaoDinamica'
+  | 'AutomacaoDeRespostasIA'
+  | 'RelatoriosAvancados'
+  | 'SuportePrioritario'
+  | 'IntegracaoAPI';
+
+// Interface para compatibilidade com código existente (LEGACY)
+export interface LegacyPlanFeatures {
   maxSkus: number;
   hasReprecificacaoPorAlerta: boolean;
   hasPrecificacaoDinamica: boolean;
@@ -14,34 +26,76 @@ interface PlanFeatures {
   hasIntegracaoAPI: boolean;
 }
 
+// Nova interface para o sistema de planos
+export interface PlanFeatures {
+  maxSkus: number;
+  features: FeatureName[];
+  price: number;
+  description: string;
+  name: string;
+}
+
+// Mapa claro de permissões por plano
 const planFeatures: Record<PlanType, PlanFeatures> = {
   estrategista: {
     maxSkus: 100,
-    hasReprecificacaoPorAlerta: false,
-    hasPrecificacaoDinamica: false,
-    hasAutomacaoIA: false,
-    hasSuportePrioritario: false,
-    hasRelatoriosAvancados: false,
-    hasIntegracaoAPI: false,
+    features: ['AnaliseDeConcorrencia', 'DashboardDePerformance'],
+    price: 49.90,
+    description: 'Ideal para quem está começando',
+    name: 'Estrategista'
   },
   competidor: {
     maxSkus: 500,
-    hasReprecificacaoPorAlerta: true,
-    hasPrecificacaoDinamica: false,
-    hasAutomacaoIA: false,
-    hasSuportePrioritario: true,
-    hasRelatoriosAvancados: true,
-    hasIntegracaoAPI: false,
+    features: [
+      'AnaliseDeConcorrencia', 
+      'DashboardDePerformance', 
+      'ReprecificacaoPorAlerta',
+      'RelatoriosAvancados',
+      'SuportePrioritario'
+    ],
+    price: 149.90,
+    description: 'Para vendedores que querem crescer',
+    name: 'Competidor'
   },
   dominador: {
     maxSkus: Infinity,
-    hasReprecificacaoPorAlerta: true,
-    hasPrecificacaoDinamica: true,
-    hasAutomacaoIA: true,
-    hasSuportePrioritario: true,
-    hasRelatoriosAvancados: true,
-    hasIntegracaoAPI: true,
+    features: [
+      'AnaliseDeConcorrencia',
+      'DashboardDePerformance', 
+      'ReprecificacaoPorAlerta',
+      'PrecificacaoDinamica',
+      'AutomacaoDeRespostasIA',
+      'RelatoriosAvancados',
+      'SuportePrioritario',
+      'IntegracaoAPI'
+    ],
+    price: 299.90,
+    description: 'Automação completa para dominar o mercado',
+    name: 'Dominador'
   },
+};
+
+// Mapeamento de features legadas para o novo sistema
+const legacyFeatureMap: Record<string, FeatureName> = {
+  'hasReprecificacaoPorAlerta': 'ReprecificacaoPorAlerta',
+  'hasPrecificacaoDinamica': 'PrecificacaoDinamica',
+  'hasAutomacaoIA': 'AutomacaoDeRespostasIA',
+  'hasSuportePrioritario': 'SuportePrioritario',
+  'hasRelatoriosAvancados': 'RelatoriosAvancados',
+  'hasIntegracaoAPI': 'IntegracaoAPI',
+};
+
+// Função para converter nova estrutura em formato legado
+const convertToLegacyFeatures = (plan: PlanFeatures): LegacyPlanFeatures => {
+  return {
+    maxSkus: plan.maxSkus,
+    hasReprecificacaoPorAlerta: plan.features.includes('ReprecificacaoPorAlerta'),
+    hasPrecificacaoDinamica: plan.features.includes('PrecificacaoDinamica'),
+    hasAutomacaoIA: plan.features.includes('AutomacaoDeRespostasIA'),
+    hasSuportePrioritario: plan.features.includes('SuportePrioritario'),
+    hasRelatoriosAvancados: plan.features.includes('RelatoriosAvancados'),
+    hasIntegracaoAPI: plan.features.includes('IntegracaoAPI'),
+  };
 };
 
 export const usePlan = () => {
@@ -84,9 +138,28 @@ export const usePlan = () => {
     fetchUserPlan();
   }, [user]);
 
-  const canAccess = (feature: keyof PlanFeatures): boolean => {
+  // Nova função para verificar acesso usando o sistema de features
+  const hasFeature = (feature: FeatureName): boolean => {
     if (!user || isLoading) return false;
-    return planFeatures[currentPlan][feature] as boolean;
+    return planFeatures[currentPlan].features.includes(feature);
+  };
+
+  // Função legada para compatibilidade - aceita tanto propriedades legadas quanto features
+  const canAccess = (feature: keyof LegacyPlanFeatures | FeatureName): boolean => {
+    if (!user || isLoading) return false;
+    
+    // Se é uma string que começa com 'has', é uma propriedade legada
+    if (typeof feature === 'string' && feature.startsWith('has')) {
+      const newFeature = legacyFeatureMap[feature];
+      return newFeature ? hasFeature(newFeature) : false;
+    }
+    
+    // Se é uma FeatureName, usa o sistema novo
+    if (typeof feature === 'string') {
+      return hasFeature(feature as FeatureName);
+    }
+
+    return false;
   };
 
   const canImportProducts = (currentProductCount: number, newProductsCount: number): boolean => {
@@ -98,41 +171,81 @@ export const usePlan = () => {
     return planFeatures[currentPlan].maxSkus;
   };
 
+  // Retorna as features no formato novo
   const getPlanFeatures = (): PlanFeatures => {
     return planFeatures[currentPlan];
   };
 
-  const getUpgradeRequiredMessage = (feature: keyof PlanFeatures): string => {
-    const requiredPlans: Record<keyof PlanFeatures, PlanType[]> = {
-      maxSkus: ['competidor', 'dominador'],
-      hasReprecificacaoPorAlerta: ['competidor', 'dominador'],
-      hasPrecificacaoDinamica: ['dominador'],
-      hasAutomacaoIA: ['dominador'],
-      hasSuportePrioritario: ['competidor', 'dominador'],
-      hasRelatoriosAvancados: ['competidor', 'dominador'],
-      hasIntegracaoAPI: ['dominador'],
-    };
+  // Retorna as features no formato legado para compatibilidade
+  const getLegacyPlanFeatures = (): LegacyPlanFeatures => {
+    return convertToLegacyFeatures(planFeatures[currentPlan]);
+  };
 
-    const required = requiredPlans[feature];
-    const lowestPlan = required[0];
+  const getUpgradeRequiredMessage = (feature: keyof LegacyPlanFeatures | FeatureName): string => {
+    let requiredFeature: FeatureName;
     
-    const planNames = {
-      estrategista: 'Estrategista',
-      competidor: 'Competidor',
-      dominador: 'Dominador'
-    };
+    // Convert legacy feature to new feature name
+    if (typeof feature === 'string' && feature.startsWith('has')) {
+      requiredFeature = legacyFeatureMap[feature];
+    } else {
+      requiredFeature = feature as FeatureName;
+    }
 
-    return `Faça upgrade para o plano ${planNames[lowestPlan]} para acessar esta funcionalidade.`;
+    // Find the cheapest plan that has this feature
+    const plansWithFeature = Object.entries(planFeatures)
+      .filter(([_, plan]) => plan.features.includes(requiredFeature))
+      .map(([planKey, plan]) => ({ key: planKey as PlanType, ...plan }))
+      .sort((a, b) => a.price - b.price);
+
+    if (plansWithFeature.length === 0) {
+      return `Esta funcionalidade não está disponível em nenhum plano.`;
+    }
+
+    const cheapestPlan = plansWithFeature[0];
+    return `Faça upgrade para o plano ${cheapestPlan.name} para acessar esta funcionalidade.`;
+  };
+
+  // Função para obter o próximo plano recomendado
+  const getRecommendedUpgrade = (): { plan: PlanType; features: PlanFeatures } | null => {
+    const currentFeatures = planFeatures[currentPlan];
+    const allPlans = Object.entries(planFeatures) as [PlanType, PlanFeatures][];
+    
+    // Find plans with more features and higher price
+    const upgradePlans = allPlans
+      .filter(([_, plan]) => plan.price > currentFeatures.price)
+      .sort((a, b) => a[1].price - b[1].price);
+    
+    if (upgradePlans.length === 0) return null;
+    
+    const [planKey, planData] = upgradePlans[0];
+    return { plan: planKey, features: planData };
+  };
+
+  // Função para verificar se é necessário upgrade para uma funcionalidade
+  const needsUpgradeFor = (feature: FeatureName): boolean => {
+    return !hasFeature(feature);
+  };
+
+  // Função para obter todos os planos disponíveis
+  const getAllPlans = (): Record<PlanType, PlanFeatures> => {
+    return planFeatures;
   };
 
   return {
     currentPlan,
     isLoading,
     error,
+    // Funções para o sistema novo
+    hasFeature,
+    needsUpgradeFor,
+    getRecommendedUpgrade,
+    getAllPlans,
+    // Funções para compatibilidade
     canAccess,
     canImportProducts,
     getMaxSkus,
     getPlanFeatures,
+    getLegacyPlanFeatures,
     getUpgradeRequiredMessage,
   };
 };

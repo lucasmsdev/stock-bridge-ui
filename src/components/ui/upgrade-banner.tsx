@@ -1,20 +1,23 @@
-import { Lock, Crown, Zap } from "lucide-react";
+import { Lock, Crown, Zap, ArrowRight, Star } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { useNavigate } from "react-router-dom";
+import { FeatureName, PlanType } from "@/hooks/usePlan";
 
 interface UpgradeBannerProps {
   title: string;
   description: string;
-  requiredPlan: string;
-  feature?: string;
+  requiredPlan: PlanType;
+  feature?: FeatureName;
   className?: string;
+  variant?: 'card' | 'inline' | 'modal';
 }
 
 const planIcons = {
   estrategista: Crown,
   competidor: Zap,
-  dominador: Crown,
+  dominador: Star,
 };
 
 const planNames = {
@@ -23,27 +26,70 @@ const planNames = {
   dominador: 'Dominador'
 };
 
-export function UpgradeBanner({ title, description, requiredPlan, feature, className }: UpgradeBannerProps) {
+const planColors = {
+  estrategista: 'border-blue-200 bg-gradient-to-br from-blue-50 to-blue-100',
+  competidor: 'border-green-200 bg-gradient-to-br from-green-50 to-green-100',
+  dominador: 'border-purple-200 bg-gradient-to-br from-purple-50 to-purple-100',
+};
+
+const buttonColors = {
+  estrategista: 'bg-blue-600 hover:bg-blue-700',
+  competidor: 'bg-green-600 hover:bg-green-700',
+  dominador: 'bg-purple-600 hover:bg-purple-700',
+};
+
+export function UpgradeBanner({ 
+  title, 
+  description, 
+  requiredPlan, 
+  feature, 
+  className = "", 
+  variant = 'card'
+}: UpgradeBannerProps) {
+  const navigate = useNavigate();
   const PlanIcon = planIcons[requiredPlan] || Crown;
   const planName = planNames[requiredPlan] || requiredPlan;
 
-  return (
-    <Card className={`border-dashed border-2 border-primary/30 bg-gradient-to-br from-primary/5 to-primary/10 ${className}`}>
-      <CardHeader className="text-center pb-3">
-        <div className="mx-auto mb-2 p-3 rounded-full bg-primary/10">
-          <Lock className="h-6 w-6 text-primary" />
+  const handleUpgradeClick = () => {
+    navigate('/app/billing', { state: { targetPlan: requiredPlan, feature } });
+  };
+
+  if (variant === 'inline') {
+    return (
+      <div className={`flex items-center justify-between p-4 border-l-4 border-primary bg-primary/5 rounded-r-md ${className}`}>
+        <div className="flex items-center space-x-3">
+          <Lock className="h-5 w-5 text-primary" />
+          <div>
+            <h4 className="font-medium text-sm">{title}</h4>
+            <p className="text-xs text-muted-foreground">{description}</p>
+          </div>
         </div>
-        <CardTitle className="text-lg">{title}</CardTitle>
-        <p className="text-sm text-muted-foreground">{description}</p>
+        <Button size="sm" onClick={handleUpgradeClick} className={buttonColors[requiredPlan]}>
+          Upgrade
+          <ArrowRight className="h-3 w-3 ml-1" />
+        </Button>
+      </div>
+    );
+  }
+
+  return (
+    <Card className={`border-dashed border-2 ${planColors[requiredPlan]} ${className}`}>
+      <CardHeader className="text-center pb-3">
+        <div className="mx-auto mb-2 p-3 rounded-full bg-white/60">
+          <Lock className="h-6 w-6 text-gray-600" />
+        </div>
+        <CardTitle className="text-lg text-gray-800">{title}</CardTitle>
+        <p className="text-sm text-gray-600">{description}</p>
       </CardHeader>
       <CardContent className="text-center space-y-4">
-        <Badge variant="outline" className="border-primary text-primary">
+        <Badge variant="outline" className="border-gray-400 text-gray-700 bg-white/60">
           <PlanIcon className="h-3 w-3 mr-1" />
           Plano {planName} necessário
         </Badge>
-        <Button className="w-full bg-gradient-primary hover:bg-primary-hover">
-          <Crown className="h-4 w-4 mr-2" />
-          Fazer Upgrade
+        
+        <Button className={`w-full ${buttonColors[requiredPlan]} text-white`} onClick={handleUpgradeClick}>
+          <PlanIcon className="h-4 w-4 mr-2" />
+          Fazer Upgrade Agora
         </Button>
       </CardContent>
     </Card>

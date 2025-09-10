@@ -149,7 +149,7 @@ export default function Finance() {
         <TabsList className="grid w-full grid-cols-3">
           <TabsTrigger value="overview">Visão Geral</TabsTrigger>
           <TabsTrigger value="calculator">Calculadora de Precificação</TabsTrigger>
-          <TabsTrigger value="advanced" disabled={!canAccess('hasRelatoriosAvancados')}>
+          <TabsTrigger value="advanced" disabled={!canAccess('RelatoriosAvancados')}>
             Relatórios Avançados
           </TabsTrigger>
         </TabsList>
@@ -475,7 +475,7 @@ export default function Finance() {
 
         {/* Advanced Reports Tab */}
         <TabsContent value="advanced" className="space-y-6">
-          {canAccess('hasRelatoriosAvancados') ? (
+          {canAccess('RelatoriosAvancados') ? (
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
               <Card>
                 <CardHeader>
@@ -514,7 +514,7 @@ export default function Finance() {
               title="Relatórios Avançados"
               description="Acesse análises detalhadas de ROI, projeções de lucro e relatórios personalizados"
               requiredPlan="competidor"
-              feature="hasRelatoriosAvancados"
+              feature="RelatoriosAvancados"
             />
           )}
         </TabsContent>

@@ -63,7 +63,7 @@ interface DeleteAccountResponse {
 
 export default function Profile() {
   const { user, signOut } = useAuth();
-  const { currentPlan, getPlanFeatures } = usePlan();
+  const { currentPlan, getPlanFeatures, getLegacyPlanFeatures } = usePlan();
   const { toast } = useToast();
   
   const [isLoading, setIsLoading] = useState(true);
@@ -447,16 +447,16 @@ export default function Profile() {
               <Separator />
 
               <div className="space-y-2">
-                <h4 className="font-medium text-foreground">Recursos inclusos:</h4>
-                <div className="space-y-1 text-sm text-muted-foreground">
-                  <p>• {getPlanFeatures().maxSkus === Infinity ? '∞' : getPlanFeatures().maxSkus} produtos</p>
-                  <p>• {getPlanFeatures().hasReprecificacaoPorAlerta ? '✅' : '❌'} Reprecificação por alerta</p>
-                  <p>• {getPlanFeatures().hasPrecificacaoDinamica ? '✅' : '❌'} Precificação dinâmica</p>
-                  <p>• {getPlanFeatures().hasAutomacaoIA ? '✅' : '❌'} Automação IA</p>
-                  <p>• {getPlanFeatures().hasSuportePrioritario ? '✅' : '❌'} Suporte prioritário</p>
-                  <p>• {getPlanFeatures().hasRelatoriosAvancados ? '✅' : '❌'} Relatórios avançados</p>
-                  <p>• {getPlanFeatures().hasIntegracaoAPI ? '✅' : '❌'} Integrações API</p>
-                </div>
+                 <h4 className="font-medium text-foreground">Recursos inclusos:</h4>
+                 <div className="space-y-1 text-sm text-muted-foreground">
+                   <p>• {getLegacyPlanFeatures().maxSkus === Infinity ? '∞' : getLegacyPlanFeatures().maxSkus} produtos</p>
+                   <p>• {getLegacyPlanFeatures().hasReprecificacaoPorAlerta ? '✅' : '❌'} Reprecificação por alerta</p>
+                   <p>• {getLegacyPlanFeatures().hasPrecificacaoDinamica ? '✅' : '❌'} Precificação dinâmica</p>
+                   <p>• {getLegacyPlanFeatures().hasAutomacaoIA ? '✅' : '❌'} Automação IA</p>
+                   <p>• {getLegacyPlanFeatures().hasSuportePrioritario ? '✅' : '❌'} Suporte prioritário</p>
+                   <p>• {getLegacyPlanFeatures().hasRelatoriosAvancados ? '✅' : '❌'} Relatórios avançados</p>
+                   <p>• {getLegacyPlanFeatures().hasIntegracaoAPI ? '✅' : '❌'} Integrações API</p>
+                 </div>
               </div>
 
               <Button 

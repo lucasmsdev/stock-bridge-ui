@@ -15,6 +15,7 @@ import Finance from "./pages/Finance";
 import Integrations from "./pages/Integrations";
 import Help from "./pages/Help";
 import Profile from "./pages/Profile";
+import Billing from "./pages/Billing";
 import MercadoLivreCallback from "./pages/callback/MercadoLivreCallback";
 import ShopifyCallback from "./pages/callback/ShopifyCallback";
 import ShopifySetup from "./pages/ShopifySetup";
@@ -48,6 +49,7 @@ const App = () => (
               <Route path="integrations" element={<Integrations />} />
               <Route path="help" element={<Help />} />
               <Route path="profile" element={<Profile />} />
+              <Route path="billing" element={<Billing />} />
             </Route>
 
             {/* Landing page as root */}
