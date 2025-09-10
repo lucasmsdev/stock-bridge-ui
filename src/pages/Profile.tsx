@@ -50,6 +50,17 @@ interface ProfileRow {
   updated_at?: string;
 }
 
+interface DeleteAccountResponse {
+  success: boolean;
+  error?: string;
+  deleted_data?: {
+    products: number;
+    orders: number;
+    integrations: number;
+    profile: boolean;
+  };
+}
+
 export default function Profile() {
   const { user, signOut } = useAuth();
   const { currentPlan, getPlanFeatures } = usePlan();
@@ -207,29 +218,29 @@ export default function Profile() {
     try {
       setIsDeleting(true);
       
-      // First delete profile data
-      await supabase
-        .from('profiles')
-        .delete()
-        .eq('id', user.id);
-
-      // Then delete the user account
-      const { error } = await supabase.auth.admin.deleteUser(user.id);
+      // Call the secure RPC function to delete user and all associated data
+      const { data, error } = await supabase.rpc('delete_user_account');
       
       if (error) throw error;
+
+      // Check if the deletion was successful
+      const response = data as unknown as DeleteAccountResponse;
+      if (!response || !response.success) {
+        throw new Error(response?.error || 'Falha ao deletar conta');
+      }
 
       toast({
         title: "✅ Conta deletada",
         description: "Sua conta foi removida permanentemente.",
       });
 
-      // Sign out and redirect
+      // Sign out after successful deletion
       await signOut();
     } catch (error) {
       console.error('Error deleting account:', error);
       toast({
         title: "❌ Erro ao deletar conta",
-        description: "Não foi possível deletar a conta. Entre em contato com o suporte.",
+        description: error instanceof Error ? error.message : "Não foi possível deletar a conta. Entre em contato com o suporte.",
         variant: "destructive",
       });
     } finally {
