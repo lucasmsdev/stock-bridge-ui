@@ -26,9 +26,9 @@ const planColors = {
 };
 
 const planGradients = {
-  estrategista: 'bg-gradient-to-br from-blue-50 to-blue-100',
-  competidor: 'bg-gradient-to-br from-green-50 to-green-100',
-  dominador: 'bg-gradient-to-br from-purple-50 to-purple-100',
+  estrategista: 'bg-gradient-to-br from-blue-50 to-blue-100 dark:from-blue-900/20 dark:to-blue-800/20',
+  competidor: 'bg-gradient-to-br from-green-50 to-green-100 dark:from-green-900/20 dark:to-green-800/20',
+  dominador: 'bg-gradient-to-br from-purple-50 to-purple-100 dark:from-purple-900/20 dark:to-purple-800/20',
 };
 
 export default function Billing() {
