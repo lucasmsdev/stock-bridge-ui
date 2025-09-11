@@ -212,61 +212,107 @@ serve(async (req) => {
   }
 });
 
-// Extract product variations from search results
+// Extract product variations from search results using intelligent pattern recognition
 function extractProductVariations(rawResults: RawResult[], searchTerm: string): VariationAnalysis {
-  console.log('🔍 Extraindo variações dos resultados...');
+  console.log('🔍 Extraindo variações dos resultados com dicionários inteligentes...');
   
-  const variations = new Set<string>();
-  const commonVariationPatterns = [
-    /(\d+GB|\d+MB)/gi,
-    /(64GB|128GB|256GB|512GB|1TB|2TB)/gi,
-    /(Preto|Branco|Azul|Verde|Rosa|Vermelho|Dourado|Prata|Cinza|Space Gray|Midnight|Starlight)/gi,
-    /(Pro|Max|Plus|Mini|Lite|Standard)/gi,
-    /(WiFi|4G|5G|Cellular)/gi,
-    /(S|M|L|XL|PP|P|G|GG)/gi,
-  ];
+  // Dictionary-based variation recognition
+  const variationDictionaries = {
+    capacidade: ['64GB', '128GB', '256GB', '512GB', '1TB', '2TB', '32GB', '16GB', '8GB', '4GB'],
+    cor: [
+      'preto', 'branco', 'azul', 'verde', 'rosa', 'vermelho', 'dourado', 'prata', 
+      'cinza', 'titânio', 'natural', 'grafite', 'midnight', 'starlight', 
+      'space gray', 'rose gold', 'coral', 'amarelo', 'roxo', 'violeta'
+    ],
+    modelo: ['pro', 'max', 'plus', 'mini', 'lite', 'standard', 'ultra', 'slim'],
+    conectividade: ['wifi', '4g', '5g', 'cellular', 'bluetooth']
+  };
+
+  const foundVariations = new Set<string>();
   
-  // Analyze titles to find variations
-  rawResults.forEach(result => {
-    const title = result.title;
+  console.log('📊 Analisando', rawResults.length, 'resultados para extrair variações...');
+  
+  // Process each result to find variations
+  rawResults.forEach((result, index) => {
+    const title = result.title.toLowerCase();
+    console.log(`🔍 Analisando resultado ${index + 1}:`, result.title);
     
-    commonVariationPatterns.forEach(pattern => {
-      const matches = title.match(pattern);
-      if (matches) {
-        matches.forEach(match => {
-          // Build variation string
-          const titleWords = title.toLowerCase().split(' ');
-          const matchIndex = titleWords.findIndex(word => word.includes(match.toLowerCase()));
-          
-          if (matchIndex !== -1) {
-            // Extract surrounding context for better variation description
-            const context = titleWords.slice(Math.max(0, matchIndex - 1), matchIndex + 3).join(' ');
-            if (context.length > match.length && context.length < 50) {
-              variations.add(context);
-            } else {
-              variations.add(match);
-            }
-          }
-        });
+    // Detect variations from each dictionary
+    const detectedCapacity = variationDictionaries.capacidade.find(c => 
+      title.includes(c.toLowerCase())
+    );
+    
+    const detectedColors = variationDictionaries.cor.filter(c => 
+      title.includes(c.toLowerCase())
+    );
+    
+    const detectedModels = variationDictionaries.modelo.filter(m => 
+      title.includes(m.toLowerCase())
+    );
+    
+    const detectedConnectivity = variationDictionaries.conectividade.filter(conn => 
+      title.includes(conn.toLowerCase())
+    );
+    
+    // Build composite variation string
+    if (detectedCapacity || detectedColors.length > 0 || detectedModels.length > 0) {
+      let compositeVariation = '';
+      
+      // Add capacity first
+      if (detectedCapacity) {
+        compositeVariation = detectedCapacity.toUpperCase();
       }
-    });
+      
+      // Add models
+      if (detectedModels.length > 0) {
+        const formattedModels = detectedModels
+          .map(m => m.charAt(0).toUpperCase() + m.slice(1))
+          .join(' ');
+        compositeVariation = compositeVariation ? `${compositeVariation} ${formattedModels}` : formattedModels;
+      }
+      
+      // Add colors
+      if (detectedColors.length > 0) {
+        const formattedColors = detectedColors
+          .map(c => {
+            // Handle special cases
+            if (c === 'space gray') return 'Space Gray';
+            if (c === 'rose gold') return 'Rose Gold';
+            return c.charAt(0).toUpperCase() + c.slice(1);
+          })
+          .join(' ');
+        compositeVariation = compositeVariation ? `${compositeVariation} ${formattedColors}` : formattedColors;
+      }
+      
+      // Add connectivity if relevant
+      if (detectedConnectivity.length > 0) {
+        const formattedConnectivity = detectedConnectivity
+          .map(conn => conn.toUpperCase())
+          .join(' + ');
+        compositeVariation = compositeVariation ? `${compositeVariation} ${formattedConnectivity}` : formattedConnectivity;
+      }
+      
+      if (compositeVariation.trim()) {
+        foundVariations.add(compositeVariation.trim());
+        console.log('✅ Variação detectada:', compositeVariation.trim());
+      }
+    }
   });
   
-  // Filter and clean variations
-  const filteredVariations = Array.from(variations)
-    .filter(v => v.length > 2 && v.length < 40)
-    .filter(v => !v.includes('usado') && !v.includes('case') && !v.includes('capa'))
-    .slice(0, 8); // Limit to 8 variations
+  // Convert to array and limit results
+  const cleanVariations = Array.from(foundVariations)
+    .filter(variation => variation.length > 2 && variation.length < 60)
+    .slice(0, 10); // Limit to 10 variations
   
-  console.log('✅ Variações extraídas:', filteredVariations);
+  console.log('✅ Variações extraídas:', cleanVariations);
   
-  // Determine main product title
+  // Determine main product title from best scored result
   const bestResult = rawResults.sort((a, b) => (b.score || 0) - (a.score || 0))[0];
   const productTitle = bestResult ? bestResult.title : searchTerm;
   
   return {
     productTitle,
-    variations: filteredVariations
+    variations: cleanVariations
   };
 }
 
