@@ -273,7 +273,7 @@ export default function MarketAnalysis() {
                             href={result.url} 
                             target="_blank" 
                             rel="noopener noreferrer"
-                            className="hover:text-primary transition-colors"
+                            className="hover:text-primary transition-colors cursor-pointer"
                           >
                             {result.title}
                           </a>

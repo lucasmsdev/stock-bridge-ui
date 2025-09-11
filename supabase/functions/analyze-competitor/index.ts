@@ -124,18 +124,47 @@ async function searchMercadoLibre(searchTerm: string): Promise<CompetitorResult[
       return [];
     }
 
-    const results: CompetitorResult[] = data.results.map((item: any) => ({
-      platform: 'Mercado Livre' as const,
-      title: item.title || 'Produto sem título',
-      price: item.price || 0,
-      seller: item.seller?.nickname || 'Vendedor não informado',
-      sales_count: item.sold_quantity || undefined,
-      shipping_cost: item.shipping?.free_shipping ? 0 : undefined,
-      url: item.permalink || `https://mercadolivre.com.br`,
-      image_url: item.thumbnail || undefined
-    }));
+    const results: CompetitorResult[] = data.results
+      .filter((item: any) => {
+        // Filter out accessories and irrelevant products
+        const title = (item.title || '').toLowerCase();
+        const negativeKeywords = ['capa', 'película', 'suporte', 'adesivo', 'controle', 'peça', 'usado', 'case', 'película', 'cabo', 'carregador', 'fonte', 'adaptador', 'película', 'protetor', 'película', 'skin', 'acessório', 'kit', 'peças'];
+        
+        // Skip if title contains negative keywords
+        if (negativeKeywords.some(keyword => title.includes(keyword))) {
+          return false;
+        }
+        
+        // Price validation based on search term
+        const price = item.price || 0;
+        const searchLower = searchTerm.toLowerCase();
+        
+        // Apply minimum price filters for expensive products
+        if (searchLower.includes('playstation') || searchLower.includes('xbox') || searchLower.includes('console')) {
+          return price >= 1000; // Minimum R$ 1000 for game consoles
+        }
+        if (searchLower.includes('iphone') || searchLower.includes('samsung galaxy')) {
+          return price >= 800; // Minimum R$ 800 for smartphones
+        }
+        if (searchLower.includes('notebook') || searchLower.includes('laptop')) {
+          return price >= 1200; // Minimum R$ 1200 for laptops
+        }
+        
+        // General minimum price filter
+        return price >= 50;
+      })
+      .map((item: any) => ({
+        platform: 'Mercado Livre' as const,
+        title: item.title || 'Produto sem título',
+        price: item.price || 0,
+        seller: item.seller?.nickname || 'Vendedor não informado',
+        sales_count: item.sold_quantity || undefined,
+        shipping_cost: item.shipping?.free_shipping ? 0 : undefined,
+        url: item.permalink || `https://mercadolivre.com.br`,
+        image_url: item.thumbnail || undefined
+      }));
 
-    return results.filter(result => result.price > 0);
+    return results;
 
   } catch (error) {
     console.error('Error searching MercadoLibre:', error);
@@ -156,13 +185,28 @@ async function searchShopee(searchTerm: string): Promise<CompetitorResult[]> {
   try {
     console.log('Searching Shopee for:', searchTerm);
     
-    // For MVP, return mock data since Shopee scraping is complex
-    // In production, you would implement proper scraping or use their API
+    // Apply smart filtering to mock data as well
+    const searchLower = searchTerm.toLowerCase();
+    let basePrice = 100;
+    let maxPrice = 500;
+    
+    // Adjust price ranges based on search term
+    if (searchLower.includes('playstation') || searchLower.includes('xbox') || searchLower.includes('console')) {
+      basePrice = 2800;
+      maxPrice = 4500;
+    } else if (searchLower.includes('iphone') || searchLower.includes('samsung galaxy')) {
+      basePrice = 1500;
+      maxPrice = 3500;
+    } else if (searchLower.includes('notebook') || searchLower.includes('laptop')) {
+      basePrice = 2000;
+      maxPrice = 6000;
+    }
+    
     const mockResults: CompetitorResult[] = [
       {
         platform: 'Shopee' as const,
         title: `${searchTerm} - Shopee Original`,
-        price: Math.floor(Math.random() * 800) + 80,
+        price: Math.floor(Math.random() * (maxPrice - basePrice)) + basePrice,
         seller: 'Shopee Seller',
         sales_count: Math.floor(Math.random() * 200) + 10,
         url: `https://shopee.com.br/search?keyword=${encodeURIComponent(searchTerm)}`,
@@ -170,8 +214,8 @@ async function searchShopee(searchTerm: string): Promise<CompetitorResult[]> {
       },
       {
         platform: 'Shopee' as const,
-        title: `${searchTerm} - Premium Shopee`,
-        price: Math.floor(Math.random() * 1200) + 150,
+        title: `${searchTerm} - Premium Edition`,
+        price: Math.floor(Math.random() * (maxPrice - basePrice)) + basePrice + 200,
         seller: 'Premium Store',
         sales_count: Math.floor(Math.random() * 150) + 5,
         url: `https://shopee.com.br/search?keyword=${encodeURIComponent(searchTerm)}`,
@@ -190,13 +234,28 @@ async function searchAmazon(searchTerm: string): Promise<CompetitorResult[]> {
   try {
     console.log('Searching Amazon for:', searchTerm);
     
-    // For MVP, return mock data since Amazon scraping requires careful implementation
-    // In production, you would implement proper scraping or use their API
+    // Apply smart filtering to mock data as well
+    const searchLower = searchTerm.toLowerCase();
+    let basePrice = 150;
+    let maxPrice = 800;
+    
+    // Adjust price ranges based on search term
+    if (searchLower.includes('playstation') || searchLower.includes('xbox') || searchLower.includes('console')) {
+      basePrice = 3000;
+      maxPrice = 5000;
+    } else if (searchLower.includes('iphone') || searchLower.includes('samsung galaxy')) {
+      basePrice = 1800;
+      maxPrice = 4000;
+    } else if (searchLower.includes('notebook') || searchLower.includes('laptop')) {
+      basePrice = 2500;
+      maxPrice = 8000;
+    }
+    
     const mockResults: CompetitorResult[] = [
       {
         platform: 'Amazon' as const,
-        title: `${searchTerm} - Amazon Choice`,
-        price: Math.floor(Math.random() * 1500) + 200,
+        title: `${searchTerm} - Amazon's Choice`,
+        price: Math.floor(Math.random() * (maxPrice - basePrice)) + basePrice,
         seller: 'Amazon',
         sales_count: Math.floor(Math.random() * 500) + 50,
         url: `https://www.amazon.com.br/s?k=${encodeURIComponent(searchTerm)}`,
@@ -205,7 +264,7 @@ async function searchAmazon(searchTerm: string): Promise<CompetitorResult[]> {
       {
         platform: 'Amazon' as const,
         title: `${searchTerm} - Prime Delivery`,
-        price: Math.floor(Math.random() * 900) + 120,
+        price: Math.floor(Math.random() * (maxPrice - basePrice)) + basePrice - 100,
         seller: 'Prime Seller',
         sales_count: Math.floor(Math.random() * 300) + 20,
         url: `https://www.amazon.com.br/s?k=${encodeURIComponent(searchTerm)}`,
