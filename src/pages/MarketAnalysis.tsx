@@ -34,6 +34,7 @@ export default function MarketAnalysis() {
   const [searchTerm, setSearchTerm] = useState("");
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [analysis, setAnalysis] = useState<ComparativeAnalysis | null>(null);
+  const [error, setError] = useState<string | null>(null);
   const { toast } = useToast();
 
   const handleAnalyze = async () => {
@@ -48,36 +49,54 @@ export default function MarketAnalysis() {
 
     setIsAnalyzing(true);
     setAnalysis(null);
+    setError(null);
 
     try {
-      const { data, error } = await supabase.functions.invoke('analyze-competitor', {
+      console.log('🚀 Iniciando análise de mercado para:', searchTerm.trim());
+      
+      const { data, error: functionError } = await supabase.functions.invoke('get-comparative-pricing', {
         body: { searchTerm: searchTerm.trim() }
       });
 
-      if (error) {
-        console.error('Error analyzing competitors:', error);
+      console.log('📥 Resposta da função:', { data, functionError });
+
+      if (functionError) {
+        console.error('❌ Erro da função:', functionError);
+        setError('Erro ao comunicar com o servidor. Tente novamente.');
         toast({
           title: "Erro na análise",
-          description: "Não foi possível analisar os concorrentes. Tente novamente.",
+          description: "Falha na comunicação com o servidor. Verifique sua conexão e tente novamente.",
           variant: "destructive",
         });
         return;
       }
 
       if (data?.success && data?.analysis) {
+        console.log('✅ Análise recebida com sucesso');
         setAnalysis(data.analysis);
         toast({
           title: "Análise concluída",
-          description: `Análise comparativa realizada com sucesso.`,
+          description: `Análise comparativa realizada com sucesso para "${data.analysis.productTitle}".`,
+        });
+      } else if (data?.success === false) {
+        console.log('⚠️ Função retornou erro:', data.error);
+        setError(data.error || 'Erro desconhecido na análise');
+        toast({
+          title: "Erro na análise",
+          description: data.error || "Não foi possível processar a análise.",
+          variant: "destructive",
         });
       } else {
+        console.log('⚠️ Nenhum resultado encontrado');
+        setError('Nenhum resultado encontrado para este termo de busca');
         toast({
           title: "Nenhum resultado",
-          description: "Não foram encontrados produtos concorrentes para este termo.",
+          description: "Não foram encontrados produtos para este termo. Tente uma busca mais específica.",
         });
       }
     } catch (error) {
-      console.error('Unexpected error:', error);
+      console.error('💥 Erro inesperado:', error);
+      setError('Ocorreu um erro inesperado. Tente novamente mais tarde.');
       toast({
         title: "Erro inesperado",
         description: "Ocorreu um erro durante a análise. Tente novamente.",
@@ -171,9 +190,27 @@ export default function MarketAnalysis() {
                 <div className="text-center space-y-3">
                   <Loader2 className="h-8 w-8 text-primary animate-spin mx-auto" />
                   <p className="text-sm text-muted-foreground">
-                    Buscando produtos no Mercado Livre, Shopee e Amazon...
+                    Analisando preços no Mercado Livre, Shopee e Amazon...
                   </p>
                 </div>
+            </div>
+          )}
+          
+          {error && !isAnalyzing && (
+            <div className="rounded-lg border border-destructive/20 bg-destructive/10 p-6 text-center">
+              <div className="flex items-center justify-center space-x-2 text-destructive">
+                <Target className="h-5 w-5" />
+                <h3 className="font-semibold">Erro na Análise</h3>
+              </div>
+              <p className="mt-2 text-sm text-muted-foreground">{error}</p>
+              <Button 
+                variant="outline" 
+                size="sm" 
+                className="mt-4"
+                onClick={() => setError(null)}
+              >
+                Tentar Novamente
+              </Button>
             </div>
           )}
         </CardContent>
@@ -306,7 +343,7 @@ export default function MarketAnalysis() {
       )}
 
       {/* Empty State */}
-      {!isAnalyzing && !analysis && (
+      {!isAnalyzing && !analysis && !error && (
         <Card className="shadow-soft">
           <CardContent className="pt-12 pb-12 text-center">
             <div className="max-w-md mx-auto">
