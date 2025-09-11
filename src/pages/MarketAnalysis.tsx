@@ -30,14 +30,21 @@ interface ComparativeAnalysis {
   };
 }
 
+interface VariationAnalysis {
+  productTitle: string;
+  variations: string[];
+}
+
 export default function MarketAnalysis() {
   const [searchTerm, setSearchTerm] = useState("");
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [analysis, setAnalysis] = useState<ComparativeAnalysis | null>(null);
+  const [variations, setVariations] = useState<VariationAnalysis | null>(null);
+  const [selectedVariation, setSelectedVariation] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const { toast } = useToast();
 
-  const handleAnalyze = async () => {
+  const handleAnalyze = async (variation?: string) => {
     if (!searchTerm.trim()) {
       toast({
         title: "Campo obrigatório",
@@ -48,14 +55,26 @@ export default function MarketAnalysis() {
     }
 
     setIsAnalyzing(true);
-    setAnalysis(null);
     setError(null);
+    
+    // Reset states based on whether we're analyzing a variation
+    if (variation) {
+      setAnalysis(null);
+      setSelectedVariation(variation);
+    } else {
+      setAnalysis(null);
+      setVariations(null);
+      setSelectedVariation(null);
+    }
 
     try {
-      console.log('🚀 Iniciando análise de mercado para:', searchTerm.trim());
+      console.log('🚀 Iniciando análise de mercado para:', searchTerm.trim(), variation ? `com variação: ${variation}` : '');
       
       const { data, error: functionError } = await supabase.functions.invoke('get-comparative-pricing', {
-        body: { searchTerm: searchTerm.trim() }
+        body: { 
+          searchTerm: searchTerm.trim(),
+          variation: variation || null
+        }
       });
 
       console.log('📥 Resposta da função:', { data, functionError });
@@ -71,12 +90,19 @@ export default function MarketAnalysis() {
         return;
       }
 
-      if (data?.success && data?.analysis) {
+      if (data?.success && data?.step === 'variations' && data?.data) {
+        console.log('✅ Variações recebidas com sucesso');
+        setVariations(data.data);
+        toast({
+          title: "Variações encontradas",
+          description: `Encontradas ${data.data.variations.length} variações para "${data.data.productTitle}".`,
+        });
+      } else if (data?.success && data?.step === 'analysis' && data?.data) {
         console.log('✅ Análise recebida com sucesso');
-        setAnalysis(data.analysis);
+        setAnalysis(data.data);
         toast({
           title: "Análise concluída",
-          description: `Análise comparativa realizada com sucesso para "${data.analysis.productTitle}".`,
+          description: `Análise comparativa realizada com sucesso para "${data.data.productTitle}".`,
         });
       } else if (data?.success === false) {
         console.log('⚠️ Função retornou erro:', data.error);
@@ -105,6 +131,13 @@ export default function MarketAnalysis() {
     } finally {
       setIsAnalyzing(false);
     }
+  };
+
+  const handleStartOver = () => {
+    setVariations(null);
+    setAnalysis(null);
+    setSelectedVariation(null);
+    setError(null);
   };
 
   const formatPrice = (price: number) => {
@@ -167,7 +200,7 @@ export default function MarketAnalysis() {
               />
             </div>
             <Button 
-              onClick={handleAnalyze}
+              onClick={() => handleAnalyze()}
               disabled={isAnalyzing || !searchTerm.trim()}
               className="bg-gradient-primary hover:bg-primary-hover transition-all duration-200 px-6"
             >
@@ -216,13 +249,72 @@ export default function MarketAnalysis() {
         </CardContent>
       </Card>
 
+      {/* Variation Selection */}
+      {variations && !selectedVariation && (
+        <Card className="shadow-soft">
+          <CardHeader>
+            <CardTitle>Selecione a Variação</CardTitle>
+            <CardDescription>
+              Encontramos diferentes variações para "{variations.productTitle}". Selecione a que você deseja analisar:
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3 mb-4">
+              {variations.variations.map((variation, index) => (
+                <Button
+                  key={index}
+                  variant="outline"
+                  className="text-left justify-start h-auto p-4 hover:border-primary hover:bg-primary/5"
+                  onClick={() => handleAnalyze(variation)}
+                  disabled={isAnalyzing}
+                >
+                  <div>
+                    <div className="font-medium">{variation}</div>
+                    <div className="text-xs text-muted-foreground mt-1">
+                      Clique para analisar preços
+                    </div>
+                  </div>
+                </Button>
+              ))}
+            </div>
+            
+            <Separator className="my-4" />
+            
+            <div className="flex justify-center">
+              <Button 
+                variant="ghost" 
+                onClick={handleStartOver}
+                className="text-muted-foreground hover:text-foreground"
+              >
+                Voltar à busca inicial
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
       {/* Product Title */}
       {analysis && (
         <Card className="shadow-soft">
           <CardContent className="pt-6">
-            <h2 className="text-2xl font-bold text-foreground mb-4">
-              {analysis.productTitle}
-            </h2>
+            <div className="flex items-center justify-between">
+              <h2 className="text-2xl font-bold text-foreground mb-4">
+                {analysis.productTitle}
+                {selectedVariation && (
+                  <Badge variant="secondary" className="ml-2 text-sm">
+                    {selectedVariation}
+                  </Badge>
+                )}
+              </h2>
+              <Button 
+                variant="outline" 
+                size="sm" 
+                onClick={handleStartOver}
+                className="text-muted-foreground hover:text-foreground"
+              >
+                Nova Busca
+              </Button>
+            </div>
           </CardContent>
         </Card>
       )}

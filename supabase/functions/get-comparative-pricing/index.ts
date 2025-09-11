@@ -40,6 +40,11 @@ interface ComparativeAnalysis {
   };
 }
 
+interface VariationAnalysis {
+  productTitle: string;
+  variations: string[];
+}
+
 serve(async (req) => {
   console.log('🚀 Edge Function get-comparative-pricing iniciada');
   
@@ -52,8 +57,9 @@ serve(async (req) => {
   try {
     console.log('📥 Processando requisição:', req.method);
     
-    const { searchTerm } = await req.json();
+    const { searchTerm, variation } = await req.json();
     console.log('🔍 Iniciando análise para o termo:', searchTerm);
+    console.log('🎯 Variação específica:', variation || 'Não especificada');
 
     if (!searchTerm || typeof searchTerm !== 'string') {
       console.error('❌ Erro: Search term inválido ou ausente');
@@ -89,13 +95,17 @@ serve(async (req) => {
       );
     }
 
+    // Determine search term with variation if provided
+    const finalSearchTerm = variation ? `${searchTerm} ${variation}` : searchTerm;
+    console.log('🔍 Termo de busca final:', finalSearchTerm);
+    
     console.log('🌐 Iniciando busca paralela em múltiplas plataformas...');
     
     // Step 1: Search across all platforms in parallel
     const [mlResults, shopeeResults, amazonResults] = await Promise.allSettled([
-      searchMercadoLibre(searchTerm),
-      searchShopee(searchTerm),
-      searchAmazon(searchTerm)
+      searchMercadoLibre(finalSearchTerm),
+      searchShopee(finalSearchTerm),
+      searchAmazon(finalSearchTerm)
     ]);
 
     console.log('📊 Resultados das buscas paralelas:');
@@ -143,26 +153,48 @@ serve(async (req) => {
       );
     }
 
-    console.log('🧠 Iniciando análise inteligente e pontuação dos resultados...');
-    
-    // Step 2: Apply intelligent filtering and scoring
-    const analysis = performComparativeAnalysis(allRawResults, searchTerm);
-    
-    console.log('✅ Análise comparativa concluída com sucesso');
-    console.log('- Produto identificado:', analysis.productTitle);
-    console.log('- Plataformas analisadas:', analysis.analysis.length);
-    console.log('- Menor preço:', analysis.priceSummary.lowestPrice);
-    console.log('- Maior preço:', analysis.priceSummary.highestPrice);
+    // Check if this is a variation selection step or final analysis
+    if (!variation) {
+      console.log('🔍 Primeira etapa: Identificando variações disponíveis...');
+      
+      // Step 2: Extract variations from results
+      const variationAnalysis = extractProductVariations(allRawResults, searchTerm);
+      
+      console.log('✅ Variações identificadas:', variationAnalysis.variations);
+      
+      return new Response(
+        JSON.stringify({ 
+          success: true, 
+          step: 'variations',
+          data: variationAnalysis 
+        }),
+        { 
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
+        }
+      );
+    } else {
+      console.log('🧠 Segunda etapa: Análise comparativa para variação específica...');
+      
+      // Step 2: Apply intelligent filtering and scoring for specific variation
+      const analysis = performComparativeAnalysis(allRawResults, finalSearchTerm);
+      
+      console.log('✅ Análise comparativa concluída com sucesso');
+      console.log('- Produto identificado:', analysis.productTitle);
+      console.log('- Plataformas analisadas:', analysis.analysis.length);
+      console.log('- Menor preço:', analysis.priceSummary.lowestPrice);
+      console.log('- Maior preço:', analysis.priceSummary.highestPrice);
 
-    return new Response(
-      JSON.stringify({ 
-        success: true, 
-        analysis: analysis 
-      }),
-      { 
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
-      }
-    );
+      return new Response(
+        JSON.stringify({ 
+          success: true, 
+          step: 'analysis',
+          data: analysis 
+        }),
+        { 
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
+        }
+      );
+    }
 
   } catch (error) {
     console.error('🔥 ERRO CRÍTICO na análise:', error);
@@ -179,6 +211,64 @@ serve(async (req) => {
     );
   }
 });
+
+// Extract product variations from search results
+function extractProductVariations(rawResults: RawResult[], searchTerm: string): VariationAnalysis {
+  console.log('🔍 Extraindo variações dos resultados...');
+  
+  const variations = new Set<string>();
+  const commonVariationPatterns = [
+    /(\d+GB|\d+MB)/gi,
+    /(64GB|128GB|256GB|512GB|1TB|2TB)/gi,
+    /(Preto|Branco|Azul|Verde|Rosa|Vermelho|Dourado|Prata|Cinza|Space Gray|Midnight|Starlight)/gi,
+    /(Pro|Max|Plus|Mini|Lite|Standard)/gi,
+    /(WiFi|4G|5G|Cellular)/gi,
+    /(S|M|L|XL|PP|P|G|GG)/gi,
+  ];
+  
+  // Analyze titles to find variations
+  rawResults.forEach(result => {
+    const title = result.title;
+    
+    commonVariationPatterns.forEach(pattern => {
+      const matches = title.match(pattern);
+      if (matches) {
+        matches.forEach(match => {
+          // Build variation string
+          const titleWords = title.toLowerCase().split(' ');
+          const matchIndex = titleWords.findIndex(word => word.includes(match.toLowerCase()));
+          
+          if (matchIndex !== -1) {
+            // Extract surrounding context for better variation description
+            const context = titleWords.slice(Math.max(0, matchIndex - 1), matchIndex + 3).join(' ');
+            if (context.length > match.length && context.length < 50) {
+              variations.add(context);
+            } else {
+              variations.add(match);
+            }
+          }
+        });
+      }
+    });
+  });
+  
+  // Filter and clean variations
+  const filteredVariations = Array.from(variations)
+    .filter(v => v.length > 2 && v.length < 40)
+    .filter(v => !v.includes('usado') && !v.includes('case') && !v.includes('capa'))
+    .slice(0, 8); // Limit to 8 variations
+  
+  console.log('✅ Variações extraídas:', filteredVariations);
+  
+  // Determine main product title
+  const bestResult = rawResults.sort((a, b) => (b.score || 0) - (a.score || 0))[0];
+  const productTitle = bestResult ? bestResult.title : searchTerm;
+  
+  return {
+    productTitle,
+    variations: filteredVariations
+  };
+}
 
 // Intelligent filtering and scoring function
 function performComparativeAnalysis(rawResults: RawResult[], searchTerm: string): ComparativeAnalysis {
