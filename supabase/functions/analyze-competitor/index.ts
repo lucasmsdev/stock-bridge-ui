@@ -6,7 +6,7 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
-interface CompetitorResult {
+interface RawResult {
   platform: 'Mercado Livre' | 'Shopee' | 'Amazon';
   title: string;
   price: number;
@@ -15,6 +15,29 @@ interface CompetitorResult {
   shipping_cost?: number;
   url: string;
   image_url?: string;
+  score?: number;
+}
+
+interface BestOffer {
+  title: string;
+  price: number;
+  seller: string;
+  link: string;
+}
+
+interface PlatformAnalysis {
+  platform: string;
+  bestOffer: BestOffer;
+}
+
+interface ComparativeAnalysis {
+  productTitle: string;
+  analysis: PlatformAnalysis[];
+  priceSummary: {
+    lowestPrice: number;
+    highestPrice: number;
+    averagePrice: number;
+  };
 }
 
 serve(async (req) => {
@@ -39,42 +62,54 @@ serve(async (req) => {
       );
     }
 
-    console.log('Analyzing competitors for:', searchTerm);
+    console.log('Performing intelligent price analysis for:', searchTerm);
 
     // Check if it's a URL or a search term
     const isUrl = searchTerm.startsWith('http');
-    let allResults: CompetitorResult[] = [];
-
+    
     if (isUrl) {
       // If it's a URL, try to extract product info from it
-      allResults = await analyzeProductUrl(searchTerm);
-    } else {
-      // If it's a search term, search across all platforms in parallel
-      const [mlResults, shopeeResults, amazonResults] = await Promise.allSettled([
-        searchMercadoLibre(searchTerm),
-        searchShopee(searchTerm),
-        searchAmazon(searchTerm)
-      ]);
-
-      // Aggregate results from all platforms
-      if (mlResults.status === 'fulfilled') {
-        allResults.push(...mlResults.value);
-      }
-      if (shopeeResults.status === 'fulfilled') {
-        allResults.push(...shopeeResults.value);
-      }
-      if (amazonResults.status === 'fulfilled') {
-        allResults.push(...amazonResults.value);
-      }
+      const productInfo = await analyzeProductUrl(searchTerm);
+      return new Response(
+        JSON.stringify({ 
+          success: true, 
+          analysis: productInfo 
+        }),
+        { 
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
+        }
+      );
     }
 
-    console.log(`Found ${allResults.length} competitor results across all platforms`);
+    // Step 1: Search across all platforms in parallel
+    const [mlResults, shopeeResults, amazonResults] = await Promise.allSettled([
+      searchMercadoLibre(searchTerm),
+      searchShopee(searchTerm),
+      searchAmazon(searchTerm)
+    ]);
+
+    let allRawResults: RawResult[] = [];
+
+    // Aggregate results from all platforms
+    if (mlResults.status === 'fulfilled') {
+      allRawResults.push(...mlResults.value);
+    }
+    if (shopeeResults.status === 'fulfilled') {
+      allRawResults.push(...shopeeResults.value);
+    }
+    if (amazonResults.status === 'fulfilled') {
+      allRawResults.push(...amazonResults.value);
+    }
+
+    console.log(`Found ${allRawResults.length} raw results across all platforms`);
+
+    // Step 2: Apply intelligent filtering and scoring
+    const analysis = performComparativeAnalysis(allRawResults, searchTerm);
 
     return new Response(
       JSON.stringify({ 
         success: true, 
-        results: allResults,
-        searchTerm: searchTerm 
+        analysis: analysis 
       }),
       { 
         headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
@@ -82,7 +117,7 @@ serve(async (req) => {
     );
 
   } catch (error) {
-    console.error('Error in analyze-competitor function:', error);
+    console.error('Error in price analysis function:', error);
     return new Response(
       JSON.stringify({ 
         success: false, 
@@ -96,7 +131,95 @@ serve(async (req) => {
   }
 });
 
-async function searchMercadoLibre(searchTerm: string): Promise<CompetitorResult[]> {
+// Intelligent filtering and scoring function
+function performComparativeAnalysis(rawResults: RawResult[], searchTerm: string): ComparativeAnalysis {
+  // Apply scoring to each result
+  const scoredResults = rawResults.map(result => ({
+    ...result,
+    score: calculateRelevanceScore(result, searchTerm)
+  }));
+
+  // Group by platform and find best offer per platform
+  const platformGroups = {
+    'Mercado Livre': scoredResults.filter(r => r.platform === 'Mercado Livre'),
+    'Shopee': scoredResults.filter(r => r.platform === 'Shopee'),
+    'Amazon': scoredResults.filter(r => r.platform === 'Amazon')
+  };
+
+  const analysis: PlatformAnalysis[] = [];
+  const prices: number[] = [];
+
+  // Find best offer for each platform
+  Object.entries(platformGroups).forEach(([platform, results]) => {
+    if (results.length > 0) {
+      // Sort by score (highest first) and get the best one
+      const bestResult = results.sort((a, b) => (b.score || 0) - (a.score || 0))[0];
+      
+      analysis.push({
+        platform,
+        bestOffer: {
+          title: bestResult.title,
+          price: bestResult.price,
+          seller: bestResult.seller,
+          link: bestResult.url
+        }
+      });
+      
+      prices.push(bestResult.price);
+    }
+  });
+
+  // Determine the most likely product title (from highest scored result overall)
+  const bestOverallResult = scoredResults.sort((a, b) => (b.score || 0) - (a.score || 0))[0];
+  const productTitle = bestOverallResult ? bestOverallResult.title : searchTerm;
+
+  // Calculate price summary
+  const priceSummary = {
+    lowestPrice: prices.length > 0 ? Math.min(...prices) : 0,
+    highestPrice: prices.length > 0 ? Math.max(...prices) : 0,
+    averagePrice: prices.length > 0 ? prices.reduce((sum, p) => sum + p, 0) / prices.length : 0
+  };
+
+  return {
+    productTitle,
+    analysis,
+    priceSummary
+  };
+}
+
+function calculateRelevanceScore(result: RawResult, searchTerm: string): number {
+  let score = 0;
+  const title = result.title.toLowerCase();
+  const searchLower = searchTerm.toLowerCase();
+
+  // +10 points for title similarity
+  const searchWords = searchLower.split(' ');
+  const matchingWords = searchWords.filter(word => title.includes(word));
+  score += (matchingWords.length / searchWords.length) * 10;
+
+  // +5 points for official sellers or good reputation indicators
+  const seller = result.seller.toLowerCase();
+  if (seller.includes('oficial') || seller.includes('amazon') || seller.includes('loja') || 
+      seller.includes('magazine') || seller.includes('casas') || seller.includes('extra')) {
+    score += 5;
+  }
+
+  // +5 points for high sales count
+  if (result.sales_count && result.sales_count > 50) {
+    score += 5;
+  } else if (result.sales_count && result.sales_count > 10) {
+    score += 2;
+  }
+
+  // +3 points for free shipping
+  if (result.shipping_cost === 0) {
+    score += 3;
+  }
+
+  return score;
+}
+
+async function searchMercadoLibre(searchTerm: string): Promise<RawResult[]> {
   try {
     // Use MercadoLibre's public API with improved filters
     const searchUrl = `https://api.mercadolibre.com/sites/MLB/search?q=${encodeURIComponent(searchTerm)}&condition=new&sort=relevance&limit=10`;
@@ -172,16 +295,16 @@ async function searchMercadoLibre(searchTerm: string): Promise<CompetitorResult[
     return [{
       platform: 'Mercado Livre' as const,
       title: `${searchTerm} - MercadoLibre Demo`,
-      price: Math.floor(Math.random() * 1000) + 100,
-      seller: 'Vendedor ML',
-      sales_count: Math.floor(Math.random() * 100) + 1,
-      url: 'https://mercadolivre.com.br',
-      image_url: undefined
-    }];
+        price: Math.floor(Math.random() * 1000) + 100,
+        seller: 'Vendedor ML',
+        sales_count: Math.floor(Math.random() * 100) + 1,
+        url: 'https://mercadolivre.com.br',
+        image_url: undefined
+      }];
   }
 }
 
-async function searchShopee(searchTerm: string): Promise<CompetitorResult[]> {
+async function searchShopee(searchTerm: string): Promise<RawResult[]> {
   try {
     console.log('Searching Shopee for:', searchTerm);
     
@@ -230,7 +353,7 @@ async function searchShopee(searchTerm: string): Promise<CompetitorResult[]> {
   }
 }
 
-async function searchAmazon(searchTerm: string): Promise<CompetitorResult[]> {
+async function searchAmazon(searchTerm: string): Promise<RawResult[]> {
   try {
     console.log('Searching Amazon for:', searchTerm);
     
@@ -279,7 +402,7 @@ async function searchAmazon(searchTerm: string): Promise<CompetitorResult[]> {
   }
 }
 
-async function analyzeProductUrl(url: string): Promise<CompetitorResult[]> {
+async function analyzeProductUrl(url: string): Promise<ComparativeAnalysis> {
   try {
     // Extract product ID from MercadoLibre URL if possible
     const mlbMatch = url.match(/MLB(\d+)/);
@@ -309,7 +432,8 @@ async function analyzeProductUrl(url: string): Promise<CompetitorResult[]> {
         console.log('Could not fetch seller info:', error);
       }
       
-      const result: CompetitorResult = {
+      // Create a single result and perform analysis
+      const singleResult: RawResult = {
         platform: 'Mercado Livre' as const,
         title: product.title || 'Produto sem título',
         price: product.price || 0,
@@ -320,7 +444,24 @@ async function analyzeProductUrl(url: string): Promise<CompetitorResult[]> {
         image_url: product.thumbnail || undefined
       };
       
-      return [result];
+      // Return a single-platform analysis
+      return {
+        productTitle: singleResult.title,
+        analysis: [{
+          platform: 'Mercado Livre',
+          bestOffer: {
+            title: singleResult.title,
+            price: singleResult.price,
+            seller: singleResult.seller,
+            link: singleResult.url
+          }
+        }],
+        priceSummary: {
+          lowestPrice: singleResult.price,
+          highestPrice: singleResult.price,
+          averagePrice: singleResult.price
+        }
+      };
     } else {
       throw new Error('URL format not supported. Currently only MercadoLibre URLs are supported.');
     }

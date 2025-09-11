@@ -8,21 +8,32 @@ import { Separator } from "@/components/ui/separator";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 
-interface CompetitorResult {
-  platform: 'Mercado Livre' | 'Shopee' | 'Amazon';
+interface BestOffer {
   title: string;
   price: number;
   seller: string;
-  sales_count?: number;
-  shipping_cost?: number;
-  url: string;
-  image_url?: string;
+  link: string;
+}
+
+interface PlatformAnalysis {
+  platform: string;
+  bestOffer: BestOffer;
+}
+
+interface ComparativeAnalysis {
+  productTitle: string;
+  analysis: PlatformAnalysis[];
+  priceSummary: {
+    lowestPrice: number;
+    highestPrice: number;
+    averagePrice: number;
+  };
 }
 
 export default function MarketAnalysis() {
   const [searchTerm, setSearchTerm] = useState("");
   const [isAnalyzing, setIsAnalyzing] = useState(false);
-  const [results, setResults] = useState<CompetitorResult[]>([]);
+  const [analysis, setAnalysis] = useState<ComparativeAnalysis | null>(null);
   const { toast } = useToast();
 
   const handleAnalyze = async () => {
@@ -36,7 +47,7 @@ export default function MarketAnalysis() {
     }
 
     setIsAnalyzing(true);
-    setResults([]);
+    setAnalysis(null);
 
     try {
       const { data, error } = await supabase.functions.invoke('analyze-competitor', {
@@ -53,11 +64,11 @@ export default function MarketAnalysis() {
         return;
       }
 
-      if (data?.success && data?.results) {
-        setResults(data.results);
+      if (data?.success && data?.analysis) {
+        setAnalysis(data.analysis);
         toast({
           title: "Análise concluída",
-          description: `Encontrados ${data.results.length} resultados da concorrência.`,
+          description: `Análise comparativa realizada com sucesso.`,
         });
       } else {
         toast({
@@ -84,20 +95,6 @@ export default function MarketAnalysis() {
     }).format(price);
   };
 
-  const calculateAveragePrice = () => {
-    if (results.length === 0) return 0;
-    const total = results.reduce((sum, item) => sum + item.price, 0);
-    return total / results.length;
-  };
-
-  const getMinMaxPrices = () => {
-    if (results.length === 0) return { min: 0, max: 0 };
-    const prices = results.map(item => item.price);
-    return {
-      min: Math.min(...prices),
-      max: Math.max(...prices)
-    };
-  };
 
   const getPlatformColor = (platform: string) => {
     switch (platform) {
@@ -182,44 +179,43 @@ export default function MarketAnalysis() {
         </CardContent>
       </Card>
 
-      {/* Results Summary */}
-      {results.length > 0 && (
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-          <Card className="shadow-soft">
-            <CardContent className="pt-6">
-              <div className="flex items-center space-x-2">
-                <ShoppingCart className="h-5 w-5 text-primary" />
-                <div>
-                  <p className="text-2xl font-bold text-foreground">{results.length}</p>
-                  <p className="text-sm text-muted-foreground">Concorrentes</p>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
+      {/* Product Title */}
+      {analysis && (
+        <Card className="shadow-soft">
+          <CardContent className="pt-6">
+            <h2 className="text-2xl font-bold text-foreground mb-4">
+              {analysis.productTitle}
+            </h2>
+          </CardContent>
+        </Card>
+      )}
 
+      {/* Price Summary */}
+      {analysis && (
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           <Card className="shadow-soft">
             <CardContent className="pt-6">
               <div className="flex items-center space-x-2">
-                <DollarSign className="h-5 w-5 text-green-600" />
+                <TrendingUp className="h-5 w-5 text-green-600" />
                 <div>
                   <p className="text-2xl font-bold text-foreground">
-                    {formatPrice(calculateAveragePrice())}
-                  </p>
-                  <p className="text-sm text-muted-foreground">Preço Médio</p>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-
-          <Card className="shadow-soft">
-            <CardContent className="pt-6">
-              <div className="flex items-center space-x-2">
-                <TrendingUp className="h-5 w-5 text-blue-600" />
-                <div>
-                  <p className="text-2xl font-bold text-foreground">
-                    {formatPrice(getMinMaxPrices().min)}
+                    {formatPrice(analysis.priceSummary.lowestPrice)}
                   </p>
                   <p className="text-sm text-muted-foreground">Menor Preço</p>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card className="shadow-soft">
+            <CardContent className="pt-6">
+              <div className="flex items-center space-x-2">
+                <DollarSign className="h-5 w-5 text-blue-600" />
+                <div>
+                  <p className="text-2xl font-bold text-foreground">
+                    {formatPrice(analysis.priceSummary.averagePrice)}
+                  </p>
+                  <p className="text-sm text-muted-foreground">Preço Médio</p>
                 </div>
               </div>
             </CardContent>
@@ -231,7 +227,7 @@ export default function MarketAnalysis() {
                 <Users className="h-5 w-5 text-orange-600" />
                 <div>
                   <p className="text-2xl font-bold text-foreground">
-                    {formatPrice(getMinMaxPrices().max)}
+                    {formatPrice(analysis.priceSummary.highestPrice)}
                   </p>
                   <p className="text-sm text-muted-foreground">Maior Preço</p>
                 </div>
@@ -241,18 +237,18 @@ export default function MarketAnalysis() {
         </div>
       )}
 
-      {/* Results List */}
-      {results.length > 0 && (
+      {/* Comparative Analysis Table */}
+      {analysis && analysis.analysis.length > 0 && (
         <Card className="shadow-soft">
           <CardHeader>
-            <CardTitle>Resultados da Análise Multicanal</CardTitle>
+            <CardTitle>Análise Comparativa de Preços</CardTitle>
             <CardDescription>
-              Produtos encontrados no Mercado Livre, Shopee e Amazon
+              Melhores ofertas encontradas em cada plataforma
             </CardDescription>
           </CardHeader>
           <CardContent>
             <div className="space-y-4">
-              {results.map((result, index) => (
+              {analysis.analysis.map((platformAnalysis, index) => (
                 <div key={index} className="border border-border rounded-lg p-4 hover:shadow-soft transition-shadow">
                   <div className="flex items-start justify-between space-x-4">
                     <div className="flex items-start space-x-3 flex-1 min-w-0">
@@ -260,9 +256,9 @@ export default function MarketAnalysis() {
                       <div className="flex-shrink-0">
                         <Badge 
                           variant="outline" 
-                          className={`text-xs font-medium px-2 py-1 ${getPlatformColor(result.platform)}`}
+                          className={`text-xs font-medium px-2 py-1 ${getPlatformColor(platformAnalysis.platform)}`}
                         >
-                          {result.platform}
+                          {platformAnalysis.platform}
                         </Badge>
                       </div>
                       
@@ -270,42 +266,35 @@ export default function MarketAnalysis() {
                       <div className="flex-1 min-w-0">
                         <h3 className="font-semibold text-foreground mb-2 line-clamp-2">
                           <a 
-                            href={result.url} 
+                            href={platformAnalysis.bestOffer.link} 
                             target="_blank" 
                             rel="noopener noreferrer"
                             className="hover:text-primary transition-colors cursor-pointer"
                           >
-                            {result.title}
+                            {platformAnalysis.bestOffer.title}
                           </a>
                         </h3>
                         <div className="flex items-center space-x-4 text-sm text-muted-foreground">
-                          <span>Vendedor: {result.seller}</span>
-                          {result.sales_count && (
-                            <Badge variant="secondary">
-                              {result.sales_count} vendidos
-                            </Badge>
-                          )}
+                          <span>Vendedor: {platformAnalysis.bestOffer.seller}</span>
+                          <Badge variant="secondary">
+                            Melhor oferta
+                          </Badge>
                         </div>
-                        {result.shipping_cost !== undefined && (
-                          <p className="text-xs text-muted-foreground mt-1">
-                            {result.shipping_cost === 0 ? 'Frete grátis' : `Frete: ${formatPrice(result.shipping_cost)}`}
-                          </p>
-                        )}
                       </div>
                     </div>
                     
                     {/* Price and Action */}
                     <div className="text-right flex-shrink-0">
                       <p className="text-2xl font-bold text-primary">
-                        {formatPrice(result.price)}
+                        {formatPrice(platformAnalysis.bestOffer.price)}
                       </p>
                       <Button
                         variant="outline"
                         size="sm"
                         className="mt-2"
-                        onClick={() => window.open(result.url, '_blank')}
+                        onClick={() => window.open(platformAnalysis.bestOffer.link, '_blank')}
                       >
-                        Ver Anúncio
+                        Ver Oferta
                       </Button>
                     </div>
                   </div>
@@ -317,7 +306,7 @@ export default function MarketAnalysis() {
       )}
 
       {/* Empty State */}
-      {!isAnalyzing && results.length === 0 && (
+      {!isAnalyzing && !analysis && (
         <Card className="shadow-soft">
           <CardContent className="pt-12 pb-12 text-center">
             <div className="max-w-md mx-auto">
