@@ -1,17 +1,20 @@
-import { useState } from "react";
-import { Outlet, Navigate } from "react-router-dom";
+import { useState, useEffect } from "react";
+import { Outlet, Navigate, useLocation } from "react-router-dom";
 import { AppSidebar } from "./AppSidebar";
 import { Button } from "@/components/ui/button";
 import { Menu, Loader2, Moon, Sun } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import { useTheme } from "@/hooks/useTheme";
+import { usePlan } from "@/hooks/usePlan";
 
 export const AppLayout = () => {
   const { user, isLoading } = useAuth();
   const { isDark, toggleTheme } = useTheme();
+  const { currentPlan, isLoading: planLoading } = usePlan();
   const [sidebarOpen, setSidebarOpen] = useState(true);
+  const location = useLocation();
 
-  if (isLoading) {
+  if (isLoading || planLoading) {
     return (
       <div className="min-h-screen bg-gradient-subtle flex items-center justify-center">
         <div className="text-center space-y-4">
@@ -24,6 +27,11 @@ export const AppLayout = () => {
 
   if (!user) {
     return <Navigate to="/login" replace />;
+  }
+
+  // Redirect to billing if user doesn't have a plan (first-time users)
+  if (!planLoading && !currentPlan && location.pathname !== '/billing') {
+    return <Navigate to="/billing" replace />;
   }
 
   return (

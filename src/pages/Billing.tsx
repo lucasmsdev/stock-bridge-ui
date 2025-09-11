@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -7,6 +7,7 @@ import { Check, Crown, Zap, Star, ArrowLeft } from "lucide-react";
 import { usePlan, PlanType, FeatureName } from "@/hooks/usePlan";
 import { useToast } from "@/hooks/use-toast";
 import { UpgradeBanner } from "@/components/ui/upgrade-banner";
+import { supabase } from "@/integrations/supabase/client";
 
 interface LocationState {
   targetPlan?: PlanType;
@@ -38,10 +39,40 @@ export default function Billing() {
   const { currentPlan, getAllPlans } = usePlan();
   const { toast } = useToast();
   const [isProcessing, setIsProcessing] = useState(false);
+  const [isFirstTime, setIsFirstTime] = useState(false);
 
   const allPlans = getAllPlans();
   const targetPlan = state?.targetPlan;
   const targetFeature = state?.feature;
+
+  // Check if this is a first-time user (no plan selected)
+  useEffect(() => {
+    const searchParams = new URLSearchParams(location.search);
+    const success = searchParams.get('success');
+    const canceled = searchParams.get('canceled');
+    
+    if (success) {
+      toast({
+        title: "🎉 Pagamento realizado com sucesso!",
+        description: "Seu plano foi ativado. Bem-vindo ao UniStock!",
+      });
+      // Clean up URL
+      navigate('/billing', { replace: true });
+    } else if (canceled) {
+      toast({
+        title: "Pagamento cancelado",
+        description: "Você pode tentar novamente quando quiser.",
+        variant: "destructive",
+      });
+      // Clean up URL
+      navigate('/billing', { replace: true });
+    }
+
+    // Check if user has no plan (first time)
+    if (!currentPlan || currentPlan === 'estrategista') {
+      setIsFirstTime(true);
+    }
+  }, [location.search, currentPlan, navigate, toast]);
 
   const handlePlanSelection = async (planKey: PlanType) => {
     if (planKey === currentPlan) return;
@@ -58,17 +89,34 @@ export default function Billing() {
     setIsProcessing(true);
     
     try {
-      // Simular processamento de upgrade
-      await new Promise(resolve => setTimeout(resolve, 2000));
+      console.log('🚀 Criando sessão de checkout para o plano:', planKey);
       
-      toast({
-        title: "🚧 Em breve!",
-        description: "O sistema de pagamento será implementado em breve. Sua solicitação foi registrada!",
+      const { data, error } = await supabase.functions.invoke('create-checkout', {
+        body: { planType: planKey }
       });
+
+      if (error) {
+        console.error('❌ Erro na função create-checkout:', error);
+        throw new Error(error.message || 'Erro ao processar pagamento');
+      }
+
+      if (data?.url) {
+        console.log('✅ Sessão de checkout criada, redirecionando para:', data.url);
+        // Open Stripe checkout in a new tab
+        window.open(data.url, '_blank');
+        
+        toast({
+          title: "🔄 Redirecionando para pagamento",
+          description: "Você será redirecionado para completar o pagamento no Stripe.",
+        });
+      } else {
+        throw new Error('URL de checkout não recebida');
+      }
     } catch (error) {
+      console.error('💥 Erro ao processar upgrade:', error);
       toast({
-        title: "❌ Erro",
-        description: "Erro ao processar upgrade. Tente novamente.",
+        title: "❌ Erro no pagamento",
+        description: error instanceof Error ? error.message : "Erro ao processar upgrade. Tente novamente.",
         variant: "destructive",
       });
     } finally {
@@ -85,13 +133,20 @@ export default function Billing() {
   return (
     <div className="container mx-auto py-6 space-y-6">
       <div className="flex items-center space-x-4">
-        <Button variant="ghost" onClick={() => navigate(-1)} className="p-2">
-          <ArrowLeft className="h-4 w-4" />
-        </Button>
+        {!isFirstTime && (
+          <Button variant="ghost" onClick={() => navigate(-1)} className="p-2">
+            <ArrowLeft className="h-4 w-4" />
+          </Button>
+        )}
         <div>
-          <h1 className="text-3xl font-bold">Planos e Assinatura</h1>
+          <h1 className="text-3xl font-bold">
+            {isFirstTime ? "Bem-vindo ao UniStock!" : "Planos e Assinatura"}
+          </h1>
           <p className="text-muted-foreground">
-            Escolha o plano ideal para escalar seu negócio
+            {isFirstTime 
+              ? "Para começar, escolha o plano que melhor se adapta ao seu negócio"
+              : "Escolha o plano ideal para escalar seu negócio"
+            }
           </p>
         </div>
       </div>
