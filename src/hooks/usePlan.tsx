@@ -6,7 +6,9 @@ export type PlanType = 'estrategista' | 'competidor' | 'dominador';
 
 // Definição clara de features disponíveis
 export type FeatureName = 
+  | 'IntegracoesCompletas'
   | 'AnaliseDeConcorrencia'
+  | 'AnaliseDePrecoIdeal'
   | 'DashboardDePerformance'
   | 'ReprecificacaoPorAlerta'
   | 'PrecificacaoDinamica'
@@ -39,28 +41,37 @@ export interface PlanFeatures {
 const planFeatures: Record<PlanType, PlanFeatures> = {
   estrategista: {
     maxSkus: 100,
-    features: ['AnaliseDeConcorrencia', 'DashboardDePerformance'],
-    price: 49.90,
-    description: 'Ideal para quem está começando',
+    features: [
+      'IntegracoesCompletas',
+      'AnaliseDeConcorrencia', 
+      'AnaliseDePrecoIdeal',
+      'DashboardDePerformance'
+    ],
+    price: 97.00,
+    description: 'Tome decisões de preço com base em dados, não em achismos.',
     name: 'Estrategista'
   },
   competidor: {
     maxSkus: 500,
     features: [
+      'IntegracoesCompletas',
       'AnaliseDeConcorrencia', 
+      'AnaliseDePrecoIdeal',
       'DashboardDePerformance', 
       'ReprecificacaoPorAlerta',
       'RelatoriosAvancados',
       'SuportePrioritario'
     ],
-    price: 149.90,
-    description: 'Para vendedores que querem crescer',
+    price: 147.00,
+    description: 'Reaja à concorrência em tempo real e não perca mais vendas.',
     name: 'Competidor'
   },
   dominador: {
     maxSkus: Infinity,
     features: [
+      'IntegracoesCompletas',
       'AnaliseDeConcorrencia',
+      'AnaliseDePrecoIdeal',
       'DashboardDePerformance', 
       'ReprecificacaoPorAlerta',
       'PrecificacaoDinamica',
@@ -69,8 +80,8 @@ const planFeatures: Record<PlanType, PlanFeatures> = {
       'SuportePrioritario',
       'IntegracaoAPI'
     ],
-    price: 299.90,
-    description: 'Automação completa para dominar o mercado',
+    price: 197.00,
+    description: 'Automatize sua competitividade e foque em crescer seu negócio.',
     name: 'Dominador'
   },
 };

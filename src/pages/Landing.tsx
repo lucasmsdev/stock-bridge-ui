@@ -25,13 +25,14 @@ const Landing = () => {
       name: "Estrategista",
       price: "R$ 97",
       period: "/mês",
+      description: "Tome decisões de preço com base em dados, não em achismos.",
       popular: false,
       features: [
         "Até 100 SKUs monitorados",
-        "Sincronização básica de estoque",
-        "Dashboard de vendas",
-        "Suporte por email",
-        "Relatórios básicos"
+        "Integrações completas (ML, Shopee, Amazon)",
+        "Análise de concorrência",
+        "Análise de preço ideal",
+        "Dashboard de performance"
       ],
       limitations: [
         "Sem reprecificação por alerta",
@@ -41,17 +42,19 @@ const Landing = () => {
     },
     {
       name: "Competidor",
-      price: "R$ 197",
+      price: "R$ 147",
       period: "/mês",
+      description: "Reaja à concorrência em tempo real e não perca mais vendas.",
       popular: true,
       features: [
         "Até 500 SKUs monitorados",
-        "Sincronização em tempo real",
-        "Dashboard avançado de lucratividade",
+        "Integrações completas (ML, Shopee, Amazon)",
+        "Análise de concorrência",
+        "Análise de preço ideal",
+        "Dashboard de performance",
         "Reprecificação por alerta",
-        "Calculadora de margens",
-        "Suporte prioritário",
-        "Relatórios detalhados"
+        "Relatórios avançados",
+        "Suporte prioritário"
       ],
       limitations: [
         "Sem precificação dinâmica",
@@ -60,19 +63,21 @@ const Landing = () => {
     },
     {
       name: "Dominador",
-      price: "R$ 397",
+      price: "R$ 197",
       period: "/mês",
+      description: "Automatize sua competitividade e foque em crescer seu negócio.",
       popular: false,
       features: [
         "SKUs ilimitados",
-        "Sincronização em tempo real",
-        "Dashboard completo de lucratividade",
+        "Integrações completas (ML, Shopee, Amazon)",
+        "Análise de concorrência",
+        "Análise de preço ideal",
+        "Dashboard de performance",
         "Reprecificação por alerta",
         "Precificação dinâmica",
-        "Automação de IA",
-        "Calculadora avançada",
-        "Suporte 24/7",
-        "Relatórios personalizados",
+        "Automação de respostas IA",
+        "Relatórios avançados",
+        "Suporte prioritário",
         "Integração API"
       ],
       limitations: []
@@ -275,6 +280,7 @@ const Landing = () => {
                 )}
                 <CardHeader className="text-center pb-4">
                   <CardTitle className="text-xl">{plan.name}</CardTitle>
+                  <p className="text-sm text-muted-foreground mt-2">{plan.description}</p>
                   <div className="mt-4">
                     <span className="text-4xl font-bold text-foreground">{plan.price}</span>
                     <span className="text-muted-foreground">{plan.period}</span>

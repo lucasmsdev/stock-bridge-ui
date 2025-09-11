@@ -78,7 +78,7 @@ export default function Billing() {
 
   const isCurrentPlan = (planKey: PlanType) => planKey === currentPlan;
   const isPlanUpgrade = (planKey: PlanType) => {
-    const planPrices = { estrategista: 49.90, competidor: 149.90, dominador: 299.90 };
+    const planPrices = { estrategista: 97.00, competidor: 147.00, dominador: 197.00 };
     return planPrices[planKey] > planPrices[currentPlan];
   };
 
