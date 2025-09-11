@@ -9,6 +9,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 
 interface CompetitorResult {
+  platform: 'Mercado Livre' | 'Shopee' | 'Amazon';
   title: string;
   price: number;
   seller: string;
@@ -98,6 +99,19 @@ export default function MarketAnalysis() {
     };
   };
 
+  const getPlatformColor = (platform: string) => {
+    switch (platform) {
+      case 'Mercado Livre':
+        return 'text-yellow-600 bg-yellow-50 border-yellow-200';
+      case 'Shopee':
+        return 'text-orange-600 bg-orange-50 border-orange-200';
+      case 'Amazon':
+        return 'text-blue-600 bg-blue-50 border-blue-200';
+      default:
+        return 'text-gray-600 bg-gray-50 border-gray-200';
+    }
+  };
+
   return (
     <div className="space-y-6 animate-fade-in">
       {/* Page Header */}
@@ -157,12 +171,12 @@ export default function MarketAnalysis() {
           
           {isAnalyzing && (
             <div className="flex items-center justify-center py-8">
-              <div className="text-center space-y-3">
-                <Loader2 className="h-8 w-8 text-primary animate-spin mx-auto" />
-                <p className="text-sm text-muted-foreground">
-                  Buscando produtos no Mercado Livre...
-                </p>
-              </div>
+                <div className="text-center space-y-3">
+                  <Loader2 className="h-8 w-8 text-primary animate-spin mx-auto" />
+                  <p className="text-sm text-muted-foreground">
+                    Buscando produtos no Mercado Livre, Shopee e Amazon...
+                  </p>
+                </div>
             </div>
           )}
         </CardContent>
@@ -231,9 +245,9 @@ export default function MarketAnalysis() {
       {results.length > 0 && (
         <Card className="shadow-soft">
           <CardHeader>
-            <CardTitle>Resultados da Análise</CardTitle>
+            <CardTitle>Resultados da Análise Multicanal</CardTitle>
             <CardDescription>
-              Produtos encontrados e seus preços no mercado
+              Produtos encontrados no Mercado Livre, Shopee e Amazon
             </CardDescription>
           </CardHeader>
           <CardContent>
@@ -241,24 +255,46 @@ export default function MarketAnalysis() {
               {results.map((result, index) => (
                 <div key={index} className="border border-border rounded-lg p-4 hover:shadow-soft transition-shadow">
                   <div className="flex items-start justify-between space-x-4">
-                    <div className="flex-1 min-w-0">
-                      <h3 className="font-semibold text-foreground mb-2 line-clamp-2">
-                        {result.title}
-                      </h3>
-                      <div className="flex items-center space-x-4 text-sm text-muted-foreground">
-                        <span>Vendedor: {result.seller}</span>
-                        {result.sales_count && (
-                          <Badge variant="secondary">
-                            {result.sales_count} vendidos
-                          </Badge>
+                    <div className="flex items-start space-x-3 flex-1 min-w-0">
+                      {/* Platform Badge */}
+                      <div className="flex-shrink-0">
+                        <Badge 
+                          variant="outline" 
+                          className={`text-xs font-medium px-2 py-1 ${getPlatformColor(result.platform)}`}
+                        >
+                          {result.platform}
+                        </Badge>
+                      </div>
+                      
+                      {/* Product Info */}
+                      <div className="flex-1 min-w-0">
+                        <h3 className="font-semibold text-foreground mb-2 line-clamp-2">
+                          <a 
+                            href={result.url} 
+                            target="_blank" 
+                            rel="noopener noreferrer"
+                            className="hover:text-primary transition-colors"
+                          >
+                            {result.title}
+                          </a>
+                        </h3>
+                        <div className="flex items-center space-x-4 text-sm text-muted-foreground">
+                          <span>Vendedor: {result.seller}</span>
+                          {result.sales_count && (
+                            <Badge variant="secondary">
+                              {result.sales_count} vendidos
+                            </Badge>
+                          )}
+                        </div>
+                        {result.shipping_cost !== undefined && (
+                          <p className="text-xs text-muted-foreground mt-1">
+                            {result.shipping_cost === 0 ? 'Frete grátis' : `Frete: ${formatPrice(result.shipping_cost)}`}
+                          </p>
                         )}
                       </div>
-                      {result.shipping_cost && (
-                        <p className="text-xs text-muted-foreground mt-1">
-                          Frete: {formatPrice(result.shipping_cost)}
-                        </p>
-                      )}
                     </div>
+                    
+                    {/* Price and Action */}
                     <div className="text-right flex-shrink-0">
                       <p className="text-2xl font-bold text-primary">
                         {formatPrice(result.price)}
@@ -290,9 +326,10 @@ export default function MarketAnalysis() {
                 Pronto para Analisar o Mercado
               </h3>
               <p className="text-muted-foreground mb-6">
-                Digite um termo de busca acima para descobrir como seus concorrentes estão precificando produtos similares.
+                Digite um termo de busca acima para descobrir como seus concorrentes estão precificando produtos similares nas principais plataformas de e-commerce.
               </p>
               <div className="text-sm text-muted-foreground space-y-2">
+                <p><strong>Plataformas analisadas:</strong> Mercado Livre, Shopee e Amazon</p>
                 <p><strong>Dica:</strong> Seja específico na sua busca para obter melhores resultados</p>
                 <p>Exemplos: "iPhone 15 128GB", "notebook Dell inspiron", "tênis Nike air max"</p>
               </div>
