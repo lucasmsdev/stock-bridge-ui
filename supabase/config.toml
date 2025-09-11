@@ -18,5 +18,8 @@ verify_jwt = true
 [functions.get-dashboard-metrics]
 verify_jwt = true
 
+[functions.analyze-competitor]
+verify_jwt = true
+
 [functions.webhook-listener]
 verify_jwt = false

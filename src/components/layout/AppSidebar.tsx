@@ -11,7 +11,8 @@ import {
   ChevronDown,
   CreditCard,
   Lock,
-  Crown
+  Crown,
+  Target
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
@@ -44,7 +45,13 @@ const navItems = [
     title: "Integrações", 
     href: "/app/integrations", 
     icon: Plug, 
-    requiresFeature: 'IntegracaoAPI' as const 
+    requiresFeature: 'IntegracoesCompletas' as const 
+  },
+  { 
+    title: "Análise de Mercado", 
+    href: "/app/market-analysis", 
+    icon: Target, 
+    requiresFeature: 'AnaliseDeConcorrencia' as const 
   },
   { title: "Ajuda", href: "/app/help", icon: HelpCircle },
 ];
