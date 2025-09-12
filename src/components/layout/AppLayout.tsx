@@ -29,10 +29,8 @@ export const AppLayout = () => {
     return <Navigate to="/login" replace />;
   }
 
-  // Redirect to billing if user doesn't have a plan (first-time users)
-  if (!planLoading && !currentPlan && location.pathname !== '/billing') {
-    return <Navigate to="/billing" replace />;
-  }
+  // Usuários com planos válidos não precisam ser redirecionados para billing
+  // Apenas redirecionar para billing se explicitamente solicitado
 
   return (
     <div className="min-h-screen bg-gradient-subtle flex w-full">

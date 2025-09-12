@@ -116,15 +116,22 @@ export const usePlan = () => {
         if (error) {
           console.error('Error fetching user plan:', error);
           setError('Erro ao carregar plano do usuário');
+          // Se não encontrar o perfil, definir plano padrão
+          setCurrentPlan('estrategista');
           return;
         }
 
         if (data?.plan) {
           setCurrentPlan(data.plan as PlanType);
+          console.log('User plan loaded:', data.plan);
+        } else {
+          // Se não tiver plano definido, usar o padrão
+          setCurrentPlan('estrategista');
         }
       } catch (err) {
         console.error('Unexpected error fetching plan:', err);
         setError('Erro inesperado ao carregar plano');
+        setCurrentPlan('estrategista');
       } finally {
         setIsLoading(false);
       }
