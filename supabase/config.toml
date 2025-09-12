@@ -37,4 +37,4 @@ verify_jwt = false
 verify_jwt = true
 
 [functions.create-repricing-alert]
-verify_jwt = true
+verify_jwt = false
