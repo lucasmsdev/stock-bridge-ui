@@ -23,6 +23,7 @@ import ShopifySetup from "./pages/ShopifySetup";
 import Landing from "./pages/Landing";
 import RepricingAlerts from "./pages/RepricingAlerts";
 import Reports from "./pages/Reports";
+import Checkout from "./pages/Checkout";
 
 const queryClient = new QueryClient();
 
@@ -37,6 +38,7 @@ const App = () => (
             {/* Public Routes */}
             <Route path="/login" element={<Login />} />
             <Route path="/signup" element={<Signup />} />
+            <Route path="/checkout" element={<Checkout />} />
             <Route path="/callback/mercadolivre" element={<MercadoLivreCallback />} />
             <Route path="/callback/shopify" element={<ShopifyCallback />} />
             <Route path="/shopify-setup" element={<ShopifySetup />} />

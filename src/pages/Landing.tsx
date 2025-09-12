@@ -151,12 +151,12 @@ const Landing = () => {
             Foque em vender, não em planilhas.
           </p>
           <div className="mt-10 flex items-center justify-center gap-x-6">
-            <Link to="/signup">
+            <a href="#planos">
               <Button size="lg" className="h-12 px-8 text-lg">
-                Comece seu teste gratuito de 7 dias
+                Comece seu teste gratuito de 3 dias
                 <ArrowRight className="ml-2 h-5 w-5" />
               </Button>
-            </Link>
+            </a>
             <Link to="/login">
               <Button variant="outline" size="lg" className="h-12 px-8 text-lg">
                 Já tenho conta
@@ -253,14 +253,14 @@ const Landing = () => {
       </section>
 
       {/* Pricing Section */}
-      <section className="py-20 bg-muted/30">
+      <section id="planos" className="py-20 bg-muted/30">
         <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
           <div className="text-center mb-16">
             <h2 className="text-3xl font-bold text-foreground sm:text-4xl mb-4">
               Escolha o plano perfeito para o seu negócio
             </h2>
             <p className="text-lg text-muted-foreground max-w-2xl mx-auto">
-              Comece com 7 dias grátis. Cancele quando quiser.
+              Comece com 3 dias grátis. Cancele quando quiser.
             </p>
           </div>
           
@@ -296,7 +296,7 @@ const Landing = () => {
                     ))}
                   </div>
                   <Separator />
-                  <Link to={`/signup?plan=${plan.name.toLowerCase()}`} className="block">
+                  <Link to={`/checkout?plan=${plan.name.toLowerCase()}`} className="block">
                     <Button 
                       className="w-full" 
                       variant={plan.popular ? "default" : "outline"}
@@ -345,7 +345,7 @@ const Landing = () => {
               <CardContent className="p-6">
                 <h3 className="font-semibold text-foreground mb-2">Como funciona o teste gratuito?</h3>
                 <p className="text-muted-foreground">
-                  Você tem 7 dias para testar todas as funcionalidades sem compromisso. 
+                  Você tem 3 dias para testar todas as funcionalidades sem compromisso. 
                   Não cobramos cartão de crédito no cadastro.
                 </p>
               </CardContent>
@@ -379,12 +379,12 @@ const Landing = () => {
           <p className="text-lg text-muted-foreground mb-8 max-w-2xl mx-auto">
             Junte-se a centenas de vendedores que já economizam horas todos os dias com o UniStock.
           </p>
-          <Link to="/signup">
+          <a href="#planos">
             <Button size="lg" className="h-12 px-8 text-lg">
               Comece seu teste gratuito agora
               <ArrowRight className="ml-2 h-5 w-5" />
             </Button>
-          </Link>
+          </a>
         </div>
       </section>
     </div>
