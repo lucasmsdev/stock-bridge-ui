@@ -7,7 +7,7 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { AlertTriangle, Plus, Trash2, Eye, EyeOff, Loader2 } from "lucide-react";
+import { AlertTriangle, Plus, Trash2, Eye, EyeOff, Loader2, Play } from "lucide-react";
 import { usePlan } from "@/hooks/usePlan";
 import { useAuth } from "@/hooks/useAuth";
 import { useToast } from "@/hooks/use-toast";
@@ -45,6 +45,7 @@ export default function RepricingAlerts() {
   const [isLoading, setIsLoading] = useState(true);
   const [isCreating, setIsCreating] = useState(false);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
+  const [isChecking, setIsChecking] = useState(false);
 
   // Form state
   const [selectedProductId, setSelectedProductId] = useState("");
@@ -198,6 +199,36 @@ export default function RepricingAlerts() {
     return url.length > 50 ? `${url.substring(0, 50)}...` : url;
   }, []);
 
+  const checkPricesManually = useCallback(async () => {
+    if (!user?.id) return;
+    
+    setIsChecking(true);
+    try {
+      const { data, error } = await supabase.functions.invoke('check-competitor-prices', {
+        body: { source: 'manual' }
+      });
+
+      if (error) throw error;
+
+      toast({
+        title: "Verificação Concluída!",
+        description: `Processados ${data?.processed || 0} alertas. ${data?.triggered_alerts || 0} notificações criadas.`
+      });
+
+      // Refresh data to show any updates
+      fetchData();
+    } catch (error) {
+      console.error('Error checking prices manually:', error);
+      toast({
+        title: "Erro",
+        description: "Erro ao verificar preços. Tente novamente.",
+        variant: "destructive"
+      });
+    } finally {
+      setIsChecking(false);
+    }
+  }, [user?.id, toast, fetchData]);
+
   useEffect(() => {
     fetchData();
   }, [fetchData]);
@@ -256,7 +287,26 @@ export default function RepricingAlerts() {
           </p>
         </div>
         
-        <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
+        <div className="flex items-center space-x-3">
+          <Button
+            variant="outline"
+            onClick={checkPricesManually}
+            disabled={isChecking || monitoringJobs.length === 0}
+          >
+            {isChecking ? (
+              <>
+                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                Verificando...
+              </>
+            ) : (
+              <>
+                <Play className="h-4 w-4 mr-2" />
+                Verificar Preços Agora
+              </>
+            )}
+          </Button>
+          
+          <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
           <DialogTrigger asChild>
             <Button>
               <Plus className="h-4 w-4 mr-2" />
@@ -323,8 +373,9 @@ export default function RepricingAlerts() {
                 )}
               </Button>
             </div>
-          </DialogContent>
-        </Dialog>
+           </DialogContent>
+         </Dialog>
+        </div>
       </div>
 
       <Card>
