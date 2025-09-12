@@ -6,6 +6,7 @@ import { Menu, Loader2, Moon, Sun } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import { useThemeProvider } from "@/components/layout/ThemeProvider";
 import { usePlan } from "@/hooks/usePlan";
+import { NotificationsPopover } from "@/components/notifications/NotificationsPopover";
 
 export const AppLayout = () => {
   const { user, isLoading } = useAuth();
@@ -61,6 +62,8 @@ export const AppLayout = () => {
                 day: 'numeric' 
               })}
             </div>
+            
+            <NotificationsPopover />
             
             <Button
               variant="ghost"

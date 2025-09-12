@@ -1,5 +1,8 @@
 project_id = "fcvwogaqarkuqvumyqqm"
 
+[functions.check-competitor-prices]
+verify_jwt = false
+
 [functions.mercadolivre-auth]
 verify_jwt = true
 
