@@ -7,12 +7,13 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { AlertTriangle, Plus, Trash2, Eye, EyeOff } from "lucide-react";
+import { AlertTriangle, Plus, Trash2, Eye, EyeOff, Loader2 } from "lucide-react";
 import { usePlan } from "@/hooks/usePlan";
 import { useAuth } from "@/hooks/useAuth";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { Navigate } from "react-router-dom";
+import { UpgradeBanner } from "@/components/ui/upgrade-banner";
 
 interface Product {
   id: string;
@@ -54,13 +55,30 @@ export default function RepricingAlerts() {
   if (planLoading) {
     return (
       <div className="container mx-auto py-6">
-        <div className="text-center">Carregando...</div>
+        <div className="flex items-center justify-center min-h-[400px]">
+          <div className="text-center space-y-4">
+            <Loader2 className="h-8 w-8 animate-spin mx-auto text-primary" />
+            <p className="text-muted-foreground">Carregando informações do plano...</p>
+          </div>
+        </div>
       </div>
     );
   }
 
+  // Show upgrade banner if feature not available
   if (!hasFeature('ReprecificacaoPorAlerta')) {
-    return <Navigate to="/app/billing" state={{ targetFeature: 'ReprecificacaoPorAlerta' }} replace />;
+    return (
+      <div className="container mx-auto py-6">
+        <div className="max-w-2xl mx-auto">
+          <UpgradeBanner
+            title="Reprecificação por Alerta"
+            description="Esta funcionalidade permite monitorar preços da concorrência e receber alertas automáticos quando há mudanças. Disponível nos planos Competidor e Dominador."
+            requiredPlan="competidor"
+            feature="ReprecificacaoPorAlerta"
+          />
+        </div>
+      </div>
+    );
   }
 
   useEffect(() => {
@@ -208,7 +226,12 @@ export default function RepricingAlerts() {
   if (isLoading) {
     return (
       <div className="container mx-auto py-6">
-        <div className="text-center">Carregando...</div>
+        <div className="flex items-center justify-center min-h-[400px]">
+          <div className="text-center space-y-4">
+            <Loader2 className="h-8 w-8 animate-spin mx-auto text-primary" />
+            <p className="text-muted-foreground">Carregando dados...</p>
+          </div>
+        </div>
       </div>
     );
   }
@@ -277,10 +300,17 @@ export default function RepricingAlerts() {
 
               <Button 
                 onClick={createAlert} 
-                disabled={isCreating}
+                disabled={isCreating || !selectedProductId || !competitorUrl}
                 className="w-full"
               >
-                {isCreating ? "Criando..." : "Criar Alerta"}
+                {isCreating ? (
+                  <>
+                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                    Criando...
+                  </>
+                ) : (
+                  "Salvar Alerta"
+                )}
               </Button>
             </div>
           </DialogContent>
@@ -296,8 +326,19 @@ export default function RepricingAlerts() {
         </CardHeader>
         <CardContent>
           {monitoringJobs.length === 0 ? (
-            <div className="text-center py-8 text-muted-foreground">
-              Nenhum alerta configurado ainda.
+            <div className="text-center py-12">
+              <AlertTriangle className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
+              <h3 className="text-lg font-semibold mb-2">Nenhum alerta configurado</h3>
+              <p className="text-muted-foreground mb-4">
+                Você ainda não tem nenhum alerta de preço. Clique em "Criar Novo Alerta" para começar a monitorar a concorrência.
+              </p>
+              <Button
+                onClick={() => setIsDialogOpen(true)}
+                variant="outline"
+              >
+                <Plus className="h-4 w-4 mr-2" />
+                Criar Primeiro Alerta
+              </Button>
             </div>
           ) : (
             <Table>
@@ -327,9 +368,13 @@ export default function RepricingAlerts() {
                         href={job.competitor_url} 
                         target="_blank" 
                         rel="noopener noreferrer"
-                        className="text-primary hover:underline"
+                        className="text-primary hover:underline truncate block max-w-xs"
+                        title={job.competitor_url}
                       >
-                        {new URL(job.competitor_url).hostname}
+                        {job.competitor_url.length > 40 
+                          ? `${job.competitor_url.substring(0, 40)}...` 
+                          : job.competitor_url
+                        }
                       </a>
                     </TableCell>
                     <TableCell>
