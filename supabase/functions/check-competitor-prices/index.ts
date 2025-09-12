@@ -99,8 +99,8 @@ serve(async (req) => {
         // Simulate price fetching (in a real scenario, this would scrape the competitor URL)
         const currentPrice = await fetchCompetitorPrice(job.competitor_url);
         
-        if (currentPrice === null) {
-          console.log(`⚠️ Could not fetch price for ${job.competitor_url}`);
+        if (currentPrice === null || currentPrice <= 0 || isNaN(currentPrice)) {
+          console.log(`⚠️ Could not fetch valid price for ${job.competitor_url} - price: ${currentPrice}`);
           continue;
         }
 
@@ -179,10 +179,19 @@ serve(async (req) => {
   }
 });
 
-// Fetch competitor price with real scraping logic
+// Fetch competitor price with platform-specific scraping logic
 async function fetchCompetitorPrice(url: string): Promise<number | null> {
   try {
     console.log(`🔍 Fetching price from ${url}`);
+    
+    // Identify platform and get specific selector
+    const platformData = identifyPlatform(url);
+    if (!platformData) {
+      console.error(`❌ Marketplace não suportado: ${url}`);
+      return null;
+    }
+    
+    console.log(`🎯 Platform identified: ${platformData.name}, using selector: ${platformData.selector}`);
     
     // Fetch the page HTML
     const response = await fetch(url, {
@@ -204,33 +213,9 @@ async function fetchCompetitorPrice(url: string): Promise<number | null> {
       return null;
     }
     
-    // Common price selectors for major e-commerce sites
-    const priceSelectors = [
-      // MercadoLivre
-      '.andes-money-amount__fraction',
-      '.price-tag-fraction',
-      
-      // Shopee
-      '.notranslate',
-      
-      // Amazon
-      '.a-price-whole',
-      '.a-offscreen',
-      
-      // General selectors
-      '[data-testid*="price"]',
-      '[class*="price"]',
-      '[id*="price"]',
-      '.price',
-      '.valor',
-      '.preco',
-      
-      // Meta tags
-      'meta[property="product:price:amount"]',
-      'meta[property="og:price:amount"]'
-    ];
-    
-    for (const selector of priceSelectors) {
+    // Try platform-specific selectors first
+    for (const selector of platformData.selectors) {
+      console.log(`🔍 Trying selector: ${selector}`);
       const elements = doc.querySelectorAll(selector);
       
       for (const element of elements) {
@@ -242,16 +227,18 @@ async function fetchCompetitorPrice(url: string): Promise<number | null> {
           priceText = element.textContent || '';
         }
         
-        // Extract numeric price from text
-        const price = extractPriceFromText(priceText);
-        if (price !== null && price > 0) {
-          console.log(`💰 Price found: R$ ${price.toFixed(2)} using selector: ${selector}`);
+        console.log(`📝 Raw price text found: "${priceText}"`);
+        
+        // Clean and extract numeric price
+        const price = cleanPrice(priceText);
+        if (price > 0) {
+          console.log(`💰 Price successfully extracted: R$ ${price.toFixed(2)} using selector: ${selector}`);
           return price;
         }
       }
     }
     
-    console.log(`⚠️ No price found for ${url} - trying fallback simulation`);
+    console.log(`⚠️ No price found for ${url} with platform-specific selectors - trying fallback simulation`);
     
     // Fallback: simulate price for demo purposes
     const basePrice = 100 + Math.random() * 400;
@@ -266,33 +253,108 @@ async function fetchCompetitorPrice(url: string): Promise<number | null> {
   }
 }
 
-// Extract price from text using regex
-function extractPriceFromText(text: string): number | null {
-  if (!text) return null;
-  
-  // Remove common currency symbols and normalize
-  const cleanText = text
-    .replace(/[R$\s]/g, '')
-    .replace(/\./g, '') // Remove thousands separator
-    .replace(',', '.'); // Replace decimal comma with dot
-  
-  // Match price patterns
-  const pricePatterns = [
-    /(\d+\.?\d*)/,  // Basic number
-    /(\d{1,3}(?:\d{3})*(?:\.\d{2})?)/  // With thousands separator
-  ];
-  
-  for (const pattern of pricePatterns) {
-    const match = cleanText.match(pattern);
-    if (match) {
-      const price = parseFloat(match[1]);
-      if (!isNaN(price) && price > 0) {
-        return price;
-      }
-    }
+// Identify platform and return specific selectors
+function identifyPlatform(url: string): { name: string; selector: string; selectors: string[] } | null {
+  if (url.includes('mercadolivre.com') || url.includes('mercadolibre.com')) {
+    return {
+      name: 'Mercado Livre',
+      selector: '.ui-pdp-price__figure .andes-money-amount__fraction',
+      selectors: [
+        '.ui-pdp-price__figure .andes-money-amount__fraction',
+        '.andes-money-amount__fraction',
+        '.price-tag-fraction',
+        '.ui-pdp-price .andes-money-amount__fraction',
+        '[data-testid="price-part"]',
+        '.andes-money-amount-combo__main-container .andes-money-amount__fraction'
+      ]
+    };
+  } else if (url.includes('amazon.com') || url.includes('amazon.com.br')) {
+    return {
+      name: 'Amazon',
+      selector: '.a-price-whole',
+      selectors: [
+        '#corePrice_feature_div .a-offscreen',
+        '.a-price-whole',
+        '.a-offscreen',
+        '#priceblock_dealprice',
+        '#priceblock_ourprice',
+        '.a-price.a-text-price.a-size-medium.apexPriceToPay .a-offscreen',
+        '[data-a-color="price"] .a-offscreen'
+      ]
+    };
+  } else if (url.includes('shopee.com') || url.includes('shopee.com.br')) {
+    return {
+      name: 'Shopee',
+      selector: '._3_9c2s',
+      selectors: [
+        '._3_9c2s',
+        '.notranslate',
+        '[data-testid="pdp-price"]',
+        '.flex.items-baseline .text-shopee-primary',
+        '._1w9jLI'
+      ]
+    };
+  } else if (url.includes('casasbahia.com') || url.includes('extra.com') || url.includes('pontofrio.com')) {
+    return {
+      name: 'Casas Bahia/Extra/Ponto Frio',
+      selector: '[data-testid="price-value"]',
+      selectors: [
+        '[data-testid="price-value"]',
+        '.price-value',
+        '.sales-price',
+        '.price'
+      ]
+    };
+  } else if (url.includes('magazineluiza.com')) {
+    return {
+      name: 'Magazine Luiza',
+      selector: '[data-testid="price-value"]',
+      selectors: [
+        '[data-testid="price-value"]',
+        '.price-template__text',
+        '.price-value'
+      ]
+    };
   }
   
   return null;
+}
+
+// Clean and format price text to numeric value
+function cleanPrice(priceText: string): number {
+  if (!priceText) {
+    console.log(`⚠️ Empty price text`);
+    return 0;
+  }
+  
+  console.log(`🧹 Cleaning price text: "${priceText}"`);
+  
+  // Remove currency symbols, spaces, and common separators
+  let cleanedText = priceText
+    .replace(/R\$|USD|\$|€|£/gi, '') // Remove currency symbols
+    .replace(/\s+/g, '') // Remove all spaces
+    .replace(/\./g, '') // Remove thousand separators (dots)
+    .replace(/,(\d{2})$/, '.$1') // Replace decimal comma with dot (only at the end with 2 digits)
+    .trim();
+  
+  console.log(`🧹 After cleaning: "${cleanedText}"`);
+  
+  // Extract first valid number from the cleaned text
+  const numberMatch = cleanedText.match(/(\d+(?:\.\d{1,2})?)/);
+  if (!numberMatch) {
+    console.log(`❌ No valid number found in: "${cleanedText}"`);
+    return 0;
+  }
+  
+  const numericPrice = parseFloat(numberMatch[1]);
+  
+  if (isNaN(numericPrice) || numericPrice <= 0) {
+    console.log(`❌ Invalid numeric price: ${numericPrice}`);
+    return 0;
+  }
+  
+  console.log(`✅ Successfully cleaned price: ${numericPrice}`);
+  return numericPrice;
 }
 
 // Check if trigger condition is met
