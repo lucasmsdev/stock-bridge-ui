@@ -86,11 +86,6 @@ export default function Dashboard() {
         if (!functionError && data && !data.error) {
           console.log('Dashboard metrics received from edge function:', data);
           setDashboardData(data);
-          
-          toast({
-            title: "Dashboard atualizado",
-            description: "Métricas carregadas com sucesso!",
-          });
           return;
         } else {
           console.warn('Edge function failed, falling back to direct database query');
@@ -108,7 +103,7 @@ export default function Dashboard() {
       const todayEnd = new Date(todayStart);
       todayEnd.setDate(todayEnd.getDate() + 1);
 
-      // Get products count
+      // Get products count - this will always return a number (0 if none)
       const { count: totalProducts, error: productsError } = await supabase
         .from('products')
         .select('*', { count: 'exact', head: true })
@@ -138,8 +133,8 @@ export default function Dashboard() {
         console.warn('Could not load orders data:', ordersError);
       }
 
-      // Create fallback data
-      const fallbackData = {
+      // Always create data object - this ensures we never have null/undefined
+      const dashboardData = {
         todayRevenue,
         todayOrders,
         totalProducts: totalProducts || 0,
@@ -153,16 +148,9 @@ export default function Dashboard() {
         })
       };
 
-      setDashboardData(fallbackData);
-      
-      if (totalProducts || totalProducts === 0) {
-        if (totalProducts > 0 || todayRevenue > 0 || todayOrders > 0) {
-          toast({
-            title: "Dashboard carregado",
-            description: "Dados básicos carregados com sucesso.",
-          });
-        }
-      }
+      // Always set data, even if everything is zero
+      setDashboardData(dashboardData);
+      console.log('Dashboard data loaded:', dashboardData);
 
     } catch (error) {
       console.error('=== ERROR loading dashboard metrics ===');
@@ -177,6 +165,7 @@ export default function Dashboard() {
         variant: "destructive",
       });
     } finally {
+      // ALWAYS set loading to false, regardless of success or error
       console.log('=== Dashboard metrics load completed ===');
       setIsLoading(false);
     }
@@ -228,13 +217,16 @@ export default function Dashboard() {
     );
   }
 
+  // Check if we have meaningful data to show
+  const hasData = dashboardData && (
+    dashboardData.todayRevenue > 0 || 
+    dashboardData.todayOrders > 0 || 
+    dashboardData.totalProducts > 0 ||
+    (dashboardData.salesLast7Days && dashboardData.salesLast7Days.some(day => day.revenue > 0))
+  );
+
   // Empty state (no meaningful data)
-  if (!dashboardData || (
-    dashboardData.todayRevenue === 0 && 
-    dashboardData.todayOrders === 0 && 
-    dashboardData.totalProducts === 0 &&
-    (!dashboardData.salesLast7Days || dashboardData.salesLast7Days.every(day => day.revenue === 0))
-  )) {
+  if (!hasData) {
     return (
       <div className="space-y-6 animate-fade-in">
         <div>
@@ -242,16 +234,40 @@ export default function Dashboard() {
           <p className="text-muted-foreground">
             Acompanhe suas vendas e performance em todos os canais
           </p>
+          <div className="mt-2">
+            <Badge variant="outline" className="capitalize">
+              Plano {currentPlan}
+            </Badge>
+          </div>
         </div>
         
         <div className="flex flex-col items-center justify-center min-h-[400px] text-center">
-          <Package className="h-16 w-16 text-muted-foreground/50 mb-4" />
-          <h3 className="text-xl font-semibold text-foreground mb-2">
-            Sem dados o suficiente
-          </h3>
-          <p className="text-muted-foreground max-w-md">
-            Comece importando seus produtos e sincronizando seus pedidos para ver suas métricas aqui.
+          <div className="relative mb-6">
+            <TrendingUp className="h-16 w-16 text-primary/30" />
+            <div className="absolute -bottom-1 -right-1 bg-background border-2 border-primary/20 rounded-full p-1">
+              <Package className="h-6 w-6 text-muted-foreground/50" />
+            </div>
+          </div>
+          <h2 className="text-2xl font-semibold text-foreground mb-3">
+            Seu Dashboard Está Quase Pronto!
+          </h2>
+          <p className="text-muted-foreground max-w-md mb-6 leading-relaxed">
+            Assim que sua primeira venda for sincronizada, seus gráficos de performance, 
+            métricas de faturamento e principais produtos aparecerão aqui. 
+            Nenhuma ação é necessária.
           </p>
+          <div className="flex gap-3">
+            <Card className="p-4 text-center">
+              <Package className="h-8 w-8 text-muted-foreground/30 mx-auto mb-2" />
+              <p className="text-sm text-muted-foreground">Produtos</p>
+              <p className="text-lg font-semibold">{dashboardData?.totalProducts || 0}</p>
+            </Card>
+            <Card className="p-4 text-center">
+              <ShoppingCart className="h-8 w-8 text-muted-foreground/30 mx-auto mb-2" />
+              <p className="text-sm text-muted-foreground">Vendas Hoje</p>
+              <p className="text-lg font-semibold">{dashboardData?.todayOrders || 0}</p>
+            </Card>
+          </div>
         </div>
       </div>
     );
