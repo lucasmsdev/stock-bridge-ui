@@ -53,10 +53,11 @@ export default function Reports() {
       if (error) throw error;
 
       if (data?.fileUrl) {
-        // Create download link
+        // Create download link for data URL
         const link = document.createElement('a');
         link.href = data.fileUrl;
         link.download = data.filename || `relatorio-${reportType}-${period}.${format.toLowerCase()}`;
+        link.style.display = 'none';
         document.body.appendChild(link);
         link.click();
         document.body.removeChild(link);
