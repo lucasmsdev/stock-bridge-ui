@@ -36,6 +36,7 @@ interface MonitoringJob {
 }
 
 export default function RepricingAlerts() {
+  // ALL HOOKS MUST BE CALLED FIRST - BEFORE ANY CONDITIONAL RETURNS
   const { hasFeature, isLoading: planLoading } = usePlan();
   const { user } = useAuth();
   const { toast } = useToast();
@@ -49,36 +50,6 @@ export default function RepricingAlerts() {
   const [selectedProductId, setSelectedProductId] = useState("");
   const [competitorUrl, setCompetitorUrl] = useState("");
   const [triggerCondition, setTriggerCondition] = useState("price_decrease");
-
-  // Check access - wait for plan to load
-  if (planLoading) {
-    return (
-      <div className="container mx-auto py-6">
-        <div className="flex items-center justify-center min-h-[400px]">
-          <div className="text-center space-y-4">
-            <Loader2 className="h-8 w-8 animate-spin mx-auto text-primary" />
-            <p className="text-muted-foreground">Carregando informações do plano...</p>
-          </div>
-        </div>
-      </div>
-    );
-  }
-
-  // Show upgrade banner if feature not available
-  if (!hasFeature('ReprecificacaoPorAlerta')) {
-    return (
-      <div className="container mx-auto py-6">
-        <div className="max-w-2xl mx-auto">
-          <UpgradeBanner
-            title="Reprecificação por Alerta"
-            description="Esta funcionalidade permite monitorar preços da concorrência e receber alertas automáticos quando há mudanças. Disponível nos planos Competidor e Dominador."
-            requiredPlan="competidor"
-            feature="ReprecificacaoPorAlerta"
-          />
-        </div>
-      </div>
-    );
-  }
 
   const fetchData = useCallback(async () => {
     if (!user?.id) return;
@@ -127,11 +98,7 @@ export default function RepricingAlerts() {
     }
   }, [user?.id, toast]);
 
-  useEffect(() => {
-    fetchData();
-  }, [fetchData]);
-
-  const createAlert = async () => {
+  const createAlert = useCallback(async () => {
     if (!selectedProductId || !competitorUrl || !user?.id) {
       toast({
         title: "Erro",
@@ -174,9 +141,9 @@ export default function RepricingAlerts() {
     } finally {
       setIsCreating(false);
     }
-  };
+  }, [selectedProductId, competitorUrl, user?.id, toast, triggerCondition, fetchData]);
 
-  const toggleAlert = async (jobId: string, currentStatus: boolean) => {
+  const toggleAlert = useCallback(async (jobId: string, currentStatus: boolean) => {
     try {
       const { error } = await supabase
         .from('price_monitoring_jobs')
@@ -199,9 +166,9 @@ export default function RepricingAlerts() {
         variant: "destructive"
       });
     }
-  };
+  }, [toast, fetchData]);
 
-  const deleteAlert = async (jobId: string) => {
+  const deleteAlert = useCallback(async (jobId: string) => {
     try {
       const { error } = await supabase
         .from('price_monitoring_jobs')
@@ -224,12 +191,47 @@ export default function RepricingAlerts() {
         variant: "destructive"
       });
     }
-  };
+  }, [toast, fetchData]);
 
-  const formatUrl = (url: string) => {
+  const formatUrl = useCallback((url: string) => {
     if (!url) return '';
     return url.length > 50 ? `${url.substring(0, 50)}...` : url;
-  };
+  }, []);
+
+  useEffect(() => {
+    fetchData();
+  }, [fetchData]);
+
+  // NOW HANDLE CONDITIONAL RETURNS AFTER ALL HOOKS
+  // Check access - wait for plan to load
+  if (planLoading) {
+    return (
+      <div className="container mx-auto py-6">
+        <div className="flex items-center justify-center min-h-[400px]">
+          <div className="text-center space-y-4">
+            <Loader2 className="h-8 w-8 animate-spin mx-auto text-primary" />
+            <p className="text-muted-foreground">Carregando informações do plano...</p>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // Show upgrade banner if feature not available
+  if (!hasFeature('ReprecificacaoPorAlerta')) {
+    return (
+      <div className="container mx-auto py-6">
+        <div className="max-w-2xl mx-auto">
+          <UpgradeBanner
+            title="Reprecificação por Alerta"
+            description="Esta funcionalidade permite monitorar preços da concorrência e receber alertas automáticos quando há mudanças. Disponível nos planos Competidor e Dominador."
+            requiredPlan="competidor"
+            feature="ReprecificacaoPorAlerta"
+          />
+        </div>
+      </div>
+    );
+  }
 
   if (isLoading) {
     return (
