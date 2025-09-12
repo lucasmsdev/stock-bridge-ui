@@ -21,24 +21,40 @@ serve(async (req) => {
   try {
     console.log('🚀 Create repricing alert function called');
     
+    // Get Authorization header
+    const authHeader = req.headers.get('Authorization');
+    console.log('📋 Auth header present:', !!authHeader);
+    
+    if (!authHeader) {
+      console.error('❌ No Authorization header provided');
+      return new Response(
+        JSON.stringify({ error: 'Authorization header required' }),
+        { 
+          status: 401, 
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
+        }
+      );
+    }
+
     // Initialize Supabase client with proper authentication
     const supabaseClient = createClient(
       Deno.env.get('SUPABASE_URL') ?? '',
       Deno.env.get('SUPABASE_ANON_KEY') ?? '',
       {
         global: {
-          headers: { Authorization: req.headers.get('Authorization')! },
+          headers: { Authorization: authHeader },
         },
       }
     );
 
     // Get user from JWT token
     const { data: { user }, error: authError } = await supabaseClient.auth.getUser();
+    console.log('👤 User authenticated:', !!user, 'Auth error:', !!authError);
     
     if (authError || !user) {
-      console.error('❌ Authentication error:', authError);
+      console.error('❌ Authentication error:', authError?.message);
       return new Response(
-        JSON.stringify({ error: 'Unauthorized' }),
+        JSON.stringify({ error: 'Unauthorized', details: authError?.message }),
         { 
           status: 401, 
           headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
@@ -48,6 +64,8 @@ serve(async (req) => {
 
     const requestData: CreateAlertRequest = await req.json();
     const { product_id, competitor_url, trigger_condition } = requestData;
+
+    console.log('📊 Request data:', { product_id, competitor_url, trigger_condition });
 
     if (!product_id || !competitor_url || !trigger_condition) {
       return new Response(
