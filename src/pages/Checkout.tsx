@@ -63,31 +63,6 @@ export default function Checkout() {
       console.log('Starting checkout for logged user with plan:', selectedPlan);
       console.log('User details:', { id: user?.id, email: user?.email });
       
-      // Verificar se o usuário tem sessão ativa e válida
-      const { data: session, error: sessionError } = await supabase.auth.getSession();
-      if (sessionError) {
-        console.error('Session error:', sessionError);
-        throw new Error('Erro ao verificar sessão. Faça login novamente.');
-      }
-      
-      if (!session?.session) {
-        throw new Error('Sessão não encontrada. Faça login novamente.');
-      }
-
-      // Verificar se o usuário existe no banco
-      const { data: profile, error: profileError } = await supabase
-        .from('profiles')
-        .select('id, email')
-        .eq('id', user?.id)
-        .single();
-        
-      if (profileError || !profile) {
-        console.error('Profile error:', profileError);
-        throw new Error('Usuário não encontrado no banco de dados. Faça login novamente.');
-      }
-      
-      console.log('Profile verified:', profile);
-      
       const { data, error } = await supabase.functions.invoke('create-checkout', {
         body: { planType: selectedPlan }
       });
