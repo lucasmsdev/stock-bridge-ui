@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { useSearchParams, useNavigate } from "react-router-dom";
 import { Eye, EyeOff, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -44,7 +44,7 @@ export default function Checkout() {
       
       return () => clearTimeout(timer);
     }
-  }, [user]);
+  }, [user?.id, selectedPlan]); // Dependências específicas para evitar loops
 
   const planDetails = {
     estrategista: { name: 'Estrategista', price: 'R$ 97', description: 'Tome decisões de preço com base em dados' },
@@ -54,7 +54,7 @@ export default function Checkout() {
 
   const currentPlan = planDetails[selectedPlan as keyof typeof planDetails];
 
-  const handleCheckoutForLoggedUser = async () => {
+  const handleCheckoutForLoggedUser = useCallback(async () => {
     if (isProcessingCheckout) return; // Prevenir múltiplas execuções
     
     setIsProcessingCheckout(true);
@@ -110,7 +110,7 @@ export default function Checkout() {
     } finally {
       setIsProcessingCheckout(false);
     }
-  };
+  }, [selectedPlan, user?.id, navigate, toast]);
 
   const handleSignupAndCheckout = async (e: React.FormEvent) => {
     e.preventDefault();
