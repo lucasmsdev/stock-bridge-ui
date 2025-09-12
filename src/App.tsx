@@ -36,42 +36,42 @@ const App = () => (
           <Toaster />
           <Sonner />
           <BrowserRouter>
-          <Routes>
-            {/* Public Routes */}
-            <Route path="/login" element={<Login />} />
-            <Route path="/signup" element={<Signup />} />
-            <Route path="/checkout" element={<Checkout />} />
-            <Route path="/callback/mercadolivre" element={<MercadoLivreCallback />} />
-            <Route path="/callback/shopify" element={<ShopifyCallback />} />
-            <Route path="/shopify-setup" element={<ShopifySetup />} />
-            
-            {/* Protected Routes */}
-            <Route path="/app" element={<AppLayout />}>
-              <Route index element={<Navigate to="/app/dashboard" replace />} />
-              <Route path="dashboard" element={<Dashboard />} />
-              <Route path="products" element={<Products />} />
-              <Route path="products/:id" element={<ProductDetails />} />
-              <Route path="orders" element={<Orders />} />
-              <Route path="finance" element={<Finance />} />
-              <Route path="integrations" element={<Integrations />} />
-              <Route path="market-analysis" element={<MarketAnalysis />} />
-              <Route path="help" element={<Help />} />
-              <Route path="profile" element={<Profile />} />
-              <Route path="billing" element={<Billing />} />
-              <Route path="repricing-alerts" element={<RepricingAlerts />} />
-              <Route path="reports" element={<Reports />} />
-            </Route>
+            <Routes>
+              {/* Public Routes */}
+              <Route path="/login" element={<Login />} />
+              <Route path="/signup" element={<Signup />} />
+              <Route path="/checkout" element={<Checkout />} />
+              <Route path="/callback/mercadolivre" element={<MercadoLivreCallback />} />
+              <Route path="/callback/shopify" element={<ShopifyCallback />} />
+              <Route path="/shopify-setup" element={<ShopifySetup />} />
+              
+              {/* Protected Routes */}
+              <Route path="/app" element={<AppLayout />}>
+                <Route index element={<Navigate to="/app/dashboard" replace />} />
+                <Route path="dashboard" element={<Dashboard />} />
+                <Route path="products" element={<Products />} />
+                <Route path="products/:id" element={<ProductDetails />} />
+                <Route path="orders" element={<Orders />} />
+                <Route path="finance" element={<Finance />} />
+                <Route path="integrations" element={<Integrations />} />
+                <Route path="market-analysis" element={<MarketAnalysis />} />
+                <Route path="help" element={<Help />} />
+                <Route path="profile" element={<Profile />} />
+                <Route path="billing" element={<Billing />} />
+                <Route path="repricing-alerts" element={<RepricingAlerts />} />
+                <Route path="reports" element={<Reports />} />
+              </Route>
 
-            {/* Landing page as root */}
-            <Route path="/" element={<Landing />} />
-            
-            {/* Catch all route - redirect to landing */}
-            <Route path="*" element={<Navigate to="/" replace />} />
-          </Routes>
-        </BrowserRouter>
-      </TooltipProvider>
-    </AuthProvider>
-  </ThemeProvider>
+              {/* Landing page as root */}
+              <Route path="/" element={<Landing />} />
+              
+              {/* Catch all route - redirect to landing */}
+              <Route path="*" element={<Navigate to="/" replace />} />
+            </Routes>
+          </BrowserRouter>
+        </TooltipProvider>
+      </AuthProvider>
+    </ThemeProvider>
   </QueryClientProvider>
 );
 
