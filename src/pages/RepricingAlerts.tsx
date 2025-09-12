@@ -5,7 +5,7 @@ import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { AlertTriangle, Plus, Trash2, Eye, EyeOff, Loader2, Play } from "lucide-react";
 import { usePlan } from "@/hooks/usePlan";
@@ -323,10 +323,13 @@ export default function RepricingAlerts() {
               Criar Novo Alerta
             </Button>
           </DialogTrigger>
-          <DialogContent>
-            <DialogHeader>
-              <DialogTitle>Criar Alerta de Reprecificação</DialogTitle>
-            </DialogHeader>
+           <DialogContent>
+             <DialogHeader>
+               <DialogTitle>Criar Alerta de Reprecificação</DialogTitle>
+               <DialogDescription>
+                 Configure um alerta para monitorar automaticamente os preços da concorrência
+               </DialogDescription>
+             </DialogHeader>
             <div className="space-y-4">
               <div>
                 <Label htmlFor="product">Produto</Label>

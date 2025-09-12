@@ -21,27 +21,19 @@ serve(async (req) => {
   try {
     console.log('🚀 Create repricing alert function called');
     
-    // Get JWT token from Authorization header
-    const token = req.headers.get('Authorization')?.replace('Bearer ', '');
-    if (!token) {
-      console.error('❌ No authorization token provided');
-      return new Response(
-        JSON.stringify({ error: 'Authorization token required' }),
-        { 
-          status: 401, 
-          headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
-        }
-      );
-    }
-
-    // Initialize Supabase client
+    // Initialize Supabase client with proper authentication
     const supabaseClient = createClient(
       Deno.env.get('SUPABASE_URL') ?? '',
-      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '',
+      Deno.env.get('SUPABASE_ANON_KEY') ?? '',
+      {
+        global: {
+          headers: { Authorization: req.headers.get('Authorization')! },
+        },
+      }
     );
 
-    // Verify JWT token and get user
-    const { data: { user }, error: authError } = await supabaseClient.auth.getUser(token);
+    // Get user from JWT token
+    const { data: { user }, error: authError } = await supabaseClient.auth.getUser();
     
     if (authError || !user) {
       console.error('❌ Authentication error:', authError);
