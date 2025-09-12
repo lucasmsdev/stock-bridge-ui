@@ -22,13 +22,16 @@ export default function Signup() {
   const { toast } = useToast();
   const [searchParams] = useSearchParams();
 
-  // Get plan from URL parameter
+  // Get plan from URL parameter and enforce plan selection
   useEffect(() => {
     const planParam = searchParams.get('plan');
-    if (planParam && ['estrategista', 'competidor', 'dominador'].includes(planParam)) {
-      setSelectedPlan(planParam);
+    if (!planParam || !['estrategista', 'competidor', 'dominador'].includes(planParam)) {
+      // Se não há plano na URL ou é inválido, redireciona para landing page
+      navigate('/?signup=true');
+      return;
     }
-  }, [searchParams]);
+    setSelectedPlan(planParam);
+  }, [searchParams, navigate]);
 
   const handleSignup = async (e: React.FormEvent) => {
     e.preventDefault();
