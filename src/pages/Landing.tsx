@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
+import { ThemeToggle } from "@/components/ui/theme-toggle";
 import { 
   ArrowRight, 
   CheckCircle, 
@@ -139,8 +140,25 @@ const Landing = () => {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-background via-background to-muted/20">
+      {/* Header with Theme Toggle */}
+      <header className="fixed top-0 left-0 right-0 z-50 bg-background/95 backdrop-blur-sm border-b border-border">
+        <div className="container mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="flex items-center justify-between h-16">
+            <div className="font-bold text-xl text-foreground">UniStock</div>
+            <div className="flex items-center space-x-4">
+              <Link to="/login">
+                <Button variant="ghost" size="sm">
+                  Entrar
+                </Button>
+              </Link>
+              <ThemeToggle />
+            </div>
+          </div>
+        </div>
+      </header>
+
       {/* Hero Section */}
-      <section className="relative px-4 pt-20 pb-16 mx-auto max-w-7xl sm:px-6 lg:px-8">
+      <section className="relative px-4 pt-32 pb-16 mx-auto max-w-7xl sm:px-6 lg:px-8">
         <div className="text-center">
           <h1 className="text-4xl font-bold tracking-tight text-foreground sm:text-6xl lg:text-7xl">
             Pare de perder vendas.{" "}
@@ -165,11 +183,10 @@ const Landing = () => {
           </div>
         </div>
 
-        {/* Dashboard Preview */}
         <div className="mt-16 relative">
           <div className="mx-auto max-w-4xl">
-            <div className="relative rounded-xl bg-card border shadow-2xl">
-              <div className="flex items-center gap-2 px-4 py-3 border-b">
+            <div className="relative rounded-xl bg-card border shadow-2xl dark:shadow-primary/10">
+              <div className="flex items-center gap-2 px-4 py-3 border-b border-border">
                 <div className="w-3 h-3 rounded-full bg-red-500"></div>
                 <div className="w-3 h-3 rounded-full bg-yellow-500"></div>
                 <div className="w-3 h-3 rounded-full bg-green-500"></div>
@@ -177,26 +194,26 @@ const Landing = () => {
               </div>
               <div className="p-8">
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
-                  <Card>
+                  <Card className="border-border">
                     <CardContent className="p-4">
                       <div className="text-2xl font-bold text-primary">1.247</div>
                       <div className="text-sm text-muted-foreground">Produtos Sincronizados</div>
                     </CardContent>
                   </Card>
-                  <Card>
+                  <Card className="border-border">
                     <CardContent className="p-4">
-                      <div className="text-2xl font-bold text-green-600">R$ 45.231</div>
+                      <div className="text-2xl font-bold text-green-600 dark:text-green-400">R$ 45.231</div>
                       <div className="text-sm text-muted-foreground">Receita Este Mês</div>
                     </CardContent>
                   </Card>
-                  <Card>
+                  <Card className="border-border">
                     <CardContent className="p-4">
-                      <div className="text-2xl font-bold text-blue-600">87%</div>
+                      <div className="text-2xl font-bold text-blue-600 dark:text-blue-400">87%</div>
                       <div className="text-sm text-muted-foreground">Margem Média</div>
                     </CardContent>
                   </Card>
                 </div>
-                <div className="h-32 bg-gradient-to-r from-primary/20 to-blue-500/20 rounded-lg flex items-center justify-center">
+                <div className="h-32 bg-gradient-to-r from-primary/20 to-blue-500/20 dark:from-primary/30 dark:to-blue-500/30 rounded-lg flex items-center justify-center">
                   <div className="text-center">
                     <BarChart3 className="h-12 w-12 mx-auto text-primary mb-2" />
                     <p className="text-sm text-muted-foreground">Gráfico de Performance</p>
@@ -209,7 +226,7 @@ const Landing = () => {
       </section>
 
       {/* Problems Section */}
-      <section className="py-16 bg-muted/30">
+      <section className="py-16 bg-muted/30 dark:bg-muted/20">
         <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
           <div className="text-center mb-12">
             <h2 className="text-3xl font-bold text-foreground sm:text-4xl">
@@ -218,7 +235,7 @@ const Landing = () => {
           </div>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
             {problems.map((problem, index) => (
-              <Card key={index} className="text-center border-destructive/20">
+              <Card key={index} className="text-center border-destructive/20 dark:border-destructive/30">
                 <CardContent className="p-6">
                   <problem.icon className="h-12 w-12 mx-auto text-destructive mb-4" />
                   <h3 className="font-semibold text-foreground mb-2">{problem.title}</h3>
@@ -240,7 +257,7 @@ const Landing = () => {
           </div>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
             {solutions.map((solution, index) => (
-              <Card key={index} className="text-center border-primary/20">
+              <Card key={index} className="text-center border-primary/20 dark:border-primary/30">
                 <CardContent className="p-6">
                   <solution.icon className="h-12 w-12 mx-auto text-primary mb-4" />
                   <h3 className="font-semibold text-foreground mb-2">{solution.title}</h3>
@@ -253,7 +270,7 @@ const Landing = () => {
       </section>
 
       {/* Pricing Section */}
-      <section id="planos" className="py-20 bg-muted/30">
+      <section id="planos" className="py-20 bg-muted/30 dark:bg-muted/20">
         <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
           <div className="text-center mb-16">
             <h2 className="text-3xl font-bold text-foreground sm:text-4xl mb-4">
@@ -266,14 +283,14 @@ const Landing = () => {
           
           <div className="grid grid-cols-1 md:grid-cols-3 gap-8 max-w-5xl mx-auto">
             {plans.map((plan, index) => (
-              <Card key={index} className={`relative ${plan.popular ? 'border-primary ring-2 ring-primary/20' : ''}`}>
+              <Card key={index} className={`relative border-border ${plan.popular ? 'border-primary ring-2 ring-primary/20 dark:ring-primary/30' : ''}`}>
                 {plan.popular && (
                   <Badge className="absolute -top-3 left-1/2 transform -translate-x-1/2 bg-primary text-primary-foreground">
                     Escolha Popular
                   </Badge>
                 )}
                 <CardHeader className="text-center pb-4">
-                  <CardTitle className="text-xl">{plan.name}</CardTitle>
+                  <CardTitle className="text-xl text-foreground">{plan.name}</CardTitle>
                   <p className="text-sm text-muted-foreground mt-2">{plan.description}</p>
                   <div className="mt-4">
                     <span className="text-4xl font-bold text-foreground">{plan.price}</span>
@@ -333,7 +350,7 @@ const Landing = () => {
       </section>
 
       {/* FAQ Section */}
-      <section className="py-16 bg-muted/30">
+      <section className="py-16 bg-muted/30 dark:bg-muted/20">
         <div className="mx-auto max-w-4xl px-4 sm:px-6 lg:px-8">
           <div className="text-center mb-12">
             <h2 className="text-3xl font-bold text-foreground sm:text-4xl mb-4">
@@ -341,7 +358,7 @@ const Landing = () => {
             </h2>
           </div>
           <div className="space-y-6">
-            <Card>
+            <Card className="border-border">
               <CardContent className="p-6">
                 <h3 className="font-semibold text-foreground mb-2">Como funciona o teste gratuito?</h3>
                 <p className="text-muted-foreground">
@@ -350,7 +367,7 @@ const Landing = () => {
                 </p>
               </CardContent>
             </Card>
-            <Card>
+            <Card className="border-border">
               <CardContent className="p-6">
                 <h3 className="font-semibold text-foreground mb-2">Quais marketplaces são suportados?</h3>
                 <p className="text-muted-foreground">
@@ -358,7 +375,7 @@ const Landing = () => {
                 </p>
               </CardContent>
             </Card>
-            <Card>
+            <Card className="border-border">
               <CardContent className="p-6">
                 <h3 className="font-semibold text-foreground mb-2">Posso mudar de plano depois?</h3>
                 <p className="text-muted-foreground">

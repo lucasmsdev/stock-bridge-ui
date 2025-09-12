@@ -4,12 +4,12 @@ import { AppSidebar } from "./AppSidebar";
 import { Button } from "@/components/ui/button";
 import { Menu, Loader2, Moon, Sun } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
-import { useTheme } from "@/hooks/useTheme";
+import { useThemeProvider } from "@/components/layout/ThemeProvider";
 import { usePlan } from "@/hooks/usePlan";
 
 export const AppLayout = () => {
   const { user, isLoading } = useAuth();
-  const { isDark, toggleTheme } = useTheme();
+  const { theme, toggleTheme } = useThemeProvider();
   const { currentPlan, isLoading: planLoading } = usePlan();
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const location = useLocation();
@@ -68,7 +68,7 @@ export const AppLayout = () => {
               onClick={toggleTheme}
               className="hover:bg-muted"
             >
-              {isDark ? <Sun className="h-5 w-5" /> : <Moon className="h-5 w-5" />}
+              {theme === 'dark' ? <Sun className="h-5 w-5" /> : <Moon className="h-5 w-5" />}
             </Button>
           </div>
         </header>

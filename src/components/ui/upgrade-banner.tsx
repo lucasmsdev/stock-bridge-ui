@@ -4,6 +4,8 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { useNavigate } from "react-router-dom";
 import { FeatureName, PlanType } from "@/hooks/usePlan";
+import { useToast } from "@/hooks/use-toast";
+import { useState } from "react";
 
 interface UpgradeBannerProps {
   title: string;
@@ -47,11 +49,41 @@ export function UpgradeBanner({
   variant = 'card'
 }: UpgradeBannerProps) {
   const navigate = useNavigate();
+  const { toast } = useToast();
+  const [isNavigating, setIsNavigating] = useState(false);
   const PlanIcon = planIcons[requiredPlan] || Crown;
   const planName = planNames[requiredPlan] || requiredPlan;
 
-  const handleUpgradeClick = () => {
-    navigate('/app/billing', { state: { targetPlan: requiredPlan, feature } });
+  const handleUpgradeClick = async () => {
+    if (isNavigating) return; // Prevent double clicks
+    
+    try {
+      setIsNavigating(true);
+      toast({
+        title: "Redirecionando...",
+        description: "Você será levado para a página de planos.",
+      });
+      
+      // Small delay to show the toast
+      await new Promise(resolve => setTimeout(resolve, 500));
+      
+      navigate('/app/billing', { 
+        state: { 
+          targetPlan: requiredPlan, 
+          feature,
+          fromUpgradeBanner: true 
+        } 
+      });
+    } catch (error) {
+      console.error('Erro na navegação:', error);
+      toast({
+        title: "Erro",
+        description: "Ocorreu um erro ao redirecionar. Tente novamente.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsNavigating(false);
+    }
   };
 
   if (variant === 'inline') {
@@ -64,8 +96,8 @@ export function UpgradeBanner({
             <p className="text-xs text-muted-foreground">{description}</p>
           </div>
         </div>
-        <Button size="sm" onClick={handleUpgradeClick} className={buttonColors[requiredPlan]}>
-          Upgrade
+        <Button size="sm" onClick={handleUpgradeClick} disabled={isNavigating} className={buttonColors[requiredPlan]}>
+          {isNavigating ? "Redirecionando..." : "Upgrade"}
           <ArrowRight className="h-3 w-3 ml-1" />
         </Button>
       </div>
@@ -87,9 +119,13 @@ export function UpgradeBanner({
           Plano {planName} necessário
         </Badge>
         
-        <Button className={`w-full ${buttonColors[requiredPlan]} text-white`} onClick={handleUpgradeClick}>
+        <Button 
+          className={`w-full ${buttonColors[requiredPlan]} text-white`} 
+          onClick={handleUpgradeClick}
+          disabled={isNavigating}
+        >
           <PlanIcon className="h-4 w-4 mr-2" />
-          Fazer Upgrade Agora
+          {isNavigating ? "Redirecionando..." : "Fazer Upgrade Agora"}
         </Button>
       </CardContent>
     </Card>
