@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { useAuth } from "./useAuth";
 import { supabase } from "@/integrations/supabase/client";
 
@@ -99,46 +99,46 @@ export const usePlan = () => {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  useEffect(() => {
-    const fetchUserPlan = async () => {
-      if (!user) {
-        setIsLoading(false);
+  const fetchUserPlan = useCallback(async () => {
+    if (!user?.id) {
+      setIsLoading(false);
+      return;
+    }
+
+    try {
+      const { data, error } = await supabase
+        .from('profiles')
+        .select('plan')
+        .eq('id', user.id)
+        .maybeSingle(); // Use maybeSingle instead of single to avoid errors
+
+      if (error) {
+        console.error('Error fetching user plan:', error);
+        setError('Erro ao carregar plano do usuário');
+        // Se não encontrar o perfil, definir plano padrão
+        setCurrentPlan('estrategista');
         return;
       }
 
-      try {
-        const { data, error } = await supabase
-          .from('profiles')
-          .select('plan')
-          .eq('id', user.id)
-          .single();
-
-        if (error) {
-          console.error('Error fetching user plan:', error);
-          setError('Erro ao carregar plano do usuário');
-          // Se não encontrar o perfil, definir plano padrão
-          setCurrentPlan('estrategista');
-          return;
-        }
-
-        if (data?.plan) {
-          setCurrentPlan(data.plan as PlanType);
-          console.log('User plan loaded:', data.plan);
-        } else {
-          // Se não tiver plano definido, usar o padrão
-          setCurrentPlan('estrategista');
-        }
-      } catch (err) {
-        console.error('Unexpected error fetching plan:', err);
-        setError('Erro inesperado ao carregar plano');
+      if (data?.plan) {
+        setCurrentPlan(data.plan as PlanType);
+        console.log('User plan loaded:', data.plan);
+      } else {
+        // Se não tiver plano definido, usar o padrão
         setCurrentPlan('estrategista');
-      } finally {
-        setIsLoading(false);
       }
-    };
+    } catch (err) {
+      console.error('Unexpected error fetching plan:', err);
+      setError('Erro inesperado ao carregar plano');
+      setCurrentPlan('estrategista');
+    } finally {
+      setIsLoading(false);
+    }
+  }, [user?.id]);
 
+  useEffect(() => {
     fetchUserPlan();
-  }, [user]);
+  }, [fetchUserPlan]);
 
   // Nova função para verificar acesso usando o sistema de features
   const hasFeature = (feature: FeatureName): boolean => {

@@ -9,7 +9,7 @@ import {
   TableHeader, 
   TableRow 
 } from "@/components/ui/table";
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { useToast } from "@/hooks/use-toast";
@@ -67,8 +67,8 @@ export default function Dashboard() {
   const { toast } = useToast();
   const { currentPlan, canAccess } = usePlan();
 
-  const loadDashboardMetrics = async () => {
-    if (!user) {
+  const loadDashboardMetrics = useCallback(async () => {
+    if (!user?.id) {
       setIsLoading(false);
       return;
     }
@@ -180,11 +180,11 @@ export default function Dashboard() {
       console.log('=== Dashboard metrics load completed ===');
       setIsLoading(false);
     }
-  };
+  }, [user?.id, toast]);
 
   useEffect(() => {
     loadDashboardMetrics();
-  }, [user]);
+  }, [loadDashboardMetrics]);
 
   // Loading state
   if (isLoading) {
@@ -218,7 +218,7 @@ export default function Dashboard() {
             {error}
           </p>
           <button 
-            onClick={() => loadDashboardMetrics()}
+            onClick={loadDashboardMetrics}
             className="px-4 py-2 bg-primary text-primary-foreground rounded-md hover:bg-primary/90 transition-colors"
           >
             Tentar novamente
