@@ -10,14 +10,22 @@ import { supabase } from "@/integrations/supabase/client";
 import { Navigate } from "react-router-dom";
 
 export default function Reports() {
-  const { hasFeature } = usePlan();
+  const { hasFeature, isLoading: planLoading } = usePlan();
   const { toast } = useToast();
   const [reportType, setReportType] = useState("");
   const [period, setPeriod] = useState("");
   const [format, setFormat] = useState("");
   const [isGenerating, setIsGenerating] = useState(false);
 
-  // Check access
+  // Check access - wait for plan to load
+  if (planLoading) {
+    return (
+      <div className="container mx-auto py-6">
+        <div className="text-center">Carregando...</div>
+      </div>
+    );
+  }
+
   if (!hasFeature('RelatoriosAvancados')) {
     return <Navigate to="/app/billing" state={{ targetFeature: 'RelatoriosAvancados' }} replace />;
   }

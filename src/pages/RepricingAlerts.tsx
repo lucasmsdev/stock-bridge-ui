@@ -36,7 +36,7 @@ interface MonitoringJob {
 }
 
 export default function RepricingAlerts() {
-  const { hasFeature, currentPlan } = usePlan();
+  const { hasFeature, currentPlan, isLoading: planLoading } = usePlan();
   const { user } = useAuth();
   const { toast } = useToast();
   const [products, setProducts] = useState<Product[]>([]);
@@ -50,7 +50,15 @@ export default function RepricingAlerts() {
   const [competitorUrl, setCompetitorUrl] = useState("");
   const [triggerCondition, setTriggerCondition] = useState("price_decrease");
 
-  // Check access
+  // Check access - wait for plan to load
+  if (planLoading) {
+    return (
+      <div className="container mx-auto py-6">
+        <div className="text-center">Carregando...</div>
+      </div>
+    );
+  }
+
   if (!hasFeature('ReprecificacaoPorAlerta')) {
     return <Navigate to="/app/billing" state={{ targetFeature: 'ReprecificacaoPorAlerta' }} replace />;
   }
