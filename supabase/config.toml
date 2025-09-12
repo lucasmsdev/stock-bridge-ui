@@ -35,3 +35,6 @@ verify_jwt = false
 
 [functions.generate-report]
 verify_jwt = true
+
+[functions.create-repricing-alert]
+verify_jwt = true

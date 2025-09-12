@@ -111,38 +111,48 @@ export default function RepricingAlerts() {
 
     setIsCreating(true);
     try {
-      const { error } = await supabase
-        .from('price_monitoring_jobs')
-        .insert({
-          user_id: user.id,
+      // Call the edge function to create alert with initial price check
+      const { data, error } = await supabase.functions.invoke('create-repricing-alert', {
+        body: {
           product_id: selectedProductId,
           competitor_url: competitorUrl,
           trigger_condition: triggerCondition
-        });
+        }
+      });
 
       if (error) throw error;
 
+      if (data?.error) {
+        throw new Error(data.error);
+      }
+
+      // Add the new alert to the state immediately
+      if (data?.alert) {
+        setMonitoringJobs(prev => [data.alert, ...prev]);
+      }
+
       toast({
         title: "Sucesso!",
-        description: "Alerta de reprecificação criado com sucesso."
+        description: data?.initialPrice 
+          ? `Alerta criado com preço inicial de R$ ${data.initialPrice.toFixed(2)}`
+          : "Alerta criado com sucesso. Preço será verificado em breve."
       });
 
       setIsDialogOpen(false);
       setSelectedProductId("");
       setCompetitorUrl("");
       setTriggerCondition("price_decrease");
-      fetchData();
     } catch (error) {
       console.error('Error creating alert:', error);
       toast({
         title: "Erro",
-        description: "Erro ao criar alerta.",
+        description: error.message || "Erro ao criar alerta.",
         variant: "destructive"
       });
     } finally {
       setIsCreating(false);
     }
-  }, [selectedProductId, competitorUrl, user?.id, toast, triggerCondition, fetchData]);
+  }, [selectedProductId, competitorUrl, user?.id, toast, triggerCondition]);
 
   const toggleAlert = useCallback(async (jobId: string, currentStatus: boolean) => {
     try {
