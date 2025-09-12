@@ -55,6 +55,36 @@ export type Database = {
           },
         ]
       }
+      notifications: {
+        Row: {
+          created_at: string
+          id: string
+          is_read: boolean
+          message: string
+          title: string
+          type: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          is_read?: boolean
+          message: string
+          title: string
+          type?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          is_read?: boolean
+          message?: string
+          title?: string
+          type?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       orders: {
         Row: {
           created_at: string
@@ -90,6 +120,50 @@ export type Database = {
           user_id?: string
         }
         Relationships: []
+      }
+      price_monitoring_jobs: {
+        Row: {
+          competitor_url: string
+          created_at: string
+          id: string
+          is_active: boolean
+          last_price: number | null
+          product_id: string
+          trigger_condition: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          competitor_url: string
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          last_price?: number | null
+          product_id: string
+          trigger_condition?: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          competitor_url?: string
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          last_price?: number | null
+          product_id?: string
+          trigger_condition?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "price_monitoring_jobs_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "products"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       products: {
         Row: {

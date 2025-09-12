@@ -448,15 +448,12 @@ export default function Profile() {
 
               <div className="space-y-2">
                  <h4 className="font-medium text-foreground">Recursos inclusos:</h4>
-                 <div className="space-y-1 text-sm text-muted-foreground">
-                   <p>• {getLegacyPlanFeatures().maxSkus === Infinity ? '∞' : getLegacyPlanFeatures().maxSkus} produtos</p>
-                   <p>• {getLegacyPlanFeatures().hasReprecificacaoPorAlerta ? '✅' : '❌'} Reprecificação por alerta</p>
-                   <p>• {getLegacyPlanFeatures().hasPrecificacaoDinamica ? '✅' : '❌'} Precificação dinâmica</p>
-                   <p>• {getLegacyPlanFeatures().hasAutomacaoIA ? '✅' : '❌'} Automação IA</p>
-                   <p>• {getLegacyPlanFeatures().hasSuportePrioritario ? '✅' : '❌'} Suporte prioritário</p>
-                   <p>• {getLegacyPlanFeatures().hasRelatoriosAvancados ? '✅' : '❌'} Relatórios avançados</p>
-                   <p>• {getLegacyPlanFeatures().hasIntegracaoAPI ? '✅' : '❌'} Integrações API</p>
-                 </div>
+                  <div className="space-y-1 text-sm text-muted-foreground">
+                    <p>• {getLegacyPlanFeatures().maxSkus === Infinity ? '∞' : getLegacyPlanFeatures().maxSkus} produtos</p>
+                    <p>• {getLegacyPlanFeatures().hasReprecificacaoPorAlerta ? '✅' : '❌'} Reprecificação por alerta</p>
+                    <p>• {getLegacyPlanFeatures().hasSuportePrioritario ? '✅' : '❌'} Suporte prioritário</p>
+                    <p>• {getLegacyPlanFeatures().hasRelatoriosAvancados ? '✅' : '❌'} Relatórios avançados</p>
+                  </div>
               </div>
 
               <Button 

@@ -12,7 +12,9 @@ import {
   CreditCard,
   Lock,
   Crown,
-  Target
+  Target,
+  AlertTriangle,
+  FileText
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
@@ -52,6 +54,18 @@ const navItems = [
     href: "/app/market-analysis", 
     icon: Target, 
     requiresFeature: 'AnaliseDeConcorrencia' as const 
+  },
+  { 
+    title: "Reprecificação", 
+    href: "/app/repricing-alerts", 
+    icon: AlertTriangle, 
+    requiresFeature: 'ReprecificacaoPorAlerta' as const 
+  },
+  { 
+    title: "Relatórios", 
+    href: "/app/reports", 
+    icon: FileText, 
+    requiresFeature: 'RelatoriosAvancados' as const 
   },
   { title: "Ajuda", href: "/app/help", icon: HelpCircle },
 ];

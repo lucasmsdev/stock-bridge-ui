@@ -36,8 +36,7 @@ const Landing = () => {
       ],
       limitations: [
         "Sem reprecificação por alerta",
-        "Sem precificação dinâmica",
-        "Sem automação de IA"
+        "Sem relatórios avançados"
       ]
     },
     {
@@ -53,12 +52,10 @@ const Landing = () => {
         "Análise de preço ideal",
         "Dashboard de performance",
         "Reprecificação por alerta",
-        "Relatórios avançados",
         "Suporte prioritário"
       ],
       limitations: [
-        "Sem precificação dinâmica",
-        "Sem automação de IA"
+        "Sem relatórios avançados"
       ]
     },
     {
@@ -74,11 +71,8 @@ const Landing = () => {
         "Análise de preço ideal",
         "Dashboard de performance",
         "Reprecificação por alerta",
-        "Precificação dinâmica",
-        "Automação de respostas IA",
         "Relatórios avançados",
-        "Suporte prioritário",
-        "Integração API"
+        "Suporte prioritário"
       ],
       limitations: []
     }

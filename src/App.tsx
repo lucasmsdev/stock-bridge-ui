@@ -21,6 +21,8 @@ import MercadoLivreCallback from "./pages/callback/MercadoLivreCallback";
 import ShopifyCallback from "./pages/callback/ShopifyCallback";
 import ShopifySetup from "./pages/ShopifySetup";
 import Landing from "./pages/Landing";
+import RepricingAlerts from "./pages/RepricingAlerts";
+import Reports from "./pages/Reports";
 
 const queryClient = new QueryClient();
 
@@ -52,6 +54,8 @@ const App = () => (
               <Route path="help" element={<Help />} />
               <Route path="profile" element={<Profile />} />
               <Route path="billing" element={<Billing />} />
+              <Route path="repricing-alerts" element={<RepricingAlerts />} />
+              <Route path="reports" element={<Reports />} />
             </Route>
 
             {/* Landing page as root */}

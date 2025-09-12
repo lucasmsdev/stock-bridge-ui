@@ -1,0 +1,369 @@
+import { useState, useEffect } from "react";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { AlertTriangle, Plus, Trash2, Eye, EyeOff } from "lucide-react";
+import { usePlan } from "@/hooks/usePlan";
+import { useAuth } from "@/hooks/useAuth";
+import { useToast } from "@/hooks/use-toast";
+import { supabase } from "@/integrations/supabase/client";
+import { Navigate } from "react-router-dom";
+
+interface Product {
+  id: string;
+  name: string;
+  sku: string;
+  selling_price: number;
+}
+
+interface MonitoringJob {
+  id: string;
+  product_id: string;
+  competitor_url: string;
+  last_price: number;
+  trigger_condition: string;
+  is_active: boolean;
+  created_at: string;
+  products: {
+    name: string;
+    sku: string;
+  };
+}
+
+export default function RepricingAlerts() {
+  const { hasFeature, currentPlan } = usePlan();
+  const { user } = useAuth();
+  const { toast } = useToast();
+  const [products, setProducts] = useState<Product[]>([]);
+  const [monitoringJobs, setMonitoringJobs] = useState<MonitoringJob[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [isCreating, setIsCreating] = useState(false);
+  const [isDialogOpen, setIsDialogOpen] = useState(false);
+
+  // Form state
+  const [selectedProductId, setSelectedProductId] = useState("");
+  const [competitorUrl, setCompetitorUrl] = useState("");
+  const [triggerCondition, setTriggerCondition] = useState("price_decrease");
+
+  // Check access
+  if (!hasFeature('ReprecificacaoPorAlerta')) {
+    return <Navigate to="/app/billing" state={{ targetFeature: 'ReprecificacaoPorAlerta' }} replace />;
+  }
+
+  useEffect(() => {
+    fetchData();
+  }, []);
+
+  const fetchData = async () => {
+    try {
+      // Fetch user products
+      const { data: productsData, error: productsError } = await supabase
+        .from('products')
+        .select('id, name, sku, selling_price')
+        .order('name');
+
+      if (productsError) throw productsError;
+      setProducts(productsData || []);
+
+      // Fetch monitoring jobs
+      const { data: jobsData, error: jobsError } = await supabase
+        .from('price_monitoring_jobs')
+        .select(`
+          id,
+          product_id,
+          competitor_url,
+          last_price,
+          trigger_condition,
+          is_active,
+          created_at,
+          products (
+            name,
+            sku
+          )
+        `)
+        .order('created_at', { ascending: false });
+
+      if (jobsError) throw jobsError;
+      setMonitoringJobs(jobsData || []);
+    } catch (error) {
+      console.error('Error fetching data:', error);
+      toast({
+        title: "Erro",
+        description: "Erro ao carregar dados.",
+        variant: "destructive"
+      });
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const createAlert = async () => {
+    if (!selectedProductId || !competitorUrl) {
+      toast({
+        title: "Erro",
+        description: "Selecione um produto e insira a URL do concorrente.",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    setIsCreating(true);
+    try {
+      const { error } = await supabase
+        .from('price_monitoring_jobs')
+        .insert({
+          user_id: user.id,
+          product_id: selectedProductId,
+          competitor_url: competitorUrl,
+          trigger_condition: triggerCondition
+        });
+
+      if (error) throw error;
+
+      toast({
+        title: "Sucesso!",
+        description: "Alerta de reprecificação criado com sucesso."
+      });
+
+      setIsDialogOpen(false);
+      setSelectedProductId("");
+      setCompetitorUrl("");
+      setTriggerCondition("price_decrease");
+      fetchData();
+    } catch (error) {
+      console.error('Error creating alert:', error);
+      toast({
+        title: "Erro",
+        description: "Erro ao criar alerta.",
+        variant: "destructive"
+      });
+    } finally {
+      setIsCreating(false);
+    }
+  };
+
+  const toggleAlert = async (jobId: string, currentStatus: boolean) => {
+    try {
+      const { error } = await supabase
+        .from('price_monitoring_jobs')
+        .update({ is_active: !currentStatus })
+        .eq('id', jobId);
+
+      if (error) throw error;
+
+      toast({
+        title: "Sucesso!",
+        description: `Alerta ${!currentStatus ? 'ativado' : 'desativado'} com sucesso.`
+      });
+
+      fetchData();
+    } catch (error) {
+      console.error('Error toggling alert:', error);
+      toast({
+        title: "Erro",
+        description: "Erro ao alterar status do alerta.",
+        variant: "destructive"
+      });
+    }
+  };
+
+  const deleteAlert = async (jobId: string) => {
+    try {
+      const { error } = await supabase
+        .from('price_monitoring_jobs')
+        .delete()
+        .eq('id', jobId);
+
+      if (error) throw error;
+
+      toast({
+        title: "Sucesso!",
+        description: "Alerta excluído com sucesso."
+      });
+
+      fetchData();
+    } catch (error) {
+      console.error('Error deleting alert:', error);
+      toast({
+        title: "Erro",
+        description: "Erro ao excluir alerta.",
+        variant: "destructive"
+      });
+    }
+  };
+
+  if (isLoading) {
+    return (
+      <div className="container mx-auto py-6">
+        <div className="text-center">Carregando...</div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="container mx-auto py-6 space-y-6">
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-3xl font-bold">Reprecificação por Alerta</h1>
+          <p className="text-muted-foreground">
+            Monitore preços da concorrência e receba alertas automáticos
+          </p>
+        </div>
+        
+        <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
+          <DialogTrigger asChild>
+            <Button>
+              <Plus className="h-4 w-4 mr-2" />
+              Criar Novo Alerta
+            </Button>
+          </DialogTrigger>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>Criar Alerta de Reprecificação</DialogTitle>
+            </DialogHeader>
+            <div className="space-y-4">
+              <div>
+                <Label htmlFor="product">Produto</Label>
+                <Select value={selectedProductId} onValueChange={setSelectedProductId}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Selecione um produto" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {products.map((product) => (
+                      <SelectItem key={product.id} value={product.id}>
+                        {product.name} (SKU: {product.sku})
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div>
+                <Label htmlFor="url">URL do Produto Concorrente</Label>
+                <Input
+                  id="url"
+                  placeholder="https://..."
+                  value={competitorUrl}
+                  onChange={(e) => setCompetitorUrl(e.target.value)}
+                />
+              </div>
+
+              <div>
+                <Label htmlFor="trigger">Gatilho</Label>
+                <Select value={triggerCondition} onValueChange={setTriggerCondition}>
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="price_decrease">Quando o preço baixar</SelectItem>
+                    <SelectItem value="price_increase">Quando o preço subir</SelectItem>
+                    <SelectItem value="any_change">Qualquer mudança de preço</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <Button 
+                onClick={createAlert} 
+                disabled={isCreating}
+                className="w-full"
+              >
+                {isCreating ? "Criando..." : "Criar Alerta"}
+              </Button>
+            </div>
+          </DialogContent>
+        </Dialog>
+      </div>
+
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center">
+            <AlertTriangle className="h-5 w-5 mr-2" />
+            Alertas Ativos
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          {monitoringJobs.length === 0 ? (
+            <div className="text-center py-8 text-muted-foreground">
+              Nenhum alerta configurado ainda.
+            </div>
+          ) : (
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Produto</TableHead>
+                  <TableHead>URL Concorrente</TableHead>
+                  <TableHead>Último Preço</TableHead>
+                  <TableHead>Gatilho</TableHead>
+                  <TableHead>Status</TableHead>
+                  <TableHead>Ações</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {monitoringJobs.map((job) => (
+                  <TableRow key={job.id}>
+                    <TableCell>
+                      <div>
+                        <div className="font-medium">{job.products.name}</div>
+                        <div className="text-sm text-muted-foreground">
+                          SKU: {job.products.sku}
+                        </div>
+                      </div>
+                    </TableCell>
+                    <TableCell>
+                      <a 
+                        href={job.competitor_url} 
+                        target="_blank" 
+                        rel="noopener noreferrer"
+                        className="text-primary hover:underline"
+                      >
+                        {new URL(job.competitor_url).hostname}
+                      </a>
+                    </TableCell>
+                    <TableCell>
+                      {job.last_price ? `R$ ${job.last_price.toFixed(2)}` : 'N/A'}
+                    </TableCell>
+                    <TableCell>
+                      <Badge variant="outline">
+                        {job.trigger_condition === 'price_decrease' && 'Preço baixar'}
+                        {job.trigger_condition === 'price_increase' && 'Preço subir'}
+                        {job.trigger_condition === 'any_change' && 'Qualquer mudança'}
+                      </Badge>
+                    </TableCell>
+                    <TableCell>
+                      <Badge variant={job.is_active ? "default" : "secondary"}>
+                        {job.is_active ? 'Ativo' : 'Inativo'}
+                      </Badge>
+                    </TableCell>
+                    <TableCell>
+                      <div className="flex space-x-2">
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => toggleAlert(job.id, job.is_active)}
+                        >
+                          {job.is_active ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => deleteAlert(job.id)}
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      </div>
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          )}
+        </CardContent>
+      </Card>
+    </div>
+  );
+}

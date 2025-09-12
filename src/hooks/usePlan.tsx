@@ -11,21 +11,15 @@ export type FeatureName =
   | 'AnaliseDePrecoIdeal'
   | 'DashboardDePerformance'
   | 'ReprecificacaoPorAlerta'
-  | 'PrecificacaoDinamica'
-  | 'AutomacaoDeRespostasIA'
   | 'RelatoriosAvancados'
-  | 'SuportePrioritario'
-  | 'IntegracaoAPI';
+  | 'SuportePrioritario';
 
 // Interface para compatibilidade com código existente (LEGACY)
 export interface LegacyPlanFeatures {
   maxSkus: number;
   hasReprecificacaoPorAlerta: boolean;
-  hasPrecificacaoDinamica: boolean;
-  hasAutomacaoIA: boolean;
   hasSuportePrioritario: boolean;
   hasRelatoriosAvancados: boolean;
-  hasIntegracaoAPI: boolean;
 }
 
 // Nova interface para o sistema de planos
@@ -59,7 +53,6 @@ const planFeatures: Record<PlanType, PlanFeatures> = {
       'AnaliseDePrecoIdeal',
       'DashboardDePerformance', 
       'ReprecificacaoPorAlerta',
-      'RelatoriosAvancados',
       'SuportePrioritario'
     ],
     price: 147.00,
@@ -74,11 +67,8 @@ const planFeatures: Record<PlanType, PlanFeatures> = {
       'AnaliseDePrecoIdeal',
       'DashboardDePerformance', 
       'ReprecificacaoPorAlerta',
-      'PrecificacaoDinamica',
-      'AutomacaoDeRespostasIA',
       'RelatoriosAvancados',
-      'SuportePrioritario',
-      'IntegracaoAPI'
+      'SuportePrioritario'
     ],
     price: 197.00,
     description: 'Automatize sua competitividade e foque em crescer seu negócio.',
@@ -89,11 +79,8 @@ const planFeatures: Record<PlanType, PlanFeatures> = {
 // Mapeamento de features legadas para o novo sistema
 const legacyFeatureMap: Record<string, FeatureName> = {
   'hasReprecificacaoPorAlerta': 'ReprecificacaoPorAlerta',
-  'hasPrecificacaoDinamica': 'PrecificacaoDinamica',
-  'hasAutomacaoIA': 'AutomacaoDeRespostasIA',
   'hasSuportePrioritario': 'SuportePrioritario',
   'hasRelatoriosAvancados': 'RelatoriosAvancados',
-  'hasIntegracaoAPI': 'IntegracaoAPI',
 };
 
 // Função para converter nova estrutura em formato legado
@@ -101,11 +88,8 @@ const convertToLegacyFeatures = (plan: PlanFeatures): LegacyPlanFeatures => {
   return {
     maxSkus: plan.maxSkus,
     hasReprecificacaoPorAlerta: plan.features.includes('ReprecificacaoPorAlerta'),
-    hasPrecificacaoDinamica: plan.features.includes('PrecificacaoDinamica'),
-    hasAutomacaoIA: plan.features.includes('AutomacaoDeRespostasIA'),
     hasSuportePrioritario: plan.features.includes('SuportePrioritario'),
     hasRelatoriosAvancados: plan.features.includes('RelatoriosAvancados'),
-    hasIntegracaoAPI: plan.features.includes('IntegracaoAPI'),
   };
 };
 
