@@ -25,7 +25,7 @@ interface MonitoringJob {
   id: string;
   product_id: string;
   competitor_url: string;
-  last_price: number;
+  last_price: number | null;
   trigger_condition: string;
   is_active: boolean;
   created_at: string;
@@ -133,9 +133,7 @@ export default function RepricingAlerts() {
 
       toast({
         title: "Sucesso!",
-        description: data?.initialPrice 
-          ? `Alerta criado com preço inicial de R$ ${data.initialPrice.toFixed(2)}`
-          : "Alerta criado com sucesso. Preço será verificado em breve."
+        description: "Alerta criado com sucesso! O preço está sendo verificado..."
       });
 
       setIsDialogOpen(false);
@@ -242,6 +240,18 @@ export default function RepricingAlerts() {
   useEffect(() => {
     fetchData();
   }, [fetchData]);
+
+  // Auto-refresh data every 10 seconds to show price updates
+  useEffect(() => {
+    const interval = setInterval(() => {
+      // Only auto-refresh if user is not currently interacting and there are pending jobs
+      if (!isCreating && !isChecking && monitoringJobs.some(job => job.last_price === null)) {
+        fetchData();
+      }
+    }, 10000); // 10 seconds
+
+    return () => clearInterval(interval);
+  }, [fetchData, isCreating, isChecking, monitoringJobs]);
 
   // NOW HANDLE CONDITIONAL RETURNS AFTER ALL HOOKS
   // Check access - wait for plan to load
@@ -452,7 +462,14 @@ export default function RepricingAlerts() {
                         </div>
                       </TableCell>
                       <TableCell>
-                        {job.last_price ? `R$ ${Number(job.last_price).toFixed(2)}` : 'N/A'}
+                        {job.last_price !== null ? (
+                          `R$ ${Number(job.last_price).toFixed(2)}`
+                        ) : (
+                          <div className="flex items-center space-x-2">
+                            <Loader2 className="h-4 w-4 animate-spin text-primary" />
+                            <span className="text-muted-foreground">Verificando...</span>
+                          </div>
+                        )}
                       </TableCell>
                       <TableCell>
                         <Badge variant="outline">

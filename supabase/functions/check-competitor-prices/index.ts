@@ -21,32 +21,67 @@ serve(async (req) => {
     return new Response(null, { headers: corsHeaders });
   }
 
-  console.log('🔄 Starting competitor price check cron job');
+  console.log('🔄 Starting competitor price check function');
 
   try {
-    // Initialize Supabase client with service role key for cron operations
+    // Initialize Supabase client with service role key for operations
     const supabase = createClient(
       Deno.env.get('SUPABASE_URL') ?? '',
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
     );
 
-    // Fetch all active monitoring jobs
-    const { data: jobs, error: jobsError } = await supabase
-      .from('price_monitoring_jobs')
-      .select('*')
-      .eq('is_active', true);
-
-    if (jobsError) {
-      console.error('❌ Error fetching monitoring jobs:', jobsError);
-      throw jobsError;
+    // Check if a specific job_id was provided
+    let requestData: any = {};
+    try {
+      requestData = await req.json();
+    } catch {
+      // No body provided, that's fine for cron jobs
     }
 
-    console.log(`📊 Found ${jobs?.length || 0} active monitoring jobs`);
+    const { job_id } = requestData;
 
-    if (!jobs || jobs.length === 0) {
+    let jobs: MonitoringJob[] = [];
+
+    if (job_id) {
+      // Process a specific job
+      console.log(`🎯 Processing specific job: ${job_id}`);
+      const { data: jobData, error: jobError } = await supabase
+        .from('price_monitoring_jobs')
+        .select('*')
+        .eq('id', job_id)
+        .eq('is_active', true)
+        .single();
+
+      if (jobError) {
+        console.error('❌ Error fetching specific job:', jobError);
+        throw jobError;
+      }
+
+      if (jobData) {
+        jobs = [jobData];
+      }
+    } else {
+      // Fetch all active monitoring jobs (cron job behavior)
+      console.log('📊 Fetching all active monitoring jobs');
+      const { data: jobsData, error: jobsError } = await supabase
+        .from('price_monitoring_jobs')
+        .select('*')
+        .eq('is_active', true);
+
+      if (jobsError) {
+        console.error('❌ Error fetching monitoring jobs:', jobsError);
+        throw jobsError;
+      }
+
+      jobs = jobsData || [];
+    }
+
+    console.log(`📊 Found ${jobs.length} monitoring job(s) to process`);
+
+    if (jobs.length === 0) {
       return new Response(JSON.stringify({ 
         success: true, 
-        message: 'No active monitoring jobs found',
+        message: job_id ? 'Specific job not found or inactive' : 'No active monitoring jobs found',
         processed: 0
       }), {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
@@ -100,9 +135,16 @@ serve(async (req) => {
         }
 
         // Update last_price in monitoring job
+        const updateData: any = { last_price: currentPrice };
+        
+        // If this is the first price check (last_price was null), the job is now active
+        if (job.last_price === null) {
+          console.log(`🎉 First price check completed for job ${job.id}, marking as active`);
+        }
+
         const { error: updateError } = await supabase
           .from('price_monitoring_jobs')
-          .update({ last_price: currentPrice })
+          .update(updateData)
           .eq('id', job.id);
 
         if (updateError) {
