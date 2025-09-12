@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -12,7 +12,6 @@ import { usePlan } from "@/hooks/usePlan";
 import { useAuth } from "@/hooks/useAuth";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
-import { Navigate } from "react-router-dom";
 import { UpgradeBanner } from "@/components/ui/upgrade-banner";
 
 interface Product {
@@ -37,7 +36,7 @@ interface MonitoringJob {
 }
 
 export default function RepricingAlerts() {
-  const { hasFeature, currentPlan, isLoading: planLoading } = usePlan();
+  const { hasFeature, isLoading: planLoading } = usePlan();
   const { user } = useAuth();
   const { toast } = useToast();
   const [products, setProducts] = useState<Product[]>([]);
@@ -81,12 +80,12 @@ export default function RepricingAlerts() {
     );
   }
 
-  useEffect(() => {
-    fetchData();
-  }, []);
-
-  const fetchData = async () => {
+  const fetchData = useCallback(async () => {
+    if (!user?.id) return;
+    
     try {
+      setIsLoading(true);
+      
       // Fetch user products
       const { data: productsData, error: productsError } = await supabase
         .from('products')
@@ -126,10 +125,14 @@ export default function RepricingAlerts() {
     } finally {
       setIsLoading(false);
     }
-  };
+  }, [user?.id, toast]);
+
+  useEffect(() => {
+    fetchData();
+  }, [fetchData]);
 
   const createAlert = async () => {
-    if (!selectedProductId || !competitorUrl) {
+    if (!selectedProductId || !competitorUrl || !user?.id) {
       toast({
         title: "Erro",
         description: "Selecione um produto e insira a URL do concorrente.",
@@ -221,6 +224,11 @@ export default function RepricingAlerts() {
         variant: "destructive"
       });
     }
+  };
+
+  const formatUrl = (url: string) => {
+    if (!url) return '';
+    return url.length > 50 ? `${url.substring(0, 50)}...` : url;
   };
 
   if (isLoading) {
@@ -321,7 +329,7 @@ export default function RepricingAlerts() {
         <CardHeader>
           <CardTitle className="flex items-center">
             <AlertTriangle className="h-5 w-5 mr-2" />
-            Alertas Ativos
+            Alertas Configurados
           </CardTitle>
         </CardHeader>
         <CardContent>
@@ -341,79 +349,80 @@ export default function RepricingAlerts() {
               </Button>
             </div>
           ) : (
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Produto</TableHead>
-                  <TableHead>URL Concorrente</TableHead>
-                  <TableHead>Último Preço</TableHead>
-                  <TableHead>Gatilho</TableHead>
-                  <TableHead>Status</TableHead>
-                  <TableHead>Ações</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {monitoringJobs.map((job) => (
-                  <TableRow key={job.id}>
-                    <TableCell>
-                      <div>
-                        <div className="font-medium">{job.products.name}</div>
-                        <div className="text-sm text-muted-foreground">
-                          SKU: {job.products.sku}
-                        </div>
-                      </div>
-                    </TableCell>
-                    <TableCell>
-                      <a 
-                        href={job.competitor_url} 
-                        target="_blank" 
-                        rel="noopener noreferrer"
-                        className="text-primary hover:underline truncate block max-w-xs"
-                        title={job.competitor_url}
-                      >
-                        {job.competitor_url.length > 40 
-                          ? `${job.competitor_url.substring(0, 40)}...` 
-                          : job.competitor_url
-                        }
-                      </a>
-                    </TableCell>
-                    <TableCell>
-                      {job.last_price ? `R$ ${job.last_price.toFixed(2)}` : 'N/A'}
-                    </TableCell>
-                    <TableCell>
-                      <Badge variant="outline">
-                        {job.trigger_condition === 'price_decrease' && 'Preço baixar'}
-                        {job.trigger_condition === 'price_increase' && 'Preço subir'}
-                        {job.trigger_condition === 'any_change' && 'Qualquer mudança'}
-                      </Badge>
-                    </TableCell>
-                    <TableCell>
-                      <Badge variant={job.is_active ? "default" : "secondary"}>
-                        {job.is_active ? 'Ativo' : 'Inativo'}
-                      </Badge>
-                    </TableCell>
-                    <TableCell>
-                      <div className="flex space-x-2">
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => toggleAlert(job.id, job.is_active)}
-                        >
-                          {job.is_active ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-                        </Button>
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => deleteAlert(job.id)}
-                        >
-                          <Trash2 className="h-4 w-4" />
-                        </Button>
-                      </div>
-                    </TableCell>
+            <div className="overflow-x-auto">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Produto</TableHead>
+                    <TableHead>URL Concorrente</TableHead>
+                    <TableHead>Último Preço</TableHead>
+                    <TableHead>Gatilho</TableHead>
+                    <TableHead>Status</TableHead>
+                    <TableHead>Ações</TableHead>
                   </TableRow>
-                ))}
-              </TableBody>
-            </Table>
+                </TableHeader>
+                <TableBody>
+                  {monitoringJobs.map((job) => (
+                    <TableRow key={job.id}>
+                      <TableCell>
+                        <div>
+                          <div className="font-medium">{job.products.name}</div>
+                          <div className="text-sm text-muted-foreground">
+                            SKU: {job.products.sku}
+                          </div>
+                        </div>
+                      </TableCell>
+                      <TableCell>
+                        <div className="max-w-xs">
+                          <a 
+                            href={job.competitor_url} 
+                            target="_blank" 
+                            rel="noopener noreferrer"
+                            className="text-primary hover:underline truncate block"
+                            title={job.competitor_url}
+                          >
+                            {formatUrl(job.competitor_url)}
+                          </a>
+                        </div>
+                      </TableCell>
+                      <TableCell>
+                        {job.last_price ? `R$ ${Number(job.last_price).toFixed(2)}` : 'N/A'}
+                      </TableCell>
+                      <TableCell>
+                        <Badge variant="outline">
+                          {job.trigger_condition === 'price_decrease' && 'Preço baixar'}
+                          {job.trigger_condition === 'price_increase' && 'Preço subir'}
+                          {job.trigger_condition === 'any_change' && 'Qualquer mudança'}
+                        </Badge>
+                      </TableCell>
+                      <TableCell>
+                        <Badge variant={job.is_active ? "default" : "secondary"}>
+                          {job.is_active ? 'Ativo' : 'Inativo'}
+                        </Badge>
+                      </TableCell>
+                      <TableCell>
+                        <div className="flex space-x-2">
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => toggleAlert(job.id, job.is_active)}
+                          >
+                            {job.is_active ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => deleteAlert(job.id)}
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
+                        </div>
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </div>
           )}
         </CardContent>
       </Card>
