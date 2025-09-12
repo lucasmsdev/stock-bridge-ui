@@ -37,7 +37,12 @@ export default function Checkout() {
   // Se usuário já está logado, processar checkout imediatamente
   useEffect(() => {
     if (user && !isProcessingCheckout) {
-      handleCheckoutForLoggedUser();
+      // Aguardar um pouco para garantir que a autenticação está completa
+      const timer = setTimeout(() => {
+        handleCheckoutForLoggedUser();
+      }, 1000);
+      
+      return () => clearTimeout(timer);
     }
   }, [user]);
 
@@ -50,26 +55,58 @@ export default function Checkout() {
   const currentPlan = planDetails[selectedPlan as keyof typeof planDetails];
 
   const handleCheckoutForLoggedUser = async () => {
+    if (isProcessingCheckout) return; // Prevenir múltiplas execuções
+    
     setIsProcessingCheckout(true);
     
     try {
+      console.log('Starting checkout for logged user with plan:', selectedPlan);
+      console.log('User details:', { id: user?.id, email: user?.email });
+      
+      // Verificar se o usuário tem sessão ativa
+      const { data: session } = await supabase.auth.getSession();
+      if (!session?.session) {
+        throw new Error('Sessão de usuário não encontrada. Faça login novamente.');
+      }
+      
       const { data, error } = await supabase.functions.invoke('create-checkout', {
         body: { planType: selectedPlan }
       });
 
-      if (error) throw error;
+      console.log('Checkout response:', { data, error });
+
+      if (error) {
+        console.error('Edge function error:', error);
+        throw new Error(error.message || 'Erro na função de checkout');
+      }
 
       if (data?.url) {
+        console.log('Redirecting to Stripe URL:', data.url);
         window.open(data.url, '_blank');
         navigate('/billing');
+      } else {
+        throw new Error('URL de checkout não foi retornada pelo servidor');
       }
     } catch (error) {
       console.error('Checkout error:', error);
+      
+      let errorMessage = 'Erro desconhecido';
+      if (error instanceof Error) {
+        errorMessage = error.message;
+      }
+      
       toast({
         title: "❌ Erro no checkout",
-        description: "Erro ao processar o pagamento. Tente novamente.",
+        description: `Erro: ${errorMessage}. Tente fazer login novamente ou contate o suporte.`,
         variant: "destructive",
       });
+      
+      // Se for erro de autenticação, redirecionar para login
+      if (errorMessage.includes('sessão') || errorMessage.includes('authentication')) {
+        setTimeout(() => {
+          navigate(`/login?checkout=${selectedPlan}`);
+        }, 2000);
+      }
     } finally {
       setIsProcessingCheckout(false);
     }
