@@ -248,6 +248,47 @@ export default function Profile() {
     }
   };
 
+  const handleManageSubscription = async () => {
+    if (!user) return;
+    
+    try {
+      setIsSaving(true);
+      
+      const { data, error } = await supabase.functions.invoke('create-portal-session', {
+        headers: {
+          Authorization: `Bearer ${(await supabase.auth.getSession()).data.session?.access_token}`,
+        },
+      });
+
+      if (error) {
+        console.error('❌ Erro na função create-portal-session:', error);
+        throw new Error(error.message || 'Erro ao acessar portal de assinatura');
+      }
+
+      if (data?.url) {
+        console.log('✅ Sessão do portal criada, redirecionando para:', data.url);
+        // Open Stripe portal in a new tab
+        window.open(data.url, '_blank');
+        
+        toast({
+          title: "🔄 Redirecionando para gerenciamento",
+          description: "Você será redirecionado para gerenciar sua assinatura no Stripe.",
+        });
+      } else {
+        throw new Error('URL do portal não recebida');
+      }
+    } catch (error) {
+      console.error('💥 Erro ao acessar portal:', error);
+      toast({
+        title: "❌ Erro no portal",
+        description: error instanceof Error ? error.message : "Erro ao acessar portal de assinatura. Tente novamente.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
   const getUserInitials = (email: string) => {
     return email.split('@')[0].slice(0, 2).toUpperCase();
   };
@@ -459,14 +500,16 @@ export default function Profile() {
               <Button 
                 variant="outline" 
                 className="w-full"
-                disabled
+                onClick={handleManageSubscription}
+                disabled={isSaving}
               >
-                <CreditCard className="h-4 w-4 mr-2" />
+                {isSaving ? (
+                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                ) : (
+                  <CreditCard className="h-4 w-4 mr-2" />
+                )}
                 Gerenciar Assinatura
               </Button>
-              <p className="text-xs text-muted-foreground text-center">
-                Portal de faturamento em desenvolvimento
-              </p>
             </CardContent>
           </Card>
 

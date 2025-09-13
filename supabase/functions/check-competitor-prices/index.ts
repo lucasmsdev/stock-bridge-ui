@@ -179,85 +179,123 @@ serve(async (req) => {
   }
 });
 
-// Fetch competitor price with failsafe scraping logic
+// Fetch competitor price using Browserless API to bypass anti-scraping
 async function fetchCompetitorPrice(url: string): Promise<number | null> {
-  console.log(`(v3) 🛡️ [START] Fetching price from: ${url}`);
+  console.log(`(v4) 🌐 [BROWSERLESS] Starting fetch for: ${url}`);
+  
   try {
-    // ETAPA 1: Fetch da página com timeout
-    const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 8000); // Timeout de 8 segundos
-
-    const response = await fetch(url, {
-      signal: controller.signal,
-      headers: {
-        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36',
-      },
-    });
-    clearTimeout(timeoutId);
-
-    if (!response.ok) {
-      console.error(`(v3) ❌ [FETCH FAIL] HTTP error ${response.status} for ${url}`);
+    const BROWSERLESS_API_KEY = Deno.env.get('BROWSERLESS_API_KEY');
+    if (!BROWSERLESS_API_KEY) {
+      console.error(`(v4) ❌ [CONFIG ERROR] BROWSERLESS_API_KEY not configured`);
       return null;
     }
 
-    // ETAPA 2: Leitura e Parse do HTML
+    // ETAPA 1: Chamada para Browserless API
+    const api_url = `https://chrome.browserless.io/content?token=${BROWSERLESS_API_KEY}`;
+    console.log(`(v4) 🚀 [API CALL] Calling Browserless API...`);
+
+    const response = await fetch(api_url, {
+      method: 'POST',
+      headers: { 
+        'Content-Type': 'application/json',
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
+      },
+      body: JSON.stringify({
+        url: url,
+        waitFor: 2000, // Espera 2s para o JS da página carregar
+        options: {
+          viewport: { width: 1920, height: 1080 }
+        }
+      }),
+    });
+
+    if (!response.ok) {
+      console.error(`(v4) ❌ [API ERROR] Browserless API error ${response.status}`);
+      return null;
+    }
+
+    // ETAPA 2: Parse do HTML retornado
     const html = await response.text();
-    console.log(`(v3) 📄 [HTML OK] HTML received, length: ${html.length}`);
+    console.log(`(v4) 📄 [HTML OK] HTML received, length: ${html.length}`);
 
     const doc = new DOMParser().parseFromString(html, "text/html");
     if (!doc) {
-      console.error(`(v3) ❌ [PARSE FAIL] Could not parse HTML document.`);
+      console.error(`(v4) ❌ [PARSE FAIL] Could not parse HTML document.`);
       return null;
     }
-    console.log(`(v3) ⚙️ [PARSE OK] Document parsed successfully.`);
+    console.log(`(v4) ⚙️ [PARSE OK] Document parsed successfully.`);
 
     // ETAPA 3: Extração do Preço com Seletores Priorizados
     let priceText: string | null = null;
     const selectors = {
       mercadolivre: [
         '.ui-pdp-price__figure .andes-money-amount__fraction', // P1: Preço principal
-        '.andes-money-amount__fraction' // P2: Fallback
+        '.andes-money-amount__fraction', // P2: Fallback
+        '[data-testid="price"] .andes-money-amount__fraction' // P3: Testid fallback
       ],
       amazon: [
         '#corePrice_feature_div .a-offscreen', // P1: Preço principal
-        '#priceblock_ourprice' // P2: Fallback
+        '#priceblock_ourprice', // P2: Fallback
+        '.a-price .a-offscreen' // P3: General price fallback
       ]
     };
 
     let platform: 'mercadolivre' | 'amazon' | null = null;
-    if (url.includes('mercadolivre.com')) platform = 'mercadolivre';
+    if (url.includes('mercadolivre.com') || url.includes('mercadolibre.com')) platform = 'mercadolivre';
     if (url.includes('amazon.com')) platform = 'amazon';
 
     if (platform) {
+      console.log(`(v4) 🎯 [PLATFORM] Detected: ${platform}`);
       for (const selector of selectors[platform]) {
         const element = doc.querySelector(selector);
-        if (element) {
-          priceText = element.textContent;
-          console.log(`(v3) ✅ [SELECTOR OK] Found price text "${priceText}" with selector "${selector}"`);
+        if (element && element.textContent?.trim()) {
+          priceText = element.textContent.trim();
+          console.log(`(v4) ✅ [SELECTOR OK] Found price text "${priceText}" with selector "${selector}"`);
           break; // Para no primeiro seletor que funcionar
         }
+      }
+    } else {
+      console.log(`(v4) ⚠️ [PLATFORM] Unknown platform, trying generic selectors`);
+      // Fallback para plataformas desconhecidas
+      const genericSelectors = [
+        '[class*="price"]', 
+        '[id*="price"]', 
+        '[data-testid*="price"]'
+      ];
+      for (const selector of genericSelectors) {
+        const elements = doc.querySelectorAll(selector);
+        for (const element of elements) {
+          const text = element.textContent?.trim();
+          if (text && /[\d,.]/.test(text)) {
+            priceText = text;
+            console.log(`(v4) ✅ [GENERIC] Found price text "${priceText}" with selector "${selector}"`);
+            break;
+          }
+        }
+        if (priceText) break;
       }
     }
 
     if (!priceText) {
-      console.error(`(v3) ❌ [EXTRACTION FAIL] Could not extract any price text.`);
+      console.error(`(v4) ❌ [EXTRACTION FAIL] Could not extract any price text.`);
       return null;
     }
 
     // ETAPA 4: Limpeza do Preço
-    const numericPrice = cleanPrice(priceText); // Reutilize sua função cleanPrice
+    console.log(`(v4) 🧹 [CLEANING] Raw price text: "${priceText}"`);
+    const numericPrice = cleanPrice(priceText);
 
     if (numericPrice > 0) {
-      console.log(`(v3) 💰 [SUCCESS] Final price: ${numericPrice}`);
+      console.log(`(v4) 💰 [SUCCESS] Final price: ${numericPrice}`);
       return numericPrice;
     } else {
-      console.error(`(v3) ❌ [CLEAN FAIL] Failed to clean or parse price text: "${priceText}"`);
+      console.error(`(v4) ❌ [CLEAN FAIL] Failed to clean price text: "${priceText}" -> ${numericPrice}`);
       return null;
     }
 
   } catch (error) {
-    console.error(`(v3) 💥 [FATAL ERROR] An exception occurred in fetchCompetitorPrice:`, error);
-    return null; // Garante que a função sempre retorne algo em caso de erro
+    console.error(`(v4) 💥 [FATAL ERROR] Browserless API error:`, error);
+    return null;
   }
 }
 
