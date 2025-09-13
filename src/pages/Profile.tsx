@@ -264,13 +264,23 @@ export default function Profile() {
         console.error('❌ Erro na função create-portal-session:', error);
         
         // Handle specific error messages
-        if (error.message?.includes('não possui uma assinatura ativa') || 
+        if (error.message?.includes('ID de cliente do Stripe não encontrado') ||
+            error.message?.includes('não possui uma assinatura ativa') || 
             error.message?.includes('Você ainda não possui') ||
             error.message?.includes('não possui assinaturas ativas')) {
           toast({
-            title: "💡 Plano Legacy Detectado",
-            description: "Você possui um plano legacy. Para acessar o portal de gerenciamento, faça upgrade para um plano atual na página de Faturamento.",
+            title: "💡 Portal Não Disponível",
+            description: "Não foi possível encontrar sua assinatura no Stripe. Para gerenciar assinaturas, faça upgrade para um plano atual na página de Faturamento.",
             variant: "default",
+          });
+          return;
+        }
+        
+        if (error.message?.includes('Perfil do usuário não encontrado')) {
+          toast({
+            title: "❌ Erro de Perfil",
+            description: "Não foi possível encontrar seu perfil. Entre em contato com o suporte.",
+            variant: "destructive",
           });
           return;
         }

@@ -77,12 +77,16 @@ serve(async (req) => {
         return new Response("Could not determine plan type", { status: 400 });
       }
 
-      logStep("Updating user plan", { userId, planType: finalPlanType });
+      const stripeCustomerId = session.customer;
+      logStep("Updating user plan and Stripe customer ID", { userId, planType: finalPlanType, stripeCustomerId });
 
-      // Update user's plan in the profiles table
+      // Update user's plan and save stripe_customer_id in the profiles table
       const { error: updateError } = await supabaseClient
         .from('profiles')
-        .update({ plan: finalPlanType })
+        .update({ 
+          plan: finalPlanType,
+          stripe_customer_id: stripeCustomerId 
+        })
         .eq('id', userId);
 
       if (updateError) {

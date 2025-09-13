@@ -29,7 +29,8 @@ serve(async (req) => {
     // Initialize Supabase client
     const supabaseClient = createClient(
       Deno.env.get("SUPABASE_URL") ?? "",
-      Deno.env.get("SUPABASE_ANON_KEY") ?? ""
+      Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "",
+      { auth: { persistSession: false } }
     );
 
     // Authenticate user
@@ -44,18 +45,29 @@ serve(async (req) => {
     if (!user?.email) throw new Error("User not authenticated or email not available");
     logStep("User authenticated", { userId: user.id, email: user.email });
 
-    // Initialize Stripe
-    const stripe = new Stripe(stripeKey, { apiVersion: "2025-08-27.basil" });
+    // Get user profile from database to check for stripe_customer_id
+    const { data: profile, error: profileError } = await supabaseClient
+      .from('profiles')
+      .select('stripe_customer_id')
+      .eq('id', user.id)
+      .single();
 
-    // Find Stripe customer by email
-    const customers = await stripe.customers.list({ email: user.email, limit: 1 });
-    if (customers.data.length === 0) {
-      logStep("No Stripe customer found");
-      throw new Error("Você ainda não possui uma assinatura ativa no Stripe. Para gerenciar sua assinatura, primeiro faça um upgrade para um plano pago.");
+    if (profileError || !profile) {
+      logStep("Profile not found", { error: profileError });
+      throw new Error("Perfil do usuário não encontrado no banco de dados.");
     }
 
-    const customerId = customers.data[0].id;
-    logStep("Found Stripe customer", { customerId });
+    // Check if user has a stripe_customer_id
+    if (!profile.stripe_customer_id) {
+      logStep(`User ${user.id} does not have a Stripe customer ID`);
+      throw new Error("ID de cliente do Stripe não encontrado. Para gerenciar sua assinatura, primeiro faça um upgrade para um plano pago.");
+    }
+
+    const customerId = profile.stripe_customer_id;
+    logStep("Found Stripe customer ID from profile", { customerId });
+
+    // Initialize Stripe
+    const stripe = new Stripe(stripeKey, { apiVersion: "2025-08-27.basil" });
 
     // Verify customer has active subscriptions
     const subscriptions = await stripe.subscriptions.list({

@@ -224,6 +224,7 @@ export type Database = {
           full_name: string | null
           id: string
           plan: Database["public"]["Enums"]["subscription_plan"] | null
+          stripe_customer_id: string | null
           updated_at: string | null
         }
         Insert: {
@@ -234,6 +235,7 @@ export type Database = {
           full_name?: string | null
           id: string
           plan?: Database["public"]["Enums"]["subscription_plan"] | null
+          stripe_customer_id?: string | null
           updated_at?: string | null
         }
         Update: {
@@ -244,6 +246,7 @@ export type Database = {
           full_name?: string | null
           id?: string
           plan?: Database["public"]["Enums"]["subscription_plan"] | null
+          stripe_customer_id?: string | null
           updated_at?: string | null
         }
         Relationships: []
