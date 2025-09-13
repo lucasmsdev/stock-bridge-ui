@@ -179,92 +179,85 @@ serve(async (req) => {
   }
 });
 
-// Fetch competitor price with prioritized scraping logic
+// Fetch competitor price with failsafe scraping logic
 async function fetchCompetitorPrice(url: string): Promise<number | null> {
+  console.log(`(v3) 🛡️ [START] Fetching price from: ${url}`);
   try {
-    console.log(`(v2) 🕵️‍♂️ Fetching price from: ${url}`);
+    // ETAPA 1: Fetch da página com timeout
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 8000); // Timeout de 8 segundos
 
     const response = await fetch(url, {
+      signal: controller.signal,
       headers: {
         'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36',
-        'Accept-Language': 'en-US,en;q=0.9',
-        'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,image/apng,*/*;q=0.8',
       },
     });
+    clearTimeout(timeoutId);
 
     if (!response.ok) {
-      console.error(`(v2) ❌ HTTP error ${response.status} for ${url}`);
+      console.error(`(v3) ❌ [FETCH FAIL] HTTP error ${response.status} for ${url}`);
       return null;
     }
 
+    // ETAPA 2: Leitura e Parse do HTML
     const html = await response.text();
-    const doc = new DOMParser().parseFromString(html, "text/html");
+    console.log(`(v3) 📄 [HTML OK] HTML received, length: ${html.length}`);
 
+    const doc = new DOMParser().parseFromString(html, "text/html");
     if (!doc) {
-      console.error(`(v2) ❌ Could not parse HTML for ${url}`);
+      console.error(`(v3) ❌ [PARSE FAIL] Could not parse HTML document.`);
       return null;
     }
+    console.log(`(v3) ⚙️ [PARSE OK] Document parsed successfully.`);
 
-    // --- LÓGICA DE EXTRAÇÃO PRIORIZADA ---
-
+    // ETAPA 3: Extração do Preço com Seletores Priorizados
     let priceText: string | null = null;
+    const selectors = {
+      mercadolivre: [
+        '.ui-pdp-price__figure .andes-money-amount__fraction', // P1: Preço principal
+        '.andes-money-amount__fraction' // P2: Fallback
+      ],
+      amazon: [
+        '#corePrice_feature_div .a-offscreen', // P1: Preço principal
+        '#priceblock_ourprice' // P2: Fallback
+      ]
+    };
 
-    if (url.includes('mercadolivre.com') || url.includes('mercadolibre.com')) {
-      console.log('(v2) 🎯 Platform: Mercado Livre');
-      // PRIORIDADE 1: O preço principal dentro da figura de preço. Este é o mais confiável.
-      const mainPriceElement = doc.querySelector('.ui-pdp-price__figure .andes-money-amount__fraction');
-      if (mainPriceElement) {
-        priceText = mainPriceElement.textContent;
-        console.log(`(v2) ✅ [ML-P1] Found main price: "${priceText}"`);
-      } else {
-        // PRIORIDADE 2: Se o primeiro falhar, tente um seletor de fallback comum.
-        const fallbackPriceElement = doc.querySelector('.andes-money-amount__fraction');
-        if (fallbackPriceElement) {
-          priceText = fallbackPriceElement.textContent;
-          console.log(`(v2) ⚠️ [ML-P2] Found fallback price: "${priceText}"`);
-        } else {
-           console.log(`(v2) ❌ [ML] No price element found.`);
-        }
-      }
-    } else if (url.includes('amazon.com')) {
-      console.log('(v2) 🎯 Platform: Amazon');
-      // PRIORIDADE 1: O preço dentro da "Core Price Box", que é o principal.
-      const corePriceElement = doc.querySelector('#corePrice_feature_div .a-offscreen');
-      if (corePriceElement) {
-        priceText = corePriceElement.textContent;
-        console.log(`(v2) ✅ [AMZ-P1] Found core price: "${priceText}"`);
-      } else {
-        // PRIORIDADE 2: Tente o "priceblock", usado em layouts mais antigos ou ofertas.
-        const priceBlockElement = doc.querySelector('#priceblock_ourprice, #priceblock_dealprice');
-        if (priceBlockElement) {
-          priceText = priceBlockElement.textContent;
-          console.log(`(v2) ⚠️ [AMZ-P2] Found price block price: "${priceText}"`);
-        } else {
-          console.log(`(v2) ❌ [AMZ] No price element found.`);
+    let platform: 'mercadolivre' | 'amazon' | null = null;
+    if (url.includes('mercadolivre.com')) platform = 'mercadolivre';
+    if (url.includes('amazon.com')) platform = 'amazon';
+
+    if (platform) {
+      for (const selector of selectors[platform]) {
+        const element = doc.querySelector(selector);
+        if (element) {
+          priceText = element.textContent;
+          console.log(`(v3) ✅ [SELECTOR OK] Found price text "${priceText}" with selector "${selector}"`);
+          break; // Para no primeiro seletor que funcionar
         }
       }
     }
-    // Adicione outras plataformas aqui (else if...)
 
     if (!priceText) {
-      console.error(`(v2) ❌ Could not extract any price text from the page.`);
+      console.error(`(v3) ❌ [EXTRACTION FAIL] Could not extract any price text.`);
       return null;
     }
 
-    console.log(`(v2) 📝 Raw price text extracted: "${priceText}"`);
+    // ETAPA 4: Limpeza do Preço
     const numericPrice = cleanPrice(priceText); // Reutilize sua função cleanPrice
 
     if (numericPrice > 0) {
-      console.log(`(v2) 💰 Price successfully extracted and cleaned: ${numericPrice}`);
+      console.log(`(v3) 💰 [SUCCESS] Final price: ${numericPrice}`);
       return numericPrice;
     } else {
-      console.error(`(v2) ❌ Failed to clean or parse price. Final value: ${numericPrice}`);
+      console.error(`(v3) ❌ [CLEAN FAIL] Failed to clean or parse price text: "${priceText}"`);
       return null;
     }
 
   } catch (error) {
-    console.error(`(v2) ❌ Fatal error in fetchCompetitorPrice:`, error);
-    return null;
+    console.error(`(v3) 💥 [FATAL ERROR] An exception occurred in fetchCompetitorPrice:`, error);
+    return null; // Garante que a função sempre retorne algo em caso de erro
   }
 }
 
