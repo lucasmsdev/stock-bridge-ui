@@ -179,190 +179,93 @@ serve(async (req) => {
   }
 });
 
-// Fetch competitor price with platform-specific scraping logic
+// Fetch competitor price with prioritized scraping logic
 async function fetchCompetitorPrice(url: string): Promise<number | null> {
   try {
-    console.log(`🔍 Fetching price from ${url}`);
-    
-    // Identify platform and get specific selector
-    const platformData = identifyPlatform(url);
-    if (!platformData) {
-      console.error(`❌ Marketplace não suportado: ${url}`);
-      return null;
-    }
-    
-    console.log(`🎯 Platform identified: ${platformData.name}, using selectors: ${platformData.selectors.join(', ')}`);
-    
-    // Fetch the page HTML
+    console.log(`(v2) 🕵️‍♂️ Fetching price from: ${url}`);
+
     const response = await fetch(url, {
       headers: {
-        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'
-      }
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36',
+        'Accept-Language': 'en-US,en;q=0.9',
+        'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,image/apng,*/*;q=0.8',
+      },
     });
-    
+
     if (!response.ok) {
-      console.error(`❌ HTTP error ${response.status} for ${url}`);
+      console.error(`(v2) ❌ HTTP error ${response.status} for ${url}`);
       return null;
     }
-    
+
     const html = await response.text();
     const doc = new DOMParser().parseFromString(html, "text/html");
-    
+
     if (!doc) {
-      console.error(`❌ Could not parse HTML for ${url}`);
+      console.error(`(v2) ❌ Could not parse HTML for ${url}`);
       return null;
     }
-    
-    // Try platform-specific selectors with enhanced logic
-    for (const selector of platformData.selectors) {
-      console.log(`🔍 Trying selector: ${selector}`);
-      const elements = doc.querySelectorAll(selector);
-      
-      if (elements.length === 0) {
-        console.log(`⚠️ No elements found for selector: ${selector}`);
-        continue;
-      }
-      
-      console.log(`📊 Found ${elements.length} elements for selector: ${selector}`);
-      
-      let priceText = '';
-      
-      // Special logic for Amazon (price might be split between whole and fraction)
-      if (url.includes('amazon.com') && elements.length > 1 && selector.includes('.a-price')) {
-        console.log(`🔄 Amazon detected: Attempting to combine price parts`);
-        const wholePart = elements[0].textContent?.trim() || '';
-        const fractionPart = elements[1].textContent?.trim() || '';
-        priceText = `${wholePart}.${fractionPart}`;
-        console.log(`🧩 Combined Amazon price parts: "${wholePart}" + "${fractionPart}" = "${priceText}"`);
+
+    // --- LÓGICA DE EXTRAÇÃO PRIORIZADA ---
+
+    let priceText: string | null = null;
+
+    if (url.includes('mercadolivre.com') || url.includes('mercadolibre.com')) {
+      console.log('(v2) 🎯 Platform: Mercado Livre');
+      // PRIORIDADE 1: O preço principal dentro da figura de preço. Este é o mais confiável.
+      const mainPriceElement = doc.querySelector('.ui-pdp-price__figure .andes-money-amount__fraction');
+      if (mainPriceElement) {
+        priceText = mainPriceElement.textContent;
+        console.log(`(v2) ✅ [ML-P1] Found main price: "${priceText}"`);
       } else {
-        // Standard logic for other platforms
-        for (const element of elements) {
-          if (element.tagName === 'META') {
-            priceText = element.getAttribute('content') || '';
-          } else {
-            priceText = element.textContent || '';
-          }
-          
-          if (priceText.trim()) {
-            break; // Use the first non-empty text found
-          }
+        // PRIORIDADE 2: Se o primeiro falhar, tente um seletor de fallback comum.
+        const fallbackPriceElement = doc.querySelector('.andes-money-amount__fraction');
+        if (fallbackPriceElement) {
+          priceText = fallbackPriceElement.textContent;
+          console.log(`(v2) ⚠️ [ML-P2] Found fallback price: "${priceText}"`);
+        } else {
+           console.log(`(v2) ❌ [ML] No price element found.`);
         }
       }
-      
-      console.log(`📝 Raw price text extracted: "${priceText}"`);
-      
-      // Clean and extract numeric price
-      const price = cleanPrice(priceText);
-      console.log(`🧹 Cleaned price result: ${price}`);
-      
-      if (price > 0) {
-        console.log(`💰 Price successfully extracted: R$ ${price.toFixed(2)} using selector: ${selector}`);
-        return price;
+    } else if (url.includes('amazon.com')) {
+      console.log('(v2) 🎯 Platform: Amazon');
+      // PRIORIDADE 1: O preço dentro da "Core Price Box", que é o principal.
+      const corePriceElement = doc.querySelector('#corePrice_feature_div .a-offscreen');
+      if (corePriceElement) {
+        priceText = corePriceElement.textContent;
+        console.log(`(v2) ✅ [AMZ-P1] Found core price: "${priceText}"`);
       } else {
-        console.log(`❌ Invalid price extracted from text: "${priceText}"`);
+        // PRIORIDADE 2: Tente o "priceblock", usado em layouts mais antigos ou ofertas.
+        const priceBlockElement = doc.querySelector('#priceblock_ourprice, #priceblock_dealprice');
+        if (priceBlockElement) {
+          priceText = priceBlockElement.textContent;
+          console.log(`(v2) ⚠️ [AMZ-P2] Found price block price: "${priceText}"`);
+        } else {
+          console.log(`(v2) ❌ [AMZ] No price element found.`);
+        }
       }
     }
-    
-    console.log(`⚠️ No valid price found for ${url} with platform-specific selectors - trying fallback simulation`);
-    
-    // Fallback: simulate price for demo purposes
-    const basePrice = 100 + Math.random() * 400;
-    const variation = (Math.random() - 0.5) * 20;
-    const finalPrice = Math.max(50, basePrice + variation);
-    
-    console.log(`🎲 Fallback simulation price: R$ ${finalPrice.toFixed(2)}`);
-    return Math.round(finalPrice * 100) / 100;
-    
+    // Adicione outras plataformas aqui (else if...)
+
+    if (!priceText) {
+      console.error(`(v2) ❌ Could not extract any price text from the page.`);
+      return null;
+    }
+
+    console.log(`(v2) 📝 Raw price text extracted: "${priceText}"`);
+    const numericPrice = cleanPrice(priceText); // Reutilize sua função cleanPrice
+
+    if (numericPrice > 0) {
+      console.log(`(v2) 💰 Price successfully extracted and cleaned: ${numericPrice}`);
+      return numericPrice;
+    } else {
+      console.error(`(v2) ❌ Failed to clean or parse price. Final value: ${numericPrice}`);
+      return null;
+    }
+
   } catch (error) {
-    console.error(`❌ Error fetching price from ${url}:`, error);
+    console.error(`(v2) ❌ Fatal error in fetchCompetitorPrice:`, error);
     return null;
   }
-}
-
-// Identify platform and return specific selectors
-function identifyPlatform(url: string): { name: string; selector: string; selectors: string[] } | null {
-  if (url.includes('mercadolivre.com') || url.includes('mercadolibre.com')) {
-    return {
-      name: 'Mercado Livre',
-      selector: '.ui-pdp-price__figure .andes-money-amount__fraction',
-      selectors: [
-        // Primary price selector - targets main price figure
-        '.ui-pdp-price__figure .andes-money-amount__fraction',
-        // Alternative main price selectors
-        '.andes-money-amount__fraction',
-        '.ui-pdp-price .andes-money-amount__fraction',
-        // Fallback selectors
-        '[data-testid="price-part"]',
-        '.price-tag-fraction',
-        // Last resort - main container selectors
-        '.andes-money-amount-combo__main-container .andes-money-amount__fraction'
-      ]
-    };
-  } else if (url.includes('amazon.com') || url.includes('amazon.com.br')) {
-    return {
-      name: 'Amazon',
-      selector: '#corePrice_feature_div .a-price-whole',
-      selectors: [
-        // Primary price in core price section (most reliable)
-        '#corePrice_feature_div .a-price-whole',
-        '#corePrice_feature_div .a-price-fraction',
-        // Combined whole + fraction for Amazon
-        '#corePrice_feature_div .a-price-whole, #corePrice_feature_div .a-price-fraction',
-        // Main price container alternatives
-        '#corePrice_feature_div .a-offscreen',
-        '.a-price.a-text-price.a-size-medium.apexPriceToPay .a-offscreen',
-        // Legacy price selectors
-        '#priceblock_dealprice',
-        '#priceblock_ourprice',
-        // Generic fallbacks
-        '.a-price-whole',
-        '.a-offscreen',
-        '[data-a-color="price"] .a-offscreen'
-      ]
-    };
-  } else if (url.includes('shopee.com') || url.includes('shopee.com.br')) {
-    return {
-      name: 'Shopee',
-      selector: '[data-testid="pdp-price"]',
-      selectors: [
-        // Primary price display
-        '[data-testid="pdp-price"]',
-        // Main price selectors
-        '.flex.items-baseline .text-shopee-primary',
-        '._3_9c2s',
-        // Alternative selectors
-        '.notranslate',
-        '._1w9jLI'
-      ]
-    };
-  } else if (url.includes('casasbahia.com') || url.includes('extra.com') || url.includes('pontofrio.com')) {
-    return {
-      name: 'Casas Bahia/Extra/Ponto Frio',
-      selector: '[data-testid="price-value"]',
-      selectors: [
-        // Primary price display
-        '[data-testid="price-value"]',
-        // Alternative selectors
-        '.price-value',
-        '.sales-price',
-        '.price'
-      ]
-    };
-  } else if (url.includes('magazineluiza.com')) {
-    return {
-      name: 'Magazine Luiza',
-      selector: '[data-testid="price-value"]',
-      selectors: [
-        // Primary price display
-        '[data-testid="price-value"]',
-        // Alternative selectors
-        '.price-template__text',
-        '.price-value'
-      ]
-    };
-  }
-  
-  return null;
 }
 
 // Clean and format price text to numeric value
