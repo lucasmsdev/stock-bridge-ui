@@ -99,6 +99,8 @@ export const usePlan = () => {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
+  const [userProfile, setUserProfile] = useState<{ plan: PlanType; role: string } | null>(null);
+
   const fetchUserPlan = useCallback(async () => {
     if (!user?.id) {
       setIsLoading(false);
@@ -108,7 +110,7 @@ export const usePlan = () => {
     try {
       const { data, error } = await supabase
         .from('profiles')
-        .select('plan')
+        .select('plan, role')
         .eq('id', user.id)
         .maybeSingle(); // Use maybeSingle instead of single to avoid errors
 
@@ -117,20 +119,26 @@ export const usePlan = () => {
         setError('Erro ao carregar plano do usuário');
         // Se não encontrar o perfil, definir plano padrão
         setCurrentPlan('estrategista');
+        setUserProfile({ plan: 'estrategista', role: 'user' });
         return;
       }
 
-      if (data?.plan) {
-        setCurrentPlan(data.plan as PlanType);
-        console.log('User plan loaded:', data.plan);
+      if (data) {
+        const plan = data.plan as PlanType || 'estrategista';
+        const role = data.role || 'user';
+        setCurrentPlan(plan);
+        setUserProfile({ plan, role });
+        console.log('User profile loaded:', { plan, role });
       } else {
-        // Se não tiver plano definido, usar o padrão
+        // Se não tiver perfil definido, usar o padrão
         setCurrentPlan('estrategista');
+        setUserProfile({ plan: 'estrategista', role: 'user' });
       }
     } catch (err) {
       console.error('Unexpected error fetching plan:', err);
       setError('Erro inesperado ao carregar plano');
       setCurrentPlan('estrategista');
+      setUserProfile({ plan: 'estrategista', role: 'user' });
     } finally {
       setIsLoading(false);
     }
@@ -143,12 +151,23 @@ export const usePlan = () => {
   // Nova função para verificar acesso usando o sistema de features
   const hasFeature = (feature: FeatureName): boolean => {
     if (!user || isLoading) return false;
+    
+    // **NOVA LÓGICA DE ADMIN** - Se o usuário é admin, tem acesso a tudo
+    if (userProfile?.role === 'admin') {
+      return true;
+    }
+    
     return planFeatures[currentPlan].features.includes(feature);
   };
 
   // Função legada para compatibilidade - aceita tanto propriedades legadas quanto features
   const canAccess = (feature: keyof LegacyPlanFeatures | FeatureName): boolean => {
     if (!user || isLoading) return false;
+    
+    // **NOVA LÓGICA DE ADMIN** - Se o usuário é admin, tem acesso a tudo
+    if (userProfile?.role === 'admin') {
+      return true;
+    }
     
     // Se é uma string que começa com 'has', é uma propriedade legada
     if (typeof feature === 'string' && feature.startsWith('has')) {
@@ -165,11 +184,21 @@ export const usePlan = () => {
   };
 
   const canImportProducts = (currentProductCount: number, newProductsCount: number): boolean => {
+    // **NOVA LÓGICA DE ADMIN** - Se o usuário é admin, pode importar produtos ilimitadamente
+    if (userProfile?.role === 'admin') {
+      return true;
+    }
+    
     const totalProducts = currentProductCount + newProductsCount;
     return totalProducts <= planFeatures[currentPlan].maxSkus;
   };
 
   const getMaxSkus = (): number => {
+    // **NOVA LÓGICA DE ADMIN** - Se o usuário é admin, tem SKUs ilimitados
+    if (userProfile?.role === 'admin') {
+      return Infinity;
+    }
+    
     return planFeatures[currentPlan].maxSkus;
   };
 
@@ -249,5 +278,8 @@ export const usePlan = () => {
     getPlanFeatures,
     getLegacyPlanFeatures,
     getUpgradeRequiredMessage,
+    // Nova funcionalidade de admin
+    isAdmin: userProfile?.role === 'admin',
+    userRole: userProfile?.role || 'user',
   };
 };

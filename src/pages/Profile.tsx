@@ -63,7 +63,7 @@ interface DeleteAccountResponse {
 
 export default function Profile() {
   const { user, signOut } = useAuth();
-  const { currentPlan, getPlanFeatures, getLegacyPlanFeatures } = usePlan();
+  const { currentPlan, getPlanFeatures, getLegacyPlanFeatures, isAdmin } = usePlan();
   const { toast } = useToast();
   
   const [isLoading, setIsLoading] = useState(true);
@@ -84,13 +84,15 @@ export default function Profile() {
   const planNames = {
     estrategista: 'Estrategista',
     competidor: 'Competidor',
-    dominador: 'Dominador'
+    dominador: 'Dominador',
+    admin: 'Administrador ✨'
   };
 
   const planColors = {
     estrategista: 'bg-blue-500',
     competidor: 'bg-purple-500',
-    dominador: 'bg-gold-500'
+    dominador: 'bg-gold-500',
+    admin: 'bg-gradient-to-r from-purple-500 to-pink-500'
   };
 
   useEffect(() => {
@@ -525,10 +527,10 @@ export default function Profile() {
               <div className="text-center space-y-3">
                 <Badge 
                   variant="outline" 
-                  className={`${planColors[currentPlan]} text-white border-none px-4 py-2 text-sm font-medium`}
+                  className={`${isAdmin ? planColors.admin : planColors[currentPlan]} text-white border-none px-4 py-2 text-sm font-medium`}
                 >
                   <Crown className="h-3 w-3 mr-1" />
-                  Plano {planNames[currentPlan]}
+                  Plano {isAdmin ? planNames.admin : planNames[currentPlan]}
                 </Badge>
                 
                 <div className="p-3 bg-muted/50 rounded-lg">
@@ -542,10 +544,22 @@ export default function Profile() {
               <div className="space-y-2">
                  <h4 className="font-medium text-foreground">Recursos inclusos:</h4>
                   <div className="space-y-1 text-sm text-muted-foreground">
-                    <p>• {getLegacyPlanFeatures().maxSkus === Infinity ? '∞' : getLegacyPlanFeatures().maxSkus} produtos</p>
-                    <p>• {getLegacyPlanFeatures().hasReprecificacaoPorAlerta ? '✅' : '❌'} Reprecificação por alerta</p>
-                    <p>• {getLegacyPlanFeatures().hasSuportePrioritario ? '✅' : '❌'} Suporte prioritário</p>
-                    <p>• {getLegacyPlanFeatures().hasRelatoriosAvancados ? '✅' : '❌'} Relatórios avançados</p>
+                    {isAdmin ? (
+                      <>
+                        <p>• ∞ produtos (Acesso Total)</p>
+                        <p>• ✅ Reprecificação por alerta</p>
+                        <p>• ✅ Suporte prioritário</p>
+                        <p>• ✅ Relatórios avançados</p>
+                        <p>• ✅ Todas as funcionalidades</p>
+                      </>
+                    ) : (
+                      <>
+                        <p>• {getLegacyPlanFeatures().maxSkus === Infinity ? '∞' : getLegacyPlanFeatures().maxSkus} produtos</p>
+                        <p>• {getLegacyPlanFeatures().hasReprecificacaoPorAlerta ? '✅' : '❌'} Reprecificação por alerta</p>
+                        <p>• {getLegacyPlanFeatures().hasSuportePrioritario ? '✅' : '❌'} Suporte prioritário</p>
+                        <p>• {getLegacyPlanFeatures().hasRelatoriosAvancados ? '✅' : '❌'} Relatórios avançados</p>
+                      </>
+                    )}
                   </div>
               </div>
 

@@ -224,6 +224,7 @@ export type Database = {
           full_name: string | null
           id: string
           plan: Database["public"]["Enums"]["subscription_plan"] | null
+          role: string
           stripe_customer_id: string | null
           updated_at: string | null
         }
@@ -235,6 +236,7 @@ export type Database = {
           full_name?: string | null
           id: string
           plan?: Database["public"]["Enums"]["subscription_plan"] | null
+          role?: string
           stripe_customer_id?: string | null
           updated_at?: string | null
         }
@@ -246,6 +248,7 @@ export type Database = {
           full_name?: string | null
           id?: string
           plan?: Database["public"]["Enums"]["subscription_plan"] | null
+          role?: string
           stripe_customer_id?: string | null
           updated_at?: string | null
         }

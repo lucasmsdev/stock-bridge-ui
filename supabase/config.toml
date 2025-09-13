@@ -38,3 +38,15 @@ verify_jwt = true
 
 [functions.create-repricing-alert]
 verify_jwt = false
+
+[functions.webhook-listener]
+verify_jwt = false
+
+[functions.create-portal-session]
+verify_jwt = true
+
+[functions.check-subscription-compatibility]
+verify_jwt = true
+
+[functions.set-admin-role]
+verify_jwt = true
