@@ -191,7 +191,7 @@ async function fetchCompetitorPrice(url: string): Promise<number | null> {
       return null;
     }
     
-    console.log(`🎯 Platform identified: ${platformData.name}, using selector: ${platformData.selector}`);
+    console.log(`🎯 Platform identified: ${platformData.name}, using selectors: ${platformData.selectors.join(', ')}`);
     
     // Fetch the page HTML
     const response = await fetch(url, {
@@ -213,38 +213,64 @@ async function fetchCompetitorPrice(url: string): Promise<number | null> {
       return null;
     }
     
-    // Try platform-specific selectors first
+    // Try platform-specific selectors with enhanced logic
     for (const selector of platformData.selectors) {
       console.log(`🔍 Trying selector: ${selector}`);
       const elements = doc.querySelectorAll(selector);
       
-      for (const element of elements) {
-        let priceText = '';
-        
-        if (element.tagName === 'META') {
-          priceText = element.getAttribute('content') || '';
-        } else {
-          priceText = element.textContent || '';
+      if (elements.length === 0) {
+        console.log(`⚠️ No elements found for selector: ${selector}`);
+        continue;
+      }
+      
+      console.log(`📊 Found ${elements.length} elements for selector: ${selector}`);
+      
+      let priceText = '';
+      
+      // Special logic for Amazon (price might be split between whole and fraction)
+      if (url.includes('amazon.com') && elements.length > 1 && selector.includes('.a-price')) {
+        console.log(`🔄 Amazon detected: Attempting to combine price parts`);
+        const wholePart = elements[0].textContent?.trim() || '';
+        const fractionPart = elements[1].textContent?.trim() || '';
+        priceText = `${wholePart}.${fractionPart}`;
+        console.log(`🧩 Combined Amazon price parts: "${wholePart}" + "${fractionPart}" = "${priceText}"`);
+      } else {
+        // Standard logic for other platforms
+        for (const element of elements) {
+          if (element.tagName === 'META') {
+            priceText = element.getAttribute('content') || '';
+          } else {
+            priceText = element.textContent || '';
+          }
+          
+          if (priceText.trim()) {
+            break; // Use the first non-empty text found
+          }
         }
-        
-        console.log(`📝 Raw price text found: "${priceText}"`);
-        
-        // Clean and extract numeric price
-        const price = cleanPrice(priceText);
-        if (price > 0) {
-          console.log(`💰 Price successfully extracted: R$ ${price.toFixed(2)} using selector: ${selector}`);
-          return price;
-        }
+      }
+      
+      console.log(`📝 Raw price text extracted: "${priceText}"`);
+      
+      // Clean and extract numeric price
+      const price = cleanPrice(priceText);
+      console.log(`🧹 Cleaned price result: ${price}`);
+      
+      if (price > 0) {
+        console.log(`💰 Price successfully extracted: R$ ${price.toFixed(2)} using selector: ${selector}`);
+        return price;
+      } else {
+        console.log(`❌ Invalid price extracted from text: "${priceText}"`);
       }
     }
     
-    console.log(`⚠️ No price found for ${url} with platform-specific selectors - trying fallback simulation`);
+    console.log(`⚠️ No valid price found for ${url} with platform-specific selectors - trying fallback simulation`);
     
     // Fallback: simulate price for demo purposes
     const basePrice = 100 + Math.random() * 400;
     const variation = (Math.random() - 0.5) * 20;
     const finalPrice = Math.max(50, basePrice + variation);
     
+    console.log(`🎲 Fallback simulation price: R$ ${finalPrice.toFixed(2)}`);
     return Math.round(finalPrice * 100) / 100;
     
   } catch (error) {
@@ -260,37 +286,52 @@ function identifyPlatform(url: string): { name: string; selector: string; select
       name: 'Mercado Livre',
       selector: '.ui-pdp-price__figure .andes-money-amount__fraction',
       selectors: [
+        // Primary price selector - targets main price figure
         '.ui-pdp-price__figure .andes-money-amount__fraction',
+        // Alternative main price selectors
         '.andes-money-amount__fraction',
-        '.price-tag-fraction',
         '.ui-pdp-price .andes-money-amount__fraction',
+        // Fallback selectors
         '[data-testid="price-part"]',
+        '.price-tag-fraction',
+        // Last resort - main container selectors
         '.andes-money-amount-combo__main-container .andes-money-amount__fraction'
       ]
     };
   } else if (url.includes('amazon.com') || url.includes('amazon.com.br')) {
     return {
       name: 'Amazon',
-      selector: '.a-price-whole',
+      selector: '#corePrice_feature_div .a-price-whole',
       selectors: [
+        // Primary price in core price section (most reliable)
+        '#corePrice_feature_div .a-price-whole',
+        '#corePrice_feature_div .a-price-fraction',
+        // Combined whole + fraction for Amazon
+        '#corePrice_feature_div .a-price-whole, #corePrice_feature_div .a-price-fraction',
+        // Main price container alternatives
         '#corePrice_feature_div .a-offscreen',
-        '.a-price-whole',
-        '.a-offscreen',
+        '.a-price.a-text-price.a-size-medium.apexPriceToPay .a-offscreen',
+        // Legacy price selectors
         '#priceblock_dealprice',
         '#priceblock_ourprice',
-        '.a-price.a-text-price.a-size-medium.apexPriceToPay .a-offscreen',
+        // Generic fallbacks
+        '.a-price-whole',
+        '.a-offscreen',
         '[data-a-color="price"] .a-offscreen'
       ]
     };
   } else if (url.includes('shopee.com') || url.includes('shopee.com.br')) {
     return {
       name: 'Shopee',
-      selector: '._3_9c2s',
+      selector: '[data-testid="pdp-price"]',
       selectors: [
-        '._3_9c2s',
-        '.notranslate',
+        // Primary price display
         '[data-testid="pdp-price"]',
+        // Main price selectors
         '.flex.items-baseline .text-shopee-primary',
+        '._3_9c2s',
+        // Alternative selectors
+        '.notranslate',
         '._1w9jLI'
       ]
     };
@@ -299,7 +340,9 @@ function identifyPlatform(url: string): { name: string; selector: string; select
       name: 'Casas Bahia/Extra/Ponto Frio',
       selector: '[data-testid="price-value"]',
       selectors: [
+        // Primary price display
         '[data-testid="price-value"]',
+        // Alternative selectors
         '.price-value',
         '.sales-price',
         '.price'
@@ -310,7 +353,9 @@ function identifyPlatform(url: string): { name: string; selector: string; select
       name: 'Magazine Luiza',
       selector: '[data-testid="price-value"]',
       selectors: [
+        // Primary price display
         '[data-testid="price-value"]',
+        // Alternative selectors
         '.price-template__text',
         '.price-value'
       ]
@@ -323,7 +368,7 @@ function identifyPlatform(url: string): { name: string; selector: string; select
 // Clean and format price text to numeric value
 function cleanPrice(priceText: string): number {
   if (!priceText) {
-    console.log(`⚠️ Empty price text`);
+    console.log(`⚠️ Empty price text provided to cleanPrice()`);
     return 0;
   }
   
@@ -337,23 +382,29 @@ function cleanPrice(priceText: string): number {
     .replace(/,(\d{2})$/, '.$1') // Replace decimal comma with dot (only at the end with 2 digits)
     .trim();
   
-  console.log(`🧹 After cleaning: "${cleanedText}"`);
+  console.log(`🧹 After initial cleaning: "${cleanedText}"`);
+  
+  // Handle special cases like "1234,56" (Brazilian format)
+  if (cleanedText.includes(',') && !cleanedText.includes('.')) {
+    cleanedText = cleanedText.replace(',', '.');
+    console.log(`🇧🇷 Brazilian format detected, converted comma to dot: "${cleanedText}"`);
+  }
   
   // Extract first valid number from the cleaned text
   const numberMatch = cleanedText.match(/(\d+(?:\.\d{1,2})?)/);
   if (!numberMatch) {
-    console.log(`❌ No valid number found in: "${cleanedText}"`);
+    console.log(`❌ No valid number pattern found in: "${cleanedText}"`);
     return 0;
   }
   
   const numericPrice = parseFloat(numberMatch[1]);
   
   if (isNaN(numericPrice) || numericPrice <= 0) {
-    console.log(`❌ Invalid numeric price: ${numericPrice}`);
+    console.log(`❌ Invalid numeric price after parsing: ${numericPrice}`);
     return 0;
   }
   
-  console.log(`✅ Successfully cleaned price: ${numericPrice}`);
+  console.log(`✅ Successfully cleaned price: ${numericPrice} (from original: "${priceText}")`);
   return numericPrice;
 }
 
