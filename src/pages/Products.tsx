@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { Link } from "react-router-dom";
-import { Plus, Search, MoreHorizontal, Edit, ExternalLink, Package, Download, Loader2, ChevronDown } from "lucide-react";
+import { Plus, Search, MoreHorizontal, Edit, ExternalLink, Package, Download, Loader2, ChevronDown, Trash2, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -18,8 +18,25 @@ import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
+  DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import {
   Select,
   SelectContent,
@@ -27,6 +44,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { Label } from "@/components/ui/label";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { useToast } from "@/hooks/use-toast";
@@ -38,6 +56,8 @@ interface Product {
   name: string;
   sku: string;
   stock: number;
+  cost_price: number | null;
+  selling_price: number | null;
   image_url: string | null;
   user_id: string;
   created_at: string;
@@ -69,6 +89,15 @@ export default function Products() {
   const [selectedChannel, setSelectedChannel] = useState<string>("all");
   const [isLoading, setIsLoading] = useState(true);
   const [isImporting, setIsImporting] = useState(false);
+  const [editingProduct, setEditingProduct] = useState<Product | null>(null);
+  const [deletingProduct, setDeletingProduct] = useState<Product | null>(null);
+  const [editForm, setEditForm] = useState({
+    name: "",
+    sku: "",
+    cost_price: "",
+    selling_price: "",
+    stock: ""
+  });
 
   // Load products and integrations from Supabase
   useEffect(() => {
@@ -102,6 +131,94 @@ export default function Products() {
       console.error('Unexpected error loading products:', error);
     } finally {
       setIsLoading(false);
+    }
+  };
+
+  const handleEditProduct = (product: Product) => {
+    setEditingProduct(product);
+    setEditForm({
+      name: product.name,
+      sku: product.sku,
+      cost_price: product.cost_price?.toString() || "",
+      selling_price: product.selling_price?.toString() || "",
+      stock: product.stock.toString()
+    });
+  };
+
+  const handleSaveProduct = async () => {
+    if (!editingProduct) return;
+    
+    try {
+      const { data, error } = await supabase.functions.invoke('update-product', {
+        body: {
+          productId: editingProduct.id,
+          name: editForm.name,
+          sku: editForm.sku,
+          cost_price: editForm.cost_price ? parseFloat(editForm.cost_price) : null,
+          selling_price: editForm.selling_price ? parseFloat(editForm.selling_price) : null,
+          stock: parseInt(editForm.stock) || 0
+        }
+      });
+
+      if (error) {
+        toast({
+          title: "❌ Erro ao atualizar produto",
+          description: "Não foi possível atualizar o produto. Tente novamente.",
+          variant: "destructive",
+        });
+        return;
+      }
+
+      toast({
+        title: "✅ Produto atualizado!",
+        description: "As alterações foram salvas com sucesso.",
+      });
+
+      setEditingProduct(null);
+      loadProducts();
+    } catch (error) {
+      console.error('Error updating product:', error);
+      toast({
+        title: "❌ Erro inesperado",
+        description: "Ocorreu um erro inesperado. Tente novamente.",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const handleDeleteProduct = async () => {
+    if (!deletingProduct) return;
+    
+    try {
+      const { error } = await supabase.functions.invoke('delete-product', {
+        body: {
+          productId: deletingProduct.id
+        }
+      });
+
+      if (error) {
+        toast({
+          title: "❌ Erro ao excluir produto",
+          description: "Não foi possível excluir o produto. Tente novamente.",
+          variant: "destructive",
+        });
+        return;
+      }
+
+      toast({
+        title: "✅ Produto excluído!",
+        description: "O produto foi removido com sucesso.",
+      });
+
+      setDeletingProduct(null);
+      loadProducts();
+    } catch (error) {
+      console.error('Error deleting product:', error);
+      toast({
+        title: "❌ Erro inesperado",
+        description: "Ocorreu um erro inesperado. Tente novamente.",
+        variant: "destructive",
+      });
     }
   };
 
@@ -437,7 +554,7 @@ export default function Products() {
                           </div>
                           <div>
                             <Link 
-                              to={`/products/${product.sku}`}
+                              to={`/app/products/${product.id}`}
                               className="font-medium text-primary hover:text-primary-hover hover:underline transition-colors"
                             >
                               {product.name}
@@ -459,7 +576,7 @@ export default function Products() {
                         </Badge>
                       </TableCell>
                       <TableCell className="font-medium">
-                        -
+                        {product.selling_price ? `R$ ${product.selling_price.toFixed(2)}` : '-'}
                       </TableCell>
                       <TableCell>
                         <span className="text-lg">🛍️</span>
@@ -476,13 +593,24 @@ export default function Products() {
                             </Button>
                           </DropdownMenuTrigger>
                           <DropdownMenuContent align="end" className="bg-popover border border-border shadow-medium z-50">
-                            <DropdownMenuItem className="hover:bg-muted cursor-pointer">
+                            <DropdownMenuItem 
+                              className="hover:bg-muted cursor-pointer"
+                              onClick={() => handleEditProduct(product)}
+                            >
                               <Edit className="mr-2 h-4 w-4" />
                               Editar
                             </DropdownMenuItem>
                             <DropdownMenuItem className="hover:bg-muted cursor-pointer">
                               <ExternalLink className="mr-2 h-4 w-4" />
                               Ver no Canal
+                            </DropdownMenuItem>
+                            <DropdownMenuSeparator />
+                            <DropdownMenuItem 
+                              className="hover:bg-destructive hover:text-destructive-foreground cursor-pointer"
+                              onClick={() => setDeletingProduct(product)}
+                            >
+                              <Trash2 className="mr-2 h-4 w-4" />
+                              Excluir
                             </DropdownMenuItem>
                           </DropdownMenuContent>
                         </DropdownMenu>
@@ -495,6 +623,104 @@ export default function Products() {
           </CardContent>
         </Card>
       )}
+
+      {/* Edit Product Modal */}
+      <Dialog open={!!editingProduct} onOpenChange={() => setEditingProduct(null)}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Editar Produto</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div>
+              <Label htmlFor="edit-name">Nome do Produto</Label>
+              <Input
+                id="edit-name"
+                value={editForm.name}
+                onChange={(e) => setEditForm({...editForm, name: e.target.value})}
+                placeholder="Nome do produto"
+              />
+            </div>
+            
+            <div>
+              <Label htmlFor="edit-sku">SKU</Label>
+              <Input
+                id="edit-sku"
+                value={editForm.sku}
+                onChange={(e) => setEditForm({...editForm, sku: e.target.value})}
+                placeholder="SKU do produto"
+              />
+            </div>
+            
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <Label htmlFor="edit-cost">Preço de Custo</Label>
+                <Input
+                  id="edit-cost"
+                  type="number"
+                  step="0.01"
+                  value={editForm.cost_price}
+                  onChange={(e) => setEditForm({...editForm, cost_price: e.target.value})}
+                  placeholder="0.00"
+                />
+              </div>
+              
+              <div>
+                <Label htmlFor="edit-selling">Preço de Venda</Label>
+                <Input
+                  id="edit-selling"
+                  type="number"
+                  step="0.01"
+                  value={editForm.selling_price}
+                  onChange={(e) => setEditForm({...editForm, selling_price: e.target.value})}
+                  placeholder="0.00"
+                />
+              </div>
+            </div>
+            
+            <div>
+              <Label htmlFor="edit-stock">Estoque</Label>
+              <Input
+                id="edit-stock"
+                type="number"
+                value={editForm.stock}
+                onChange={(e) => setEditForm({...editForm, stock: e.target.value})}
+                placeholder="0"
+              />
+            </div>
+          </div>
+          
+          <div className="flex justify-end gap-2 pt-4">
+            <Button variant="outline" onClick={() => setEditingProduct(null)}>
+              Cancelar
+            </Button>
+            <Button onClick={handleSaveProduct}>
+              Salvar Alterações
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Delete Confirmation Dialog */}
+      <AlertDialog open={!!deletingProduct} onOpenChange={() => setDeletingProduct(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Excluir Produto</AlertDialogTitle>
+            <AlertDialogDescription>
+              Tem certeza que deseja excluir o produto "{deletingProduct?.name}"? 
+              Esta ação não pode ser desfeita.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleDeleteProduct}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              Excluir
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

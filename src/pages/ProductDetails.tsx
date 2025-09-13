@@ -191,7 +191,7 @@ export default function ProductDetails() {
     return (
       <div className="space-y-6 animate-fade-in">
         <div className="flex items-center gap-4">
-          <Link to="/products">
+          <Link to="/app/products">
             <Button variant="ghost" size="sm">
               <ArrowLeft className="h-4 w-4 mr-2" />
               Voltar
@@ -213,7 +213,7 @@ export default function ProductDetails() {
     return (
       <div className="space-y-6 animate-fade-in">
         <div className="flex items-center gap-4">
-          <Link to="/products">
+          <Link to="/app/products">
             <Button variant="ghost" size="sm">
               <ArrowLeft className="h-4 w-4 mr-2" />
               Voltar
@@ -242,7 +242,7 @@ export default function ProductDetails() {
     <div className="space-y-6 animate-fade-in">
       {/* Header with Back Button and Calculator */}
       <div className="flex items-center justify-between">
-        <Link to="/products">
+        <Link to="/app/products">
           <Button variant="ghost" size="sm">
             <ArrowLeft className="h-4 w-4 mr-2" />
             Voltar
