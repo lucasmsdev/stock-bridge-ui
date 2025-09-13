@@ -186,16 +186,20 @@ async function fetchCompetitorPrice(url: string): Promise<number | null> {
   try {
     const BROWSERLESS_API_KEY = Deno.env.get('BROWSERLESS_API_KEY');
     if (!BROWSERLESS_API_KEY) {
-      console.error(`(v4) ❌ [CONFIG ERROR] BROWSERLESS_API_KEY not configured`);
-      return null;
+      console.log(`(v4) ⚠️ [FALLBACK] BROWSERLESS_API_KEY not configured, using direct fetch`);
+      return await fetchWithDirectMethod(url);
     }
 
     // ETAPA 1: Chamada para Browserless API
     const api_url = `https://chrome.browserless.io/content?token=${BROWSERLESS_API_KEY}`;
     console.log(`(v4) 🚀 [API CALL] Calling Browserless API...`);
 
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 15000); // Timeout de 15s
+
     const response = await fetch(api_url, {
       method: 'POST',
+      signal: controller.signal,
       headers: { 
         'Content-Type': 'application/json',
         'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
@@ -208,16 +212,68 @@ async function fetchCompetitorPrice(url: string): Promise<number | null> {
         }
       }),
     });
+    clearTimeout(timeoutId);
 
     if (!response.ok) {
-      console.error(`(v4) ❌ [API ERROR] Browserless API error ${response.status}`);
-      return null;
+      console.error(`(v4) ❌ [API ERROR] Browserless API error ${response.status}, falling back to direct fetch`);
+      return await fetchWithDirectMethod(url);
     }
 
     // ETAPA 2: Parse do HTML retornado
     const html = await response.text();
     console.log(`(v4) 📄 [HTML OK] HTML received, length: ${html.length}`);
 
+    if (!html || html.length < 100) {
+      console.error(`(v4) ❌ [HTML ERROR] Invalid HTML response, falling back to direct fetch`);
+      return await fetchWithDirectMethod(url);
+    }
+
+    return await extractPriceFromHtml(html, url);
+
+  } catch (error) {
+    console.error(`(v4) 💥 [BROWSERLESS ERROR] Browserless failed, trying direct fetch:`, error);
+    return await fetchWithDirectMethod(url);
+  }
+}
+
+// Fallback method using direct fetch
+async function fetchWithDirectMethod(url: string): Promise<number | null> {
+  console.log(`(v4) 🔄 [DIRECT] Trying direct fetch for: ${url}`);
+  
+  try {
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 10000); // Timeout de 10s
+
+    const response = await fetch(url, {
+      signal: controller.signal,
+      headers: {
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36',
+        'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8',
+        'Accept-Language': 'pt-BR,pt;q=0.9,en;q=0.8',
+        'Cache-Control': 'no-cache',
+      },
+    });
+    clearTimeout(timeoutId);
+
+    if (!response.ok) {
+      console.error(`(v4) ❌ [DIRECT ERROR] HTTP error ${response.status}`);
+      return null;
+    }
+
+    const html = await response.text();
+    console.log(`(v4) 📄 [DIRECT HTML] HTML received, length: ${html.length}`);
+
+    return await extractPriceFromHtml(html, url);
+
+  } catch (error) {
+    console.error(`(v4) 💥 [DIRECT FATAL] Direct fetch failed:`, error);
+    return null;
+  }
+}
+
+// Extract price from HTML content
+async function extractPriceFromHtml(html: string, url: string): Promise<number | null> {
+  try {
     const doc = new DOMParser().parseFromString(html, "text/html");
     if (!doc) {
       console.error(`(v4) ❌ [PARSE FAIL] Could not parse HTML document.`);
@@ -294,7 +350,7 @@ async function fetchCompetitorPrice(url: string): Promise<number | null> {
     }
 
   } catch (error) {
-    console.error(`(v4) 💥 [FATAL ERROR] Browserless API error:`, error);
+    console.error(`(v4) 💥 [EXTRACTION ERROR] HTML parsing failed:`, error);
     return null;
   }
 }

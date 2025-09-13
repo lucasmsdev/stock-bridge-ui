@@ -51,11 +51,25 @@ serve(async (req) => {
     const customers = await stripe.customers.list({ email: user.email, limit: 1 });
     if (customers.data.length === 0) {
       logStep("No Stripe customer found");
-      throw new Error("Nenhuma assinatura encontrada para este usuário. Assine um plano primeiro.");
+      throw new Error("Você ainda não possui uma assinatura ativa no Stripe. Para gerenciar sua assinatura, primeiro faça um upgrade para um plano pago.");
     }
 
     const customerId = customers.data[0].id;
     logStep("Found Stripe customer", { customerId });
+
+    // Verify customer has active subscriptions
+    const subscriptions = await stripe.subscriptions.list({
+      customer: customerId,
+      status: 'active',
+      limit: 1,
+    });
+
+    if (subscriptions.data.length === 0) {
+      logStep("No active subscriptions found");
+      throw new Error("Você não possui assinaturas ativas no Stripe. Para gerenciar sua assinatura, primeiro faça um upgrade para um plano pago.");
+    }
+
+    logStep("Active subscription confirmed");
 
     // Create portal session
     const origin = req.headers.get("origin") || "http://localhost:3000";

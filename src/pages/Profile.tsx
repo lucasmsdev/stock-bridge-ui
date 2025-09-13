@@ -262,6 +262,19 @@ export default function Profile() {
 
       if (error) {
         console.error('❌ Erro na função create-portal-session:', error);
+        
+        // Handle specific error messages
+        if (error.message?.includes('não possui uma assinatura ativa') || 
+            error.message?.includes('Você ainda não possui') ||
+            error.message?.includes('não possui assinaturas ativas')) {
+          toast({
+            title: "💡 Plano Legacy Detectado",
+            description: "Você possui um plano legacy. Para acessar o portal de gerenciamento, faça upgrade para um plano atual na página de Faturamento.",
+            variant: "default",
+          });
+          return;
+        }
+        
         throw new Error(error.message || 'Erro ao acessar portal de assinatura');
       }
 
@@ -497,19 +510,36 @@ export default function Profile() {
                   </div>
               </div>
 
-              <Button 
-                variant="outline" 
-                className="w-full"
-                onClick={handleManageSubscription}
-                disabled={isSaving}
-              >
-                {isSaving ? (
-                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                ) : (
-                  <CreditCard className="h-4 w-4 mr-2" />
-                )}
-                Gerenciar Assinatura
-              </Button>
+              {/* Only show manage subscription button for users with current plan different from legacy plans */}
+              {currentPlan !== 'estrategista' && currentPlan !== 'competidor' && currentPlan !== 'dominador' ? (
+                <Button 
+                  variant="outline" 
+                  className="w-full"
+                  onClick={handleManageSubscription}
+                  disabled={isSaving}
+                >
+                  {isSaving ? (
+                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                  ) : (
+                    <CreditCard className="h-4 w-4 mr-2" />
+                  )}
+                  Gerenciar Assinatura
+                </Button>
+              ) : (
+                <div className="space-y-2">
+                  <Button 
+                    variant="outline" 
+                    className="w-full"
+                    disabled
+                  >
+                    <CreditCard className="h-4 w-4 mr-2" />
+                    Plano Legacy Ativo
+                  </Button>
+                  <p className="text-xs text-muted-foreground text-center">
+                    Você possui um plano legacy. Para gerenciar assinaturas, faça upgrade para um plano atual.
+                  </p>
+                </div>
+              )}
             </CardContent>
           </Card>
 
