@@ -254,6 +254,35 @@ export default function Profile() {
     try {
       setIsSaving(true);
       
+      // First check subscription compatibility
+      const { data: compatibilityData, error: compatibilityError } = await supabase.functions.invoke('check-subscription-compatibility', {
+        headers: {
+          Authorization: `Bearer ${(await supabase.auth.getSession()).data.session?.access_token}`,
+        },
+      });
+
+      if (compatibilityError) {
+        console.error('❌ Erro ao verificar compatibilidade:', compatibilityError);
+      }
+
+      if (compatibilityData && !compatibilityData.isCompatible) {
+        if (compatibilityData.hasLegacySubscription) {
+          toast({
+            title: "🔄 Assinatura Legacy Detectada",
+            description: "Sua assinatura atual usa o sistema antigo do Stripe. Para acessar o portal de gerenciamento, cancele a assinatura atual na página de Faturamento e faça um novo upgrade.",
+            variant: "default",
+          });
+          return;
+        } else {
+          toast({
+            title: "💡 Nenhuma Assinatura Ativa",
+            description: "Para acessar o portal de gerenciamento, primeiro faça upgrade para um plano pago na página de Faturamento.",
+            variant: "default",
+          });
+          return;
+        }
+      }
+      
       const { data, error } = await supabase.functions.invoke('create-portal-session', {
         headers: {
           Authorization: `Bearer ${(await supabase.auth.getSession()).data.session?.access_token}`,
