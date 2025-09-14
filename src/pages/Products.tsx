@@ -149,6 +149,7 @@ export default function Products() {
     if (!editingProduct) return;
     
     try {
+      console.log('Updating product:', editingProduct.id);
       const { data, error } = await supabase.functions.invoke('update-product', {
         body: {
           productId: editingProduct.id,
@@ -160,10 +161,13 @@ export default function Products() {
         }
       });
 
+      console.log('Update response:', { data, error });
+
       if (error) {
+        console.error('Update product error:', error);
         toast({
           title: "❌ Erro ao atualizar produto",
-          description: "Não foi possível atualizar o produto. Tente novamente.",
+          description: error.message || "Não foi possível atualizar o produto. Tente novamente.",
           variant: "destructive",
         });
         return;
@@ -190,16 +194,20 @@ export default function Products() {
     if (!deletingProduct) return;
     
     try {
-      const { error } = await supabase.functions.invoke('delete-product', {
+      console.log('Deleting product:', deletingProduct.id);
+      const { data, error } = await supabase.functions.invoke('delete-product', {
         body: {
           productId: deletingProduct.id
         }
       });
 
+      console.log('Delete response:', { data, error });
+
       if (error) {
+        console.error('Delete product error:', error);
         toast({
           title: "❌ Erro ao excluir produto",
-          description: "Não foi possível excluir o produto. Tente novamente.",
+          description: error.message || "Não foi possível excluir o produto. Tente novamente.",
           variant: "destructive",
         });
         return;
