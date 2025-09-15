@@ -78,6 +78,13 @@ const platformNames: Record<string, string> = {
   aliexpress: "AliExpress",
 };
 
+const platformLogos: Record<string, { url: string; darkInvert?: boolean }> = {
+  mercadolivre: { url: "https://vectorseek.com/wp-content/uploads/2023/08/Mercado-Livre-Icon-Logo-Vector.svg-.png" },
+  shopify: { url: "https://cdn.worldvectorlogo.com/logos/shopify.svg" },
+  amazon: { url: "https://upload.wikimedia.org/wikipedia/commons/d/de/Amazon_icon.png", darkInvert: true },
+  shopee: { url: "https://upload.wikimedia.org/wikipedia/commons/thumb/0/0e/Shopee_logo.svg/1442px-Shopee_logo.svg.png" },
+};
+
 export default function Products() {
   const { user } = useAuth();
   const { toast } = useToast();
@@ -587,7 +594,25 @@ export default function Products() {
                         {product.selling_price ? `R$ ${product.selling_price.toFixed(2)}` : '-'}
                       </TableCell>
                       <TableCell>
-                        <span className="text-lg">🛍️</span>
+                        <div className="flex items-center gap-1">
+                          {integrations.length > 0 ? (
+                            integrations.map((integration) => {
+                              const logoConfig = platformLogos[integration.platform];
+                              return logoConfig ? (
+                                <img
+                                  key={integration.platform}
+                                  src={logoConfig.url}
+                                  alt={`${integration.platform} logo`}
+                                  className={`h-5 w-auto ${logoConfig.darkInvert ? 'dark-invert' : ''}`}
+                                />
+                              ) : (
+                                <span key={integration.platform} className="text-lg">🛍️</span>
+                              );
+                            })
+                          ) : (
+                            <span className="text-lg">🛍️</span>
+                          )}
+                        </div>
                       </TableCell>
                       <TableCell>
                         <DropdownMenu>

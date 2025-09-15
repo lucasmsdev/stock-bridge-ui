@@ -28,7 +28,7 @@ const availableIntegrations = [
     name: "Shopify",
     description: "Conecte sua loja Shopify para sincronizar produtos e pedidos",
     popular: true,
-    logoUrl: "/logos/shopify.svg"
+    logoUrl: "https://cdn.worldvectorlogo.com/logos/shopify.svg"
   },
   {
     id: "mercadolivre",
