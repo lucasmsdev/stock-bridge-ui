@@ -15,6 +15,7 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
+import { PlatformLogo } from "@/components/ui/platform-logo";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { usePlan } from "@/hooks/usePlan";
@@ -26,69 +27,45 @@ const availableIntegrations = [
     id: "shopify",
     name: "Shopify",
     description: "Conecte sua loja Shopify para sincronizar produtos e pedidos",
-    logo: "🛍️",
-    color: "bg-green-500",
     popular: true
   },
   {
     id: "mercadolivre",
     name: "Mercado Livre",
     description: "Integração completa com o maior marketplace da América Latina",
-    logo: "🛒",
-    color: "bg-yellow-500",
     popular: true
   },
   {
     id: "shopee",
     name: "Shopee",
     description: "Conecte-se ao maior marketplace de vendas online do Sudeste Asiático",
-    logo: "🛒",
-    color: "bg-orange-600",
     popular: true
   },
   {
     id: "amazon",
     name: "Amazon",
     description: "Venda seus produtos na maior plataforma de e-commerce do mundo",
-    logo: "📦",
-    color: "bg-orange-500",
     popular: true
   },
   {
     id: "magento",
     name: "Magento",
     description: "Conecte sua loja Magento para gerenciamento centralizado",
-    logo: "🏪",
-    color: "bg-red-500",
     popular: false
   },
   {
     id: "woocommerce",
     name: "WooCommerce", 
     description: "Integração com a plataforma de e-commerce do WordPress",
-    logo: "🛒",
-    color: "bg-purple-500",
     popular: false
   },
   {
     id: "vtex",
     name: "VTEX",
     description: "Conecte sua loja VTEX para sincronização automática",
-    logo: "🏬", 
-    color: "bg-blue-500",
     popular: false
   }
 ];
-
-const platformLogos = {
-  mercadolivre: "🛒",
-  shopify: "🛍️", 
-  shopee: "🛒",
-  amazon: "📦",
-  magento: "🏪",
-  woocommerce: "🛒",
-  vtex: "🏬"
-};
 
 export default function Integrations() {
   const [disconnectingId, setDisconnectingId] = useState<string | null>(null);
@@ -228,8 +205,8 @@ export default function Integrations() {
                 <CardHeader className="pb-3">
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-3">
-                      <div className="text-2xl hover:scale-110 transition-transform">
-                        {platformLogos[integration.platform] || "🔌"}
+                      <div className="hover:scale-110 transition-transform">
+                        <PlatformLogo platform={integration.platform} size="lg" />
                       </div>
                       <div>
                         <CardTitle className="text-lg capitalize">{integration.platform}</CardTitle>
@@ -366,7 +343,9 @@ export default function Integrations() {
               <CardHeader className="pb-3">
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-3">
-                    <div className="text-2xl group-hover:scale-110 transition-transform">{platform.logo}</div>
+                    <div className="group-hover:scale-110 transition-transform">
+                      <PlatformLogo platform={platform.id} size="lg" />
+                    </div>
                     <div>
                       <CardTitle className="text-lg flex items-center gap-2">
                         {platform.name}

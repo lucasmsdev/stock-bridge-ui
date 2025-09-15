@@ -56,7 +56,7 @@ export const PlatformLogo: React.FC<PlatformLogoProps> = ({
       <img
         src={logoUrl}
         alt={`${platform} logo`}
-        className={`${sizeClasses[size]} ${className} object-contain`}
+        className={`${sizeClasses[size]} ${className} object-contain transition-all duration-200 dark:brightness-110 dark:contrast-110`}
         onError={(e) => {
           // Fallback to emoji/color background if image fails to load
           const target = e.target as HTMLImageElement;
