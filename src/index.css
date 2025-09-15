@@ -139,3 +139,8 @@ All colors MUST be HSL.
     @apply bg-background text-foreground;
   }
 }
+
+/* Integration logos - dark mode handling */
+.dark .dark-invert {
+  filter: invert(1);
+}

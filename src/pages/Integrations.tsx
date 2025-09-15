@@ -27,25 +27,30 @@ const availableIntegrations = [
     id: "shopify",
     name: "Shopify",
     description: "Conecte sua loja Shopify para sincronizar produtos e pedidos",
-    popular: true
+    popular: true,
+    logoUrl: "/logos/shopify.svg"
   },
   {
     id: "mercadolivre",
     name: "Mercado Livre",
     description: "Integração completa com o maior marketplace da América Latina",
-    popular: true
+    popular: true,
+    logoUrl: "https://vectorseek.com/wp-content/uploads/2023/08/Mercado-Livre-Icon-Logo-Vector.svg-.png"
   },
   {
     id: "shopee",
     name: "Shopee",
     description: "Conecte-se ao maior marketplace de vendas online do Sudeste Asiático",
-    popular: true
+    popular: true,
+    logoUrl: "https://upload.wikimedia.org/wikipedia/commons/thumb/0/0e/Shopee_logo.svg/1442px-Shopee_logo.svg.png"
   },
   {
     id: "amazon",
     name: "Amazon",
     description: "Venda seus produtos na maior plataforma de e-commerce do mundo",
-    popular: true
+    popular: true,
+    logoUrl: "https://upload.wikimedia.org/wikipedia/commons/d/de/Amazon_icon.png",
+    darkInvert: true
   },
   {
     id: "magento",
@@ -206,7 +211,18 @@ export default function Integrations() {
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-3">
                       <div className="hover:scale-110 transition-transform">
-                        <PlatformLogo platform={integration.platform} size="lg" />
+                        {(() => {
+                          const platformConfig = availableIntegrations.find(p => p.id === integration.platform);
+                          return platformConfig?.logoUrl ? (
+                            <img
+                              src={platformConfig.logoUrl}
+                              alt={`${integration.platform} logo`}
+                              className={`h-8 w-auto ${platformConfig.darkInvert ? 'dark-invert' : ''}`}
+                            />
+                          ) : (
+                            <PlatformLogo platform={integration.platform} size="lg" />
+                          );
+                        })()}
                       </div>
                       <div>
                         <CardTitle className="text-lg capitalize">{integration.platform}</CardTitle>
@@ -344,7 +360,11 @@ export default function Integrations() {
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-3">
                     <div className="group-hover:scale-110 transition-transform">
-                      <PlatformLogo platform={platform.id} size="lg" />
+                      <img
+                        src={platform.logoUrl}
+                        alt={`${platform.name} logo`}
+                        className={`h-8 w-auto ${platform.darkInvert ? 'dark-invert' : ''}`}
+                      />
                     </div>
                     <div>
                       <CardTitle className="text-lg flex items-center gap-2">
