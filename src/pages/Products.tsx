@@ -452,6 +452,58 @@ export default function Products() {
         )}
       </div>
 
+      {/* Inventory Summary */}
+      {products.length > 0 && (
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+          <Card className="shadow-soft">
+            <CardContent className="pt-6">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm font-medium text-muted-foreground">Total de SKUs</p>
+                  <p className="text-2xl font-bold text-foreground">{products.length}</p>
+                </div>
+                <Package className="h-8 w-8 text-primary" />
+              </div>
+            </CardContent>
+          </Card>
+          
+          <Card className="shadow-soft">
+            <CardContent className="pt-6">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm font-medium text-muted-foreground">Itens em Estoque</p>
+                  <p className="text-2xl font-bold text-foreground">
+                    {products.reduce((total, product) => total + product.stock, 0)}
+                  </p>
+                </div>
+                <div className="h-8 w-8 rounded-full bg-success/20 flex items-center justify-center">
+                  <span className="text-success font-bold">📦</span>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+          
+          <Card className="shadow-soft">
+            <CardContent className="pt-6">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm font-medium text-muted-foreground">Valor Total do Inventário</p>
+                  <p className="text-2xl font-bold text-foreground">
+                    R$ {products.reduce((total, product) => {
+                      const price = product.selling_price || 0;
+                      return total + (price * product.stock);
+                    }, 0).toFixed(2)}
+                  </p>
+                </div>
+                <div className="h-8 w-8 rounded-full bg-primary/20 flex items-center justify-center">
+                  <span className="text-primary font-bold">💰</span>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+      )}
+
       {/* Bulk Actions Toolbar */}
       {selectedProducts.length > 0 && (
         <Card className="shadow-soft bg-primary/5 border-primary/20 animate-slide-up">

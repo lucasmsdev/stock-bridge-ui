@@ -236,6 +236,7 @@ serve(async (req) => {
             name: item.title,
             sku: item.seller_sku || item.id,
             stock: item.available_quantity || 0,
+            selling_price: item.price || null,
             image_url: item.thumbnail || null,
           };
 
@@ -312,6 +313,7 @@ serve(async (req) => {
             name: `${product.title}${variant.title !== 'Default Title' ? ` - ${variant.title}` : ''}`,
             sku: variant.sku || variant.id.toString(),
             stock: variant.inventory_quantity || 0,
+            selling_price: variant.price ? parseFloat(variant.price) : null,
             image_url: product.image?.src || null,
           };
 
