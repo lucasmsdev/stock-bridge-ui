@@ -191,6 +191,12 @@ serve(async (req) => {
         }
 
         const data = await response.json();
+
+        // **LOG DE DEPURAÇÃO 1: RESPOSTA CRUA DA API**
+        console.log('--- RESPOSTA CRUA DA API MERCADO LIVRE ---');
+        console.log(JSON.stringify(data, null, 2));
+        console.log('-----------------------------------------');
+
         const products = data.results;
 
         if (!products || products.length === 0) {
@@ -213,6 +219,11 @@ serve(async (req) => {
           selling_price: item.price || null, // <-- AQUI ESTÁ A MÁGICA!
           image_url: item.thumbnail || null,
         }));
+
+        // **LOG DE DEPURAÇÃO 2: DADOS A SEREM ENVIADOS PARA O BANCO**
+        console.log('--- DADOS PRONTOS PARA O UPSERT ---');
+        console.log(JSON.stringify(productsToInsert, null, 2));
+        console.log('-----------------------------------');
 
         console.log(`Mapeados ${productsToInsert.length} produtos para o upsert.`);
         console.log('Exemplo de produto mapeado:', productsToInsert[0]);

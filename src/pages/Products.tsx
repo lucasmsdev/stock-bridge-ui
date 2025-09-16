@@ -639,12 +639,18 @@ export default function Products() {
                             )}
                           </div>
                           <div>
-                            <Link 
-                              to={`/app/products/${product.id}`}
-                              className="font-medium text-primary hover:text-primary-hover hover:underline transition-colors"
-                            >
-                              {product.name}
-                            </Link>
+                            {product.id ? (
+                              <Link 
+                                to={`/dashboard/products/${product.id}`}
+                                className="font-medium text-primary hover:text-primary-hover hover:underline transition-colors"
+                              >
+                                {product.name}
+                              </Link>
+                            ) : (
+                              <span className="font-medium text-muted-foreground">
+                                {product.name} (ID inválido)
+                              </span>
+                            )}
                           </div>
                         </div>
                       </TableCell>
