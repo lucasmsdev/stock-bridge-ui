@@ -141,107 +141,91 @@ serve(async (req) => {
     let productsToInsert = [];
 
     if (platform === 'mercadolivre') {
-      // Step 1: Get user info to obtain user ID
-      const userInfoResponse = await fetch(`https://api.mercadolibre.com/users/me`, {
-        method: 'GET',
-        headers: {
-          'Authorization': `Bearer ${integration.access_token}`,
-        },
-      });
+      try {
+        // Step 1: Get user info to obtain user ID
+        const userInfoResponse = await fetch(`https://api.mercadolibre.com/users/me`, {
+          method: 'GET',
+          headers: {
+            'Authorization': `Bearer ${integration.access_token}`,
+          },
+        });
 
-      if (!userInfoResponse.ok) {
-        const errorText = await userInfoResponse.text();
-        console.error('Error fetching user info:', errorText);
-        return new Response(
-          JSON.stringify({ error: 'Failed to fetch user info from Mercado Livre' }), 
-          { 
-            status: 500, 
-            headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
-          }
-        );
-      }
-
-      const userInfo = await userInfoResponse.json();
-      const mlUserId = userInfo.id;
-      console.log('Mercado Livre User ID:', mlUserId);
-
-      // Step 2: Get user items IDs using the actual user ID
-      const itemsResponse = await fetch(`https://api.mercadolibre.com/users/${mlUserId}/items/search`, {
-        method: 'GET',
-        headers: {
-          'Authorization': `Bearer ${integration.access_token}`,
-        },
-      });
-
-      if (!itemsResponse.ok) {
-        const errorText = await itemsResponse.text();
-        console.error('Error fetching user items:', errorText);
-        return new Response(
-          JSON.stringify({ error: 'Failed to fetch items from Mercado Livre' }), 
-          { 
-            status: 500, 
-            headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
-          }
-        );
-      }
-
-      const itemsData = await itemsResponse.json();
-      const itemIds = itemsData.results;
-
-      if (!itemIds || itemIds.length === 0) {
-        console.log('No items found for user');
-        return new Response(
-          JSON.stringify({ message: 'No products found in your Mercado Livre account', count: 0 }), 
-          { 
-            status: 200, 
-            headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
-          }
-        );
-      }
-
-      console.log(`Found ${itemIds.length} items to import`);
-
-      // Step 3: Get detailed information for all items
-      const idsString = itemIds.join(',');
-      const detailsResponse = await fetch(`https://api.mercadolibre.com/items?ids=${idsString}`, {
-        method: 'GET',
-        headers: {
-          'Authorization': `Bearer ${integration.access_token}`,
-        },
-      });
-
-      if (!detailsResponse.ok) {
-        const errorText = await detailsResponse.text();
-        console.error('Error fetching item details:', errorText);
-        return new Response(
-          JSON.stringify({ error: 'Failed to fetch item details from Mercado Livre' }), 
-          { 
-            status: 500, 
-            headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
-          }
-        );
-      }
-
-      const detailsData = await detailsResponse.json();
-      console.log(`Retrieved details for ${detailsData.length} items`);
-
-      // Step 4: Map and prepare products for insertion
-      for (const itemResponse of detailsData) {
-        if (itemResponse.code === 200 && itemResponse.body) {
-          const item = itemResponse.body;
-          
-          // Extract product data
-          const product = {
-            user_id: user.id,
-            name: item.title,
-            sku: item.seller_sku || item.id,
-            stock: item.available_quantity || 0,
-            selling_price: item.price || null,
-            image_url: item.thumbnail || null,
-          };
-
-          productsToInsert.push(product);
+        if (!userInfoResponse.ok) {
+          const errorText = await userInfoResponse.text();
+          console.error('Error fetching user info:', errorText);
+          return new Response(
+            JSON.stringify({ error: 'Failed to fetch user info from Mercado Livre' }), 
+            { 
+              status: 500, 
+              headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
+            }
+          );
         }
+
+        const userInfo = await userInfoResponse.json();
+        const mlUserId = userInfo.id;
+        console.log(`Buscando anúncios para o vendedor ML ID: ${mlUserId}`);
+
+        // Step 2: Buscar produtos usando a nova API com atributos específicos
+        // O segredo está aqui: estamos pedindo explicitamente 'id', 'title', 'price', 'available_quantity', e 'seller_sku'.
+        const apiUrl = `https://api.mercadolibre.com/users/${mlUserId}/items/search?search_type=scan&limit=100&orders=start_time_desc&attributes=id,title,price,available_quantity,seller_sku,thumbnail`;
+        
+        console.log(`Chamando a API: ${apiUrl}`);
+
+        const response = await fetch(apiUrl, {
+          headers: {
+            'Authorization': `Bearer ${integration.access_token}`,
+          },
+        });
+
+        if (!response.ok) {
+          const errorBody = await response.text();
+          console.error('Erro na API do Mercado Livre:', errorBody);
+          return new Response(
+            JSON.stringify({ error: `Falha ao buscar produtos do Mercado Livre: ${response.statusText}` }), 
+            { 
+              status: 500, 
+              headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
+            }
+          );
+        }
+
+        const data = await response.json();
+        const products = data.results;
+
+        if (!products || products.length === 0) {
+          console.log('Nenhum produto encontrado para este usuário.');
+          return new Response(
+            JSON.stringify({ message: 'Nenhum produto encontrado na sua conta do Mercado Livre', count: 0 }), 
+            { 
+              status: 200, 
+              headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
+            }
+          );
+        }
+
+        // Step 3: Mapear os resultados para o formato do nosso banco de dados
+        productsToInsert = products.map(item => ({
+          user_id: user.id, // O ID do usuário no nosso sistema
+          name: item.title,
+          sku: item.seller_sku || item.id, // Usa o SKU se existir, senão o ID do ML como fallback
+          stock: item.available_quantity || 0,
+          selling_price: item.price || null, // <-- AQUI ESTÁ A MÁGICA!
+          image_url: item.thumbnail || null,
+        }));
+
+        console.log(`Mapeados ${productsToInsert.length} produtos para o upsert.`);
+        console.log('Exemplo de produto mapeado:', productsToInsert[0]);
+
+      } catch (error) {
+        console.error('Erro fatal no bloco de importação de produtos do Mercado Livre:', error);
+        return new Response(
+          JSON.stringify({ error: 'Erro interno ao processar produtos do Mercado Livre' }), 
+          { 
+            status: 500, 
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
+          }
+        );
       }
 
     } else if (platform === 'shopify') {
