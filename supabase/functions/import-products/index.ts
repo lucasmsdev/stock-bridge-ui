@@ -40,6 +40,71 @@ serve(async (req) => {
 
     console.log('Authenticated user:', user.id);
 
+    // Get user's plan and current product count to check SKU limits
+    const { data: userProfile, error: profileError } = await supabaseClient
+      .from('profiles')
+      .select('plan, role')
+      .eq('id', user.id)
+      .single();
+
+    if (profileError || !userProfile) {
+      console.error('Profile not found:', profileError);
+      return new Response(
+        JSON.stringify({ error: 'User profile not found' }), 
+        { 
+          status: 404, 
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
+        }
+      );
+    }
+
+    // Count current products for this user
+    const { count: currentProductCount, error: countError } = await supabaseClient
+      .from('products')
+      .select('*', { count: 'exact', head: true })
+      .eq('user_id', user.id);
+
+    if (countError) {
+      console.error('Error counting products:', countError);
+      return new Response(
+        JSON.stringify({ error: 'Failed to check current product count' }), 
+        { 
+          status: 500, 
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
+        }
+      );
+    }
+
+    // Define SKU limits per plan
+    const skuLimits = {
+      'estrategista': 500,
+      'competidor': 2000,
+      'dominador': 10000,
+      'admin': Infinity // Admins don't have limits
+    };
+
+    const userPlan = userProfile.role === 'admin' ? 'admin' : userProfile.plan;
+    const limit = skuLimits[userPlan] || skuLimits['estrategista'];
+
+    // Check if user has reached their SKU limit
+    if (currentProductCount >= limit) {
+      console.log(`User has reached SKU limit. Current: ${currentProductCount}, Limit: ${limit}, Plan: ${userPlan}`);
+      return new Response(
+        JSON.stringify({ 
+          error: 'Limite de SKUs atingido. Faça um upgrade do seu plano para importar mais produtos.',
+          current_count: currentProductCount,
+          limit: limit,
+          plan: userPlan
+        }), 
+        { 
+          status: 403, 
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
+        }
+      );
+    }
+
+    console.log(`SKU check passed. Current: ${currentProductCount}, Limit: ${limit}, Plan: ${userPlan}`);
+
     const { platform } = await req.json();
 
     if (!platform) {

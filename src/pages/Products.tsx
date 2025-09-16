@@ -282,11 +282,30 @@ export default function Products() {
 
       if (error) {
         console.error('Error importing products:', error);
-        toast({
-          title: "❌ Falha ao importar produtos",
-          description: `Não foi possível importar os produtos do ${platformName}. Tente novamente.`,
-          variant: "destructive",
-        });
+        
+        // Check if it's a 403 error (SKU limit reached)
+        if (error.message && error.message.includes('Limite de SKUs atingido')) {
+          toast({
+            title: "❌ Limite de SKUs atingido",
+            description: error.message,
+            variant: "destructive",
+            action: (
+              <Button 
+                variant="outline" 
+                size="sm" 
+                onClick={() => window.location.href = '/billing'}
+              >
+                Fazer Upgrade
+              </Button>
+            ),
+          });
+        } else {
+          toast({
+            title: "❌ Falha ao importar produtos",
+            description: `Não foi possível importar os produtos do ${platformName}. Tente novamente.`,
+            variant: "destructive",
+          });
+        }
         return;
       }
 
