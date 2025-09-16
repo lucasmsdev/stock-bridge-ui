@@ -216,7 +216,7 @@ serve(async (req) => {
           name: item.title,
           sku: item.seller_sku || item.id, // Usa o SKU se existir, senão o ID do ML como fallback
           stock: item.available_quantity || 0,
-          selling_price: item.price || null, // <-- AQUI ESTÁ A MÁGICA!
+          selling_price: item.price ? parseFloat(item.price) : null, // Parse do preço como número
           image_url: item.thumbnail || null,
         }));
 
