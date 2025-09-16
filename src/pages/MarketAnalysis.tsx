@@ -181,6 +181,9 @@ export default function MarketAnalysis() {
           <CardDescription>
             Digite o nome de um produto ou cole a URL de um concorrente para começar a análise
           </CardDescription>
+          <p className="text-sm text-muted-foreground mt-2 italic">
+            A busca é realizada em tempo real nos marketplaces e pode apresentar inconsistências pontuais. Use os resultados como um guia estratégico.
+          </p>
         </CardHeader>
         <CardContent className="space-y-4">
           <div className="flex gap-3">

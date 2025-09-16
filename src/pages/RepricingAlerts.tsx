@@ -32,6 +32,7 @@ interface MonitoringJob {
   products: {
     name: string;
     sku: string;
+    selling_price: number;
   };
 }
 
@@ -80,7 +81,8 @@ export default function RepricingAlerts() {
           created_at,
           products (
             name,
-            sku
+            sku,
+            selling_price
           )
         `)
         .order('created_at', { ascending: false });
@@ -427,16 +429,17 @@ export default function RepricingAlerts() {
           ) : (
             <div className="overflow-x-auto">
               <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Produto</TableHead>
-                    <TableHead>URL Concorrente</TableHead>
-                    <TableHead>Último Preço</TableHead>
-                    <TableHead>Gatilho</TableHead>
-                    <TableHead>Status</TableHead>
-                    <TableHead>Ações</TableHead>
-                  </TableRow>
-                </TableHeader>
+                 <TableHeader>
+                   <TableRow>
+                     <TableHead>Produto</TableHead>
+                     <TableHead>URL Concorrente</TableHead>
+                     <TableHead>Meu Preço Atual</TableHead>
+                     <TableHead>Último Preço do Concorrente</TableHead>
+                     <TableHead>Gatilho</TableHead>
+                     <TableHead>Status</TableHead>
+                     <TableHead>Ações</TableHead>
+                   </TableRow>
+                 </TableHeader>
                 <TableBody>
                   {monitoringJobs.map((job) => (
                     <TableRow key={job.id}>
@@ -460,17 +463,24 @@ export default function RepricingAlerts() {
                             {formatUrl(job.competitor_url)}
                           </a>
                         </div>
-                      </TableCell>
-                      <TableCell>
-                        {job.last_price !== null ? (
-                          `R$ ${Number(job.last_price).toFixed(2)}`
-                        ) : (
-                          <div className="flex items-center space-x-2">
-                            <Loader2 className="h-4 w-4 animate-spin text-primary" />
-                            <span className="text-muted-foreground">Verificando...</span>
-                          </div>
-                        )}
-                      </TableCell>
+                       </TableCell>
+                       <TableCell>
+                         <div className="font-medium text-primary">
+                           R$ {Number(job.products.selling_price || 0).toFixed(2)}
+                         </div>
+                       </TableCell>
+                       <TableCell>
+                         {job.last_price !== null ? (
+                           <div className="font-medium">
+                             R$ {Number(job.last_price).toFixed(2)}
+                           </div>
+                         ) : (
+                           <div className="flex items-center space-x-2">
+                             <Loader2 className="h-4 w-4 animate-spin text-primary" />
+                             <span className="text-muted-foreground">Verificando...</span>
+                           </div>
+                         )}
+                       </TableCell>
                       <TableCell>
                         <Badge variant="outline">
                           {job.trigger_condition === 'price_decrease' && 'Preço baixar'}
