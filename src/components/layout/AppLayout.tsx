@@ -15,6 +15,8 @@ export const AppLayout = () => {
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const location = useLocation();
 
+  console.log('🏗️ AppLayout: user=', !!user, 'isLoading=', isLoading, 'planLoading=', planLoading, 'location=', location.pathname);
+
   if (isLoading || planLoading) {
     return (
       <div className="min-h-screen bg-gradient-subtle flex items-center justify-center">
