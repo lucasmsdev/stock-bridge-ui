@@ -116,24 +116,52 @@ serve(async (req) => {
 
     console.log('✅ Alert created successfully:', newAlert.id);
 
-    // Start background price check for this specific job
-    console.log('🔄 Triggering background price check for job:', newAlert.id);
+    // Perform initial price check synchronously to get immediate result
+    console.log('🔄 Performing initial price check for job:', newAlert.id);
     try {
-      // Call check-competitor-prices function asynchronously for this specific job
-      supabaseClient.functions.invoke('check-competitor-prices', {
+      const priceCheckResult = await supabaseClient.functions.invoke('check-competitor-prices', {
         body: { job_id: newAlert.id }
-      }).then((result) => {
-        if (result.error) {
-          console.error('❌ Background price check failed:', result.error);
-        } else {
-          console.log('✅ Background price check completed successfully');
-        }
-      }).catch((error) => {
-        console.error('❌ Background price check error:', error);
       });
+
+      if (priceCheckResult.error) {
+        console.error('❌ Initial price check failed:', priceCheckResult.error);
+        // Don't fail the main request, just log the error
+      } else {
+        console.log('✅ Initial price check completed successfully:', priceCheckResult.data);
+        
+        // Update the newAlert with the checked price if available
+        if (priceCheckResult.data?.processed > 0) {
+          // Fetch the updated alert to get the latest last_price
+          const { data: updatedAlert } = await supabaseClient
+            .from('price_monitoring_jobs')
+            .select(`
+              id,
+              product_id,
+              competitor_url,
+              last_price,
+              trigger_condition,
+              is_active,
+              created_at,
+              products (
+                name,
+                sku,
+                selling_price
+              )
+            `)
+            .eq('id', newAlert.id)
+            .single();
+          
+          if (updatedAlert) {
+            console.log('✅ Updated alert with last_price:', updatedAlert.last_price);
+            // Update the response object with the latest data
+            newAlert.last_price = updatedAlert.last_price;
+            newAlert.products = updatedAlert.products;
+          }
+        }
+      }
     } catch (backgroundError) {
-      console.error('❌ Failed to start background price check:', backgroundError);
-      // Don't fail the main request if background job fails to start
+      console.error('❌ Failed to perform initial price check:', backgroundError);
+      // Don't fail the main request if initial price check fails
     }
 
     return new Response(

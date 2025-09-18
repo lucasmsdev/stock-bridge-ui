@@ -211,14 +211,46 @@ serve(async (req) => {
         }
 
         // Step 3: Mapear os resultados para o formato do nosso banco de dados
-        productsToInsert = products.map(item => ({
-          user_id: user.id, // O ID do usuário no nosso sistema
-          name: item.title,
-          sku: item.seller_sku || item.id, // Usa o SKU se existir, senão o ID do ML como fallback
-          stock: item.available_quantity || 0,
-          selling_price: item.price ? parseFloat(item.price) : null, // Parse do preço como número
-          image_url: item.thumbnail || null,
-        }));
+        productsToInsert = products.map(item => {
+          // **LOG DE DEPURAÇÃO: ITEM INDIVIDUAL**
+          console.log('🔍 Processando item:', {
+            id: item.id,
+            title: item.title,
+            price: item.price,
+            price_type: typeof item.price,
+            seller_sku: item.seller_sku,
+            available_quantity: item.available_quantity
+          });
+
+          // Garantir que o preço seja sempre um número válido
+          let selling_price = null;
+          if (item.price !== undefined && item.price !== null) {
+            if (typeof item.price === 'string') {
+              // Se veio como string, fazer parse removendo caracteres indesejados
+              const cleanPrice = item.price.replace(/[^\d.,]/g, '').replace(',', '.');
+              selling_price = parseFloat(cleanPrice);
+            } else if (typeof item.price === 'number') {
+              selling_price = item.price;
+            }
+            
+            // Verificar se o preço é válido
+            if (isNaN(selling_price) || selling_price <= 0) {
+              console.warn('⚠️ Preço inválido detectado:', item.price, '-> definindo como null');
+              selling_price = null;
+            } else {
+              console.log('✅ Preço válido:', selling_price);
+            }
+          }
+
+          return {
+            user_id: user.id, // O ID do usuário no nosso sistema
+            name: item.title,
+            sku: item.seller_sku || item.id, // Usa o SKU se existir, senão o ID do ML como fallback
+            stock: item.available_quantity || 0,
+            selling_price: selling_price,
+            image_url: item.thumbnail || null,
+          };
+        });
 
         // **LOG DE DEPURAÇÃO 2: DADOS A SEREM ENVIADOS PARA O BANCO**
         console.log('--- DADOS PRONTOS PARA O UPSERT ---');
