@@ -630,7 +630,7 @@ export default function Products() {
                           <div className="w-10 h-10 rounded-lg bg-muted flex items-center justify-center overflow-hidden">
                             {product.image_url ? (
                               <img 
-                                src={product.image_url} 
+                                src={product.image_url.replace('http://', 'https://')} 
                                 alt={product.name}
                                 className="w-full h-full object-cover"
                               />
@@ -641,7 +641,7 @@ export default function Products() {
                           <div>
                             {product.id ? (
                               <Link 
-                                to={`/dashboard/products/${product.id}`}
+                                to={`/app/products/${product.id}`}
                                 className="font-medium text-primary hover:text-primary-hover hover:underline transition-colors"
                               >
                                 {product.name}

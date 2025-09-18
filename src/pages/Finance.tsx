@@ -201,13 +201,13 @@ export default function Finance() {
                           <TableRow key={product.id}>
                             <TableCell>
                               <div className="flex items-center gap-3">
-                                {product.image_url && (
-                                  <img 
-                                    src={product.image_url} 
-                                    alt={product.name}
-                                    className="w-10 h-10 rounded-md object-cover"
-                                  />
-                                )}
+                                 {product.image_url && (
+                                   <img 
+                                     src={product.image_url.replace('http://', 'https://')} 
+                                     alt={product.name}
+                                     className="w-10 h-10 rounded-md object-cover"
+                                   />
+                                 )}
                                 <span className="font-medium">{product.name}</span>
                               </div>
                             </TableCell>

@@ -248,7 +248,7 @@ serve(async (req) => {
             sku: item.seller_sku || item.id, // Usa o SKU se existir, senão o ID do ML como fallback
             stock: item.available_quantity || 0,
             selling_price: selling_price,
-            image_url: item.thumbnail || null,
+            image_url: item.thumbnail ? item.thumbnail.replace('http://', 'https://') : null,
           };
         });
 
