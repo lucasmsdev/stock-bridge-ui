@@ -159,6 +159,47 @@ serve(async (req) => {
 
     console.log(`✅ Processed ${processedJobs} jobs, triggered ${triggeredAlerts} alerts`);
 
+    // Fetch updated monitoring jobs to return to frontend
+    console.log(`✅ Processamento concluído. Buscando dados atualizados para retornar ao cliente.`);
+    
+    // Get the user ID from the first job (all jobs belong to same user in this context)
+    const userId = jobs.length > 0 ? jobs[0].user_id : null;
+    
+    if (userId) {
+      const { data: updatedJobs, error: fetchError } = await supabase
+        .from('price_monitoring_jobs')
+        .select(`
+          id,
+          product_id,
+          competitor_url,
+          last_price,
+          trigger_condition,
+          is_active,
+          created_at,
+          products (
+            name,
+            sku,
+            selling_price
+          )
+        `)
+        .eq('user_id', userId)
+        .order('created_at', { ascending: false });
+
+      if (fetchError) {
+        console.error('❌ Error fetching updated jobs:', fetchError);
+      } else {
+        console.log(`✅ Returning ${updatedJobs?.length || 0} updated jobs to frontend`);
+        return new Response(JSON.stringify({
+          success: true,
+          processed: processedJobs,
+          triggered_alerts: triggeredAlerts,
+          updatedJobs: updatedJobs || []
+        }), {
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        });
+      }
+    }
+
     return new Response(JSON.stringify({
       success: true,
       processed: processedJobs,

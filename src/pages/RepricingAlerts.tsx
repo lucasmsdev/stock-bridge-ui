@@ -168,7 +168,7 @@ export default function RepricingAlerts() {
         description: `Alerta ${!currentStatus ? 'ativado' : 'desativado'} com sucesso.`
       });
 
-      // No need to call fetchData() - real-time subscription will handle the update
+      fetchData();
     } catch (error) {
       console.error('Error toggling alert:', error);
       toast({
@@ -193,7 +193,7 @@ export default function RepricingAlerts() {
         description: "Alerta excluído com sucesso."
       });
 
-      // No need to call fetchData() - real-time subscription will handle the removal
+      fetchData();
     } catch (error) {
       console.error('Error deleting alert:', error);
       toast({
@@ -225,7 +225,14 @@ export default function RepricingAlerts() {
         description: `Processados ${data?.processed || 0} alertas. ${data?.triggered_alerts || 0} notificações criadas.`
       });
 
-      // No need to call fetchData() - real-time subscription will handle updates automatically
+      // Update the monitoring jobs with the fresh data returned by the edge function
+      if (data?.updatedJobs && Array.isArray(data.updatedJobs)) {
+        console.log('✅ Updating monitoring jobs with fresh data from backend');
+        setMonitoringJobs(data.updatedJobs);
+      } else {
+        // Fallback: fetch data if edge function doesn't return updated jobs
+        fetchData();
+      }
     } catch (error) {
       console.error('Error checking prices manually:', error);
       toast({
@@ -241,91 +248,6 @@ export default function RepricingAlerts() {
   useEffect(() => {
     fetchData();
   }, [fetchData]);
-
-  // Subscribe to real-time updates for price_monitoring_jobs table
-  useEffect(() => {
-    if (!user?.id) return;
-
-    console.log('🔄 Setting up real-time subscription for price monitoring jobs');
-    
-    const channel = supabase
-      .channel('repricing-alerts-updates')
-      .on(
-        'postgres_changes',
-        {
-          event: 'UPDATE',
-          schema: 'public',
-          table: 'price_monitoring_jobs',
-          filter: `user_id=eq.${user.id}` // Only listen to updates for current user
-        },
-        (payload) => {
-          console.log('✅ Real-time update received:', payload.new);
-          
-          // Update the monitoring jobs state with the new data
-          setMonitoringJobs(currentJobs => {
-            return currentJobs.map(job => {
-              if (job.id === payload.new.id) {
-                // Merge the updated data with existing job data
-                return {
-                  ...job,
-                  ...payload.new,
-                  // Keep the products data as it doesn't change in price updates
-                  products: job.products
-                };
-              }
-              return job;
-            });
-          });
-
-          // Show toast notification when price is found
-          if (payload.new.last_price !== null && payload.old?.last_price === null) {
-            toast({
-              title: "Preço Atualizado!",
-              description: `Preço do concorrente foi verificado: R$ ${Number(payload.new.last_price).toFixed(2)}`,
-            });
-          }
-        }
-      )
-      .on(
-        'postgres_changes',
-        {
-          event: 'INSERT',
-          schema: 'public',
-          table: 'price_monitoring_jobs',
-          filter: `user_id=eq.${user.id}`
-        },
-        (payload) => {
-          console.log('✅ New monitoring job created:', payload.new);
-          // Re-fetch data to get the complete job with product information
-          fetchData();
-        }
-      )
-      .on(
-        'postgres_changes',
-        {
-          event: 'DELETE',
-          schema: 'public',
-          table: 'price_monitoring_jobs',
-          filter: `user_id=eq.${user.id}`
-        },
-        (payload) => {
-          console.log('✅ Monitoring job deleted:', payload.old);
-          // Remove the deleted job from state
-          setMonitoringJobs(currentJobs => 
-            currentJobs.filter(job => job.id !== payload.old.id)
-          );
-        }
-      )
-      .subscribe((status) => {
-        console.log('📡 Subscription status:', status);
-      });
-
-    // Cleanup subscription on unmount or user change
-    return () => {
-      console.log('🔌 Cleaning up real-time subscription');
-      supabase.removeChannel(channel);
-    };
-  }, [user?.id, toast, fetchData]);
 
   // NOW HANDLE CONDITIONAL RETURNS AFTER ALL HOOKS
   // Check access - wait for plan to load
@@ -547,9 +469,8 @@ export default function RepricingAlerts() {
                              R$ {Number(job.last_price).toFixed(2)}
                            </div>
                          ) : (
-                           <div className="flex items-center space-x-2">
-                             <Loader2 className="h-4 w-4 animate-spin text-primary" />
-                             <span className="text-muted-foreground">Verificando...</span>
+                           <div className="text-muted-foreground">
+                             N/A
                            </div>
                          )}
                        </TableCell>
