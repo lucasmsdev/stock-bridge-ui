@@ -71,7 +71,7 @@ export default function ShopifyCallback() {
 
       // Redirect to integrations page after a short delay
       setTimeout(() => {
-        navigate('/app/integrations');
+        navigate('/dashboard/integrations?status=success');
       }, 2000);
 
     } catch (error) {
@@ -83,7 +83,7 @@ export default function ShopifyCallback() {
   };
 
   const handleRetry = () => {
-    navigate('/app/integrations');
+    navigate('/dashboard/integrations?status=error');
   };
 
   if (loading) {

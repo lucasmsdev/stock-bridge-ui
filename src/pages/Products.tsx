@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { Plus, Search, MoreHorizontal, Edit, ExternalLink, Package, Download, Loader2, ChevronDown, Trash2, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -86,6 +86,7 @@ const platformLogos: Record<string, { url: string; darkInvert?: boolean }> = {
 };
 
 export default function Products() {
+  const navigate = useNavigate();
   const { user } = useAuth();
   const { toast } = useToast();
   const { canImportProducts, getMaxSkus, getUpgradeRequiredMessage } = usePlan();
@@ -353,6 +354,14 @@ export default function Products() {
     );
   };
 
+  const handleProductClick = (productId: string) => {
+    if (productId) {
+      navigate(`/dashboard/products/${productId}`);
+    } else {
+      console.error("Tentativa de navegar para um produto com ID indefinido.");
+    }
+  };
+
   // Empty state component
   const EmptyProductsState = () => (
     <Card className="shadow-soft">
@@ -616,10 +625,11 @@ export default function Products() {
                 <TableBody>
                   {filteredProducts.map((product) => (
                     <TableRow 
-                      key={product.id} 
+                      key={product.id}
+                      onClick={() => handleProductClick(product.id)}
                       className="hover:bg-muted/50 transition-colors cursor-pointer"
                     >
-                      <TableCell>
+                      <TableCell onClick={(e) => e.stopPropagation()}>
                         <Checkbox
                           checked={selectedProducts.includes(product.id)}
                           onCheckedChange={() => toggleProductSelection(product.id)}
@@ -639,18 +649,9 @@ export default function Products() {
                             )}
                           </div>
                           <div>
-                            {product.id ? (
-                              <Link 
-                                to={`/app/products/${product.id}`}
-                                className="font-medium text-primary hover:text-primary-hover hover:underline transition-colors"
-                              >
-                                {product.name}
-                              </Link>
-                            ) : (
-                              <span className="font-medium text-muted-foreground">
-                                {product.name} (ID inválido)
-                              </span>
-                            )}
+                            <span className="font-medium text-primary hover:text-primary-hover transition-colors">
+                              {product.name}
+                            </span>
                           </div>
                         </div>
                       </TableCell>
@@ -691,7 +692,7 @@ export default function Products() {
                           )}
                         </div>
                       </TableCell>
-                      <TableCell>
+                      <TableCell onClick={(e) => e.stopPropagation()}>
                         <DropdownMenu>
                           <DropdownMenuTrigger asChild>
                             <Button 

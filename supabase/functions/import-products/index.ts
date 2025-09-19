@@ -202,7 +202,7 @@ serve(async (req) => {
         console.log(`Encontrados ${itemIds.length} produtos. Buscando detalhes completos...`);
 
         // Step 3: Get complete details for all items (up to 20 at a time)
-        const detailsUrl = `https://api.mercadolibre.com/items?ids=${itemIds.slice(0, 20).join(',')}&attributes=id,title,price,available_quantity,seller_custom_field,permalink,thumbnail`;
+        const detailsUrl = `https://api.mercadolibre.com/items?ids=${itemIds.slice(0, 20).join(',')}`;
         console.log(`Chamando API de detalhes: ${detailsUrl}`);
 
         const detailsResponse = await fetch(detailsUrl, {

@@ -23,7 +23,7 @@ export default function MercadoLivreCallback() {
           description: "Não foi possível conectar com o Mercado Livre. Tente novamente.",
           variant: "destructive",
         });
-        navigate('/app/integrations');
+        navigate('/dashboard/integrations?status=error');
         return;
       }
 
@@ -34,7 +34,7 @@ export default function MercadoLivreCallback() {
           description: "Código de autorização não recebido. Tente novamente.",
           variant: "destructive",
         });
-        navigate('/app/integrations');
+        navigate('/dashboard/integrations?status=error');
         return;
       }
 
@@ -67,7 +67,7 @@ export default function MercadoLivreCallback() {
             description: "Não foi possível completar a integração. Tente novamente.",
             variant: "destructive",
           });
-          navigate('/app/integrations');
+        navigate('/dashboard/integrations?status=error');
           return;
         }
 
@@ -76,7 +76,7 @@ export default function MercadoLivreCallback() {
           title: "Integração realizada com sucesso!",
           description: "Mercado Livre conectado ao seu UniStock.",
         });
-        navigate('/app/integrations');
+        navigate('/dashboard/integrations?status=success');
 
       } catch (error) {
         console.error('Unexpected error during callback processing:', error);
@@ -85,7 +85,7 @@ export default function MercadoLivreCallback() {
           description: "Ocorreu um erro durante a integração. Tente novamente.",
           variant: "destructive",
         });
-        navigate('/app/integrations');
+        navigate('/dashboard/integrations?status=error');
       } finally {
         setIsProcessing(false);
       }
