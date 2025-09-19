@@ -201,13 +201,15 @@ serve(async (req) => {
 
         console.log(`Encontrados ${itemIds.length} produtos. Buscando detalhes completos...`);
 
-        // Step 3: Get complete details for all items (up to 20 at a time)
+        // Step 3: Get complete details for all items (up to 20 at a time)  
         const detailsUrl = `https://api.mercadolibre.com/items?ids=${itemIds.slice(0, 20).join(',')}`;
         console.log(`Chamando API de detalhes: ${detailsUrl}`);
 
         const detailsResponse = await fetch(detailsUrl, {
+          method: 'GET',
           headers: {
             'Authorization': `Bearer ${integration.access_token}`,
+            'Content-Type': 'application/json',
           },
         });
 
@@ -267,7 +269,7 @@ serve(async (req) => {
             return {
               user_id: user.id,
               name: item.title,
-              sku: item.seller_custom_field || item.id, // Use custom field (SKU) or item ID
+              sku: String(item.seller_custom_field || item.id), // Ensure SKU is always string
               stock: item.available_quantity || 0,
               selling_price: selling_price,
               image_url: item.thumbnail ? item.thumbnail.replace('http://', 'https://') : null,
@@ -415,14 +417,6 @@ serve(async (req) => {
       }), 
       { 
         status: 200, 
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
-      }
-    );
-
-    return new Response(
-      JSON.stringify({ error: 'Platform not supported yet' }), 
-      { 
-        status: 400, 
         headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
       }
     );
