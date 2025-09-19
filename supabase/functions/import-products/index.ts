@@ -166,23 +166,18 @@ serve(async (req) => {
         const mlUserId = userInfo.id;
         console.log(`Buscando anúncios para o vendedor ML ID: ${mlUserId}`);
 
-        // Step 2: Buscar produtos usando a nova API com atributos específicos
-        // O segredo está aqui: estamos pedindo explicitamente 'id', 'title', 'price', 'available_quantity', e 'seller_sku'.
-        const apiUrl = `https://api.mercadolibre.com/users/${mlUserId}/items/search?search_type=scan&limit=100&orders=start_time_desc&attributes=id,title,price,available_quantity,seller_sku,thumbnail`;
-        
-        console.log(`Chamando a API: ${apiUrl}`);
-
-        const response = await fetch(apiUrl, {
+        // Step 2: Get list of product IDs first
+        const listResponse = await fetch(`https://api.mercadolibre.com/users/${mlUserId}/items/search?limit=100`, {
           headers: {
             'Authorization': `Bearer ${integration.access_token}`,
           },
         });
 
-        if (!response.ok) {
-          const errorBody = await response.text();
-          console.error('Erro na API do Mercado Livre:', errorBody);
+        if (!listResponse.ok) {
+          const errorBody = await listResponse.text();
+          console.error('Erro ao buscar lista de produtos:', errorBody);
           return new Response(
-            JSON.stringify({ error: `Falha ao buscar produtos do Mercado Livre: ${response.statusText}` }), 
+            JSON.stringify({ error: `Falha ao buscar lista de produtos: ${listResponse.statusText}` }), 
             { 
               status: 500, 
               headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
@@ -190,16 +185,10 @@ serve(async (req) => {
           );
         }
 
-        const data = await response.json();
+        const listData = await listResponse.json();
+        const itemIds = listData.results;
 
-        // **LOG DE DEPURAÇÃO 1: RESPOSTA CRUA DA API**
-        console.log('--- RESPOSTA CRUA DA API MERCADO LIVRE ---');
-        console.log(JSON.stringify(data, null, 2));
-        console.log('-----------------------------------------');
-
-        const products = data.results;
-
-        if (!products || products.length === 0) {
+        if (!itemIds || itemIds.length === 0) {
           console.log('Nenhum produto encontrado para este usuário.');
           return new Response(
             JSON.stringify({ message: 'Nenhum produto encontrado na sua conta do Mercado Livre', count: 0 }), 
@@ -210,55 +199,90 @@ serve(async (req) => {
           );
         }
 
-        // Step 3: Mapear os resultados para o formato do nosso banco de dados
-        productsToInsert = products.map(item => {
-          // **LOG DE DEPURAÇÃO: ITEM INDIVIDUAL**
-          console.log('🔍 Processando item:', {
-            id: item.id,
-            title: item.title,
-            price: item.price,
-            price_type: typeof item.price,
-            seller_sku: item.seller_sku,
-            available_quantity: item.available_quantity
-          });
+        console.log(`Encontrados ${itemIds.length} produtos. Buscando detalhes completos...`);
 
-          // Garantir que o preço seja sempre um número válido
-          let selling_price = null;
-          if (item.price !== undefined && item.price !== null) {
-            if (typeof item.price === 'string') {
-              // Se veio como string, fazer parse removendo caracteres indesejados
-              const cleanPrice = item.price.replace(/[^\d.,]/g, '').replace(',', '.');
-              selling_price = parseFloat(cleanPrice);
-            } else if (typeof item.price === 'number') {
-              selling_price = item.price;
-            }
-            
-            // Verificar se o preço é válido
-            if (isNaN(selling_price) || selling_price <= 0) {
-              console.warn('⚠️ Preço inválido detectado:', item.price, '-> definindo como null');
-              selling_price = null;
-            } else {
-              console.log('✅ Preço válido:', selling_price);
-            }
-          }
+        // Step 3: Get complete details for all items (up to 20 at a time)
+        const detailsUrl = `https://api.mercadolibre.com/items?ids=${itemIds.slice(0, 20).join(',')}&attributes=id,title,price,available_quantity,seller_custom_field,permalink,thumbnail`;
+        console.log(`Chamando API de detalhes: ${detailsUrl}`);
 
-          return {
-            user_id: user.id, // O ID do usuário no nosso sistema
-            name: item.title,
-            sku: item.seller_sku || item.id, // Usa o SKU se existir, senão o ID do ML como fallback
-            stock: item.available_quantity || 0,
-            selling_price: selling_price,
-            image_url: item.thumbnail ? item.thumbnail.replace('http://', 'https://') : null,
-          };
+        const detailsResponse = await fetch(detailsUrl, {
+          headers: {
+            'Authorization': `Bearer ${integration.access_token}`,
+          },
         });
 
-        // **LOG DE DEPURAÇÃO 2: DADOS A SEREM ENVIADOS PARA O BANCO**
+        if (!detailsResponse.ok) {
+          const errorBody = await detailsResponse.text();
+          console.error('Erro ao buscar detalhes dos produtos:', errorBody);
+          return new Response(
+            JSON.stringify({ error: `Falha ao buscar detalhes dos produtos: ${detailsResponse.statusText}` }), 
+            { 
+              status: 500, 
+              headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
+            }
+          );
+        }
+
+        const detailsData = await detailsResponse.json();
+
+        // **LOG DE DEPURAÇÃO: RESPOSTA CRUA DA API DE DETALHES**
+        console.log('--- RESPOSTA CRUA DA API DE DETALHES ---');
+        console.log(JSON.stringify(detailsData, null, 2));
+        console.log('---------------------------------------');
+
+        // Step 4: Map the detailed results to our database format
+        productsToInsert = detailsData
+          .filter(item => item.code === 200 && item.body) // Only successful responses
+          .map(itemDetail => {
+            const item = itemDetail.body;
+            
+            // **LOG DE DEPURAÇÃO: ITEM INDIVIDUAL**
+            console.log('🔍 Processando item detalhado:', {
+              id: item.id,
+              title: item.title,
+              price: item.price,
+              price_type: typeof item.price,
+              seller_custom_field: item.seller_custom_field,
+              available_quantity: item.available_quantity
+            });
+
+            // Process price to ensure it's a valid number
+            let selling_price = null;
+            if (item.price !== undefined && item.price !== null) {
+              if (typeof item.price === 'string') {
+                const cleanPrice = item.price.replace(/[^\d.,]/g, '').replace(',', '.');
+                selling_price = parseFloat(cleanPrice);
+              } else if (typeof item.price === 'number') {
+                selling_price = item.price;
+              }
+              
+              if (isNaN(selling_price) || selling_price <= 0) {
+                console.warn('⚠️ Preço inválido detectado:', item.price, '-> definindo como null');
+                selling_price = null;
+              } else {
+                console.log('✅ Preço válido:', selling_price);
+              }
+            }
+
+            return {
+              user_id: user.id,
+              name: item.title,
+              sku: item.seller_custom_field || item.id, // Use custom field (SKU) or item ID
+              stock: item.available_quantity || 0,
+              selling_price: selling_price,
+              image_url: item.thumbnail ? item.thumbnail.replace('http://', 'https://') : null,
+            };
+          });
+
+        // **LOG DE DEPURAÇÃO: DADOS FINAIS**
         console.log('--- DADOS PRONTOS PARA O UPSERT ---');
         console.log(JSON.stringify(productsToInsert, null, 2));
         console.log('-----------------------------------');
 
-        console.log(`Mapeados ${productsToInsert.length} produtos para o upsert.`);
-        console.log('Exemplo de produto mapeado:', productsToInsert[0]);
+        console.log(`Mapeados ${productsToInsert.length} produtos para o upsert com preços.`);
+        if (productsToInsert.length > 0) {
+          console.log('Exemplo de produto mapeado:', productsToInsert[0]);
+        }
 
       } catch (error) {
         console.error('Erro fatal no bloco de importação de produtos do Mercado Livre:', error);
