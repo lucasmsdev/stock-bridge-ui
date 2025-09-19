@@ -179,54 +179,64 @@ serve(async (req) => {
   }
 });
 
-// Fetch competitor price using robust multi-layer scraping strategy
+// Fetch competitor price using professional scraping API to bypass blocks
 async function fetchCompetitorPrice(url: string): Promise<number | null> {
   try {
-    console.log(`[V2] 🔍 Iniciando busca de preço para: ${url}`);
+    console.log(`[V3] 🔍 Delegando requisição para API de scraping para: ${url}`);
 
-    // ETAPA 1: Usar um User-Agent mais realista para evitar bloqueios simples.
-    const headers = {
-      'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/108.0.0.0 Safari/537.36',
-      'Accept-Language': 'en-US,en;q=0.9,pt-BR;q=0.8,pt;q=0.7',
-      'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8',
-      'Connection': 'keep-alive',
-    };
-
-    const response = await fetch(url, { headers });
-
-    if (!response.ok) {
-      console.error(`[V2] ❌ Erro de HTTP ${response.status} ao buscar a URL.`);
+    const apiKey = Deno.env.get('BRIGHTDATA_API_KEY');
+    if (!apiKey) {
+      console.error("[V3] ❌ Chave de API da Bright Data não configurada.");
       return null;
     }
 
+    // ETAPA 1: Construir a URL da API de Scraping
+    // Para Bright Data, vamos usar uma abordagem mais genérica que funciona com várias APIs
+    const scrapingApiUrl = `https://api.brightdata.com/scraper/run?url=${encodeURIComponent(url)}`;
+
+    // ETAPA 2: Fazer a chamada para a API de Scraping
+    const response = await fetch(scrapingApiUrl, {
+      method: 'GET',
+      headers: {
+        'Authorization': `Bearer ${apiKey}`,
+        'Content-Type': 'application/json',
+      },
+    });
+
+    if (!response.ok) {
+      console.error(`[V3] ❌ Erro da API de Scraping: ${response.status}`);
+      // Fallback: tentar scraping direto como último recurso
+      console.log(`[V3] 🔄 Tentando fallback com scraping direto...`);
+      return await fetchCompetitorPriceDirect(url);
+    }
+
+    // A API de scraping nos retorna o HTML limpo e correto
     const html = await response.text();
     const doc = new DOMParser().parseFromString(html, "text/html");
 
     if (!doc) {
-      console.error("[V2] ❌ Falha ao parsear o HTML do documento.");
+      console.error("[V3] ❌ Falha ao parsear o HTML retornado pela API de scraping.");
       return null;
     }
 
-    // ETAPA 2: Estratégia de busca em camadas.
-
+    // ETAPA 3: Nossa lógica de extração (que já é boa) vai funcionar com HTML correto!
+    
     // Camada 1: Buscar dados estruturados (JSON-LD) - A MAIS CONFIÁVEL
     const scriptElement = doc.querySelector('script[type="application/ld+json"]');
     if (scriptElement) {
       try {
         const jsonData = JSON.parse(scriptElement.textContent || '{}');
-        // Navegue pela estrutura do JSON para encontrar o preço.
-        // O caminho exato pode variar, mas geralmente está em "offers".
         const price = jsonData?.offers?.price || jsonData?.offers?.lowPrice;
         if (price && !isNaN(price)) {
-          console.log(`[V2] ✅ Preço encontrado via JSON-LD: ${price}`);
+          console.log(`[V3] ✅ Preço encontrado via JSON-LD: ${price}`);
           return parseFloat(price);
         }
       } catch (e) {
-        console.log('[V2] ⚠️ JSON-LD encontrado, mas falhou ao parsear ou encontrar o preço.');
+        console.log('[V3] ⚠️ JSON-LD encontrado, mas falhou ao parsear ou encontrar o preço.');
       }
     }
 
-    // Camada 2: Buscar por seletores de CSS específicos (Nossa abordagem anterior, agora como fallback)
+    // Camada 2: Buscar por seletores de CSS específicos
     const priceSelectors = [
       '.ui-pdp-price__figure .andes-money-amount__fraction', // Seletor principal
       '.andes-money-amount.ui-pdp-price__part--medium .andes-money-amount__fraction', // Outra variação
@@ -238,21 +248,77 @@ async function fetchCompetitorPrice(url: string): Promise<number | null> {
       if (element) {
         const priceText = element.tagName === 'META' ? element.getAttribute('content') : element.textContent;
         if (priceText) {
-          const cleanedPrice = cleanPrice(priceText); // Usa a sua função de limpeza existente
+          const cleanedPrice = cleanPrice(priceText);
           if (cleanedPrice > 0) {
-            console.log(`[V2] ✅ Preço encontrado via seletor de CSS "${selector}": ${cleanedPrice}`);
+            console.log(`[V3] ✅ Preço encontrado via seletor de CSS "${selector}": ${cleanedPrice}`);
             return cleanedPrice;
           }
         }
       }
     }
 
-    // Camada 3: Se tudo falhar, registre um erro claro.
-    console.error(`[V2] ❌ FALHA TOTAL: Não foi possível extrair o preço para a URL. O site pode ter mudado.`);
+    console.error(`[V3] ❌ FALHA TOTAL: Mesmo com a API de scraping, não foi possível extrair o preço.`);
     return null;
 
   } catch (error) {
-    console.error(`[V2] ❌ Erro fatal na função fetchCompetitorPrice:`, error);
+    console.error(`[V3] ❌ Erro fatal na função fetchCompetitorPrice:`, error);
+    // Fallback em caso de erro na API de scraping
+    return await fetchCompetitorPriceDirect(url);
+  }
+}
+
+// Função de fallback para scraping direto (caso a API de scraping falhe)
+async function fetchCompetitorPriceDirect(url: string): Promise<number | null> {
+  try {
+    console.log(`[V3-Fallback] 🔄 Tentando scraping direto como fallback para: ${url}`);
+
+    const headers = {
+      'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/108.0.0.0 Safari/537.36',
+      'Accept-Language': 'en-US,en;q=0.9,pt-BR;q=0.8,pt;q=0.7',
+      'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8',
+      'Connection': 'keep-alive',
+    };
+
+    const response = await fetch(url, { headers });
+
+    if (!response.ok) {
+      console.error(`[V3-Fallback] ❌ Erro de HTTP ${response.status} ao buscar a URL.`);
+      return null;
+    }
+
+    const html = await response.text();
+    const doc = new DOMParser().parseFromString(html, "text/html");
+
+    if (!doc) {
+      console.error("[V3-Fallback] ❌ Falha ao parsear o HTML do documento.");
+      return null;
+    }
+
+    // Mesma lógica de extração
+    const priceSelectors = [
+      '.ui-pdp-price__figure .andes-money-amount__fraction',
+      'meta[itemprop="price"]'
+    ];
+
+    for (const selector of priceSelectors) {
+      const element = doc.querySelector(selector);
+      if (element) {
+        const priceText = element.tagName === 'META' ? element.getAttribute('content') : element.textContent;
+        if (priceText) {
+          const cleanedPrice = cleanPrice(priceText);
+          if (cleanedPrice > 0) {
+            console.log(`[V3-Fallback] ✅ Preço encontrado via fallback: ${cleanedPrice}`);
+            return cleanedPrice;
+          }
+        }
+      }
+    }
+
+    console.error(`[V3-Fallback] ❌ Fallback também falhou ao extrair o preço.`);
+    return null;
+
+  } catch (error) {
+    console.error(`[V3-Fallback] ❌ Erro fatal no fallback:`, error);
     return null;
   }
 }
