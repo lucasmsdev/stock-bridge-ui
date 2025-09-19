@@ -168,7 +168,7 @@ export default function RepricingAlerts() {
         description: `Alerta ${!currentStatus ? 'ativado' : 'desativado'} com sucesso.`
       });
 
-      fetchData();
+      // No need to call fetchData() - real-time subscription will handle the update
     } catch (error) {
       console.error('Error toggling alert:', error);
       toast({
@@ -193,7 +193,7 @@ export default function RepricingAlerts() {
         description: "Alerta excluído com sucesso."
       });
 
-      fetchData();
+      // No need to call fetchData() - real-time subscription will handle the removal
     } catch (error) {
       console.error('Error deleting alert:', error);
       toast({
@@ -225,8 +225,7 @@ export default function RepricingAlerts() {
         description: `Processados ${data?.processed || 0} alertas. ${data?.triggered_alerts || 0} notificações criadas.`
       });
 
-      // Refresh data to show any updates
-      fetchData();
+      // No need to call fetchData() - real-time subscription will handle updates automatically
     } catch (error) {
       console.error('Error checking prices manually:', error);
       toast({
