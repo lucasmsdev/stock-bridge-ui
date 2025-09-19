@@ -179,178 +179,80 @@ serve(async (req) => {
   }
 });
 
-// Fetch competitor price using Browserless API to bypass anti-scraping
+// Fetch competitor price using robust multi-layer scraping strategy
 async function fetchCompetitorPrice(url: string): Promise<number | null> {
-  console.log(`(v4) 🌐 [BROWSERLESS] Starting fetch for: ${url}`);
-  
   try {
-    const BROWSERLESS_API_KEY = Deno.env.get('BROWSERLESS_API_KEY');
-    if (!BROWSERLESS_API_KEY) {
-      console.log(`(v4) ⚠️ [FALLBACK] BROWSERLESS_API_KEY not configured, using direct fetch`);
-      return await fetchWithDirectMethod(url);
-    }
+    console.log(`[V2] 🔍 Iniciando busca de preço para: ${url}`);
 
-    // ETAPA 1: Chamada para Browserless API
-    const api_url = `https://chrome.browserless.io/content?token=${BROWSERLESS_API_KEY}`;
-    console.log(`(v4) 🚀 [API CALL] Calling Browserless API...`);
-
-    const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 15000); // Timeout de 15s
-
-    const response = await fetch(api_url, {
-      method: 'POST',
-      signal: controller.signal,
-      headers: { 
-        'Content-Type': 'application/json',
-        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
-      },
-      body: JSON.stringify({
-        url: url,
-        waitFor: 2000, // Espera 2s para o JS da página carregar
-        options: {
-          viewport: { width: 1920, height: 1080 }
-        }
-      }),
-    });
-    clearTimeout(timeoutId);
-
-    if (!response.ok) {
-      console.error(`(v4) ❌ [API ERROR] Browserless API error ${response.status}, falling back to direct fetch`);
-      return await fetchWithDirectMethod(url);
-    }
-
-    // ETAPA 2: Parse do HTML retornado
-    const html = await response.text();
-    console.log(`(v4) 📄 [HTML OK] HTML received, length: ${html.length}`);
-
-    if (!html || html.length < 100) {
-      console.error(`(v4) ❌ [HTML ERROR] Invalid HTML response, falling back to direct fetch`);
-      return await fetchWithDirectMethod(url);
-    }
-
-    return await extractPriceFromHtml(html, url);
-
-  } catch (error) {
-    console.error(`(v4) 💥 [BROWSERLESS ERROR] Browserless failed, trying direct fetch:`, error);
-    return await fetchWithDirectMethod(url);
-  }
-}
-
-// Fallback method using direct fetch
-async function fetchWithDirectMethod(url: string): Promise<number | null> {
-  console.log(`(v4) 🔄 [DIRECT] Trying direct fetch for: ${url}`);
-  
-  try {
-    const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 10000); // Timeout de 10s
-
-    const response = await fetch(url, {
-      signal: controller.signal,
-      headers: {
-        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36',
-        'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8',
-        'Accept-Language': 'pt-BR,pt;q=0.9,en;q=0.8',
-        'Cache-Control': 'no-cache',
-      },
-    });
-    clearTimeout(timeoutId);
-
-    if (!response.ok) {
-      console.error(`(v4) ❌ [DIRECT ERROR] HTTP error ${response.status}`);
-      return null;
-    }
-
-    const html = await response.text();
-    console.log(`(v4) 📄 [DIRECT HTML] HTML received, length: ${html.length}`);
-
-    return await extractPriceFromHtml(html, url);
-
-  } catch (error) {
-    console.error(`(v4) 💥 [DIRECT FATAL] Direct fetch failed:`, error);
-    return null;
-  }
-}
-
-// Extract price from HTML content
-async function extractPriceFromHtml(html: string, url: string): Promise<number | null> {
-  try {
-    const doc = new DOMParser().parseFromString(html, "text/html");
-    if (!doc) {
-      console.error(`(v4) ❌ [PARSE FAIL] Could not parse HTML document.`);
-      return null;
-    }
-    console.log(`(v4) ⚙️ [PARSE OK] Document parsed successfully.`);
-
-    // ETAPA 3: Extração do Preço com Seletores Priorizados
-    let priceText: string | null = null;
-    const selectors = {
-      mercadolivre: [
-        '.ui-pdp-price__figure .andes-money-amount__fraction', // P1: Preço principal
-        '.andes-money-amount__fraction', // P2: Fallback
-        '[data-testid="price"] .andes-money-amount__fraction' // P3: Testid fallback
-      ],
-      amazon: [
-        '#corePrice_feature_div .a-offscreen', // P1: Preço principal
-        '#priceblock_ourprice', // P2: Fallback
-        '.a-price .a-offscreen' // P3: General price fallback
-      ]
+    // ETAPA 1: Usar um User-Agent mais realista para evitar bloqueios simples.
+    const headers = {
+      'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/108.0.0.0 Safari/537.36',
+      'Accept-Language': 'en-US,en;q=0.9,pt-BR;q=0.8,pt;q=0.7',
+      'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8',
+      'Connection': 'keep-alive',
     };
 
-    let platform: 'mercadolivre' | 'amazon' | null = null;
-    if (url.includes('mercadolivre.com') || url.includes('mercadolibre.com')) platform = 'mercadolivre';
-    if (url.includes('amazon.com')) platform = 'amazon';
+    const response = await fetch(url, { headers });
 
-    if (platform) {
-      console.log(`(v4) 🎯 [PLATFORM] Detected: ${platform}`);
-      for (const selector of selectors[platform]) {
-        const element = doc.querySelector(selector);
-        if (element && element.textContent?.trim()) {
-          priceText = element.textContent.trim();
-          console.log(`(v4) ✅ [SELECTOR OK] Found price text "${priceText}" with selector "${selector}"`);
-          break; // Para no primeiro seletor que funcionar
+    if (!response.ok) {
+      console.error(`[V2] ❌ Erro de HTTP ${response.status} ao buscar a URL.`);
+      return null;
+    }
+
+    const html = await response.text();
+    const doc = new DOMParser().parseFromString(html, "text/html");
+
+    if (!doc) {
+      console.error("[V2] ❌ Falha ao parsear o HTML do documento.");
+      return null;
+    }
+
+    // ETAPA 2: Estratégia de busca em camadas.
+
+    // Camada 1: Buscar dados estruturados (JSON-LD) - A MAIS CONFIÁVEL
+    const scriptElement = doc.querySelector('script[type="application/ld+json"]');
+    if (scriptElement) {
+      try {
+        const jsonData = JSON.parse(scriptElement.textContent || '{}');
+        // Navegue pela estrutura do JSON para encontrar o preço.
+        // O caminho exato pode variar, mas geralmente está em "offers".
+        const price = jsonData?.offers?.price || jsonData?.offers?.lowPrice;
+        if (price && !isNaN(price)) {
+          console.log(`[V2] ✅ Preço encontrado via JSON-LD: ${price}`);
+          return parseFloat(price);
         }
+      } catch (e) {
+        console.log('[V2] ⚠️ JSON-LD encontrado, mas falhou ao parsear ou encontrar o preço.');
       }
-    } else {
-      console.log(`(v4) ⚠️ [PLATFORM] Unknown platform, trying generic selectors`);
-      // Fallback para plataformas desconhecidas
-      const genericSelectors = [
-        '[class*="price"]', 
-        '[id*="price"]', 
-        '[data-testid*="price"]'
-      ];
-      for (const selector of genericSelectors) {
-        const elements = doc.querySelectorAll(selector);
-        for (const element of elements) {
-          const text = element.textContent?.trim();
-          if (text && /[\d,.]/.test(text)) {
-            priceText = text;
-            console.log(`(v4) ✅ [GENERIC] Found price text "${priceText}" with selector "${selector}"`);
-            break;
+    }
+
+    // Camada 2: Buscar por seletores de CSS específicos (Nossa abordagem anterior, agora como fallback)
+    const priceSelectors = [
+      '.ui-pdp-price__figure .andes-money-amount__fraction', // Seletor principal
+      '.andes-money-amount.ui-pdp-price__part--medium .andes-money-amount__fraction', // Outra variação
+      'meta[itemprop="price"]' // Meta tag de preço
+    ];
+
+    for (const selector of priceSelectors) {
+      const element = doc.querySelector(selector);
+      if (element) {
+        const priceText = element.tagName === 'META' ? element.getAttribute('content') : element.textContent;
+        if (priceText) {
+          const cleanedPrice = cleanPrice(priceText); // Usa a sua função de limpeza existente
+          if (cleanedPrice > 0) {
+            console.log(`[V2] ✅ Preço encontrado via seletor de CSS "${selector}": ${cleanedPrice}`);
+            return cleanedPrice;
           }
         }
-        if (priceText) break;
       }
     }
 
-    if (!priceText) {
-      console.error(`(v4) ❌ [EXTRACTION FAIL] Could not extract any price text.`);
-      return null;
-    }
-
-    // ETAPA 4: Limpeza do Preço
-    console.log(`(v4) 🧹 [CLEANING] Raw price text: "${priceText}"`);
-    const numericPrice = cleanPrice(priceText);
-
-    if (numericPrice > 0) {
-      console.log(`(v4) 💰 [SUCCESS] Final price: ${numericPrice}`);
-      return numericPrice;
-    } else {
-      console.error(`(v4) ❌ [CLEAN FAIL] Failed to clean price text: "${priceText}" -> ${numericPrice}`);
-      return null;
-    }
+    // Camada 3: Se tudo falhar, registre um erro claro.
+    console.error(`[V2] ❌ FALHA TOTAL: Não foi possível extrair o preço para a URL. O site pode ter mudado.`);
+    return null;
 
   } catch (error) {
-    console.error(`(v4) 💥 [EXTRACTION ERROR] HTML parsing failed:`, error);
+    console.error(`[V2] ❌ Erro fatal na função fetchCompetitorPrice:`, error);
     return null;
   }
 }
