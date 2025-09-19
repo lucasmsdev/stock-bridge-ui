@@ -243,17 +243,90 @@ export default function RepricingAlerts() {
     fetchData();
   }, [fetchData]);
 
-  // Auto-refresh data every 10 seconds to show price updates
+  // Subscribe to real-time updates for price_monitoring_jobs table
   useEffect(() => {
-    const interval = setInterval(() => {
-      // Only auto-refresh if user is not currently interacting and there are pending jobs
-      if (!isCreating && !isChecking && monitoringJobs.some(job => job.last_price === null)) {
-        fetchData();
-      }
-    }, 10000); // 10 seconds
+    if (!user?.id) return;
 
-    return () => clearInterval(interval);
-  }, [fetchData, isCreating, isChecking, monitoringJobs]);
+    console.log('🔄 Setting up real-time subscription for price monitoring jobs');
+    
+    const channel = supabase
+      .channel('repricing-alerts-updates')
+      .on(
+        'postgres_changes',
+        {
+          event: 'UPDATE',
+          schema: 'public',
+          table: 'price_monitoring_jobs',
+          filter: `user_id=eq.${user.id}` // Only listen to updates for current user
+        },
+        (payload) => {
+          console.log('✅ Real-time update received:', payload.new);
+          
+          // Update the monitoring jobs state with the new data
+          setMonitoringJobs(currentJobs => {
+            return currentJobs.map(job => {
+              if (job.id === payload.new.id) {
+                // Merge the updated data with existing job data
+                return {
+                  ...job,
+                  ...payload.new,
+                  // Keep the products data as it doesn't change in price updates
+                  products: job.products
+                };
+              }
+              return job;
+            });
+          });
+
+          // Show toast notification when price is found
+          if (payload.new.last_price !== null && payload.old?.last_price === null) {
+            toast({
+              title: "Preço Atualizado!",
+              description: `Preço do concorrente foi verificado: R$ ${Number(payload.new.last_price).toFixed(2)}`,
+            });
+          }
+        }
+      )
+      .on(
+        'postgres_changes',
+        {
+          event: 'INSERT',
+          schema: 'public',
+          table: 'price_monitoring_jobs',
+          filter: `user_id=eq.${user.id}`
+        },
+        (payload) => {
+          console.log('✅ New monitoring job created:', payload.new);
+          // Re-fetch data to get the complete job with product information
+          fetchData();
+        }
+      )
+      .on(
+        'postgres_changes',
+        {
+          event: 'DELETE',
+          schema: 'public',
+          table: 'price_monitoring_jobs',
+          filter: `user_id=eq.${user.id}`
+        },
+        (payload) => {
+          console.log('✅ Monitoring job deleted:', payload.old);
+          // Remove the deleted job from state
+          setMonitoringJobs(currentJobs => 
+            currentJobs.filter(job => job.id !== payload.old.id)
+          );
+        }
+      )
+      .subscribe((status) => {
+        console.log('📡 Subscription status:', status);
+      });
+
+    // Cleanup subscription on unmount or user change
+    return () => {
+      console.log('🔌 Cleaning up real-time subscription');
+      supabase.removeChannel(channel);
+    };
+  }, [user?.id, toast, fetchData]);
 
   // NOW HANDLE CONDITIONAL RETURNS AFTER ALL HOOKS
   // Check access - wait for plan to load
