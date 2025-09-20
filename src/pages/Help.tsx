@@ -200,7 +200,7 @@ export default function Help() {
 
                 <div className="flex gap-2">
                   <Button 
-                    onClick={() => navigate('/integrations')}
+                    onClick={() => navigate('/app/integrations')}
                     className="bg-gradient-primary hover:bg-primary-hover transition-all duration-200"
                   >
                     Conectar {guide.name}
@@ -226,10 +226,19 @@ export default function Help() {
             nossa equipe de suporte está pronta para ajudar.
           </p>
           <div className="flex gap-2">
-            <Button variant="outline">
-              Contatar Suporte
+            <Button variant="outline" asChild>
+              <a
+                href="https://wa.me/5512996872975"
+                target="_blank"
+                rel="noopener noreferrer"
+              >
+                Contatar Suporte
+              </a>
             </Button>
-            <Button variant="outline">
+            <Button 
+              variant="outline"
+              onClick={() => navigate('/app/faq')}
+            >
               FAQ Completo
             </Button>
           </div>

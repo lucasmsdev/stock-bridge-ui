@@ -16,6 +16,7 @@ import Finance from "./pages/Finance";
 import Integrations from "./pages/Integrations";
 import MarketAnalysis from "./pages/MarketAnalysis";
 import Help from "./pages/Help";
+import FAQ from "./pages/FAQ";
 import Profile from "./pages/Profile";
 import Billing from "./pages/Billing";
 import MercadoLivreCallback from "./pages/callback/MercadoLivreCallback";
@@ -56,6 +57,7 @@ const App = () => (
                 <Route path="integrations" element={<Integrations />} />
                 <Route path="market-analysis" element={<MarketAnalysis />} />
                 <Route path="help" element={<Help />} />
+                <Route path="faq" element={<FAQ />} />
                 <Route path="profile" element={<Profile />} />
                 <Route path="billing" element={<Billing />} />
                 <Route path="repricing-alerts" element={<RepricingAlerts />} />
