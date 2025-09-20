@@ -24,25 +24,11 @@ import { UpgradeBanner } from "@/components/ui/upgrade-banner";
 // Mock data
 const availableIntegrations = [
   {
-    id: "shopify",
-    name: "Shopify",
-    description: "Conecte sua loja Shopify para sincronizar produtos e pedidos",
-    popular: true,
-    logoUrl: "https://cdn.worldvectorlogo.com/logos/shopify.svg"
-  },
-  {
     id: "mercadolivre",
     name: "Mercado Livre",
     description: "Integração completa com o maior marketplace da América Latina",
     popular: true,
     logoUrl: "https://vectorseek.com/wp-content/uploads/2023/08/Mercado-Livre-Icon-Logo-Vector.svg-.png"
-  },
-  {
-    id: "shopee",
-    name: "Shopee",
-    description: "Conecte-se ao maior marketplace de vendas online do Sudeste Asiático",
-    popular: true,
-    logoUrl: "https://upload.wikimedia.org/wikipedia/commons/thumb/0/0e/Shopee_logo.svg/1442px-Shopee_logo.svg.png"
   },
   {
     id: "amazon",
@@ -51,24 +37,6 @@ const availableIntegrations = [
     popular: true,
     logoUrl: "https://upload.wikimedia.org/wikipedia/commons/d/de/Amazon_icon.png",
     darkInvert: true
-  },
-  {
-    id: "magento",
-    name: "Magento",
-    description: "Conecte sua loja Magento para gerenciamento centralizado",
-    popular: false
-  },
-  {
-    id: "woocommerce",
-    name: "WooCommerce", 
-    description: "Integração com a plataforma de e-commerce do WordPress",
-    popular: false
-  },
-  {
-    id: "vtex",
-    name: "VTEX",
-    description: "Conecte sua loja VTEX para sincronização automática",
-    popular: false
   }
 ];
 
