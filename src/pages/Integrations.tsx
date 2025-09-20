@@ -31,6 +31,13 @@ const availableIntegrations = [
     logoUrl: "https://vectorseek.com/wp-content/uploads/2023/08/Mercado-Livre-Icon-Logo-Vector.svg-.png"
   },
   {
+    id: "shopee",
+    name: "Shopee",
+    description: "Conecte-se ao maior marketplace de vendas online do Sudeste Asiático",
+    popular: true,
+    logoUrl: "https://upload.wikimedia.org/wikipedia/commons/thumb/0/0e/Shopee_logo.svg/1442px-Shopee_logo.svg.png"
+  },
+  {
     id: "amazon",
     name: "Amazon",
     description: "Venda seus produtos na maior plataforma de e-commerce do mundo",
