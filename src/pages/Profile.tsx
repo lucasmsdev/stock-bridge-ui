@@ -26,7 +26,8 @@ import {
   Trash2, 
   Camera, 
   Save,
-  Loader2 
+  Loader2,
+  Database 
 } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import { usePlan } from "@/hooks/usePlan";
@@ -69,6 +70,7 @@ export default function Profile() {
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
+  const [isSeeding, setIsSeeding] = useState(false);
   const [profileData, setProfileData] = useState<ProfileData>({
     full_name: '',
     company_name: '',
@@ -343,6 +345,40 @@ export default function Profile() {
     }
   };
 
+  const handleSeedAdminAccount = async () => {
+    if (!user || !isAdmin) return;
+    
+    try {
+      setIsSeeding(true);
+      
+      const { data, error } = await supabase.functions.invoke('seed-admin-account', {
+        headers: {
+          Authorization: `Bearer ${(await supabase.auth.getSession()).data.session?.access_token}`,
+        },
+      });
+
+      if (error) {
+        console.error('❌ Erro na função seed-admin-account:', error);
+        throw new Error(error.message || 'Erro ao gerar dados de demonstração');
+      }
+
+      toast({
+        title: "✅ Dados de demonstração criados!",
+        description: `Foram criados: ${data.summary?.products || 0} produtos, ${data.summary?.orders || 0} pedidos, ${data.summary?.monitoring_jobs || 0} alertas e ${data.summary?.notifications || 0} notificações.`,
+      });
+      
+    } catch (error) {
+      console.error('💥 Erro ao gerar dados:', error);
+      toast({
+        title: "❌ Erro ao gerar dados",
+        description: error instanceof Error ? error.message : "Não foi possível gerar os dados de demonstração.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsSeeding(false);
+    }
+  };
+
   const getUserInitials = (email: string) => {
     return email.split('@')[0].slice(0, 2).toUpperCase();
   };
@@ -595,6 +631,42 @@ export default function Profile() {
               )}
             </CardContent>
           </Card>
+
+          {/* Admin Tools */}
+          {isAdmin && (
+            <Card className="border-primary/20 bg-primary/5">
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2 text-primary">
+                  <Database className="h-5 w-5" />
+                  Ferramentas de Administrador
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-4">
+                  <div>
+                    <h4 className="font-medium text-foreground mb-2">Gerar Dados de Demonstração</h4>
+                    <p className="text-sm text-muted-foreground mb-4">
+                      Popula sua conta com produtos, pedidos e alertas fictícios para captura de tela do dashboard.
+                    </p>
+                    
+                    <Button 
+                      onClick={handleSeedAdminAccount}
+                      disabled={isSeeding}
+                      size="sm"
+                      className="bg-primary hover:bg-primary/90"
+                    >
+                      {isSeeding ? (
+                        <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                      ) : (
+                        <Database className="h-4 w-4 mr-2" />
+                      )}
+                      Gerar Dados de Demonstração
+                    </Button>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          )}
 
           {/* Account Management */}
           <Card className="border-destructive/20">
