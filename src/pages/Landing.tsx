@@ -184,42 +184,24 @@ const Landing = () => {
         </div>
 
         <div className="mt-16 relative">
-          <div className="mx-auto max-w-4xl">
-            <div className="relative rounded-xl bg-card border shadow-2xl dark:shadow-primary/10">
-              <div className="flex items-center gap-2 px-4 py-3 border-b border-border">
-                <div className="w-3 h-3 rounded-full bg-red-500"></div>
-                <div className="w-3 h-3 rounded-full bg-yellow-500"></div>
-                <div className="w-3 h-3 rounded-full bg-green-500"></div>
-                <span className="ml-2 text-sm text-muted-foreground">UniStock Dashboard</span>
-              </div>
-              <div className="p-8">
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
-                  <Card className="border-border">
-                    <CardContent className="p-4">
-                      <div className="text-2xl font-bold text-primary">1.247</div>
-                      <div className="text-sm text-muted-foreground">Produtos Sincronizados</div>
-                    </CardContent>
-                  </Card>
-                  <Card className="border-border">
-                    <CardContent className="p-4">
-                      <div className="text-2xl font-bold text-green-600 dark:text-green-400">R$ 45.231</div>
-                      <div className="text-sm text-muted-foreground">Receita Este Mês</div>
-                    </CardContent>
-                  </Card>
-                  <Card className="border-border">
-                    <CardContent className="p-4">
-                      <div className="text-2xl font-bold text-blue-600 dark:text-blue-400">87%</div>
-                      <div className="text-sm text-muted-foreground">Margem Média</div>
-                    </CardContent>
-                  </Card>
-                </div>
-                <div className="h-32 bg-gradient-to-r from-primary/20 to-blue-500/20 dark:from-primary/30 dark:to-blue-500/30 rounded-lg flex items-center justify-center">
-                  <div className="text-center">
-                    <BarChart3 className="h-12 w-12 mx-auto text-primary mb-2" />
-                    <p className="text-sm text-muted-foreground">Gráfico de Performance</p>
-                  </div>
-                </div>
-              </div>
+          <div className="mx-auto max-w-5xl">
+            <div 
+              className="relative rounded-xl overflow-hidden"
+              style={{
+                boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.25), 0 0 0 1px rgba(255, 255, 255, 0.1)',
+                transform: 'perspective(1000px) rotateX(2deg) rotateY(-2deg)',
+                border: '1px solid rgba(255, 255, 255, 0.1)'
+              }}
+            >
+              <img
+                src="/images/dashboard-real-preview.png"
+                alt="Dashboard do UniStock mostrando métricas de vendas e lucratividade"
+                className="w-full h-auto"
+                style={{
+                  display: 'block',
+                  borderRadius: '0.75rem'
+                }}
+              />
             </div>
           </div>
         </div>
