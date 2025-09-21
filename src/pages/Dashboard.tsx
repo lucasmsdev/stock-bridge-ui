@@ -225,76 +225,71 @@ export default function Dashboard() {
     (dashboardData.salesLast7Days && dashboardData.salesLast7Days.some(day => day.revenue > 0))
   );
 
-  // Empty state (no meaningful data)
-  if (!hasData) {
-    return (
-      <div className="space-y-6 animate-fade-in">
-        <div>
-          <h1 className="text-3xl font-bold text-foreground">Dashboard</h1>
-          <p className="text-muted-foreground">
-            Acompanhe suas vendas e performance em todos os canais
-          </p>
-          <div className="mt-2">
-            <Badge variant="outline" className="capitalize">
-              Plano {currentPlan}
-            </Badge>
-          </div>
-        </div>
-        
-        <div className="flex flex-col items-center justify-center min-h-[400px] text-center">
-          <div className="relative mb-6">
-            <TrendingUp className="h-16 w-16 text-primary/30" />
-            <div className="absolute -bottom-1 -right-1 bg-background border-2 border-primary/20 rounded-full p-1">
-              <Package className="h-6 w-6 text-muted-foreground/50" />
-            </div>
-          </div>
-          <h2 className="text-2xl font-semibold text-foreground mb-3">
-            Seu Dashboard Está Quase Pronto!
-          </h2>
-          <p className="text-muted-foreground max-w-md mb-6 leading-relaxed">
-            Assim que sua primeira venda for sincronizada, seus gráficos de performance, 
-            métricas de faturamento e principais produtos aparecerão aqui. 
-            Nenhuma ação é necessária.
-          </p>
-          <div className="flex gap-3">
-            <Card className="p-4 text-center">
-              <Package className="h-8 w-8 text-muted-foreground/30 mx-auto mb-2" />
-              <p className="text-sm text-muted-foreground">Produtos</p>
-              <p className="text-lg font-semibold">{dashboardData?.totalProducts || 0}</p>
-            </Card>
-            <Card className="p-4 text-center">
-              <ShoppingCart className="h-8 w-8 text-muted-foreground/30 mx-auto mb-2" />
-              <p className="text-sm text-muted-foreground">Vendas Hoje</p>
-              <p className="text-lg font-semibold">{dashboardData?.todayOrders || 0}</p>
-            </Card>
-          </div>
-        </div>
-      </div>
-    );
-  }
+  // Demo data for when dashboard is empty
+  const demoData = {
+    todayRevenue: 1874.50,
+    todayOrders: 12,
+    totalProducts: 842,
+    salesLast7Days: [
+      { date: "2024-09-13", revenue: 1200 },
+      { date: "2024-09-14", revenue: 1500 },
+      { date: "2024-09-15", revenue: 1400 },
+      { date: "2024-09-16", revenue: 1800 },
+      { date: "2024-09-17", revenue: 2100 },
+      { date: "2024-09-18", revenue: 2500 },
+      { date: "2024-09-19", revenue: 2850 }
+    ]
+  };
 
-  // Success state - render dashboard with data
+  const demoOrders = [
+    {
+      id: "1",
+      productName: "Monitor Gamer UltraWide 34\"",
+      sku: "UG34-01",
+      status: "Entregue",
+      value: 2899.90
+    },
+    {
+      id: "2", 
+      productName: "Teclado Mecânico RGB TKL",
+      sku: "TM-RGB-TKL",
+      status: "Enviado",
+      value: 349.90
+    },
+    {
+      id: "3",
+      productName: "Mouse Gamer Sem Fio 16k DPI", 
+      sku: "MG-SF-16K",
+      status: "Processando",
+      value: 499.00
+    }
+  ];
+
+  // Use demo data if no real data exists
+  const displayData = hasData ? dashboardData : demoData;
+
+  // Success state - render dashboard with data (real or demo)
   const metrics: MetricCard[] = [
     {
       title: "Vendas Totais (Hoje)",
-      value: formatCurrency(dashboardData.todayRevenue),
+      value: formatCurrency(displayData.todayRevenue),
       icon: DollarSign,
-      trend: "+0%",
+      trend: hasData ? "+0%" : "+15%",
       color: "text-success"
     },
     {
       title: "Pedidos Recebidos (Hoje)",
-      value: dashboardData.todayOrders.toString(),
+      value: displayData.todayOrders.toString(),
       icon: ShoppingCart,
-      trend: "+0%",
+      trend: hasData ? "+0%" : "+8%",
       color: "text-primary"
     },
     {
       title: "Itens em Estoque",
-      value: dashboardData.totalProducts.toString(),
+      value: displayData.totalProducts.toString(),
       icon: Package,
-      trend: "0%",
-      color: "text-warning"
+      trend: hasData ? "0%" : "-2%",
+      color: hasData ? "text-warning" : "text-destructive"
     },
     {
       title: "Canais Ativos",
@@ -360,7 +355,7 @@ export default function Dashboard() {
             <div className="h-[200px]">
               <ChartContainer config={chartConfig}>
                 <BarChart
-                  data={dashboardData.salesLast7Days.map(item => ({
+                  data={displayData.salesLast7Days.map(item => ({
                     ...item,
                     displayDate: formatDate(item.date)
                   }))}
@@ -392,7 +387,7 @@ export default function Dashboard() {
           </CardContent>
         </Card>
 
-        {/* Recent Orders Placeholder */}
+        {/* Recent Orders */}
         <Card className="shadow-soft">
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
@@ -401,11 +396,47 @@ export default function Dashboard() {
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="text-center py-8 text-muted-foreground">
-              <ShoppingCart className="h-12 w-12 mx-auto mb-4 opacity-50" />
-              <p>Nenhum pedido encontrado</p>
-              <p className="text-sm">Os pedidos aparecerão aqui quando você conectar seus canais de venda</p>
-            </div>
+            {!hasData && demoOrders ? (
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Produto</TableHead>
+                    <TableHead>SKU</TableHead>
+                    <TableHead>Status</TableHead>
+                    <TableHead className="text-right">Valor</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {demoOrders.map((order) => (
+                    <TableRow key={order.id}>
+                      <TableCell className="font-medium">{order.productName}</TableCell>
+                      <TableCell className="text-muted-foreground">{order.sku}</TableCell>
+                      <TableCell>
+                        <Badge 
+                          variant={
+                            order.status === "Entregue" ? "default" :
+                            order.status === "Enviado" ? "secondary" : 
+                            "outline"
+                          }
+                          className="text-xs"
+                        >
+                          {order.status}
+                        </Badge>
+                      </TableCell>
+                      <TableCell className="text-right font-medium">
+                        {formatCurrency(order.value)}
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            ) : (
+              <div className="text-center py-8 text-muted-foreground">
+                <ShoppingCart className="h-12 w-12 mx-auto mb-4 opacity-50" />
+                <p>Nenhum pedido encontrado</p>
+                <p className="text-sm">Os pedidos aparecerão aqui quando você conectar seus canais de venda</p>
+              </div>
+            )}
           </CardContent>
         </Card>
       </div>
