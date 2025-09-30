@@ -186,17 +186,27 @@ const Landing = () => {
         <div className="mt-16 relative">
           <div className="mx-auto max-w-6xl px-4">
             <div 
-              className="relative rounded-xl overflow-hidden shadow-2xl"
+              className="relative rounded-xl overflow-hidden shadow-2xl group cursor-pointer"
               style={{
                 boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.25), 0 0 0 1px rgba(255, 255, 255, 0.1)',
                 transform: 'perspective(1500px) rotateX(3deg)',
-                border: '1px solid rgba(255, 255, 255, 0.1)'
+                border: '1px solid rgba(255, 255, 255, 0.1)',
+                transition: 'all 0.5s cubic-bezier(0.4, 0, 0.2, 1)'
               }}
             >
               <img
                 src="/images/dashboard-preview.png"
                 alt="Dashboard do UniStock mostrando métricas de vendas e lucratividade em tempo real"
-                className="w-full h-auto"
+                className="w-full h-auto transition-opacity duration-500 group-hover:opacity-0"
+                style={{
+                  display: 'block',
+                  borderRadius: '0.75rem'
+                }}
+              />
+              <img
+                src="/images/dashboard-hover-preview.png"
+                alt="Dashboard do UniStock com visualização detalhada ao passar o mouse"
+                className="w-full h-auto absolute top-0 left-0 opacity-0 transition-opacity duration-500 group-hover:opacity-100"
                 style={{
                   display: 'block',
                   borderRadius: '0.75rem'
