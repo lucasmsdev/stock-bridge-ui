@@ -186,32 +186,23 @@ const Landing = () => {
         <div className="mt-16 relative">
           <div className="mx-auto max-w-6xl px-4">
             <div 
-              className="relative rounded-xl overflow-hidden shadow-2xl group cursor-pointer"
+              className="relative rounded-xl overflow-hidden shadow-2xl group cursor-pointer transition-all duration-700 ease-out hover:shadow-[0_35px_60px_-15px_rgba(0,0,0,0.4)] hover:scale-[1.02] hover:-translate-y-2"
               style={{
                 boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.25), 0 0 0 1px rgba(255, 255, 255, 0.1)',
                 transform: 'perspective(1500px) rotateX(3deg)',
-                border: '1px solid rgba(255, 255, 255, 0.1)',
-                transition: 'all 0.5s cubic-bezier(0.4, 0, 0.2, 1)'
+                border: '1px solid rgba(255, 255, 255, 0.1)'
               }}
             >
               <img
-                src="/images/dashboard-preview.png"
-                alt="Dashboard do UniStock mostrando métricas de vendas e lucratividade em tempo real"
-                className="w-full h-auto transition-opacity duration-500 group-hover:opacity-0"
-                style={{
-                  display: 'block',
-                  borderRadius: '0.75rem'
-                }}
-              />
-              <img
                 src="/images/dashboard-hover-preview.png"
-                alt="Dashboard do UniStock com visualização detalhada ao passar o mouse"
-                className="w-full h-auto absolute top-0 left-0 opacity-0 transition-opacity duration-500 group-hover:opacity-100"
+                alt="Dashboard do UniStock mostrando métricas de vendas e lucratividade em tempo real"
+                className="w-full h-auto transition-all duration-700 ease-out group-hover:brightness-110"
                 style={{
                   display: 'block',
                   borderRadius: '0.75rem'
                 }}
               />
+              <div className="absolute inset-0 bg-gradient-to-t from-primary/10 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-700 pointer-events-none" />
             </div>
           </div>
         </div>
