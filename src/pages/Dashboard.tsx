@@ -277,17 +277,19 @@ export default function Dashboard() {
               </CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="h-[200px]">
+              <div className="h-[240px] pt-4">
                 <ChartContainer config={chartConfig}>
                   <BarChart
                     data={dashboardData.salesLast7Days.map(item => ({
                       ...item,
                       displayDate: formatDate(item.date)
                     }))}
+                    margin={{ top: 10, right: 10, left: 10, bottom: 10 }}
+                    barCategoryGap="20%"
                   >
                     <XAxis 
                       dataKey="displayDate" 
-                      tick={{ fontSize: 12 }}
+                      tick={{ fontSize: 12, fill: 'hsl(var(--muted-foreground))' }}
                       tickLine={false}
                       axisLine={false}
                     />
@@ -304,7 +306,8 @@ export default function Dashboard() {
                     <Bar 
                       dataKey="revenue" 
                       fill="var(--color-revenue)" 
-                      radius={[2, 2, 0, 0]}
+                      radius={[4, 4, 0, 0]}
+                      maxBarSize={60}
                     />
                   </BarChart>
                 </ChartContainer>
@@ -333,15 +336,18 @@ export default function Dashboard() {
                   </TableHeader>
                   <TableBody>
                     {demoOrders.map((order) => (
-                      <TableRow key={order.id}>
+                      <TableRow 
+                        key={order.id}
+                        className="border-b border-border/50 hover:bg-muted/50 transition-colors cursor-pointer"
+                      >
                         <TableCell className="font-medium">{order.productName}</TableCell>
                         <TableCell className="text-muted-foreground">{order.sku}</TableCell>
                         <TableCell>
                           <Badge 
                             variant={
-                              order.status === "Entregue" ? "default" :
-                              order.status === "Enviado" ? "secondary" : 
-                              "outline"
+                              order.status === "Entregue" ? "success" :
+                              order.status === "Enviado" ? "default" : 
+                              "warning"
                             }
                             className="text-xs"
                           >
