@@ -241,7 +241,7 @@ export default function Dashboard() {
     return (
       <>
         {/* Metrics Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 lg:gap-6">
           {metrics.map((metric, index) => (
             <Card 
               key={metric.title} 
@@ -255,8 +255,8 @@ export default function Dashboard() {
                 <metric.icon className={`h-4 w-4 ${metric.color} transition-transform hover:scale-110`} />
               </CardHeader>
               <CardContent>
-                <div className="text-2xl font-bold text-foreground">{metric.value}</div>
-                <p className="text-xs text-muted-foreground">
+                <div className="text-2xl font-bold text-foreground break-words">{metric.value}</div>
+                <p className="text-xs text-muted-foreground mt-1">
                   <span className={metric.trend.startsWith('+') ? 'text-success' : 'text-destructive'}>
                     {metric.trend}
                   </span>{" "}
@@ -267,7 +267,7 @@ export default function Dashboard() {
           ))}
         </div>
 
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <div className="grid grid-cols-1 xl:grid-cols-2 gap-4 lg:gap-6">
           {/* Sales Chart */}
           <Card className="shadow-soft">
             <CardHeader>
@@ -277,21 +277,22 @@ export default function Dashboard() {
               </CardTitle>
             </CardHeader>
             <CardContent className="pb-8">
-              <div className="h-[280px]">
-                <ChartContainer config={chartConfig}>
+              <div className="h-[300px] w-full">
+                <ChartContainer config={chartConfig} className="h-full w-full">
                   <BarChart
                     data={dashboardData.salesLast7Days.map(item => ({
                       ...item,
                       displayDate: formatDate(item.date)
                     }))}
                     margin={{ top: 20, right: 20, left: 0, bottom: 40 }}
-                    barCategoryGap="20%"
+                    barCategoryGap="25%"
                   >
                     <XAxis 
                       dataKey="displayDate" 
                       tick={{ fontSize: 12, fill: 'hsl(var(--muted-foreground))' }}
                       tickLine={false}
                       axisLine={false}
+                      height={60}
                     />
                     <YAxis hide />
                     <ChartTooltip 
@@ -306,8 +307,8 @@ export default function Dashboard() {
                     <Bar 
                       dataKey="revenue" 
                       fill="var(--color-revenue)" 
-                      radius={[4, 4, 0, 0]}
-                      maxBarSize={60}
+                      radius={[6, 6, 0, 0]}
+                      maxBarSize={80}
                     />
                   </BarChart>
                 </ChartContainer>
@@ -323,7 +324,7 @@ export default function Dashboard() {
                 Últimos Pedidos Recebidos
               </CardTitle>
             </CardHeader>
-            <CardContent>
+            <CardContent className="overflow-x-auto">
               {!hasRealData ? (
                 <Table>
                   <TableHeader>
