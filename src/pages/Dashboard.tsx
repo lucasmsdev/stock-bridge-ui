@@ -276,15 +276,15 @@ export default function Dashboard() {
                 Vendas (Últimos 7 dias)
               </CardTitle>
             </CardHeader>
-            <CardContent>
-              <div className="h-[240px] pt-4">
+            <CardContent className="pb-8">
+              <div className="h-[280px]">
                 <ChartContainer config={chartConfig}>
                   <BarChart
                     data={dashboardData.salesLast7Days.map(item => ({
                       ...item,
                       displayDate: formatDate(item.date)
                     }))}
-                    margin={{ top: 10, right: 10, left: 10, bottom: 10 }}
+                    margin={{ top: 20, right: 20, left: 0, bottom: 40 }}
                     barCategoryGap="20%"
                   >
                     <XAxis 
