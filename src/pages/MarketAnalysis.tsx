@@ -35,16 +35,27 @@ interface VariationAnalysis {
   variations: string[];
 }
 
+interface CategoryAnalysis {
+  productTitle: string;
+  categories: Array<{
+    name: string;
+    count: number;
+    id: string;
+  }>;
+}
+
 export default function MarketAnalysis() {
   const [searchTerm, setSearchTerm] = useState("");
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [analysis, setAnalysis] = useState<ComparativeAnalysis | null>(null);
+  const [categories, setCategories] = useState<CategoryAnalysis | null>(null);
   const [variations, setVariations] = useState<VariationAnalysis | null>(null);
+  const [selectedCategory, setSelectedCategory] = useState<{ name: string; id: string } | null>(null);
   const [selectedVariation, setSelectedVariation] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const { toast } = useToast();
 
-  const handleAnalyze = async (variation?: string) => {
+  const handleAnalyze = async (categoryId?: string, categoryName?: string, variation?: string) => {
     if (!searchTerm.trim()) {
       toast({
         title: "Campo obrigatório",
@@ -57,22 +68,32 @@ export default function MarketAnalysis() {
     setIsAnalyzing(true);
     setError(null);
     
-    // Reset states based on whether we're analyzing a variation
+    // Reset states based on the step
     if (variation) {
       setAnalysis(null);
       setSelectedVariation(variation);
-    } else {
-      setAnalysis(null);
+    } else if (categoryId) {
       setVariations(null);
+      setAnalysis(null);
+      setSelectedVariation(null);
+      setSelectedCategory({ id: categoryId, name: categoryName || '' });
+    } else {
+      setCategories(null);
+      setVariations(null);
+      setAnalysis(null);
+      setSelectedCategory(null);
       setSelectedVariation(null);
     }
 
     try {
-      console.log('🚀 Iniciando análise de mercado para:', searchTerm.trim(), variation ? `com variação: ${variation}` : '');
+      console.log('🚀 Iniciando análise de mercado para:', searchTerm.trim());
+      if (categoryId) console.log('📂 Categoria selecionada:', categoryName);
+      if (variation) console.log('🎯 Variação selecionada:', variation);
       
       const { data, error: functionError } = await supabase.functions.invoke('get-comparative-pricing', {
         body: { 
           searchTerm: searchTerm.trim(),
+          category: categoryId || null,
           variation: variation || null
         }
       });
@@ -90,7 +111,14 @@ export default function MarketAnalysis() {
         return;
       }
 
-      if (data?.success && data?.step === 'variations' && data?.data) {
+      if (data?.success && data?.step === 'categories' && data?.data) {
+        console.log('✅ Categorias recebidas com sucesso');
+        setCategories(data.data);
+        toast({
+          title: "Categorias encontradas",
+          description: `Encontradas ${data.data.categories.length} categorias para "${data.data.productTitle}".`,
+        });
+      } else if (data?.success && data?.step === 'variations' && data?.data) {
         console.log('✅ Variações recebidas com sucesso');
         setVariations(data.data);
         toast({
@@ -134,8 +162,10 @@ export default function MarketAnalysis() {
   };
 
   const handleStartOver = () => {
+    setCategories(null);
     setVariations(null);
     setAnalysis(null);
+    setSelectedCategory(null);
     setSelectedVariation(null);
     setError(null);
   };
@@ -252,29 +282,29 @@ export default function MarketAnalysis() {
         </CardContent>
       </Card>
 
-      {/* Variation Selection */}
-      {variations && !selectedVariation && (
+      {/* Category Selection */}
+      {categories && !selectedCategory && (
         <Card className="shadow-soft">
           <CardHeader>
-            <CardTitle>Selecione a Variação</CardTitle>
+            <CardTitle>Selecione a Categoria</CardTitle>
             <CardDescription>
-              Encontramos diferentes variações para "{variations.productTitle}". Selecione a que você deseja analisar:
+              Encontramos diferentes categorias para "{categories.productTitle}". Selecione a categoria que você deseja analisar:
             </CardDescription>
           </CardHeader>
           <CardContent>
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3 mb-4">
-              {variations.variations.map((variation, index) => (
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3 mb-4">
+              {categories.categories.map((category, index) => (
                 <Button
                   key={index}
                   variant="outline"
                   className="text-left justify-start h-auto p-4 hover:border-primary hover:bg-primary/5"
-                  onClick={() => handleAnalyze(variation)}
+                  onClick={() => handleAnalyze(category.id, category.name)}
                   disabled={isAnalyzing}
                 >
-                  <div>
-                    <div className="font-medium">{variation}</div>
+                  <div className="flex-1">
+                    <div className="font-medium">{category.name}</div>
                     <div className="text-xs text-muted-foreground mt-1">
-                      Clique para analisar preços
+                      {category.count} produtos encontrados
                     </div>
                   </div>
                 </Button>
@@ -296,6 +326,60 @@ export default function MarketAnalysis() {
         </Card>
       )}
 
+      {/* Variation Selection */}
+      {variations && selectedCategory && !selectedVariation && (
+        <Card className="shadow-soft">
+          <CardHeader>
+            <CardTitle>Selecione a Variação</CardTitle>
+            <CardDescription>
+              Encontramos diferentes variações em "{selectedCategory.name}". Selecione a que você deseja analisar:
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3 mb-4">
+              {variations.variations.map((variation, index) => (
+                <Button
+                  key={index}
+                  variant="outline"
+                  className="text-left justify-start h-auto p-4 hover:border-primary hover:bg-primary/5"
+                  onClick={() => handleAnalyze(selectedCategory.id, selectedCategory.name, variation)}
+                  disabled={isAnalyzing}
+                >
+                  <div>
+                    <div className="font-medium">{variation}</div>
+                    <div className="text-xs text-muted-foreground mt-1">
+                      Clique para analisar preços
+                    </div>
+                  </div>
+                </Button>
+              ))}
+            </div>
+            
+            <Separator className="my-4" />
+            
+            <div className="flex justify-center gap-2">
+              <Button 
+                variant="ghost" 
+                onClick={() => {
+                  setVariations(null);
+                  setSelectedCategory(null);
+                }}
+                className="text-muted-foreground hover:text-foreground"
+              >
+                Voltar às categorias
+              </Button>
+              <Button 
+                variant="ghost" 
+                onClick={handleStartOver}
+                className="text-muted-foreground hover:text-foreground"
+              >
+                Nova busca
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
       {/* Product Title */}
       {analysis && (
         <Card className="shadow-soft">
@@ -303,6 +387,11 @@ export default function MarketAnalysis() {
             <div className="flex items-center justify-between">
               <h2 className="text-2xl font-bold text-foreground mb-4">
                 {analysis.productTitle}
+                {selectedCategory && (
+                  <Badge variant="outline" className="ml-2 text-sm">
+                    {selectedCategory.name}
+                  </Badge>
+                )}
                 {selectedVariation && (
                   <Badge variant="secondary" className="ml-2 text-sm">
                     {selectedVariation}

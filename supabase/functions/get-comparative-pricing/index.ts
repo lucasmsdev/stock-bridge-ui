@@ -45,6 +45,15 @@ interface VariationAnalysis {
   variations: string[];
 }
 
+interface CategoryAnalysis {
+  productTitle: string;
+  categories: Array<{
+    name: string;
+    count: number;
+    id: string;
+  }>;
+}
+
 serve(async (req) => {
   console.log('🚀 Edge Function get-comparative-pricing iniciada');
   
@@ -57,8 +66,9 @@ serve(async (req) => {
   try {
     console.log('📥 Processando requisição:', req.method);
     
-    const { searchTerm, variation } = await req.json();
+    const { searchTerm, variation, category } = await req.json();
     console.log('🔍 Iniciando análise para o termo:', searchTerm);
+    console.log('📂 Categoria específica:', category || 'Não especificada');
     console.log('🎯 Variação específica:', variation || 'Não especificada');
 
     if (!searchTerm || typeof searchTerm !== 'string') {
@@ -95,15 +105,21 @@ serve(async (req) => {
       );
     }
 
-    // Determine search term with variation if provided
-    const finalSearchTerm = variation ? `${searchTerm} ${variation}` : searchTerm;
+    // Determine search term with category and variation if provided
+    let finalSearchTerm = searchTerm;
+    if (category) {
+      finalSearchTerm = `${searchTerm}`;
+    }
+    if (variation) {
+      finalSearchTerm = `${finalSearchTerm} ${variation}`;
+    }
     console.log('🔍 Termo de busca final:', finalSearchTerm);
     
     console.log('🌐 Iniciando busca paralela em múltiplas plataformas...');
     
     // Step 1: Search across all platforms in parallel
     const [mlResults, shopeeResults, amazonResults] = await Promise.allSettled([
-      searchMercadoLibre(finalSearchTerm),
+      searchMercadoLibre(finalSearchTerm, category),
       searchShopee(finalSearchTerm),
       searchAmazon(finalSearchTerm)
     ]);
@@ -153,9 +169,27 @@ serve(async (req) => {
       );
     }
 
-    // Check if this is a variation selection step or final analysis
-    if (!variation) {
-      console.log('🔍 Primeira etapa: Identificando variações disponíveis...');
+    // Check the step: categories -> variations -> analysis
+    if (!category && !variation) {
+      console.log('📂 Primeira etapa: Identificando categorias disponíveis...');
+      
+      // Step 1: Extract categories from results
+      const categoryAnalysis = await extractProductCategories(searchTerm);
+      
+      console.log('✅ Categorias identificadas:', categoryAnalysis.categories);
+      
+      return new Response(
+        JSON.stringify({ 
+          success: true, 
+          step: 'categories',
+          data: categoryAnalysis 
+        }),
+        { 
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
+        }
+      );
+    } else if (category && !variation) {
+      console.log('🔍 Segunda etapa: Identificando variações da categoria...');
       
       // Step 2: Extract variations from results
       const variationAnalysis = extractProductVariations(allRawResults, searchTerm);
@@ -173,7 +207,7 @@ serve(async (req) => {
         }
       );
     } else {
-      console.log('🧠 Segunda etapa: Análise comparativa para variação específica...');
+      console.log('🧠 Terceira etapa: Análise comparativa para variação específica...');
       
       // Step 2: Apply intelligent filtering and scoring for specific variation
       const analysis = performComparativeAnalysis(allRawResults, finalSearchTerm);
@@ -211,6 +245,67 @@ serve(async (req) => {
     );
   }
 });
+
+// Extract product categories from MercadoLibre API
+async function extractProductCategories(searchTerm: string): Promise<CategoryAnalysis> {
+  try {
+    console.log('📂 Extraindo categorias do MercadoLibre para:', searchTerm);
+    
+    const searchUrl = `https://api.mercadolibre.com/sites/MLB/search?q=${encodeURIComponent(searchTerm)}&limit=1`;
+    
+    const response = await fetch(searchUrl, {
+      method: 'GET',
+      headers: {
+        'User-Agent': 'Mozilla/5.0',
+        'Accept': 'application/json',
+      }
+    });
+    
+    if (!response.ok) {
+      throw new Error(`MercadoLibre API error: ${response.status}`);
+    }
+    
+    const data = await response.json();
+    
+    // Extract available filters including category
+    const categories = new Map<string, { name: string; count: number; id: string }>();
+    
+    if (data.available_filters) {
+      const categoryFilter = data.available_filters.find((f: any) => f.id === 'category');
+      
+      if (categoryFilter && categoryFilter.values) {
+        categoryFilter.values.forEach((cat: any) => {
+          categories.set(cat.id, {
+            name: cat.name,
+            count: cat.results || 0,
+            id: cat.id
+          });
+        });
+      }
+    }
+    
+    const categoryList = Array.from(categories.values())
+      .sort((a, b) => b.count - a.count)
+      .slice(0, 6); // Limit to top 6 categories
+    
+    console.log('✅ Categorias extraídas:', categoryList.length);
+    
+    return {
+      productTitle: searchTerm,
+      categories: categoryList
+    };
+  } catch (error) {
+    console.error('❌ Erro ao extrair categorias:', error);
+    // Fallback to generic categories
+    return {
+      productTitle: searchTerm,
+      categories: [
+        { name: 'Produto Principal', count: 100, id: 'main' },
+        { name: 'Acessórios', count: 50, id: 'accessories' }
+      ]
+    };
+  }
+}
 
 // Extract product variations from search results using intelligent pattern recognition
 function extractProductVariations(rawResults: RawResult[], searchTerm: string): VariationAnalysis {
@@ -432,12 +527,17 @@ function calculateRelevanceScore(result: RawResult, searchTerm: string): number 
   return score;
 }
 
-async function searchMercadoLibre(searchTerm: string): Promise<RawResult[]> {
+async function searchMercadoLibre(searchTerm: string, categoryId?: string): Promise<RawResult[]> {
   try {
     console.log('🛒 Buscando no MercadoLibre...');
     
-    // Use MercadoLibre's public API with improved filters
-    const searchUrl = `https://api.mercadolibre.com/sites/MLB/search?q=${encodeURIComponent(searchTerm)}&condition=new&sort=relevance&limit=10`;
+    // Use MercadoLibre's public API with improved filters and category
+    let searchUrl = `https://api.mercadolibre.com/sites/MLB/search?q=${encodeURIComponent(searchTerm)}&condition=new&sort=relevance&limit=10`;
+    
+    if (categoryId && categoryId !== 'main' && categoryId !== 'accessories') {
+      searchUrl += `&category=${categoryId}`;
+      console.log('🏷️ Aplicando filtro de categoria:', categoryId);
+    }
     
     console.log('📞 Chamada API MercadoLibre:', searchUrl);
     
