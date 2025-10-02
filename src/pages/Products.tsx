@@ -356,7 +356,7 @@ export default function Products() {
 
   const handleProductClick = (productId: string) => {
     if (productId) {
-      navigate(`/dashboard/products/${productId}`);
+      navigate(`/app/products/${productId}`);
     } else {
       console.error("Tentativa de navegar para um produto com ID indefinido.");
     }

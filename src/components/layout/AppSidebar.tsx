@@ -13,7 +13,6 @@ import {
   Lock,
   Crown,
   Target,
-  AlertTriangle,
   FileText
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -54,12 +53,6 @@ const navItems = [
     href: "/app/market-analysis", 
     icon: Target, 
     requiresFeature: 'AnaliseDeConcorrencia' as const 
-  },
-  { 
-    title: "Reprecificação", 
-    href: "/app/repricing-alerts", 
-    icon: AlertTriangle, 
-    requiresFeature: 'ReprecificacaoPorAlerta' as const 
   },
   { 
     title: "Relatórios", 

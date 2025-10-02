@@ -23,7 +23,6 @@ import MercadoLivreCallback from "./pages/callback/MercadoLivreCallback";
 import ShopifyCallback from "./pages/callback/ShopifyCallback";
 import ShopifySetup from "./pages/ShopifySetup";
 import Landing from "./pages/Landing";
-import RepricingAlerts from "./pages/RepricingAlerts";
 import Reports from "./pages/Reports";
 import Checkout from "./pages/Checkout";
 
@@ -60,7 +59,6 @@ const App = () => (
                 <Route path="faq" element={<FAQ />} />
                 <Route path="profile" element={<Profile />} />
                 <Route path="billing" element={<Billing />} />
-                <Route path="repricing-alerts" element={<RepricingAlerts />} />
                 <Route path="reports" element={<Reports />} />
               </Route>
 

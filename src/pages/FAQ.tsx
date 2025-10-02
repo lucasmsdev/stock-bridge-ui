@@ -11,11 +11,6 @@ import { useNavigate } from "react-router-dom";
 
 const faqData = [
   {
-    id: "repricing-alerts",
-    question: "Como funciona a Reprecificação por Alerta?",
-    answer: "Nosso sistema monitora o preço do seu concorrente automaticamente. Quando o preço dele mudar (subir ou descer, dependendo da sua configuração), nós te enviamos uma notificação por email e através do painel para que você possa decidir se quer ajustar o seu preço. Você mantém o controle total sobre as mudanças de preço."
-  },
-  {
     id: "data-security",
     question: "Meus dados estão seguros?",
     answer: "Sim, a segurança dos seus dados é nossa prioridade máxima. Todas as suas chaves de API e tokens são criptografados usando algoritmos de criptografia de nível empresarial e armazenados de forma segura em nosso banco de dados. Nunca compartilhamos seus dados com terceiros e seguimos as melhores práticas de segurança da indústria."
@@ -34,21 +29,6 @@ const faqData = [
     id: "supported-platforms",
     question: "Quais plataformas vocês suportam?",
     answer: "Atualmente suportamos Mercado Livre (totalmente funcional), Shopify (em desenvolvimento) e Amazon (em desenvolvimento). O Mercado Livre é nossa integração mais robusta e recomendada para novos usuários. Estamos trabalhando para expandir o suporte completo para outras plataformas."
-  },
-  {
-    id: "pricing-frequency",
-    question: "Com que frequência os preços são verificados?",
-    answer: "Por padrão, verificamos os preços dos concorrentes a cada 6 horas. Usuários dos planos superiores podem ter frequências maiores de verificação. Você também pode forçar uma verificação manual a qualquer momento através do botão 'Verificar Preços Agora' na página de Reprecificação."
-  },
-  {
-    id: "competitor-not-found",
-    question: "E se o sistema não encontrar o concorrente?",
-    answer: "Se não conseguirmos encontrar o produto do concorrente através da URL fornecida, você receberá uma notificação. Verifique se a URL está correta e se o produto ainda está disponível na loja do concorrente. Você pode atualizar a URL a qualquer momento na página de alertas."
-  },
-  {
-    id: "multiple-competitors",
-    question: "Posso monitorar vários concorrentes para o mesmo produto?",
-    answer: "Sim! Você pode criar múltiplos alertas para o mesmo produto, cada um monitorando um concorrente diferente. Isso é muito útil para ter uma visão completa do mercado e tomar decisões de precificação mais informadas."
   }
 ];
 
