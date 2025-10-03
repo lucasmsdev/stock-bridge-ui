@@ -141,6 +141,10 @@ All colors MUST be HSL.
 }
 
 /* Integration logos - dark mode handling */
+.dark-invert {
+  filter: brightness(0) invert(1);
+}
+
 .dark .dark-invert {
-  filter: invert(1);
+  filter: none;
 }

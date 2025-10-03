@@ -7,13 +7,18 @@ interface PlatformLogoProps {
 }
 
 const platformLogos = {
-  mercadolivre: '/logos/mercadolivre.svg',
-  shopify: '/logos/shopify.svg',
-  shopee: '/logos/shopee.svg',
-  amazon: '/logos/amazon.svg',
+  mercadolivre: 'https://vectorseek.com/wp-content/uploads/2023/08/Mercado-Livre-Icon-Logo-Vector.svg-.png',
+  'mercado livre': 'https://vectorseek.com/wp-content/uploads/2023/08/Mercado-Livre-Icon-Logo-Vector.svg-.png',
+  shopify: 'https://upload.wikimedia.org/wikipedia/commons/thumb/f/ff/Shopify_logo_2018.svg/512px-Shopify_logo_2018.svg.png',
+  shopee: 'https://upload.wikimedia.org/wikipedia/commons/thumb/0/0e/Shopee_logo.svg/1442px-Shopee_logo.svg.png',
+  amazon: 'https://upload.wikimedia.org/wikipedia/commons/d/de/Amazon_icon.png',
   magento: '/logos/magento.svg',
   woocommerce: '/logos/woocommerce.svg',
   vtex: '/logos/vtex.svg',
+};
+
+const platformDarkInvert = {
+  amazon: true,
 };
 
 const platformFallbacks = {
@@ -47,16 +52,18 @@ export const PlatformLogo: React.FC<PlatformLogoProps> = ({
     lg: 'w-8 h-8',
   };
 
-  const logoUrl = platformLogos[platform as keyof typeof platformLogos];
-  const fallback = platformFallbacks[platform as keyof typeof platformFallbacks] || '🔌';
-  const colorClass = platformColors[platform as keyof typeof platformColors] || 'bg-gray-500';
+  const normalizedPlatform = platform.toLowerCase().replace(/\s+/g, '');
+  const logoUrl = platformLogos[normalizedPlatform as keyof typeof platformLogos] || platformLogos[platform as keyof typeof platformLogos];
+  const fallback = platformFallbacks[normalizedPlatform as keyof typeof platformFallbacks] || platformFallbacks[platform as keyof typeof platformFallbacks] || '🔌';
+  const colorClass = platformColors[normalizedPlatform as keyof typeof platformColors] || platformColors[platform as keyof typeof platformColors] || 'bg-gray-500';
+  const shouldInvert = platformDarkInvert[normalizedPlatform as keyof typeof platformDarkInvert] || platformDarkInvert[platform as keyof typeof platformDarkInvert] || false;
 
   if (logoUrl) {
     return (
       <img
         src={logoUrl}
         alt={`${platform} logo`}
-        className={`${sizeClasses[size]} ${className} object-contain transition-all duration-200 dark:brightness-110 dark:contrast-110`}
+        className={`${sizeClasses[size]} ${className} object-contain transition-all duration-200 ${shouldInvert ? 'dark-invert' : ''}`}
         onError={(e) => {
           // Fallback to emoji/color background if image fails to load
           const target = e.target as HTMLImageElement;
