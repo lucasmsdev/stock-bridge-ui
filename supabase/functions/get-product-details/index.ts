@@ -169,7 +169,7 @@ async function getMercadoLivreStock(accessToken: string, sku: string): Promise<C
   try {
     console.log(`Fetching Mercado Livre stock for SKU: ${sku}`);
     
-    // Get user info first
+    // Get user info first to validate token
     const userResponse = await fetch(`https://api.mercadolibre.com/users/me`, {
       headers: {
         'Authorization': `Bearer ${accessToken}`
@@ -179,8 +179,8 @@ async function getMercadoLivreStock(accessToken: string, sku: string): Promise<C
     if (!userResponse.ok) {
       console.error(`Failed to get user info from Mercado Livre: ${userResponse.status}`);
       
-      if (userResponse.status === 401) {
-        console.error('Mercado Livre token expired or invalid');
+      if (userResponse.status === 401 || userResponse.status === 403) {
+        console.error('Mercado Livre token may need refresh - please reconnect the integration');
         return {
           channel: 'mercadolivre',
           channelId: '-',

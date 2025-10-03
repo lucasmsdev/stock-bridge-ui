@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { PlatformLogo } from "@/components/ui/platform-logo";
 import {
   Select,
   SelectContent,
@@ -38,7 +39,6 @@ interface Order {
 interface FormattedOrder {
   id: string;
   channel: string;
-  channelIcon: string;
   date: string;
   customer: string;
   items: number;
@@ -49,20 +49,6 @@ interface FormattedOrder {
 
 const channels = ["Todos os Canais", "Mercado Livre", "Shopify"];
 const statuses = ["Todos os Status", "Processando", "Enviado", "Entregue", "Cancelado", "Aguardando Pagamento"];
-
-const getChannelIcon = (platform: string) => {
-  switch (platform.toLowerCase()) {
-    case 'mercado livre':
-    case 'mercadolivre':
-      return "🛒";
-    case 'shopify':
-      return "🛍️";
-    case 'amazon':
-      return "📦";
-    default:
-      return "🛍️";
-  }
-};
 
 const getRandomStatus = () => {
   const statusOptions = [
@@ -125,7 +111,6 @@ export default function Orders() {
         return {
           id: `#${order.order_id_channel}`,
           channel: order.platform,
-          channelIcon: getChannelIcon(order.platform),
           date: order.order_date,
           customer: `Cliente ${index + 1}`, // Since we don't have customer names in the table yet
           items: itemsArray.length,
@@ -327,7 +312,7 @@ export default function Orders() {
                   </TableCell>
                   <TableCell>
                     <div className="flex items-center gap-2">
-                      <span className="text-lg">{order.channelIcon}</span>
+                      <PlatformLogo platform={order.channel} size="sm" />
                       <span className="font-medium">{order.channel}</span>
                     </div>
                   </TableCell>
