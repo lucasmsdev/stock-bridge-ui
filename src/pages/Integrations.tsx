@@ -357,28 +357,32 @@ export default function Integrations() {
                       size="sm" 
                       className="flex-1"
                       onClick={() => {
-                        if (integration.platform === 'mercadolivre') {
-                          toast({
-                            title: "Configurações do Mercado Livre",
-                            description: "Redirecionando para as configurações da integração...",
-                          });
-                          // Navigate to a management page or show configuration modal
-                          setTimeout(() => {
-                            toast({
-                              title: "Funcionalidade em desenvolvimento",
-                              description: "As configurações avançadas estarão disponíveis em breve.",
+                        const newName = prompt('Digite o nome da sua loja:', integration.account_name || integration.platform);
+                        if (newName && newName.trim()) {
+                          supabase
+                            .from('integrations')
+                            .update({ account_name: newName.trim() })
+                            .eq('id', integration.id)
+                            .then(({ error }) => {
+                              if (error) {
+                                toast({
+                                  title: "Erro ao atualizar nome",
+                                  description: "Não foi possível atualizar o nome da conta.",
+                                  variant: "destructive",
+                                });
+                              } else {
+                                toast({
+                                  title: "Nome atualizado",
+                                  description: "O nome da conta foi atualizado com sucesso.",
+                                });
+                                loadConnectedIntegrations();
+                              }
                             });
-                          }, 1000);
-                        } else {
-                          toast({
-                            title: "Configurações em desenvolvimento",
-                            description: `As configurações para ${integration.platform} estarão disponíveis em breve.`,
-                          });
                         }
                       }}
                     >
                       <Settings className="w-4 h-4 mr-2" />
-                      Gerenciar
+                      Editar Nome
                     </Button>
                     
                     <AlertDialog>

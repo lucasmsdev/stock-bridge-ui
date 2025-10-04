@@ -71,7 +71,11 @@ serve(async (req) => {
 
     // Get seller account information from Amazon SP-API
     let accountName = 'Conta Amazon';
+    let sellerId = null;
+    
     try {
+      console.log('Fetching seller information from Amazon SP-API...');
+      
       // Get marketplace participations to retrieve seller information
       const spApiResponse = await fetch(
         'https://sellingpartnerapi-na.amazon.com/sellers/v1/marketplaceParticipations',
@@ -85,16 +89,30 @@ serve(async (req) => {
 
       if (spApiResponse.ok) {
         const spApiData = await spApiResponse.json();
-        // Extract seller name or ID from the response
+        console.log('SP-API marketplace participations response:', JSON.stringify(spApiData, null, 2));
+        
+        // Extract seller information from the response
         if (spApiData.payload && spApiData.payload.length > 0) {
-          const participation = spApiData.payload[0];
-          accountName = participation.seller?.sellerName || 
-                       participation.seller?.sellerId || 
-                       'Conta Amazon';
-          console.log('Successfully obtained seller info from Amazon:', accountName);
+          // The payload contains marketplace and participation information
+          for (const item of spApiData.payload) {
+            if (item.participation) {
+              sellerId = item.participation.sellerId;
+              
+              // Try to get business name or any identifying information
+              if (item.marketplace?.name) {
+                accountName = `Amazon Seller (${item.marketplace.name})`;
+              } else if (sellerId) {
+                accountName = `Amazon Seller ${sellerId}`;
+              }
+              
+              console.log('Found seller info - ID:', sellerId, 'Name:', accountName);
+              break;
+            }
+          }
         }
       } else {
-        console.error('Failed to get seller info from Amazon SP-API:', await spApiResponse.text());
+        const errorText = await spApiResponse.text();
+        console.error('Failed to get seller info from Amazon SP-API. Status:', spApiResponse.status, 'Response:', errorText);
       }
     } catch (sellerInfoError) {
       console.error('Error fetching seller info from Amazon:', sellerInfoError);
