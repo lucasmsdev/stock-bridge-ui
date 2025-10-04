@@ -134,6 +134,26 @@ serve(async (req) => {
     
     console.log('Successfully obtained tokens from Mercado Livre');
 
+    // Get user information from Mercado Livre
+    let accountName = 'Conta Mercado Livre';
+    try {
+      const userInfoResponse = await fetch('https://api.mercadolibre.com/users/me', {
+        headers: {
+          'Authorization': `Bearer ${tokenData.access_token}`,
+        },
+      });
+
+      if (userInfoResponse.ok) {
+        const userInfo = await userInfoResponse.json();
+        accountName = userInfo.nickname || userInfo.first_name || 'Conta Mercado Livre';
+        console.log('Successfully obtained user info from Mercado Livre:', accountName);
+      } else {
+        console.error('Failed to get user info from Mercado Livre');
+      }
+    } catch (userInfoError) {
+      console.error('Error fetching user info from Mercado Livre:', userInfoError);
+    }
+
     // Save or update integration in database
     const { data: existingIntegration, error: selectError } = await supabase
       .from('integrations')
@@ -160,6 +180,7 @@ serve(async (req) => {
         .update({
           access_token: tokenData.access_token,
           refresh_token: tokenData.refresh_token,
+          account_name: accountName,
           updated_at: new Date().toISOString(),
         })
         .eq('id', existingIntegration.id);
@@ -185,6 +206,7 @@ serve(async (req) => {
           platform: 'mercadolivre',
           access_token: tokenData.access_token,
           refresh_token: tokenData.refresh_token,
+          account_name: accountName,
         });
 
       if (insertError) {

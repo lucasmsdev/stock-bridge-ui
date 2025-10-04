@@ -156,6 +156,7 @@ export default function Integrations() {
             user_id: user.id,
             platform: 'amazon',
             access_token: data.accessToken,
+            account_name: data.accountName || 'Conta Amazon',
             shop_domain: 'sandbox', // For sandbox environment
             updated_at: new Date().toISOString()
           }, {
@@ -283,7 +284,12 @@ export default function Integrations() {
                       </div>
                       <div>
                         <CardTitle className="text-lg capitalize">{integration.platform}</CardTitle>
-                        <CardDescription>
+                        {integration.account_name && (
+                          <CardDescription className="font-medium">
+                            {integration.account_name}
+                          </CardDescription>
+                        )}
+                        <CardDescription className="text-xs">
                           Conectado em {new Date(integration.created_at).toLocaleDateString('pt-BR')}
                         </CardDescription>
                       </div>

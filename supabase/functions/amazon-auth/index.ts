@@ -69,11 +69,43 @@ serve(async (req) => {
 
     console.log('Successfully obtained Amazon access token');
 
+    // Get seller account information from Amazon SP-API
+    let accountName = 'Conta Amazon';
+    try {
+      // Get marketplace participations to retrieve seller information
+      const spApiResponse = await fetch(
+        'https://sellingpartnerapi-na.amazon.com/sellers/v1/marketplaceParticipations',
+        {
+          headers: {
+            'Authorization': `Bearer ${responseData.access_token}`,
+            'x-amz-access-token': responseData.access_token,
+          },
+        }
+      );
+
+      if (spApiResponse.ok) {
+        const spApiData = await spApiResponse.json();
+        // Extract seller name or ID from the response
+        if (spApiData.payload && spApiData.payload.length > 0) {
+          const participation = spApiData.payload[0];
+          accountName = participation.seller?.sellerName || 
+                       participation.seller?.sellerId || 
+                       'Conta Amazon';
+          console.log('Successfully obtained seller info from Amazon:', accountName);
+        }
+      } else {
+        console.error('Failed to get seller info from Amazon SP-API:', await spApiResponse.text());
+      }
+    } catch (sellerInfoError) {
+      console.error('Error fetching seller info from Amazon:', sellerInfoError);
+    }
+
     return new Response(
       JSON.stringify({ 
         accessToken: responseData.access_token,
         tokenType: responseData.token_type,
-        expiresIn: responseData.expires_in
+        expiresIn: responseData.expires_in,
+        accountName: accountName
       }), 
       { 
         status: 200, 
