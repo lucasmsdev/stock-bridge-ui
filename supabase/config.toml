@@ -56,3 +56,6 @@ verify_jwt = true
 
 [functions.delete-product]
 verify_jwt = true
+
+[functions.amazon-auth]
+verify_jwt = true
