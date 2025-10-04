@@ -95,7 +95,7 @@ export default function Integrations() {
     }
   };
 
-  const handleConnect = (platformId: string) => {
+  const handleConnect = async (platformId: string) => {
     // All users can access integrations - no restrictions
 
     if (platformId === 'mercadolivre') {
@@ -105,6 +105,87 @@ export default function Integrations() {
       
       // Redirect to Mercado Livre authorization page
       window.location.href = authUrl;
+    } else if (platformId === 'amazon') {
+      try {
+        toast({
+          title: "Conectando com Amazon",
+          description: "Aguarde enquanto autenticamos sua conta...",
+        });
+
+        // Call the amazon-auth edge function
+        const { data, error } = await supabase.functions.invoke('amazon-auth', {
+          method: 'POST'
+        });
+
+        if (error) {
+          console.error('Error connecting to Amazon:', error);
+          toast({
+            title: "Erro ao conectar",
+            description: "Não foi possível conectar com a Amazon. Tente novamente.",
+            variant: "destructive",
+          });
+          return;
+        }
+
+        if (!data?.accessToken) {
+          toast({
+            title: "Erro ao conectar",
+            description: "Não foi possível obter token de acesso da Amazon.",
+            variant: "destructive",
+          });
+          return;
+        }
+
+        // Get current user
+        const { data: { user } } = await supabase.auth.getUser();
+        
+        if (!user) {
+          toast({
+            title: "Erro de autenticação",
+            description: "Você precisa estar logado para conectar integrações.",
+            variant: "destructive",
+          });
+          return;
+        }
+
+        // Save integration to database
+        const { error: saveError } = await supabase
+          .from('integrations')
+          .upsert({
+            user_id: user.id,
+            platform: 'amazon',
+            access_token: data.accessToken,
+            shop_domain: 'sandbox', // For sandbox environment
+            updated_at: new Date().toISOString()
+          }, {
+            onConflict: 'user_id,platform'
+          });
+
+        if (saveError) {
+          console.error('Error saving Amazon integration:', saveError);
+          toast({
+            title: "Erro ao salvar integração",
+            description: "Não foi possível salvar a integração. Tente novamente.",
+            variant: "destructive",
+          });
+          return;
+        }
+
+        toast({
+          title: "Conectado com sucesso!",
+          description: "Sua conta Amazon foi conectada ao PriceWise.",
+        });
+
+        // Reload integrations
+        await loadConnectedIntegrations();
+      } catch (error) {
+        console.error('Unexpected error connecting to Amazon:', error);
+        toast({
+          title: "Erro inesperado",
+          description: "Ocorreu um erro ao conectar com a Amazon.",
+          variant: "destructive",
+        });
+      }
     } else if (platformId === 'shopify') {
       // Show as coming soon
       toast({
