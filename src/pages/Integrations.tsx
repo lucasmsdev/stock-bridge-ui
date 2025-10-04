@@ -96,6 +96,7 @@ export default function Integrations() {
   };
 
   const handleConnect = async (platformId: string) => {
+    console.log('handleConnect called with platformId:', platformId);
     // All users can access integrations - no restrictions
 
     if (platformId === 'mercadolivre') {
