@@ -6,6 +6,9 @@ verify_jwt = false
 [functions.market-analysis-ai]
 verify_jwt = true
 
+[functions.ai-assistant]
+verify_jwt = true
+
 [functions.mercadolivre-auth]
 verify_jwt = true
 

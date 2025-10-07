@@ -13,7 +13,8 @@ import {
   Lock,
   Crown,
   Target,
-  FileText
+  FileText,
+  Sparkles
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
@@ -59,6 +60,12 @@ const navItems = [
     href: "/app/reports", 
     icon: FileText, 
     requiresFeature: 'RelatoriosAvancados' as const 
+  },
+  { 
+    title: "Assistente de IA", 
+    href: "/app/ai-assistant", 
+    icon: Sparkles, 
+    requiresFeature: 'AnaliseDeConcorrencia' as const 
   },
   { title: "Ajuda", href: "/app/help", icon: HelpCircle },
 ];

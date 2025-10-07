@@ -25,6 +25,7 @@ import ShopifySetup from "./pages/ShopifySetup";
 import Landing from "./pages/Landing";
 import Reports from "./pages/Reports";
 import Checkout from "./pages/Checkout";
+import AIAssistant from "./pages/AIAssistant";
 
 const queryClient = new QueryClient();
 
@@ -60,6 +61,7 @@ const App = () => (
                 <Route path="profile" element={<Profile />} />
                 <Route path="billing" element={<Billing />} />
                 <Route path="reports" element={<Reports />} />
+                <Route path="ai-assistant" element={<AIAssistant />} />
               </Route>
 
               {/* Landing page as root */}
