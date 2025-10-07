@@ -100,7 +100,7 @@ IMPORTANTE:
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        model: 'llama-3.1-sonar-large-128k-online',
+        model: 'sonar-pro',
         messages: [
           {
             role: 'system',
@@ -112,10 +112,7 @@ IMPORTANTE:
           }
         ],
         temperature: 0.2,
-        top_p: 0.9,
         max_tokens: 2000,
-        return_images: false,
-        return_related_questions: false,
         search_recency_filter: 'week',
       }),
     });
