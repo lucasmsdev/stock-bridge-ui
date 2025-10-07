@@ -182,6 +182,34 @@ IMPORTANTE:
       );
     }
 
+    // Gerar links de busca reais nas plataformas
+    const searchQuery = encodeURIComponent(searchTerm);
+    analysisData.analysis = analysisData.analysis.map((item: any) => {
+      let searchLink = '';
+      
+      switch (item.platform) {
+        case 'Mercado Livre':
+          searchLink = `https://lista.mercadolivre.com.br/${searchQuery}`;
+          break;
+        case 'Shopee':
+          searchLink = `https://shopee.com.br/search?keyword=${searchQuery}`;
+          break;
+        case 'Amazon':
+          searchLink = `https://www.amazon.com.br/s?k=${searchQuery}`;
+          break;
+        default:
+          searchLink = item.bestOffer.link || '#';
+      }
+      
+      return {
+        ...item,
+        bestOffer: {
+          ...item.bestOffer,
+          link: searchLink
+        }
+      };
+    });
+
     console.log('✅ Análise concluída com sucesso');
     console.log(`📊 Produto: ${analysisData.productTitle}`);
     console.log(`🏪 Plataformas encontradas: ${analysisData.analysis.length}`);

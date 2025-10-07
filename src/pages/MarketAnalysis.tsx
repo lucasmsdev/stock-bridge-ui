@@ -359,7 +359,8 @@ export default function MarketAnalysis() {
                         className="mt-2"
                         onClick={() => window.open(platformAnalysis.bestOffer.link, '_blank')}
                       >
-                        Ver Oferta
+                        <ShoppingCart className="w-4 h-4 mr-1" />
+                        Buscar na Loja
                       </Button>
                     </div>
                   </div>
