@@ -184,10 +184,10 @@ export default function Dashboard() {
 
   // Renderiza dados normalmente (demo ou reais)
   return (
-    <div className="space-y-6 animate-fade-in">
+    <div className="space-y-4 md:space-y-6 animate-fade-in">
       <div>
-        <h1 className="text-3xl font-bold text-foreground">Dashboard</h1>
-        <p className="text-muted-foreground">
+        <h1 className="text-2xl md:text-3xl font-bold text-foreground">Dashboard</h1>
+        <p className="text-sm md:text-base text-muted-foreground">
           Acompanhe suas vendas e performance em todos os canais
         </p>
         <div className="mt-2">
@@ -241,7 +241,7 @@ export default function Dashboard() {
     return (
       <>
         {/* Metrics Cards */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 lg:gap-6">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 md:gap-4 lg:gap-6">
           {metrics.map((metric, index) => (
             <Card 
               key={metric.title} 

@@ -131,15 +131,15 @@ export default function Billing() {
   };
 
   return (
-    <div className="container mx-auto py-6 space-y-6">
-      <div className="flex items-center space-x-4">
+    <div className="container mx-auto py-4 md:py-6 space-y-4 md:space-y-6 px-2 md:px-0">
+      <div className="flex items-center space-x-2 md:space-x-4">
         {!isFirstTime && (
           <Button variant="ghost" onClick={() => navigate(-1)} className="p-2">
-            <ArrowLeft className="h-4 w-4" />
+            <ArrowLeft className="h-3 w-3 md:h-4 md:w-4" />
           </Button>
         )}
         <div>
-          <h1 className="text-3xl font-bold">
+          <h1 className="text-2xl md:text-3xl font-bold">
             {isFirstTime ? "Bem-vindo ao UniStock!" : "Planos e Assinatura"}
           </h1>
           <p className="text-muted-foreground">
@@ -161,7 +161,7 @@ export default function Billing() {
         />
       )}
 
-      <div className="grid md:grid-cols-3 gap-6">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 md:gap-6">
         {Object.entries(allPlans).map(([planKey, plan]) => {
           const PlanIcon = planIcons[planKey as PlanType];
           const isCurrent = isCurrentPlan(planKey as PlanType);

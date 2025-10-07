@@ -34,6 +34,18 @@ const AIAssistant = () => {
     }
   }, [messages]);
 
+  // Função para limpar markdown básico
+  const cleanMarkdown = (text: string) => {
+    return text
+      .replace(/\*\*(.*?)\*\*/g, '$1')  // Remove **bold**
+      .replace(/\*(.*?)\*/g, '$1')      // Remove *italic*
+      .replace(/__(.*?)__/g, '$1')      // Remove __bold__
+      .replace(/_(.*?)_/g, '$1')        // Remove _italic_
+      .replace(/`(.*?)`/g, '$1')        // Remove `code`
+      .replace(/#{1,6}\s/g, '')         // Remove # headers
+      .trim();
+  };
+
   const handleSend = async () => {
     if (!input.trim() || isLoading) return;
 
@@ -57,7 +69,7 @@ const AIAssistant = () => {
       if (data?.answer) {
         const assistantMessage: Message = {
           role: 'assistant',
-          content: data.answer,
+          content: cleanMarkdown(data.answer), // Limpa markdown
           timestamp: new Date()
         };
         setMessages(prev => [...prev, assistantMessage]);
@@ -93,13 +105,13 @@ const AIAssistant = () => {
   ];
 
   return (
-    <div className="container mx-auto py-8 px-4 max-w-6xl">
-      <div className="mb-6">
+    <div className="container mx-auto py-4 md:py-8 px-2 md:px-4 max-w-6xl">
+      <div className="mb-4 md:mb-6">
         <div className="flex items-center gap-2 mb-2">
-          <Sparkles className="h-8 w-8 text-primary" />
-          <h1 className="text-3xl font-bold">Assistente de IA</h1>
+          <Sparkles className="h-6 w-6 md:h-8 md:w-8 text-primary" />
+          <h1 className="text-2xl md:text-3xl font-bold">Assistente de IA</h1>
         </div>
-        <p className="text-muted-foreground">
+        <p className="text-sm md:text-base text-muted-foreground">
           Seu co-piloto inteligente para análise de dados, otimização de vendas e gestão estratégica
         </p>
       </div>
@@ -112,7 +124,7 @@ const AIAssistant = () => {
           </CardTitle>
         </CardHeader>
         <CardContent className="p-0">
-          <ScrollArea className="h-[500px] p-6" ref={scrollRef}>
+          <ScrollArea className="h-[400px] md:h-[500px] p-3 md:p-6" ref={scrollRef}>
             <div className="space-y-4">
               {messages.map((message, index) => (
                 <div
@@ -122,18 +134,18 @@ const AIAssistant = () => {
                   }`}
                 >
                   {message.role === 'assistant' && (
-                    <div className="flex-shrink-0 w-8 h-8 rounded-full bg-primary flex items-center justify-center">
+                    <div className="hidden md:flex flex-shrink-0 w-8 h-8 rounded-full bg-primary items-center justify-center">
                       <Bot className="h-5 w-5 text-primary-foreground" />
                     </div>
                   )}
                   <div
-                    className={`max-w-[80%] rounded-lg p-4 ${
+                    className={`max-w-[85%] md:max-w-[80%] rounded-lg p-3 md:p-4 ${
                       message.role === 'user'
                         ? 'bg-primary text-primary-foreground'
                         : 'bg-muted'
                     }`}
                   >
-                    <p className="text-sm whitespace-pre-wrap">{message.content}</p>
+                    <p className="text-xs md:text-sm whitespace-pre-wrap break-words leading-relaxed">{message.content}</p>
                     <span className="text-xs opacity-70 mt-2 block">
                       {message.timestamp.toLocaleTimeString('pt-BR', { 
                         hour: '2-digit', 
@@ -142,7 +154,7 @@ const AIAssistant = () => {
                     </span>
                   </div>
                   {message.role === 'user' && (
-                    <div className="flex-shrink-0 w-8 h-8 rounded-full bg-secondary flex items-center justify-center">
+                    <div className="hidden md:flex flex-shrink-0 w-8 h-8 rounded-full bg-secondary items-center justify-center">
                       <User className="h-5 w-5" />
                     </div>
                   )}
@@ -162,17 +174,17 @@ const AIAssistant = () => {
           </ScrollArea>
 
           <div className="border-t p-4 space-y-4">
-            {messages.length === 1 && (
+              {messages.length === 1 && (
               <div className="space-y-2">
-                <p className="text-sm text-muted-foreground">Perguntas sugeridas:</p>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+                <p className="text-xs md:text-sm text-muted-foreground">Perguntas sugeridas:</p>
+                <div className="grid grid-cols-1 gap-2">
                   {suggestedQuestions.map((question, index) => (
                     <Button
                       key={index}
                       variant="outline"
                       size="sm"
                       onClick={() => setInput(question)}
-                      className="justify-start text-left h-auto py-2 px-3"
+                      className="justify-start text-left h-auto py-2 px-2 md:px-3 text-xs md:text-sm"
                     >
                       {question}
                     </Button>
@@ -188,12 +200,12 @@ const AIAssistant = () => {
                 onKeyPress={handleKeyPress}
                 placeholder="Digite sua pergunta..."
                 disabled={isLoading}
-                className="flex-1"
+                className="flex-1 text-sm md:text-base"
               />
               <Button
                 onClick={handleSend}
                 disabled={isLoading || !input.trim()}
-                className="px-6"
+                className="px-3 md:px-6"
               >
                 {isLoading ? (
                   <Loader2 className="h-4 w-4 animate-spin" />
