@@ -18,7 +18,7 @@ const AIAssistant = () => {
   const [messages, setMessages] = useState<Message[]>([
     {
       role: 'assistant',
-      content: 'Olá! Sou seu assistente de análise de dados. Posso ajudar você a entender suas vendas, produtos, estoque e muito mais. O que você gostaria de saber?',
+      content: 'Olá! 👋 Sou seu Assistente Inteligente de E-commerce.\n\nPosso ajudar você com:\n\n✅ **Análise de Dados**: Vendas, produtos e performance\n✅ **Otimização**: Sugestões para melhorar anúncios e preços\n✅ **Gestão de Estoque**: Alertas e recomendações de reposição\n✅ **Insights Estratégicos**: Oportunidades de crescimento\n\nO que você gostaria de saber ou otimizar hoje?',
       timestamp: new Date()
     }
   ]);
@@ -84,10 +84,12 @@ const AIAssistant = () => {
   };
 
   const suggestedQuestions = [
-    "Qual foi meu produto mais vendido este mês?",
-    "Mostre os produtos com estoque baixo",
-    "Qual minha receita dos últimos 30 dias?",
-    "Compare vendas entre diferentes plataformas"
+    "Quais produtos precisam de reposição urgente?",
+    "Analise a lucratividade dos meus produtos",
+    "Sugira melhorias para otimizar meus anúncios",
+    "Como posso precificar melhor meus produtos?",
+    "Identifique oportunidades de crescimento",
+    "Quais produtos têm melhor performance?"
   ];
 
   return (
@@ -98,7 +100,7 @@ const AIAssistant = () => {
           <h1 className="text-3xl font-bold">Assistente de IA</h1>
         </div>
         <p className="text-muted-foreground">
-          Faça perguntas sobre seus dados de vendas, produtos e estoque em linguagem natural
+          Seu co-piloto inteligente para análise de dados, otimização de vendas e gestão estratégica
         </p>
       </div>
 

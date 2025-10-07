@@ -78,24 +78,81 @@ serve(async (req) => {
     console.log(`📋 ${orders.length} pedidos encontrados`);
     console.log(`🔌 ${integrations.length} integrações encontradas`);
 
+    // Calcular métricas avançadas
+    const now = new Date();
+    const last30Days = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
+    const recentOrders = orders.filter(o => new Date(o.order_date) >= last30Days);
+    
+    // Calcular velocidade de vendas por produto
+    const productSalesVelocity = products.map(p => {
+      const productOrders = recentOrders.filter(o => 
+        o.items && Array.isArray(o.items) && o.items.some((item: any) => item.sku === p.sku)
+      );
+      const totalSold = productOrders.reduce((sum, o) => {
+        const item = o.items.find((i: any) => i.sku === p.sku);
+        return sum + (item?.quantity || 0);
+      }, 0);
+      const daysUntilStockOut = totalSold > 0 ? Math.floor((p.stock / totalSold) * 30) : Infinity;
+      
+      return {
+        sku: p.sku,
+        name: p.name,
+        totalSold30Days: totalSold,
+        daysUntilStockOut,
+        needsRestock: daysUntilStockOut < 15 && daysUntilStockOut !== Infinity
+      };
+    });
+
+    // Identificar produtos críticos
+    const criticalProducts = productSalesVelocity.filter(p => p.needsRestock);
+    
+    // Calcular margem de lucro
+    const productsWithMargin = products.map(p => {
+      const cost = Number(p.cost_price) || 0;
+      const price = Number(p.selling_price) || 0;
+      const adSpend = Number(p.ad_spend) || 0;
+      const margin = price > 0 ? ((price - cost - adSpend) / price * 100).toFixed(1) : 0;
+      return {
+        name: p.name,
+        sku: p.sku,
+        margin,
+        isUnprofitable: Number(margin) < 10
+      };
+    });
+
     // Preparar contexto dos dados
     const dataContext = `
 DADOS DO USUÁRIO:
 
 PRODUTOS (${products.length} total):
-${products.slice(0, 50).map(p => `- ${p.name} (SKU: ${p.sku}): Estoque ${p.stock}, Custo R$ ${p.cost_price || 0}, Venda R$ ${p.selling_price || 0}, Gasto em anúncios R$ ${p.ad_spend || 0}`).join('\n')}
+${products.slice(0, 50).map(p => {
+  const velocity = productSalesVelocity.find(v => v.sku === p.sku);
+  const margin = productsWithMargin.find(m => m.sku === p.sku);
+  return `- ${p.name} (SKU: ${p.sku})
+  • Estoque: ${p.stock} unidades
+  • Preço: R$ ${p.selling_price || 0} | Custo: R$ ${p.cost_price || 0}
+  • Margem: ${margin?.margin}%
+  • Vendidos (30 dias): ${velocity?.totalSold30Days || 0}
+  • Dias até esgotar: ${velocity?.daysUntilStockOut === Infinity ? 'N/A' : velocity?.daysUntilStockOut}
+  • Gasto em anúncios: R$ ${p.ad_spend || 0}`;
+}).join('\n\n')}
 
-PEDIDOS RECENTES (${orders.length} total):
+PEDIDOS RECENTES (${orders.length} total, ${recentOrders.length} nos últimos 30 dias):
 ${orders.slice(0, 30).map(o => `- Pedido ${o.order_id_channel} (${o.platform}): R$ ${o.total_value} em ${new Date(o.order_date).toLocaleDateString('pt-BR')}`).join('\n')}
 
 INTEGRAÇÕES ATIVAS:
 ${integrations.map(i => `- ${i.platform}${i.account_name ? ` (${i.account_name})` : ''}`).join('\n')}
 
-ESTATÍSTICAS RÁPIDAS:
+ANÁLISE RÁPIDA:
 - Total de produtos: ${products.length}
 - Produtos com estoque baixo (< 10): ${products.filter(p => p.stock < 10).length}
+- Produtos críticos (precisam reposição urgente): ${criticalProducts.length}
+${criticalProducts.length > 0 ? '\n  CRÍTICOS: ' + criticalProducts.map(p => `${p.name} (${p.daysUntilStockOut} dias)`).join(', ') : ''}
+- Produtos com margem baixa (< 10%): ${productsWithMargin.filter(p => p.isUnprofitable).length}
 - Total de pedidos: ${orders.length}
-- Receita total dos pedidos: R$ ${orders.reduce((sum, o) => sum + Number(o.total_value), 0).toFixed(2)}
+- Pedidos últimos 30 dias: ${recentOrders.length}
+- Receita total: R$ ${orders.reduce((sum, o) => sum + Number(o.total_value), 0).toFixed(2)}
+- Receita últimos 30 dias: R$ ${recentOrders.reduce((sum, o) => sum + Number(o.total_value), 0).toFixed(2)}
 `;
 
     // Chamar Perplexity API
@@ -111,14 +168,31 @@ ESTATÍSTICAS RÁPIDAS:
       );
     }
 
-    const systemPrompt = `Você é um assistente de análise de dados para uma plataforma de e-commerce. 
+    const systemPrompt = `Você é um assistente inteligente de e-commerce e otimização de vendas. 
 Você tem acesso aos dados de produtos, pedidos e integrações do usuário.
-Analise os dados fornecidos e responda às perguntas do usuário de forma clara e objetiva.
-Use números, porcentagens e insights relevantes.
-Se não houver dados suficientes para responder, seja honesto e sugira o que o usuário pode fazer.
-Responda sempre em português brasileiro.
-Formate valores monetários como R$ X,XX.
-Quando mencionar produtos, use seus nomes completos.`;
+
+SUAS CAPACIDADES:
+1. ANÁLISE DE DADOS: Responda perguntas sobre vendas, produtos, estoque e performance
+2. OTIMIZAÇÃO DE ANÚNCIOS: Sugira melhorias em títulos, descrições e estratégias de listing
+3. PRECIFICAÇÃO DINÂMICA: Recomende preços competitivos baseado em análise de mercado
+4. GESTÃO DE ESTOQUE: Alerte sobre produtos com baixo estoque e sugira reposições
+5. INSIGHTS ESTRATÉGICOS: Identifique oportunidades de crescimento e melhorias
+
+DIRETRIZES:
+- Seja proativo: se identificar problemas nos dados, alerte o usuário
+- Seja específico: use números, porcentagens e dados concretos
+- Seja prático: ofereça sugestões acionáveis, não apenas análises
+- Para otimizações, explique o raciocínio por trás de cada sugestão
+- Para alertas de estoque, calcule quantos dias até esgotar baseado na velocidade de vendas
+- Para precificação, considere custos, margem e competitividade
+- Responda sempre em português brasileiro
+- Formate valores monetários como R$ X,XX
+- Quando sugerir ações, pergunte se o usuário quer que você ajude a executar
+
+EXEMPLOS DE RESPOSTAS PROATIVAS:
+- "Identifiquei que o produto X está com estoque de apenas 5 unidades. Baseado nas vendas dos últimos 30 dias, ele irá esgotar em aproximadamente 7 dias. Recomendo fazer uma reposição urgente."
+- "O produto Y está precificado 15% acima da média do mercado. Sugiro ajustar para R$ XXX para aumentar competitividade."
+- "Seus anúncios na plataforma Z têm títulos muito curtos. Posso sugerir melhorias para aumentar a visibilidade?"
 
     console.log('🤖 Enviando requisição para Perplexity API...');
     
