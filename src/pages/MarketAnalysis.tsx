@@ -30,36 +30,18 @@ interface ComparativeAnalysis {
   };
 }
 
-interface VariationAnalysis {
-  productTitle: string;
-  variations: string[];
-}
-
-interface CategoryAnalysis {
-  productTitle: string;
-  categories: Array<{
-    name: string;
-    count: number;
-    id: string;
-  }>;
-}
-
 export default function MarketAnalysis() {
   const [searchTerm, setSearchTerm] = useState("");
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [analysis, setAnalysis] = useState<ComparativeAnalysis | null>(null);
-  const [categories, setCategories] = useState<CategoryAnalysis | null>(null);
-  const [variations, setVariations] = useState<VariationAnalysis | null>(null);
-  const [selectedCategory, setSelectedCategory] = useState<{ name: string; id: string } | null>(null);
-  const [selectedVariation, setSelectedVariation] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const { toast } = useToast();
 
-  const handleAnalyze = async (categoryId?: string, categoryName?: string, variation?: string) => {
+  const handleAnalyze = async () => {
     if (!searchTerm.trim()) {
       toast({
         title: "Campo obrigatório",
-        description: "Digite um termo de busca ou URL para analisar.",
+        description: "Digite um termo de busca para analisar.",
         variant: "destructive",
       });
       return;
@@ -67,34 +49,19 @@ export default function MarketAnalysis() {
 
     setIsAnalyzing(true);
     setError(null);
-    
-    // Reset states based on the step
-    if (variation) {
-      setAnalysis(null);
-      setSelectedVariation(variation);
-    } else if (categoryId) {
-      setVariations(null);
-      setAnalysis(null);
-      setSelectedVariation(null);
-      setSelectedCategory({ id: categoryId, name: categoryName || '' });
-    } else {
-      setCategories(null);
-      setVariations(null);
-      setAnalysis(null);
-      setSelectedCategory(null);
-      setSelectedVariation(null);
-    }
+    setAnalysis(null);
 
     try {
-      console.log('🚀 Iniciando análise de mercado para:', searchTerm.trim());
-      if (categoryId) console.log('📂 Categoria selecionada:', categoryName);
-      if (variation) console.log('🎯 Variação selecionada:', variation);
+      console.log('🚀 Iniciando análise de mercado com IA para:', searchTerm.trim());
       
-      const { data, error: functionError } = await supabase.functions.invoke('get-comparative-pricing', {
+      toast({
+        title: "Analisando mercado",
+        description: "A IA está pesquisando preços nos principais marketplaces. Isso pode levar alguns segundos...",
+      });
+      
+      const { data, error: functionError } = await supabase.functions.invoke('market-analysis-ai', {
         body: { 
-          searchTerm: searchTerm.trim(),
-          category: categoryId || null,
-          variation: variation || null
+          searchTerm: searchTerm.trim()
         }
       });
 
@@ -111,21 +78,7 @@ export default function MarketAnalysis() {
         return;
       }
 
-      if (data?.success && data?.step === 'categories' && data?.data) {
-        console.log('✅ Categorias recebidas com sucesso');
-        setCategories(data.data);
-        toast({
-          title: "Categorias encontradas",
-          description: `Encontradas ${data.data.categories.length} categorias para "${data.data.productTitle}".`,
-        });
-      } else if (data?.success && data?.step === 'variations' && data?.data) {
-        console.log('✅ Variações recebidas com sucesso');
-        setVariations(data.data);
-        toast({
-          title: "Variações encontradas",
-          description: `Encontradas ${data.data.variations.length} variações para "${data.data.productTitle}".`,
-        });
-      } else if (data?.success && data?.step === 'analysis' && data?.data) {
+      if (data?.success && data?.data) {
         console.log('✅ Análise recebida com sucesso');
         setAnalysis(data.data);
         toast({
@@ -162,11 +115,7 @@ export default function MarketAnalysis() {
   };
 
   const handleStartOver = () => {
-    setCategories(null);
-    setVariations(null);
     setAnalysis(null);
-    setSelectedCategory(null);
-    setSelectedVariation(null);
     setError(null);
   };
 
@@ -209,10 +158,10 @@ export default function MarketAnalysis() {
         <CardHeader>
           <CardTitle>Buscar Concorrentes</CardTitle>
           <CardDescription>
-            Digite o nome de um produto ou cole a URL de um concorrente para começar a análise
+            Digite o nome de um produto para começar a análise com IA
           </CardDescription>
           <p className="text-sm text-muted-foreground mt-2 italic">
-            A busca é realizada em tempo real nos marketplaces e pode apresentar inconsistências pontuais. Use os resultados como um guia estratégico.
+            🤖 A análise é realizada por IA que pesquisa em tempo real nos principais marketplaces brasileiros. O processo pode levar alguns segundos.
           </p>
         </CardHeader>
         <CardContent className="space-y-4">
@@ -220,7 +169,7 @@ export default function MarketAnalysis() {
             <div className="flex-1">
               <Input
                 type="text"
-                placeholder="Ex: iPhone 15 Pro Max, notebook gamer, ou https://produto.mercadolivre.com.br/..."
+                placeholder="Ex: iPhone 15 Pro Max, notebook gamer, fone de ouvido bluetooth..."
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
                 onKeyPress={(e) => {
@@ -256,7 +205,10 @@ export default function MarketAnalysis() {
                 <div className="text-center space-y-3">
                   <Loader2 className="h-8 w-8 text-primary animate-spin mx-auto" />
                   <p className="text-sm text-muted-foreground">
-                    Analisando preços no Mercado Livre, Shopee e Amazon...
+                    🤖 A IA está pesquisando preços no Mercado Livre, Shopee e Amazon...
+                  </p>
+                  <p className="text-xs text-muted-foreground">
+                    Isso pode levar alguns segundos. Por favor, aguarde.
                   </p>
                 </div>
             </div>
@@ -282,104 +234,6 @@ export default function MarketAnalysis() {
         </CardContent>
       </Card>
 
-      {/* Category Selection */}
-      {categories && !selectedCategory && (
-        <Card className="shadow-soft">
-          <CardHeader>
-            <CardTitle>Selecione a Categoria</CardTitle>
-            <CardDescription>
-              Encontramos diferentes categorias para "{categories.productTitle}". Selecione a categoria que você deseja analisar:
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-3 mb-4">
-              {categories.categories.map((category, index) => (
-                <Button
-                  key={index}
-                  variant="outline"
-                  className="text-left justify-start h-auto p-4 hover:border-primary hover:bg-primary/5"
-                  onClick={() => handleAnalyze(category.id, category.name)}
-                  disabled={isAnalyzing}
-                >
-                  <div className="flex-1">
-                    <div className="font-medium">{category.name}</div>
-                    <div className="text-xs text-muted-foreground mt-1">
-                      {category.count} produtos encontrados
-                    </div>
-                  </div>
-                </Button>
-              ))}
-            </div>
-            
-            <Separator className="my-4" />
-            
-            <div className="flex justify-center">
-              <Button 
-                variant="ghost" 
-                onClick={handleStartOver}
-                className="text-muted-foreground hover:text-foreground"
-              >
-                Voltar à busca inicial
-              </Button>
-            </div>
-          </CardContent>
-        </Card>
-      )}
-
-      {/* Variation Selection */}
-      {variations && selectedCategory && !selectedVariation && (
-        <Card className="shadow-soft">
-          <CardHeader>
-            <CardTitle>Selecione a Variação</CardTitle>
-            <CardDescription>
-              Encontramos diferentes variações em "{selectedCategory.name}". Selecione a que você deseja analisar:
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3 mb-4">
-              {variations.variations.map((variation, index) => (
-                <Button
-                  key={index}
-                  variant="outline"
-                  className="text-left justify-start h-auto p-4 hover:border-primary hover:bg-primary/5"
-                  onClick={() => handleAnalyze(selectedCategory.id, selectedCategory.name, variation)}
-                  disabled={isAnalyzing}
-                >
-                  <div>
-                    <div className="font-medium">{variation}</div>
-                    <div className="text-xs text-muted-foreground mt-1">
-                      Clique para analisar preços
-                    </div>
-                  </div>
-                </Button>
-              ))}
-            </div>
-            
-            <Separator className="my-4" />
-            
-            <div className="flex justify-center gap-2">
-              <Button 
-                variant="ghost" 
-                onClick={() => {
-                  setVariations(null);
-                  setSelectedCategory(null);
-                }}
-                className="text-muted-foreground hover:text-foreground"
-              >
-                Voltar às categorias
-              </Button>
-              <Button 
-                variant="ghost" 
-                onClick={handleStartOver}
-                className="text-muted-foreground hover:text-foreground"
-              >
-                Nova busca
-              </Button>
-            </div>
-          </CardContent>
-        </Card>
-      )}
-
       {/* Product Title */}
       {analysis && (
         <Card className="shadow-soft">
@@ -387,16 +241,6 @@ export default function MarketAnalysis() {
             <div className="flex items-center justify-between">
               <h2 className="text-2xl font-bold text-foreground mb-4">
                 {analysis.productTitle}
-                {selectedCategory && (
-                  <Badge variant="outline" className="ml-2 text-sm">
-                    {selectedCategory.name}
-                  </Badge>
-                )}
-                {selectedVariation && (
-                  <Badge variant="secondary" className="ml-2 text-sm">
-                    {selectedVariation}
-                  </Badge>
-                )}
               </h2>
               <Button 
                 variant="outline" 
