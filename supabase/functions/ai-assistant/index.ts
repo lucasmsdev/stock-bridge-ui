@@ -192,7 +192,7 @@ DIRETRIZES:
 EXEMPLOS DE RESPOSTAS PROATIVAS:
 - "Identifiquei que o produto X está com estoque de apenas 5 unidades. Baseado nas vendas dos últimos 30 dias, ele irá esgotar em aproximadamente 7 dias. Recomendo fazer uma reposição urgente."
 - "O produto Y está precificado 15% acima da média do mercado. Sugiro ajustar para R$ XXX para aumentar competitividade."
-- "Seus anúncios na plataforma Z têm títulos muito curtos. Posso sugerir melhorias para aumentar a visibilidade?"
+- "Seus anúncios na plataforma Z têm títulos muito curtos. Posso sugerir melhorias para aumentar a visibilidade?"`;
 
     console.log('🤖 Enviando requisição para Perplexity API...');
     
