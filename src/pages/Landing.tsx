@@ -239,7 +239,7 @@ const Landing = () => {
             </div>
             
             <div 
-              className="relative rounded-xl overflow-hidden shadow-2xl transition-all duration-500 border border-border/50"
+              className="relative rounded-xl overflow-hidden shadow-2xl group transition-all duration-700 ease-out hover:shadow-[0_35px_60px_-15px_rgba(var(--primary)/0.5)] hover:scale-[1.02] hover:-translate-y-2 border border-border/50"
               style={{
                 boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.25)',
                 transform: 'perspective(1500px) rotateX(3deg)'
@@ -248,15 +248,16 @@ const Landing = () => {
               <img
                 src="/images/dashboard-hover-preview.png"
                 alt="Dashboard do UniStock mostrando métricas de vendas e lucratividade em tempo real"
-                className="w-full h-auto"
+                className="w-full h-auto transition-all duration-700 ease-out group-hover:brightness-110"
                 style={{
                   display: 'block',
                   borderRadius: '0.75rem'
                 }}
               />
+              <div className="absolute inset-0 bg-gradient-to-t from-primary/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-700 pointer-events-none" />
               
               {/* Floating badge */}
-              <div className="absolute top-4 right-4">
+              <div className="absolute top-4 right-4 opacity-0 group-hover:opacity-100 transition-opacity duration-500">
                 <Badge className="bg-success text-success-foreground shadow-lg">
                   <TrendingUp className="w-3 h-3 mr-1" />
                   +47% vendas
