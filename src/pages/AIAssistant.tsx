@@ -1,3 +1,4 @@
+import { Badge } from "@/components/ui/badge";
 import { useState, useRef, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -18,7 +19,7 @@ const AIAssistant = () => {
   const [messages, setMessages] = useState<Message[]>([
     {
       role: 'assistant',
-      content: 'Olá! 👋 Sou o Luca, seu Estrategista de Crescimento Autônomo.\n\nComo seu consultor estratégico, posso ajudar você a:\n\n✅ **Expandir para Novos Mercados**: Identificar oportunidades de produtos em outras plataformas\n✅ **Criar Kits e Bundles**: Aumentar ticket médio com combinações inteligentes\n✅ **Análise de Concorrência**: Monitorar tendências e ações dos concorrentes\n✅ **Otimização Avançada**: Precificação dinâmica e gestão de estoque estratégica\n✅ **Insights Proativos**: Identificar oportunidades que você ainda não viu\n\nQual área do seu negócio você gostaria de crescer hoje?',
+      content: 'Olá! 👋 Sou o Luca, seu Estrategista de Crescimento Autônomo.\n\nComo seu consultor estratégico, posso ajudar você a:\n\n✓ Expandir para Novos Mercados: Identificar oportunidades de produtos em outras plataformas\n✓ Criar Kits e Bundles: Aumentar ticket médio com combinações inteligentes\n✓ Análise de Concorrência: Monitorar tendências e ações dos concorrentes\n✓ Otimização Avançada: Precificação dinâmica e gestão de estoque estratégica\n✓ Insights Proativos: Identificar oportunidades que você ainda não viu\n\nQual área do seu negócio você gostaria de crescer hoje?',
       timestamp: new Date()
     }
   ]);
@@ -36,16 +37,24 @@ const AIAssistant = () => {
 
   // Função para limpar markdown e manter formatação
   const cleanMarkdown = (text: string) => {
-    return text
-      .replace(/\*\*\*(.*?)\*\*\*/g, '$1')  // Remove ***bold+italic***
-      .replace(/\*\*(.*?)\*\*/g, '$1')      // Remove **bold**
-      .replace(/\*(.*?)\*/g, '$1')          // Remove *italic*
-      .replace(/__(.*?)__/g, '$1')          // Remove __bold__
-      .replace(/_(.*?)_/g, '$1')            // Remove _italic_
-      .replace(/`(.*?)`/g, '$1')            // Remove `code`
-      .replace(/#{1,6}\s+/g, '')            // Remove # headers
-      .replace(/\*/g, '')                   // Remove asteriscos soltos
-      .trim();
+    // Remove markdown progressivamente
+    let cleaned = text
+      // Remove check marks unicode
+      .replace(/✅/g, '✓')
+      // Remove bold/italic combinations
+      .replace(/\*\*\*(.*?)\*\*\*/g, '$1')
+      .replace(/\*\*(.*?)\*\*/g, '$1')
+      .replace(/\*(.*?)\*/g, '$1')
+      .replace(/__(.*?)__/g, '$1')
+      .replace(/_(.*?)_/g, '$1')
+      // Remove inline code
+      .replace(/`(.*?)`/g, '$1')
+      // Remove headers
+      .replace(/#{1,6}\s+/g, '')
+      // Remove remaining asterisks
+      .replace(/\*/g, '');
+    
+    return cleaned.trim();
   };
 
   const handleSend = async () => {
@@ -112,6 +121,7 @@ const AIAssistant = () => {
         <div className="flex items-center gap-2 mb-2">
           <Sparkles className="h-6 w-6 md:h-8 md:w-8 text-primary" />
           <h1 className="text-2xl md:text-3xl font-bold">Luca - Estrategista de IA</h1>
+          <Badge variant="secondary" className="ml-2">Beta</Badge>
         </div>
         <p className="text-sm md:text-base text-muted-foreground">
           Seu estrategista autônomo que identifica oportunidades de crescimento que você ainda não viu
