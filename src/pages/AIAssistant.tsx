@@ -18,7 +18,7 @@ const AIAssistant = () => {
   const [messages, setMessages] = useState<Message[]>([
     {
       role: 'assistant',
-      content: 'Olá! 👋 Sou seu Assistente Inteligente de E-commerce.\n\nPosso ajudar você com:\n\n✅ **Análise de Dados**: Vendas, produtos e performance\n✅ **Otimização**: Sugestões para melhorar anúncios e preços\n✅ **Gestão de Estoque**: Alertas e recomendações de reposição\n✅ **Insights Estratégicos**: Oportunidades de crescimento\n\nO que você gostaria de saber ou otimizar hoje?',
+      content: 'Olá! 👋 Sou o Luca, seu Estrategista de Crescimento Autônomo.\n\nComo seu consultor estratégico, posso ajudar você a:\n\n✅ **Expandir para Novos Mercados**: Identificar oportunidades de produtos em outras plataformas\n✅ **Criar Kits e Bundles**: Aumentar ticket médio com combinações inteligentes\n✅ **Análise de Concorrência**: Monitorar tendências e ações dos concorrentes\n✅ **Otimização Avançada**: Precificação dinâmica e gestão de estoque estratégica\n✅ **Insights Proativos**: Identificar oportunidades que você ainda não viu\n\nQual área do seu negócio você gostaria de crescer hoje?',
       timestamp: new Date()
     }
   ]);
@@ -96,12 +96,12 @@ const AIAssistant = () => {
   };
 
   const suggestedQuestions = [
-    "Quais produtos precisam de reposição urgente?",
-    "Analise a lucratividade dos meus produtos",
-    "Sugira melhorias para otimizar meus anúncios",
-    "Como posso precificar melhor meus produtos?",
-    "Identifique oportunidades de crescimento",
-    "Quais produtos têm melhor performance?"
+    "Identifique oportunidades de expansão para outras plataformas",
+    "Sugira kits e bundles para aumentar meu ticket médio",
+    "Analise tendências do mercado e ações dos concorrentes",
+    "Quais produtos devo destacar em minhas campanhas?",
+    "Como posso criar combos lucrativos com meus produtos?",
+    "Identifique produtos com potencial em outras plataformas"
   ];
 
   return (
@@ -109,10 +109,10 @@ const AIAssistant = () => {
       <div className="mb-4 md:mb-6">
         <div className="flex items-center gap-2 mb-2">
           <Sparkles className="h-6 w-6 md:h-8 md:w-8 text-primary" />
-          <h1 className="text-2xl md:text-3xl font-bold">Assistente de IA</h1>
+          <h1 className="text-2xl md:text-3xl font-bold">Luca - Estrategista de IA</h1>
         </div>
         <p className="text-sm md:text-base text-muted-foreground">
-          Seu co-piloto inteligente para análise de dados, otimização de vendas e gestão estratégica
+          Seu estrategista autônomo que identifica oportunidades de crescimento que você ainda não viu
         </p>
       </div>
 
@@ -120,7 +120,7 @@ const AIAssistant = () => {
         <CardHeader className="border-b bg-muted/30">
           <CardTitle className="flex items-center gap-2">
             <Bot className="h-5 w-5 text-primary" />
-            Chat com Assistente
+            Chat com Luca
           </CardTitle>
         </CardHeader>
         <CardContent className="p-0">
