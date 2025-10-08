@@ -34,15 +34,17 @@ const AIAssistant = () => {
     }
   }, [messages]);
 
-  // Função para limpar markdown básico
+  // Função para limpar markdown e manter formatação
   const cleanMarkdown = (text: string) => {
     return text
-      .replace(/\*\*(.*?)\*\*/g, '$1')  // Remove **bold**
-      .replace(/\*(.*?)\*/g, '$1')      // Remove *italic*
-      .replace(/__(.*?)__/g, '$1')      // Remove __bold__
-      .replace(/_(.*?)_/g, '$1')        // Remove _italic_
-      .replace(/`(.*?)`/g, '$1')        // Remove `code`
-      .replace(/#{1,6}\s/g, '')         // Remove # headers
+      .replace(/\*\*\*(.*?)\*\*\*/g, '$1')  // Remove ***bold+italic***
+      .replace(/\*\*(.*?)\*\*/g, '$1')      // Remove **bold**
+      .replace(/\*(.*?)\*/g, '$1')          // Remove *italic*
+      .replace(/__(.*?)__/g, '$1')          // Remove __bold__
+      .replace(/_(.*?)_/g, '$1')            // Remove _italic_
+      .replace(/`(.*?)`/g, '$1')            // Remove `code`
+      .replace(/#{1,6}\s+/g, '')            // Remove # headers
+      .replace(/\*/g, '')                   // Remove asteriscos soltos
       .trim();
   };
 
