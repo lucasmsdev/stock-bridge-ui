@@ -395,10 +395,10 @@ export default function Profile() {
   }
 
   return (
-    <div className="space-y-6 animate-fade-in">
+    <div className="space-y-4 md:space-y-6 animate-fade-in">
       {/* Page Header */}
       <div>
-        <h1 className="text-3xl font-bold text-foreground">Meu Perfil</h1>
+        <h1 className="text-2xl md:text-3xl font-bold">Meu Perfil</h1>
         <p className="text-muted-foreground">
           Gerencie suas informações pessoais e configurações da conta
         </p>

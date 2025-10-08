@@ -116,8 +116,8 @@ const AIAssistant = () => {
   ];
 
   return (
-    <div className="container mx-auto py-4 md:py-8 px-2 md:px-4 max-w-6xl">
-      <div className="mb-4 md:mb-6">
+    <div className="space-y-4 md:space-y-6 animate-fade-in">
+      <div>
         <div className="flex items-center gap-2 mb-2">
           <Sparkles className="h-6 w-6 md:h-8 md:w-8 text-primary" />
           <h1 className="text-2xl md:text-3xl font-bold">Luca - Estrategista de IA</h1>

@@ -416,11 +416,11 @@ export default function Products() {
   );
 
   return (
-    <div className="space-y-6 animate-fade-in">
+    <div className="space-y-4 md:space-y-6 animate-fade-in">
       {/* Page Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-3xl font-bold text-foreground">Meus Produtos</h1>
+          <h1 className="text-2xl md:text-3xl font-bold">Meus Produtos</h1>
           <p className="text-muted-foreground">
             Gerencie seu catálogo centralizado de produtos
           </p>

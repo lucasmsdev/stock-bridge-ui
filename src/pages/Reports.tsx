@@ -98,9 +98,9 @@ export default function Reports() {
   ];
 
   return (
-    <div className="container mx-auto py-6 space-y-6">
+    <div className="space-y-4 md:space-y-6 animate-fade-in">
       <div>
-        <h1 className="text-3xl font-bold">Relatórios Avançados</h1>
+        <h1 className="text-2xl md:text-3xl font-bold">Relatórios Avançados</h1>
         <p className="text-muted-foreground">
           Gere relatórios detalhados sobre vendas e lucratividade
         </p>

@@ -282,10 +282,10 @@ export default function Integrations() {
   };
 
   return (
-    <div className="space-y-6 animate-fade-in">
+    <div className="space-y-4 md:space-y-6 animate-fade-in">
       {/* Page Header */}
       <div>
-        <h1 className="text-3xl font-bold text-foreground">Integrações de Canais</h1>
+        <h1 className="text-2xl md:text-3xl font-bold">Integrações de Canais</h1>
         <p className="text-muted-foreground">
           Conecte e gerencie seus canais de venda em um só lugar
         </p>

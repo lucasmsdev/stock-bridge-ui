@@ -167,10 +167,10 @@ export default function Orders() {
 
   if (isEmpty) {
     return (
-      <div className="space-y-6 animate-fade-in">
+      <div className="space-y-4 md:space-y-6 animate-fade-in">
         <div className="flex items-center justify-between">
           <div>
-            <h1 className="text-3xl font-bold text-foreground">Todos os Pedidos</h1>
+            <h1 className="text-2xl md:text-3xl font-bold">Todos os Pedidos</h1>
             <p className="text-muted-foreground">
               Visualize e gerencie pedidos de todos os seus canais
             </p>
@@ -195,11 +195,11 @@ export default function Orders() {
   }
 
   return (
-    <div className="space-y-6 animate-fade-in">
+    <div className="space-y-4 md:space-y-6 animate-fade-in">
       {/* Page Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-3xl font-bold text-foreground">Todos os Pedidos</h1>
+          <h1 className="text-2xl md:text-3xl font-bold">Todos os Pedidos</h1>
           <p className="text-muted-foreground">
             Visualize e gerencie pedidos de todos os seus canais
           </p>
