@@ -119,6 +119,11 @@ const Landing = () => {
 
   const features = [
     {
+      icon: Sparkles,
+      title: "Assistente de IA Inteligente",
+      description: "IA que analisa seus dados, otimiza anúncios, sugere preços e ajuda na gestão de estoque de forma proativa"
+    },
+    {
       icon: Globe,
       title: "Sincronização Multi-canal",
       description: "Conecte Mercado Livre, Shopee, Amazon e outros marketplaces em um só lugar"
@@ -213,7 +218,7 @@ const Landing = () => {
           <div className="mt-8 sm:mt-10 flex flex-wrap items-center justify-center gap-4 sm:gap-8 text-xs sm:text-sm text-muted-foreground px-4">
             <div className="flex items-center gap-2">
               <CheckCircle className="w-4 h-4 sm:w-5 sm:h-5 text-success" />
-              <span>Sem cartão de crédito</span>
+              <span>3 dias grátis</span>
             </div>
             <div className="flex items-center gap-2">
               <CheckCircle className="w-4 h-4 sm:w-5 sm:h-5 text-success" />
@@ -415,12 +420,12 @@ const Landing = () => {
               Funcionalidades que fazem a diferença
             </h2>
           </div>
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-6 sm:gap-8 max-w-7xl mx-auto">
             {features.map((feature, index) => (
-              <div key={index} className="text-center">
+              <div key={index} className="text-center p-4">
                 <feature.icon className="h-10 w-10 mx-auto text-primary mb-4" />
-                <h3 className="font-semibold text-foreground mb-2">{feature.title}</h3>
-                <p className="text-muted-foreground text-sm">{feature.description}</p>
+                <h3 className="font-semibold text-foreground mb-2 text-sm sm:text-base">{feature.title}</h3>
+                <p className="text-muted-foreground text-xs sm:text-sm">{feature.description}</p>
               </div>
             ))}
           </div>
@@ -440,8 +445,8 @@ const Landing = () => {
               <CardContent className="p-6">
                 <h3 className="font-semibold text-foreground mb-2">Como funciona o teste gratuito?</h3>
                 <p className="text-muted-foreground">
-                  Você tem 3 dias para testar todas as funcionalidades sem compromisso. 
-                  Não cobramos cartão de crédito no cadastro.
+                  Você tem 3 dias para testar todas as funcionalidades da plataforma. 
+                  Após o período de teste, escolha o plano que melhor se adequa ao seu negócio.
                 </p>
               </CardContent>
             </Card>
@@ -508,11 +513,11 @@ const Landing = () => {
               </div>
               <div className="flex items-center gap-2">
                 <CheckCircle className="w-4 h-4 text-success" />
-                <span>Sem cartão de crédito</span>
+                <span>Cancele quando quiser</span>
               </div>
               <div className="flex items-center gap-2">
                 <CheckCircle className="w-4 h-4 text-success" />
-                <span>Cancele quando quiser</span>
+                <span>Setup rápido</span>
               </div>
             </div>
           </div>
