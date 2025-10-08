@@ -148,3 +148,8 @@ All colors MUST be HSL.
 .dark .dark-invert {
   filter: none;
 }
+
+/* Animated gradient text */
+.animate-gradient {
+  background-size: 200% 200%;
+}

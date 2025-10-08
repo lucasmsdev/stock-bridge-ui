@@ -17,7 +17,9 @@ import {
   X,
   Smartphone,
   Globe,
-  Calculator
+  Calculator,
+  Sparkles,
+  Rocket
 } from "lucide-react";
 
 const Landing = () => {
@@ -158,39 +160,84 @@ const Landing = () => {
       </header>
 
       {/* Hero Section */}
-      <section className="relative px-4 pt-32 pb-16 mx-auto max-w-7xl sm:px-6 lg:px-8">
-        <div className="text-center">
-          <h1 className="text-4xl font-bold tracking-tight text-foreground sm:text-6xl lg:text-7xl">
+      <section className="relative px-4 pt-24 sm:pt-32 pb-12 sm:pb-16 mx-auto max-w-7xl sm:px-6 lg:px-8 overflow-hidden">
+        {/* Background gradient effects */}
+        <div className="absolute inset-0 -z-10">
+          <div className="absolute top-0 left-1/4 w-96 h-96 bg-primary/10 rounded-full blur-3xl animate-pulse" />
+          <div className="absolute top-1/4 right-1/4 w-96 h-96 bg-success/10 rounded-full blur-3xl animate-pulse" style={{ animationDelay: '1s' }} />
+        </div>
+
+        <div className="text-center animate-fade-in">
+          {/* Trust badge */}
+          <Badge variant="outline" className="mb-6 px-4 py-2 text-sm sm:text-base border-primary/30 text-primary bg-primary/5 hover:bg-primary/10">
+            <Sparkles className="w-4 h-4 mr-2" />
+            Mais de 500 vendedores já automatizaram seus e-commerces
+          </Badge>
+
+          <h1 className="text-3xl sm:text-4xl md:text-5xl lg:text-7xl font-bold tracking-tight text-foreground leading-tight">
             Pare de perder vendas.{" "}
-            <span className="text-primary">Automatize</span> seu e-commerce multicanal.
+            <span className="bg-gradient-to-r from-primary via-success to-primary bg-clip-text text-transparent animate-gradient">
+              Automatize
+            </span>{" "}
+            seu e-commerce multicanal.
           </h1>
-          <p className="mx-auto mt-6 max-w-3xl text-lg leading-8 text-muted-foreground sm:text-xl">
+          
+          <p className="mx-auto mt-4 sm:mt-6 max-w-3xl text-base sm:text-lg lg:text-xl leading-7 sm:leading-8 text-muted-foreground px-4">
             Sincronize estoque, preços e pedidos em tempo real entre Mercado Livre, Shopee, Amazon e mais. 
             Foque em vender, não em planilhas.
           </p>
-          <div className="mt-10 flex items-center justify-center gap-x-6">
-            <a href="#planos">
-              <Button size="lg" className="h-12 px-8 text-lg">
-                Comece seu teste gratuito de 3 dias
-                <ArrowRight className="ml-2 h-5 w-5" />
+          
+          <div className="mt-8 sm:mt-10 flex flex-col sm:flex-row items-center justify-center gap-4 px-4">
+            <a href="#planos" className="w-full sm:w-auto">
+              <Button 
+                size="lg" 
+                className="w-full sm:w-auto h-12 sm:h-14 px-6 sm:px-10 text-base sm:text-lg font-semibold shadow-lg hover:shadow-xl hover:scale-105 transition-all duration-300 bg-gradient-to-r from-primary to-primary/90 hover:from-primary/90 hover:to-primary group"
+              >
+                <Rocket className="mr-2 h-5 w-5 group-hover:rotate-12 transition-transform" />
+                Começar teste grátis de 3 dias
+                <ArrowRight className="ml-2 h-5 w-5 group-hover:translate-x-1 transition-transform" />
               </Button>
             </a>
-            <Link to="/login">
-              <Button variant="outline" size="lg" className="h-12 px-8 text-lg">
+            <Link to="/login" className="w-full sm:w-auto">
+              <Button 
+                variant="outline" 
+                size="lg" 
+                className="w-full sm:w-auto h-12 sm:h-14 px-6 sm:px-10 text-base sm:text-lg font-semibold border-2 hover:bg-primary/5 hover:border-primary/50 transition-all duration-300"
+              >
                 Já tenho conta
               </Button>
             </Link>
           </div>
+
+          {/* Social proof */}
+          <div className="mt-8 sm:mt-10 flex flex-wrap items-center justify-center gap-4 sm:gap-8 text-xs sm:text-sm text-muted-foreground px-4">
+            <div className="flex items-center gap-2">
+              <CheckCircle className="w-4 h-4 sm:w-5 sm:h-5 text-success" />
+              <span>Sem cartão de crédito</span>
+            </div>
+            <div className="flex items-center gap-2">
+              <CheckCircle className="w-4 h-4 sm:w-5 sm:h-5 text-success" />
+              <span>Cancele quando quiser</span>
+            </div>
+            <div className="flex items-center gap-2">
+              <CheckCircle className="w-4 h-4 sm:w-5 sm:h-5 text-success" />
+              <span>Setup em 5 minutos</span>
+            </div>
+          </div>
         </div>
 
-        <div className="mt-16 relative">
+        <div className="mt-12 sm:mt-16 relative animate-fade-in" style={{ animationDelay: '0.3s' }}>
           <div className="mx-auto max-w-6xl px-4">
+            {/* Glow effect */}
+            <div className="absolute inset-0 -z-10">
+              <div className="absolute inset-0 bg-gradient-to-t from-primary/20 via-transparent to-transparent blur-3xl transform translate-y-1/2" />
+            </div>
+            
             <div 
-              className="relative rounded-xl overflow-hidden shadow-2xl group cursor-pointer transition-all duration-700 ease-out hover:shadow-[0_35px_60px_-15px_rgba(0,0,0,0.4)] hover:scale-[1.02] hover:-translate-y-2"
+              className="relative rounded-xl overflow-hidden shadow-2xl group cursor-pointer transition-all duration-700 ease-out hover:shadow-[0_35px_60px_-15px_rgba(var(--primary)/0.5)] hover:scale-[1.02] hover:-translate-y-2 border border-border/50"
               style={{
-                boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.25), 0 0 0 1px rgba(255, 255, 255, 0.1)',
-                transform: 'perspective(1500px) rotateX(3deg)',
-                border: '1px solid rgba(255, 255, 255, 0.1)'
+                boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.25)',
+                transform: 'perspective(1500px) rotateX(3deg)'
               }}
             >
               <img
@@ -202,7 +249,15 @@ const Landing = () => {
                   borderRadius: '0.75rem'
                 }}
               />
-              <div className="absolute inset-0 bg-gradient-to-t from-primary/10 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-700 pointer-events-none" />
+              <div className="absolute inset-0 bg-gradient-to-t from-primary/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-700 pointer-events-none" />
+              
+              {/* Floating badges */}
+              <div className="absolute top-4 right-4 opacity-0 group-hover:opacity-100 transition-opacity duration-500">
+                <Badge className="bg-success text-success-foreground shadow-lg">
+                  <TrendingUp className="w-3 h-3 mr-1" />
+                  +47% vendas
+                </Badge>
+              </div>
             </div>
           </div>
         </div>
@@ -253,43 +308,57 @@ const Landing = () => {
       </section>
 
       {/* Pricing Section */}
-      <section id="planos" className="py-20 bg-muted/30 dark:bg-muted/20">
+      <section id="planos" className="py-16 sm:py-20 bg-gradient-to-b from-muted/30 via-muted/20 to-background dark:from-muted/20 dark:via-muted/10 dark:to-background scroll-mt-16">
         <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
-          <div className="text-center mb-16">
-            <h2 className="text-3xl font-bold text-foreground sm:text-4xl mb-4">
+          <div className="text-center mb-12 sm:mb-16 animate-fade-in">
+            <Badge variant="outline" className="mb-4 px-4 py-2 text-sm border-primary/30 text-primary bg-primary/5">
+              <Zap className="w-4 h-4 mr-2" />
+              Preços transparentes
+            </Badge>
+            <h2 className="text-3xl sm:text-4xl lg:text-5xl font-bold text-foreground mb-4">
               Escolha o plano perfeito para o seu negócio
             </h2>
-            <p className="text-lg text-muted-foreground max-w-2xl mx-auto">
-              Comece com 3 dias grátis. Cancele quando quiser.
+            <p className="text-base sm:text-lg text-muted-foreground max-w-2xl mx-auto">
+              Comece com 3 dias grátis. Cancele quando quiser. Sem surpresas.
             </p>
           </div>
           
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-8 max-w-5xl mx-auto">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6 sm:gap-8 max-w-6xl mx-auto">
             {plans.map((plan, index) => (
-              <Card key={index} className={`relative border-border ${plan.popular ? 'border-primary ring-2 ring-primary/20 dark:ring-primary/30' : ''}`}>
+              <Card 
+                key={index} 
+                className={`relative border-border transition-all duration-300 hover:shadow-xl hover:-translate-y-1 ${
+                  plan.popular 
+                    ? 'border-primary ring-2 ring-primary/30 dark:ring-primary/40 shadow-lg scale-105 bg-gradient-to-b from-primary/5 to-background' 
+                    : 'hover:border-primary/50'
+                }`}
+              >
                 {plan.popular && (
-                  <Badge className="absolute -top-3 left-1/2 transform -translate-x-1/2 bg-primary text-primary-foreground">
-                    Escolha Popular
-                  </Badge>
+                  <div className="absolute -top-4 left-1/2 transform -translate-x-1/2 z-10">
+                    <Badge className="bg-gradient-to-r from-primary to-success text-primary-foreground shadow-lg px-4 py-1 text-sm font-semibold">
+                      <Sparkles className="w-3 h-3 mr-1" />
+                      Mais Popular
+                    </Badge>
+                  </div>
                 )}
-                <CardHeader className="text-center pb-4">
-                  <CardTitle className="text-xl text-foreground">{plan.name}</CardTitle>
-                  <p className="text-sm text-muted-foreground mt-2">{plan.description}</p>
-                  <div className="mt-4">
-                    <span className="text-4xl font-bold text-foreground">{plan.price}</span>
-                    <span className="text-muted-foreground">{plan.period}</span>
+                <CardHeader className="text-center pb-4 pt-6">
+                  <CardTitle className="text-xl sm:text-2xl text-foreground font-bold">{plan.name}</CardTitle>
+                  <p className="text-sm text-muted-foreground mt-2 min-h-[40px]">{plan.description}</p>
+                  <div className="mt-6">
+                    <span className="text-4xl sm:text-5xl font-bold bg-gradient-to-r from-foreground to-foreground/80 bg-clip-text text-transparent">{plan.price}</span>
+                    <span className="text-muted-foreground text-base">{plan.period}</span>
                   </div>
                 </CardHeader>
-                <CardContent className="space-y-4">
-                  <div className="space-y-3">
+                <CardContent className="space-y-4 pb-6">
+                  <div className="space-y-3 min-h-[280px]">
                     {plan.features.map((feature, featureIndex) => (
                       <div key={featureIndex} className="flex items-start gap-3">
-                        <CheckCircle className="h-5 w-5 text-primary flex-shrink-0 mt-0.5" />
+                        <CheckCircle className="h-5 w-5 text-success flex-shrink-0 mt-0.5" />
                         <span className="text-sm text-foreground">{feature}</span>
                       </div>
                     ))}
                     {plan.limitations.map((limitation, limitIndex) => (
-                      <div key={limitIndex} className="flex items-start gap-3 opacity-60">
+                      <div key={limitIndex} className="flex items-start gap-3 opacity-50">
                         <X className="h-5 w-5 text-muted-foreground flex-shrink-0 mt-0.5" />
                         <span className="text-sm text-muted-foreground line-through">{limitation}</span>
                       </div>
@@ -298,16 +367,42 @@ const Landing = () => {
                   <Separator />
                   <Link to={`/checkout?plan=${plan.name.toLowerCase()}`} className="block">
                     <Button 
-                      className="w-full" 
+                      className={`w-full group ${
+                        plan.popular 
+                          ? 'bg-gradient-to-r from-primary to-primary/90 hover:from-primary/90 hover:to-primary shadow-lg hover:shadow-xl' 
+                          : ''
+                      }`}
                       variant={plan.popular ? "default" : "outline"}
                       size="lg"
                     >
                       Começar Agora
+                      <ArrowRight className="ml-2 h-4 w-4 group-hover:translate-x-1 transition-transform" />
                     </Button>
                   </Link>
+                  {plan.popular && (
+                    <p className="text-xs text-center text-muted-foreground mt-2">
+                      🔥 Melhor custo-benefício
+                    </p>
+                  )}
                 </CardContent>
               </Card>
             ))}
+          </div>
+          
+          {/* Trust badges under pricing */}
+          <div className="mt-12 sm:mt-16 flex flex-wrap items-center justify-center gap-6 sm:gap-12 px-4">
+            <div className="flex items-center gap-3 text-muted-foreground">
+              <Shield className="w-5 h-5 text-primary" />
+              <span className="text-sm">Pagamento Seguro</span>
+            </div>
+            <div className="flex items-center gap-3 text-muted-foreground">
+              <Users className="w-5 h-5 text-primary" />
+              <span className="text-sm">500+ Clientes</span>
+            </div>
+            <div className="flex items-center gap-3 text-muted-foreground">
+              <Zap className="w-5 h-5 text-primary" />
+              <span className="text-sm">Setup em 5min</span>
+            </div>
           </div>
         </div>
       </section>
@@ -371,22 +466,68 @@ const Landing = () => {
       </section>
 
       {/* Final CTA */}
-      <section className="py-20">
+      <section className="py-16 sm:py-20 relative overflow-hidden">
+        {/* Background effects */}
+        <div className="absolute inset-0 -z-10">
+          <div className="absolute inset-0 bg-gradient-to-r from-primary/5 via-success/5 to-primary/5" />
+          <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-full max-w-4xl h-64 bg-primary/10 rounded-full blur-3xl" />
+        </div>
+
         <div className="mx-auto max-w-4xl px-4 sm:px-6 lg:px-8 text-center">
-          <h2 className="text-3xl font-bold text-foreground sm:text-4xl mb-6">
-            Pronto para automatizar seu e-commerce?
-          </h2>
-          <p className="text-lg text-muted-foreground mb-8 max-w-2xl mx-auto">
-            Junte-se a centenas de vendedores que já economizam horas todos os dias com o UniStock.
-          </p>
-          <a href="#planos">
-            <Button size="lg" className="h-12 px-8 text-lg">
-              Comece seu teste gratuito agora
-              <ArrowRight className="ml-2 h-5 w-5" />
-            </Button>
-          </a>
+          <div className="bg-card/50 backdrop-blur-sm border border-border rounded-2xl p-8 sm:p-12 shadow-xl">
+            <Badge variant="outline" className="mb-4 px-4 py-2 text-sm border-success/30 text-success bg-success/5">
+              <Rocket className="w-4 h-4 mr-2" />
+              Teste grátis por 3 dias
+            </Badge>
+            
+            <h2 className="text-3xl sm:text-4xl lg:text-5xl font-bold text-foreground mb-4 sm:mb-6">
+              Pronto para automatizar seu e-commerce?
+            </h2>
+            
+            <p className="text-base sm:text-lg text-muted-foreground mb-6 sm:mb-8 max-w-2xl mx-auto">
+              Junte-se a <span className="text-primary font-semibold">500+ vendedores</span> que já economizam horas todos os dias com o UniStock.
+            </p>
+            
+            <div className="flex flex-col sm:flex-row gap-4 justify-center items-center mb-6">
+              <a href="#planos" className="w-full sm:w-auto">
+                <Button 
+                  size="lg" 
+                  className="w-full sm:w-auto h-12 sm:h-14 px-8 sm:px-12 text-base sm:text-lg font-semibold shadow-lg hover:shadow-xl hover:scale-105 transition-all duration-300 bg-gradient-to-r from-primary to-primary/90 hover:from-primary/90 hover:to-primary group"
+                >
+                  <Sparkles className="mr-2 h-5 w-5" />
+                  Começar teste gratuito agora
+                  <ArrowRight className="ml-2 h-5 w-5 group-hover:translate-x-1 transition-transform" />
+                </Button>
+              </a>
+            </div>
+
+            <div className="flex flex-wrap items-center justify-center gap-4 sm:gap-6 text-xs sm:text-sm text-muted-foreground">
+              <div className="flex items-center gap-2">
+                <CheckCircle className="w-4 h-4 text-success" />
+                <span>3 dias grátis</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <CheckCircle className="w-4 h-4 text-success" />
+                <span>Sem cartão de crédito</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <CheckCircle className="w-4 h-4 text-success" />
+                <span>Cancele quando quiser</span>
+              </div>
+            </div>
+          </div>
         </div>
       </section>
+
+      {/* Footer */}
+      <footer className="border-t border-border py-8 bg-muted/20">
+        <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
+          <div className="text-center text-sm text-muted-foreground">
+            <p className="font-semibold text-foreground mb-2">UniStock</p>
+            <p>&copy; 2025 UniStock. Todos os direitos reservados.</p>
+          </div>
+        </div>
+      </footer>
     </div>
   );
 };
