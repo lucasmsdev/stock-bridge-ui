@@ -25,15 +25,145 @@ const AIAssistant = () => {
   ]);
   const [input, setInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);
+  const [conversationId, setConversationId] = useState<string | null>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
   const { toast } = useToast();
   const { user } = useAuth();
+
+  // Load conversation on mount
+  useEffect(() => {
+    if (user?.id) {
+      loadConversation();
+    }
+  }, [user?.id]);
 
   useEffect(() => {
     if (scrollRef.current) {
       scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
     }
   }, [messages]);
+
+  // Save conversation whenever messages change (debounced)
+  useEffect(() => {
+    if (conversationId && messages.length > 1) {
+      const timer = setTimeout(() => {
+        saveConversation();
+      }, 1000);
+      return () => clearTimeout(timer);
+    }
+  }, [messages, conversationId]);
+
+  const loadConversation = async () => {
+    try {
+      // Get the most recent conversation
+      const { data: conversations, error } = await supabase
+        .from('ai_conversations')
+        .select('*')
+        .eq('user_id', user!.id)
+        .order('updated_at', { ascending: false })
+        .limit(1);
+
+      if (error) throw error;
+
+      if (conversations && conversations.length > 0) {
+        const conv = conversations[0];
+        setConversationId(conv.id);
+        const loadedMessages = Array.isArray(conv.messages) ? conv.messages : [];
+        if (loadedMessages.length > 0) {
+          // Convert timestamps to Date objects
+          const parsedMessages = loadedMessages.map((msg: any) => ({
+            ...msg,
+            timestamp: new Date(msg.timestamp)
+          }));
+          setMessages(parsedMessages);
+        }
+      } else {
+        // Create new conversation
+        await createNewConversation();
+      }
+    } catch (error) {
+      console.error('Erro ao carregar conversa:', error);
+    }
+  };
+
+  const createNewConversation = async () => {
+    try {
+      // Convert messages to plain objects for storage
+      const messagesToStore = messages.map(msg => ({
+        role: msg.role,
+        content: msg.content,
+        timestamp: msg.timestamp.toISOString()
+      }));
+
+      const { data, error } = await supabase
+        .from('ai_conversations')
+        .insert({
+          user_id: user!.id,
+          messages: messagesToStore as any
+        })
+        .select()
+        .single();
+
+      if (error) throw error;
+      setConversationId(data.id);
+
+      // Limit to 10 conversations
+      await cleanupOldConversations();
+    } catch (error) {
+      console.error('Erro ao criar conversa:', error);
+    }
+  };
+
+  const saveConversation = async () => {
+    if (!conversationId) return;
+
+    try {
+      // Convert messages to plain objects for storage
+      const messagesToStore = messages.map(msg => ({
+        role: msg.role,
+        content: msg.content,
+        timestamp: msg.timestamp.toISOString()
+      }));
+
+      const { error } = await supabase
+        .from('ai_conversations')
+        .update({
+          messages: messagesToStore as any,
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', conversationId);
+
+      if (error) throw error;
+    } catch (error) {
+      console.error('Erro ao salvar conversa:', error);
+    }
+  };
+
+  const cleanupOldConversations = async () => {
+    try {
+      // Get all conversations
+      const { data: conversations, error: fetchError } = await supabase
+        .from('ai_conversations')
+        .select('id')
+        .eq('user_id', user!.id)
+        .order('updated_at', { ascending: false });
+
+      if (fetchError) throw fetchError;
+
+      // If more than 10, delete the oldest ones
+      if (conversations && conversations.length > 10) {
+        const idsToDelete = conversations.slice(10).map(c => c.id);
+        const { error: deleteError } = await supabase
+          .from('ai_conversations')
+          .delete()
+          .in('id', idsToDelete);
+
+        if (deleteError) throw deleteError;
+      }
+    } catch (error) {
+      console.error('Erro ao limpar conversas antigas:', error);
+    }
+  };
 
   // Função para limpar markdown e manter formatação
   const cleanMarkdown = (text: string) => {
@@ -70,6 +200,11 @@ const AIAssistant = () => {
     setInput('');
     setIsLoading(true);
 
+    // Create conversation if doesn't exist
+    if (!conversationId) {
+      await createNewConversation();
+    }
+
     try {
       const { data, error } = await supabase.functions.invoke('ai-assistant', {
         body: { question: userMessage.content }
@@ -80,7 +215,7 @@ const AIAssistant = () => {
       if (data?.answer) {
         const assistantMessage: Message = {
           role: 'assistant',
-          content: cleanMarkdown(data.answer), // Limpa markdown
+          content: cleanMarkdown(data.answer),
           timestamp: new Date()
         };
         setMessages(prev => [...prev, assistantMessage]);

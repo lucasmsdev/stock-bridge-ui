@@ -13,6 +13,20 @@ interface DashboardMetrics {
     date: string;
     revenue: number;
   }>;
+  marketing: {
+    billing: number;
+    marketplaceLiquid: number;
+    grossProfit: number;
+    margin: number;
+    salesCount: number;
+    unitsSold: number;
+    averageTicket: number;
+    roi: number;
+    adSpend: number;
+    tacos: number;
+    profitAfterAds: number;
+    marginAfterAds: number;
+  };
 }
 
 export default async function handler(req: Request): Promise<Response> {
@@ -177,11 +191,120 @@ export default async function handler(req: Request): Promise<Response> {
       }
     }
 
+    // Calculate marketing metrics
+    let marketingMetrics = {
+      billing: 0,
+      marketplaceLiquid: 0,
+      grossProfit: 0,
+      margin: 0,
+      salesCount: 0,
+      unitsSold: 0,
+      averageTicket: 0,
+      roi: 0,
+      adSpend: 0,
+      tacos: 0,
+      profitAfterAds: 0,
+      marginAfterAds: 0
+    };
+
+    try {
+      console.log('Calculating marketing metrics...');
+      
+      // Get all orders for the period (last 30 days for better metrics)
+      const thirtyDaysAgo = new Date(todayStart);
+      thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+      
+      const { data: ordersData, error: ordersError } = await supabase
+        .from('orders')
+        .select('total_value, items')
+        .eq('user_id', user.id)
+        .gte('order_date', thirtyDaysAgo.toISOString());
+
+      if (!ordersError && ordersData && ordersData.length > 0) {
+        // Calculate billing (total revenue)
+        marketingMetrics.billing = ordersData.reduce((sum, order) => sum + Number(order.total_value), 0);
+        marketingMetrics.salesCount = ordersData.length;
+        
+        // Calculate units sold
+        marketingMetrics.unitsSold = ordersData.reduce((sum, order) => {
+          const items = order.items || [];
+          return sum + items.reduce((itemSum: number, item: any) => itemSum + (item.quantity || 0), 0);
+        }, 0);
+        
+        // Get products with cost and ad spend data
+        const { data: productsData, error: productsError } = await supabase
+          .from('products')
+          .select('cost_price, selling_price, ad_spend')
+          .eq('user_id', user.id);
+        
+        if (!productsError && productsData) {
+          // Calculate total ad spend
+          marketingMetrics.adSpend = productsData.reduce((sum, p) => sum + Number(p.ad_spend || 0), 0);
+          
+          // Calculate cost of goods sold and gross profit
+          let totalCost = 0;
+          ordersData.forEach(order => {
+            const items = order.items || [];
+            items.forEach((item: any) => {
+              const product = productsData.find(p => p.selling_price === item.unit_price);
+              if (product && product.cost_price) {
+                totalCost += Number(product.cost_price) * (item.quantity || 0);
+              }
+            });
+          });
+          
+          // Marketplace liquid (assuming 12% marketplace fee)
+          marketingMetrics.marketplaceLiquid = marketingMetrics.billing * 0.88;
+          
+          // Gross profit
+          marketingMetrics.grossProfit = marketingMetrics.marketplaceLiquid - totalCost;
+          
+          // Margin
+          if (marketingMetrics.marketplaceLiquid > 0) {
+            marketingMetrics.margin = (marketingMetrics.grossProfit / marketingMetrics.marketplaceLiquid) * 100;
+          }
+          
+          // Average ticket
+          if (marketingMetrics.salesCount > 0) {
+            marketingMetrics.averageTicket = marketingMetrics.billing / marketingMetrics.salesCount;
+          }
+          
+          // Profit after ads
+          marketingMetrics.profitAfterAds = marketingMetrics.grossProfit - marketingMetrics.adSpend;
+          
+          // Margin after ads
+          if (marketingMetrics.marketplaceLiquid > 0) {
+            marketingMetrics.marginAfterAds = (marketingMetrics.profitAfterAds / marketingMetrics.marketplaceLiquid) * 100;
+          }
+          
+          // TACOS (Total Advertising Cost of Sales)
+          if (marketingMetrics.billing > 0) {
+            marketingMetrics.tacos = (marketingMetrics.adSpend / marketingMetrics.billing) * 100;
+          }
+          
+          // ROI
+          if (marketingMetrics.adSpend > 0) {
+            marketingMetrics.roi = ((marketingMetrics.grossProfit - marketingMetrics.adSpend) / marketingMetrics.adSpend) * 100;
+          }
+        }
+        
+        // Round all values
+        Object.keys(marketingMetrics).forEach(key => {
+          marketingMetrics[key as keyof typeof marketingMetrics] = Math.round(marketingMetrics[key as keyof typeof marketingMetrics] * 100) / 100;
+        });
+        
+        console.log('Marketing metrics calculated:', marketingMetrics);
+      }
+    } catch (marketingError) {
+      console.error('Failed to calculate marketing metrics, using defaults:', marketingError);
+    }
+
     const metrics: DashboardMetrics = {
       todayRevenue: Math.round(todayRevenue * 100) / 100,
       todayOrders,
       totalProducts,
-      salesLast7Days
+      salesLast7Days,
+      marketing: marketingMetrics
     };
 
     console.log('Final metrics being returned:', metrics);

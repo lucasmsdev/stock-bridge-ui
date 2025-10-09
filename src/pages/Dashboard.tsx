@@ -30,6 +30,20 @@ interface DashboardMetrics {
     date: string;
     revenue: number;
   }>;
+  marketing?: {
+    billing: number;
+    marketplaceLiquid: number;
+    grossProfit: number;
+    margin: number;
+    salesCount: number;
+    unitsSold: number;
+    averageTicket: number;
+    roi: number;
+    adSpend: number;
+    tacos: number;
+    profitAfterAds: number;
+    marginAfterAds: number;
+  };
 }
 
 interface MetricCard {
@@ -405,7 +419,9 @@ export default function Dashboard() {
                 <DollarSign className="h-4 w-4 text-success" />
               </CardHeader>
               <CardContent>
-                <div className="text-2xl font-bold">{formatCurrency(demoMarketingMetrics.billing)}</div>
+                <div className="text-2xl font-bold">
+                  {formatCurrency(dashboardData.marketing?.billing || demoMarketingMetrics.billing)}
+                </div>
               </CardContent>
             </Card>
 
@@ -417,7 +433,9 @@ export default function Dashboard() {
                 <DollarSign className="h-4 w-4 text-primary" />
               </CardHeader>
               <CardContent>
-                <div className="text-2xl font-bold">{formatCurrency(demoMarketingMetrics.marketplaceLiquid)}</div>
+                <div className="text-2xl font-bold">
+                  {formatCurrency(dashboardData.marketing?.marketplaceLiquid || demoMarketingMetrics.marketplaceLiquid)}
+                </div>
               </CardContent>
             </Card>
 
@@ -429,7 +447,9 @@ export default function Dashboard() {
                 <TrendingUp className="h-4 w-4 text-success" />
               </CardHeader>
               <CardContent>
-                <div className="text-2xl font-bold">{formatCurrency(demoMarketingMetrics.grossProfit)}</div>
+                <div className="text-2xl font-bold">
+                  {formatCurrency(dashboardData.marketing?.grossProfit || demoMarketingMetrics.grossProfit)}
+                </div>
               </CardContent>
             </Card>
 
@@ -441,7 +461,9 @@ export default function Dashboard() {
                 <Percent className="h-4 w-4 text-primary" />
               </CardHeader>
               <CardContent>
-                <div className="text-2xl font-bold">{demoMarketingMetrics.margin}%</div>
+                <div className="text-2xl font-bold">
+                  {dashboardData.marketing?.margin || demoMarketingMetrics.margin}%
+                </div>
               </CardContent>
             </Card>
 
@@ -454,7 +476,9 @@ export default function Dashboard() {
                 <ShoppingCart className="h-4 w-4 text-primary" />
               </CardHeader>
               <CardContent>
-                <div className="text-2xl font-bold">{demoMarketingMetrics.salesCount}</div>
+                <div className="text-2xl font-bold">
+                  {dashboardData.marketing?.salesCount || demoMarketingMetrics.salesCount}
+                </div>
               </CardContent>
             </Card>
 
@@ -466,7 +490,9 @@ export default function Dashboard() {
                 <Package className="h-4 w-4 text-primary" />
               </CardHeader>
               <CardContent>
-                <div className="text-2xl font-bold">{demoMarketingMetrics.unitsSold}</div>
+                <div className="text-2xl font-bold">
+                  {dashboardData.marketing?.unitsSold || demoMarketingMetrics.unitsSold}
+                </div>
               </CardContent>
             </Card>
 
@@ -478,7 +504,9 @@ export default function Dashboard() {
                 <Receipt className="h-4 w-4 text-primary" />
               </CardHeader>
               <CardContent>
-                <div className="text-2xl font-bold">{formatCurrency(demoMarketingMetrics.averageTicket)}</div>
+                <div className="text-2xl font-bold">
+                  {formatCurrency(dashboardData.marketing?.averageTicket || demoMarketingMetrics.averageTicket)}
+                </div>
               </CardContent>
             </Card>
 
@@ -490,7 +518,9 @@ export default function Dashboard() {
                 <TrendingUp className="h-4 w-4 text-success" />
               </CardHeader>
               <CardContent>
-                <div className="text-2xl font-bold">{demoMarketingMetrics.roi}%</div>
+                <div className="text-2xl font-bold">
+                  {dashboardData.marketing?.roi || demoMarketingMetrics.roi}%
+                </div>
               </CardContent>
             </Card>
 
@@ -503,7 +533,9 @@ export default function Dashboard() {
                 <Target className="h-4 w-4 text-warning" />
               </CardHeader>
               <CardContent>
-                <div className="text-2xl font-bold">{formatCurrency(demoMarketingMetrics.adSpend)}</div>
+                <div className="text-2xl font-bold">
+                  {formatCurrency(dashboardData.marketing?.adSpend || demoMarketingMetrics.adSpend)}
+                </div>
               </CardContent>
             </Card>
 
@@ -515,7 +547,9 @@ export default function Dashboard() {
                 <Percent className="h-4 w-4 text-warning" />
               </CardHeader>
               <CardContent>
-                <div className="text-2xl font-bold">{demoMarketingMetrics.tacos}%</div>
+                <div className="text-2xl font-bold">
+                  {dashboardData.marketing?.tacos || demoMarketingMetrics.tacos}%
+                </div>
               </CardContent>
             </Card>
 
@@ -527,7 +561,9 @@ export default function Dashboard() {
                 <DollarSign className="h-4 w-4 text-success" />
               </CardHeader>
               <CardContent>
-                <div className="text-2xl font-bold">{formatCurrency(demoMarketingMetrics.profitAfterAds)}</div>
+                <div className="text-2xl font-bold">
+                  {formatCurrency(dashboardData.marketing?.profitAfterAds || demoMarketingMetrics.profitAfterAds)}
+                </div>
               </CardContent>
             </Card>
 
@@ -539,7 +575,9 @@ export default function Dashboard() {
                 <Percent className="h-4 w-4 text-primary" />
               </CardHeader>
               <CardContent>
-                <div className="text-2xl font-bold">{demoMarketingMetrics.marginAfterAds}%</div>
+                <div className="text-2xl font-bold">
+                  {dashboardData.marketing?.marginAfterAds || demoMarketingMetrics.marginAfterAds}%
+                </div>
               </CardContent>
             </Card>
           </div>
