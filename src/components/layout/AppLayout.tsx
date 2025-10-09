@@ -38,12 +38,12 @@ export const AppLayout = () => {
   return (
     <div className="min-h-screen bg-gradient-subtle flex w-full">
       {/* Sidebar */}
-      <div className={`hidden md:block transition-all duration-300 ${sidebarOpen ? 'w-64' : 'w-16'}`}>
+      <div className={`hidden md:block transition-all duration-300 ${sidebarOpen ? 'w-64' : 'w-16'} sticky top-0 h-screen`}>
         <AppSidebar isCollapsed={!sidebarOpen} />
       </div>
 
       {/* Main Content */}
-      <div className="flex-1 flex flex-col w-full">
+      <div className="flex-1 flex flex-col w-full min-w-0">
         {/* Header */}
         <header className="h-14 md:h-16 bg-card border-b border-border flex items-center justify-between px-3 md:px-6 shadow-soft">
           <Button

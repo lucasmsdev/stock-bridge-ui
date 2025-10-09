@@ -145,7 +145,7 @@ export const AppSidebar = ({ isCollapsed }: AppSidebarProps) => {
       </div>
 
       {/* Navigation */}
-      <nav className="flex-1 p-4 space-y-2">
+      <nav className="flex-1 p-4 space-y-2 overflow-y-auto">
         {navItems.map(renderNavItem)}
       </nav>
 
