@@ -1,4 +1,4 @@
-import { TrendingUp, Package, ShoppingCart, Plug2, DollarSign, Loader2 } from "lucide-react";
+import { TrendingUp, Package, ShoppingCart, Plug2, DollarSign, Loader2, TrendingDown, Users, Receipt, Target, Percent } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { 
@@ -54,6 +54,21 @@ const demoMetrics: DashboardMetrics = {
     { date: "2024-09-18", revenue: 2500 },
     { date: "2024-09-19", revenue: 2850 }
   ]
+};
+
+const demoMarketingMetrics = {
+  billing: 3305.00,
+  marketplaceLiquid: 2261.30,
+  grossProfit: 373.44,
+  margin: 11.3,
+  salesCount: 39,
+  unitsSold: 39,
+  averageTicket: 84.74,
+  roi: 23.98,
+  adSpend: 208.58,
+  tacos: 35.1,
+  profitAfterAds: 164.86,
+  marginAfterAds: 4.99
 };
 
 const demoOrders = [
@@ -371,6 +386,163 @@ export default function Dashboard() {
               )}
             </CardContent>
           </Card>
+        </div>
+
+        {/* Marketing Metrics Section */}
+        <div className="mt-8">
+          <h2 className="text-xl md:text-2xl font-bold mb-4 flex items-center gap-2">
+            <Target className="h-6 w-6 text-primary" />
+            Métricas de Marketing
+          </h2>
+          
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 md:gap-4">
+            {/* Row 1 */}
+            <Card className="shadow-soft hover:shadow-medium transition-all duration-200">
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium text-muted-foreground">
+                  Faturamento
+                </CardTitle>
+                <DollarSign className="h-4 w-4 text-success" />
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold">{formatCurrency(demoMarketingMetrics.billing)}</div>
+              </CardContent>
+            </Card>
+
+            <Card className="shadow-soft hover:shadow-medium transition-all duration-200">
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium text-muted-foreground">
+                  Liq. do Marketplace
+                </CardTitle>
+                <DollarSign className="h-4 w-4 text-primary" />
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold">{formatCurrency(demoMarketingMetrics.marketplaceLiquid)}</div>
+              </CardContent>
+            </Card>
+
+            <Card className="shadow-soft hover:shadow-medium transition-all duration-200">
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium text-muted-foreground">
+                  Lucro Bruto
+                </CardTitle>
+                <TrendingUp className="h-4 w-4 text-success" />
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold">{formatCurrency(demoMarketingMetrics.grossProfit)}</div>
+              </CardContent>
+            </Card>
+
+            <Card className="shadow-soft hover:shadow-medium transition-all duration-200">
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium text-muted-foreground">
+                  Margem
+                </CardTitle>
+                <Percent className="h-4 w-4 text-primary" />
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold">{demoMarketingMetrics.margin}%</div>
+              </CardContent>
+            </Card>
+
+            {/* Row 2 */}
+            <Card className="shadow-soft hover:shadow-medium transition-all duration-200">
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium text-muted-foreground">
+                  Número de Vendas
+                </CardTitle>
+                <ShoppingCart className="h-4 w-4 text-primary" />
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold">{demoMarketingMetrics.salesCount}</div>
+              </CardContent>
+            </Card>
+
+            <Card className="shadow-soft hover:shadow-medium transition-all duration-200">
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium text-muted-foreground">
+                  Unidades Vendidas
+                </CardTitle>
+                <Package className="h-4 w-4 text-primary" />
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold">{demoMarketingMetrics.unitsSold}</div>
+              </CardContent>
+            </Card>
+
+            <Card className="shadow-soft hover:shadow-medium transition-all duration-200">
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium text-muted-foreground">
+                  Ticket Médio
+                </CardTitle>
+                <Receipt className="h-4 w-4 text-primary" />
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold">{formatCurrency(demoMarketingMetrics.averageTicket)}</div>
+              </CardContent>
+            </Card>
+
+            <Card className="shadow-soft hover:shadow-medium transition-all duration-200">
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium text-muted-foreground">
+                  ROI
+                </CardTitle>
+                <TrendingUp className="h-4 w-4 text-success" />
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold">{demoMarketingMetrics.roi}%</div>
+              </CardContent>
+            </Card>
+
+            {/* Row 3 */}
+            <Card className="shadow-soft hover:shadow-medium transition-all duration-200">
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium text-muted-foreground">
+                  Valor em Ads
+                </CardTitle>
+                <Target className="h-4 w-4 text-warning" />
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold">{formatCurrency(demoMarketingMetrics.adSpend)}</div>
+              </CardContent>
+            </Card>
+
+            <Card className="shadow-soft hover:shadow-medium transition-all duration-200">
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium text-muted-foreground">
+                  TACOS
+                </CardTitle>
+                <Percent className="h-4 w-4 text-warning" />
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold">{demoMarketingMetrics.tacos}%</div>
+              </CardContent>
+            </Card>
+
+            <Card className="shadow-soft hover:shadow-medium transition-all duration-200">
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium text-muted-foreground">
+                  Lucro após ADS
+                </CardTitle>
+                <DollarSign className="h-4 w-4 text-success" />
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold">{formatCurrency(demoMarketingMetrics.profitAfterAds)}</div>
+              </CardContent>
+            </Card>
+
+            <Card className="shadow-soft hover:shadow-medium transition-all duration-200">
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium text-muted-foreground">
+                  Margem após ADS
+                </CardTitle>
+                <Percent className="h-4 w-4 text-primary" />
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold">{demoMarketingMetrics.marginAfterAds}%</div>
+              </CardContent>
+            </Card>
+          </div>
         </div>
       </>
     );
