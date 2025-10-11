@@ -319,10 +319,7 @@ const AIAssistant = () => {
   const suggestedQuestions = [
     "Identifique oportunidades de expansão para outras plataformas",
     "Sugira kits e bundles para aumentar meu ticket médio",
-    "Analise tendências do mercado e ações dos concorrentes",
-    "Quais produtos devo destacar em minhas campanhas?",
-    "Como posso criar combos lucrativos com meus produtos?",
-    "Identifique produtos com potencial em outras plataformas"
+    "Analise tendências do mercado e ações dos concorrentes"
   ];
 
   return (
