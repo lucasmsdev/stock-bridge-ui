@@ -6,8 +6,9 @@ import { Input } from "@/components/ui/input";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
-import { Send, Bot, User, Loader2, Sparkles } from "lucide-react";
+import { Send, Bot, User, Loader2, Sparkles, Plus, MessageSquare, Trash2 } from "lucide-react";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import { Separator } from "@/components/ui/separator";
 
 interface Message {
   role: 'user' | 'assistant';
@@ -15,25 +16,33 @@ interface Message {
   timestamp: Date;
 }
 
+interface Conversation {
+  id: string;
+  title: string;
+  created_at: string;
+  updated_at: string;
+}
+
 const AIAssistant = () => {
-  const [messages, setMessages] = useState<Message[]>([
-    {
-      role: 'assistant',
-      content: 'Olá! 👋 Sou o Luca, seu Estrategista de Crescimento Autônomo.\n\nComo seu consultor estratégico, posso ajudar você a:\n\n✓ Expandir para Novos Mercados: Identificar oportunidades de produtos em outras plataformas\n✓ Criar Kits e Bundles: Aumentar ticket médio com combinações inteligentes\n✓ Análise de Concorrência: Monitorar tendências e ações dos concorrentes\n✓ Otimização Avançada: Precificação dinâmica e gestão de estoque estratégica\n✓ Insights Proativos: Identificar oportunidades que você ainda não viu\n\nQual área do seu negócio você gostaria de crescer hoje?',
-      timestamp: new Date()
-    }
-  ]);
+  const initialMessage: Message = {
+    role: 'assistant',
+    content: 'Olá! 👋 Sou o Luca, seu Estrategista de Crescimento Autônomo.\n\nComo seu consultor estratégico, posso ajudar você a:\n\n✓ Expandir para Novos Mercados: Identificar oportunidades de produtos em outras plataformas\n✓ Criar Kits e Bundles: Aumentar ticket médio com combinações inteligentes\n✓ Análise de Concorrência: Monitorar tendências e ações dos concorrentes\n✓ Otimização Avançada: Precificação dinâmica e gestão de estoque estratégica\n✓ Insights Proativos: Identificar oportunidades que você ainda não viu\n\nQual área do seu negócio você gostaria de crescer hoje?',
+    timestamp: new Date()
+  };
+
+  const [messages, setMessages] = useState<Message[]>([initialMessage]);
   const [input, setInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [conversationId, setConversationId] = useState<string | null>(null);
+  const [conversations, setConversations] = useState<Conversation[]>([]);
   const scrollRef = useRef<HTMLDivElement>(null);
   const { toast } = useToast();
   const { user } = useAuth();
 
-  // Load conversation on mount
+  // Load conversations on mount
   useEffect(() => {
     if (user?.id) {
-      loadConversation();
+      loadConversations();
     }
   }, [user?.id]);
 
@@ -53,33 +62,68 @@ const AIAssistant = () => {
     }
   }, [messages, conversationId]);
 
-  const loadConversation = async () => {
+  const loadConversations = async () => {
     try {
-      // Get the most recent conversation
-      const { data: conversations, error } = await supabase
+      const { data, error } = await supabase
         .from('ai_conversations')
-        .select('*')
+        .select('id, created_at, updated_at, messages')
         .eq('user_id', user!.id)
         .order('updated_at', { ascending: false })
-        .limit(1);
+        .limit(10);
 
       if (error) throw error;
 
-      if (conversations && conversations.length > 0) {
-        const conv = conversations[0];
-        setConversationId(conv.id);
-        const loadedMessages = Array.isArray(conv.messages) ? conv.messages : [];
-        if (loadedMessages.length > 0) {
-          // Convert timestamps to Date objects
-          const parsedMessages = loadedMessages.map((msg: any) => ({
-            ...msg,
-            timestamp: new Date(msg.timestamp)
-          }));
-          setMessages(parsedMessages);
-        }
+      if (data && data.length > 0) {
+        const conversationsList: Conversation[] = data.map(conv => ({
+          id: conv.id,
+          title: getConversationTitle(Array.isArray(conv.messages) ? conv.messages : []),
+          created_at: conv.created_at,
+          updated_at: conv.updated_at
+        }));
+        setConversations(conversationsList);
+        
+        // Load the most recent conversation
+        loadConversationById(data[0].id);
       } else {
-        // Create new conversation
+        // Create first conversation
         await createNewConversation();
+      }
+    } catch (error) {
+      console.error('Erro ao carregar conversas:', error);
+    }
+  };
+
+  const getConversationTitle = (messages: any[]): string => {
+    if (!Array.isArray(messages) || messages.length <= 1) {
+      return 'Nova Conversa';
+    }
+    const firstUserMsg = messages.find(m => m.role === 'user');
+    if (firstUserMsg?.content) {
+      return firstUserMsg.content.substring(0, 40) + (firstUserMsg.content.length > 40 ? '...' : '');
+    }
+    return 'Nova Conversa';
+  };
+
+  const loadConversationById = async (id: string) => {
+    try {
+      const { data, error } = await supabase
+        .from('ai_conversations')
+        .select('*')
+        .eq('id', id)
+        .single();
+
+      if (error) throw error;
+
+      setConversationId(data.id);
+      const loadedMessages = Array.isArray(data.messages) ? data.messages : [];
+      if (loadedMessages.length > 0) {
+        const parsedMessages = loadedMessages.map((msg: any) => ({
+          ...msg,
+          timestamp: new Date(msg.timestamp)
+        }));
+        setMessages(parsedMessages);
+      } else {
+        setMessages([initialMessage]);
       }
     } catch (error) {
       console.error('Erro ao carregar conversa:', error);
@@ -88,12 +132,14 @@ const AIAssistant = () => {
 
   const createNewConversation = async () => {
     try {
-      // Convert messages to plain objects for storage
-      const messagesToStore = messages.map(msg => ({
-        role: msg.role,
-        content: msg.content,
-        timestamp: msg.timestamp.toISOString()
-      }));
+      setMessages([initialMessage]);
+      setConversationId(null);
+
+      const messagesToStore = [{
+        role: initialMessage.role,
+        content: initialMessage.content,
+        timestamp: initialMessage.timestamp.toISOString()
+      }];
 
       const { data, error } = await supabase
         .from('ai_conversations')
@@ -105,12 +151,41 @@ const AIAssistant = () => {
         .single();
 
       if (error) throw error;
+      
       setConversationId(data.id);
-
-      // Limit to 10 conversations
       await cleanupOldConversations();
+      await loadConversations();
     } catch (error) {
       console.error('Erro ao criar conversa:', error);
+    }
+  };
+
+  const deleteConversation = async (id: string) => {
+    try {
+      const { error } = await supabase
+        .from('ai_conversations')
+        .delete()
+        .eq('id', id);
+
+      if (error) throw error;
+
+      if (conversationId === id) {
+        await createNewConversation();
+      } else {
+        await loadConversations();
+      }
+
+      toast({
+        title: "Conversa excluída",
+        description: "A conversa foi removida com sucesso.",
+      });
+    } catch (error) {
+      console.error('Erro ao excluir conversa:', error);
+      toast({
+        title: "Erro",
+        description: "Não foi possível excluir a conversa.",
+        variant: "destructive",
+      });
     }
   };
 
@@ -263,7 +338,63 @@ const AIAssistant = () => {
         </p>
       </div>
 
-      <Card className="shadow-lg">
+      <div className="grid grid-cols-1 lg:grid-cols-4 gap-4">
+        {/* Sidebar with conversations */}
+        <Card className="lg:col-span-1 shadow-lg">
+          <CardHeader className="border-b bg-muted/30">
+            <CardTitle className="flex items-center justify-between text-base">
+              <span className="flex items-center gap-2">
+                <MessageSquare className="h-4 w-4" />
+                Conversas
+              </span>
+              <Button
+                size="sm"
+                variant="ghost"
+                onClick={createNewConversation}
+                className="h-8 w-8 p-0"
+              >
+                <Plus className="h-4 w-4" />
+              </Button>
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="p-0">
+            <ScrollArea className="h-[500px] md:h-[600px]">
+              <div className="space-y-1 p-2">
+                {conversations.map((conv) => (
+                  <div
+                    key={conv.id}
+                    className={`group flex items-center gap-2 p-3 rounded-lg cursor-pointer transition-colors ${
+                      conversationId === conv.id
+                        ? 'bg-primary/10 border border-primary/20'
+                        : 'hover:bg-muted'
+                    }`}
+                  >
+                    <button
+                      onClick={() => loadConversationById(conv.id)}
+                      className="flex-1 text-left text-sm truncate"
+                    >
+                      {conv.title}
+                    </button>
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        deleteConversation(conv.id);
+                      }}
+                      className="h-6 w-6 p-0 opacity-0 group-hover:opacity-100 transition-opacity"
+                    >
+                      <Trash2 className="h-3 w-3 text-destructive" />
+                    </Button>
+                  </div>
+                ))}
+              </div>
+            </ScrollArea>
+          </CardContent>
+        </Card>
+
+        {/* Chat area */}
+        <Card className="lg:col-span-3 shadow-lg">
         <CardHeader className="border-b bg-muted/30">
           <CardTitle className="flex items-center gap-2">
             <Bot className="h-5 w-5 text-primary" />
@@ -363,7 +494,8 @@ const AIAssistant = () => {
             </div>
           </div>
         </CardContent>
-      </Card>
+        </Card>
+      </div>
     </div>
   );
 };
