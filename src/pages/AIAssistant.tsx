@@ -162,7 +162,9 @@ const AIAssistant = () => {
 
   const deleteConversation = async (id: string) => {
     try {
-      console.log('Deletando conversa:', id);
+      console.log('🗑️ Tentando deletar conversa:', id);
+      console.log('🗑️ User ID:', user?.id);
+      console.log('🗑️ Conversas antes de deletar:', conversations.length);
       
       const { error } = await supabase
         .from('ai_conversations')
@@ -171,21 +173,36 @@ const AIAssistant = () => {
         .eq('user_id', user!.id);
 
       if (error) {
-        console.error('Erro ao deletar:', error);
+        console.error('❌ Erro RLS ao deletar:', error);
         throw error;
       }
 
-      console.log('Conversa deletada com sucesso');
+      console.log('✅ Conversa deletada no banco');
 
-      // Update conversations list
-      const updatedConversations = conversations.filter(c => c.id !== id);
-      setConversations(updatedConversations);
+      // Atualizar lista de conversas removendo a deletada
+      setConversations(prevConversations => {
+        const updated = prevConversations.filter(c => c.id !== id);
+        console.log('📋 Conversas após deletar:', updated.length);
+        return updated;
+      });
 
-      // If deleting current conversation, load another or create new
+      // Se deletou a conversa atual, carregar outra ou criar nova
       if (conversationId === id) {
-        if (updatedConversations.length > 0) {
-          loadConversationById(updatedConversations[0].id);
+        console.log('🔄 Conversa deletada era a ativa, buscando outra...');
+        
+        // Buscar conversas atualizadas do banco
+        const { data: remainingConvs } = await supabase
+          .from('ai_conversations')
+          .select('id')
+          .eq('user_id', user!.id)
+          .order('updated_at', { ascending: false })
+          .limit(1);
+
+        if (remainingConvs && remainingConvs.length > 0) {
+          console.log('📝 Carregando conversa:', remainingConvs[0].id);
+          await loadConversationById(remainingConvs[0].id);
         } else {
+          console.log('➕ Criando nova conversa');
           await createNewConversation();
         }
       }
@@ -195,7 +212,7 @@ const AIAssistant = () => {
         description: "A conversa foi removida com sucesso.",
       });
     } catch (error) {
-      console.error('Erro ao excluir conversa:', error);
+      console.error('❌ Erro ao excluir conversa:', error);
       toast({
         title: "Erro",
         description: "Não foi possível excluir a conversa.",
