@@ -162,17 +162,32 @@ const AIAssistant = () => {
 
   const deleteConversation = async (id: string) => {
     try {
+      console.log('Deletando conversa:', id);
+      
       const { error } = await supabase
         .from('ai_conversations')
         .delete()
-        .eq('id', id);
+        .eq('id', id)
+        .eq('user_id', user!.id);
 
-      if (error) throw error;
+      if (error) {
+        console.error('Erro ao deletar:', error);
+        throw error;
+      }
 
+      console.log('Conversa deletada com sucesso');
+
+      // Update conversations list
+      const updatedConversations = conversations.filter(c => c.id !== id);
+      setConversations(updatedConversations);
+
+      // If deleting current conversation, load another or create new
       if (conversationId === id) {
-        await createNewConversation();
-      } else {
-        await loadConversations();
+        if (updatedConversations.length > 0) {
+          loadConversationById(updatedConversations[0].id);
+        } else {
+          await createNewConversation();
+        }
       }
 
       toast({
@@ -360,7 +375,7 @@ const AIAssistant = () => {
                 {conversations.map((conv) => (
                   <div
                     key={conv.id}
-                    className={`group flex items-center gap-2 p-3 rounded-lg cursor-pointer transition-colors ${
+                    className={`group flex items-center gap-2 p-3 rounded-lg transition-colors ${
                       conversationId === conv.id
                         ? 'bg-primary/10 border border-primary/20'
                         : 'hover:bg-muted'
@@ -368,7 +383,7 @@ const AIAssistant = () => {
                   >
                     <button
                       onClick={() => loadConversationById(conv.id)}
-                      className="flex-1 text-left text-sm truncate"
+                      className="flex-1 text-left text-sm truncate cursor-pointer"
                     >
                       {conv.title}
                     </button>
@@ -376,12 +391,13 @@ const AIAssistant = () => {
                       size="sm"
                       variant="ghost"
                       onClick={(e) => {
+                        e.preventDefault();
                         e.stopPropagation();
                         deleteConversation(conv.id);
                       }}
-                      className="h-6 w-6 p-0 opacity-0 group-hover:opacity-100 transition-opacity"
+                      className="h-7 w-7 p-0 flex-shrink-0 hover:bg-destructive/10"
                     >
-                      <Trash2 className="h-3 w-3 text-destructive" />
+                      <Trash2 className="h-3.5 w-3.5 text-destructive" />
                     </Button>
                   </div>
                 ))}
