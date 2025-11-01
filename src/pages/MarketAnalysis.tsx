@@ -205,7 +205,7 @@ export default function MarketAnalysis() {
                 <div className="text-center space-y-3">
                   <Loader2 className="h-8 w-8 text-primary animate-spin mx-auto" />
                   <p className="text-sm text-muted-foreground">
-                    🤖 A IA está pesquisando preços no Mercado Livre, Shopee e Amazon...
+                    🤖 A IA está pesquisando preços em todas as principais plataformas...
                   </p>
                   <p className="text-xs text-muted-foreground">
                     Isso pode levar alguns segundos. Por favor, aguarde.
@@ -384,7 +384,7 @@ export default function MarketAnalysis() {
                 Digite um termo de busca acima para descobrir como seus concorrentes estão precificando produtos similares nas principais plataformas de e-commerce.
               </p>
               <div className="text-sm text-muted-foreground space-y-2">
-                <p><strong>Plataformas analisadas:</strong> Mercado Livre, Shopee e Amazon</p>
+                <p><strong>Plataformas analisadas:</strong> Mercado Livre, Shopee, Amazon, Shopify, Magazine Luiza e Americanas</p>
                 <p><strong>Dica:</strong> Seja específico na sua busca para obter melhores resultados</p>
                 <p>Exemplos: "iPhone 15 128GB", "notebook Dell inspiron", "tênis Nike air max"</p>
               </div>

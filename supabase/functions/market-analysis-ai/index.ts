@@ -38,43 +38,33 @@ serve(async (req) => {
     }
 
     // Montar o prompt para a Perplexity
-    const prompt = `Analise os preços do produto "${searchTerm}" nos principais marketplaces brasileiros (Mercado Livre, Shopee e Amazon Brasil).
+    const prompt = `Você DEVE pesquisar o produto "${searchTerm}" em TODAS as seguintes plataformas de e-commerce:
 
-Para cada plataforma, forneça:
-1. Nome exato do produto encontrado
-2. Preço atual (em reais - R$)
-3. Nome do vendedor
-4. Link direto do produto
+1. Mercado Livre Brasil (mercadolivre.com.br)
+2. Shopee Brasil (shopee.com.br)
+3. Amazon Brasil (amazon.com.br)
+4. Shopify (lojas brasileiras usando shopify.com)
+5. Magazine Luiza/Magalu (magazineluiza.com.br)
+6. Americanas (americanas.com.br)
 
-Retorne APENAS um objeto JSON válido com a seguinte estrutura, sem nenhum texto adicional antes ou depois:
+Para cada plataforma onde o produto for encontrado, forneça:
+- Nome exato do produto
+- Preço atual em reais (R$)
+- Nome do vendedor/loja
+- Link direto do produto
+
+Retorne APENAS um objeto JSON válido com esta estrutura exata, sem markdown, sem texto adicional:
+
 {
-  "productTitle": "Nome do produto",
+  "productTitle": "Nome genérico do produto pesquisado",
   "analysis": [
     {
-      "platform": "Mercado Livre",
+      "platform": "Nome da Plataforma",
       "bestOffer": {
-        "title": "Nome exato do produto",
+        "title": "Nome completo do produto encontrado",
         "price": 1234.56,
         "seller": "Nome do vendedor",
-        "link": "https://..."
-      }
-    },
-    {
-      "platform": "Shopee",
-      "bestOffer": {
-        "title": "Nome exato do produto",
-        "price": 1234.56,
-        "seller": "Nome do vendedor",
-        "link": "https://..."
-      }
-    },
-    {
-      "platform": "Amazon",
-      "bestOffer": {
-        "title": "Nome exato do produto",
-        "price": 1234.56,
-        "seller": "Nome do vendedor",
-        "link": "https://..."
+        "link": "https://url-direta-do-produto"
       }
     }
   ],
@@ -85,11 +75,14 @@ Retorne APENAS um objeto JSON válido com a seguinte estrutura, sem nenhum texto
   }
 }
 
-IMPORTANTE: 
-- Retorne SOMENTE o JSON, sem markdown, sem explicações, sem texto antes ou depois
-- Os preços devem ser números (float), não strings
-- Busque as ofertas mais recentes e relevantes
-- Se não encontrar em alguma plataforma, omita ela do array analysis`;
+REGRAS OBRIGATÓRIAS:
+- Pesquise em TODAS as 6 plataformas listadas acima
+- Inclua no array "analysis" TODAS as plataformas onde encontrar o produto
+- Use os nomes exatos das plataformas: "Mercado Livre", "Shopee", "Amazon", "Shopify", "Magazine Luiza", "Americanas"
+- Preços devem ser números decimais (float), não strings
+- Links devem ser URLs reais e diretas dos produtos
+- Se não encontrar em alguma plataforma específica, não inclua ela no array
+- Retorne SOMENTE o JSON, sem ```json, sem explicações, sem texto antes ou depois`;
 
     console.log('🤖 Enviando requisição para Perplexity API...');
     
@@ -100,19 +93,19 @@ IMPORTANTE:
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        model: 'sonar-pro',
+        model: 'sonar',
         messages: [
           {
             role: 'system',
-            content: 'Você é um assistente especializado em pesquisa de preços em e-commerce brasileiro. Retorne sempre respostas em JSON válido, sem nenhum texto adicional.'
+            content: 'Você é um assistente de pesquisa de preços que DEVE buscar produtos em TODAS as principais plataformas de e-commerce brasileiro. Sempre retorne JSON válido sem markdown ou texto adicional. Busque em: Mercado Livre, Shopee, Amazon, Shopify, Magazine Luiza e Americanas.'
           },
           {
             role: 'user',
             content: prompt
           }
         ],
-        temperature: 0.2,
-        max_tokens: 2000,
+        temperature: 0.1,
+        max_tokens: 3000,
         search_recency_filter: 'week',
       }),
     });
@@ -182,32 +175,47 @@ IMPORTANTE:
       );
     }
 
-    // Gerar links de busca reais nas plataformas
+    // Manter os links originais da IA (são mais específicos que buscas genéricas)
     const searchQuery = encodeURIComponent(searchTerm);
     analysisData.analysis = analysisData.analysis.map((item: any) => {
-      let searchLink = '';
-      
-      switch (item.platform) {
-        case 'Mercado Livre':
-          searchLink = `https://lista.mercadolivre.com.br/${searchQuery}`;
-          break;
-        case 'Shopee':
-          searchLink = `https://shopee.com.br/search?keyword=${searchQuery}`;
-          break;
-        case 'Amazon':
-          searchLink = `https://www.amazon.com.br/s?k=${searchQuery}`;
-          break;
-        default:
-          searchLink = item.bestOffer.link || '#';
+      // Se a IA não forneceu link válido, usar link de busca genérico
+      if (!item.bestOffer.link || item.bestOffer.link === '#' || !item.bestOffer.link.startsWith('http')) {
+        let searchLink = '';
+        
+        switch (item.platform) {
+          case 'Mercado Livre':
+            searchLink = `https://lista.mercadolivre.com.br/${searchQuery}`;
+            break;
+          case 'Shopee':
+            searchLink = `https://shopee.com.br/search?keyword=${searchQuery}`;
+            break;
+          case 'Amazon':
+            searchLink = `https://www.amazon.com.br/s?k=${searchQuery}`;
+            break;
+          case 'Shopify':
+            searchLink = `https://www.google.com/search?q=${searchQuery}+site:myshopify.com`;
+            break;
+          case 'Magazine Luiza':
+            searchLink = `https://www.magazineluiza.com.br/busca/${searchQuery}`;
+            break;
+          case 'Americanas':
+            searchLink = `https://www.americanas.com.br/busca/${searchQuery}`;
+            break;
+          default:
+            searchLink = `https://www.google.com/search?q=${searchQuery}`;
+        }
+        
+        return {
+          ...item,
+          bestOffer: {
+            ...item.bestOffer,
+            link: searchLink
+          }
+        };
       }
       
-      return {
-        ...item,
-        bestOffer: {
-          ...item.bestOffer,
-          link: searchLink
-        }
-      };
+      // Manter link original da IA se for válido
+      return item;
     });
 
     console.log('✅ Análise concluída com sucesso');
