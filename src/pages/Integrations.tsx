@@ -236,8 +236,11 @@ export default function Integrations() {
         });
       }
     } else if (platformId === 'shopify') {
-      // Redirect to Shopify setup page
-      window.location.href = '/shopify-setup';
+      // Show as coming soon
+      toast({
+        title: "Em breve",
+        description: "A integração com Shopify estará disponível em breve.",
+      });
     } else {
       // Mock connection logic for other platforms
       toast({

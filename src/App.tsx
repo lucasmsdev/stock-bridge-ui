@@ -20,8 +20,6 @@ import FAQ from "./pages/FAQ";
 import Profile from "./pages/Profile";
 import Billing from "./pages/Billing";
 import MercadoLivreCallback from "./pages/callback/MercadoLivreCallback";
-import ShopifyCallback from "./pages/callback/ShopifyCallback";
-import ShopifySetup from "./pages/ShopifySetup";
 import Landing from "./pages/Landing";
 import Reports from "./pages/Reports";
 import Checkout from "./pages/Checkout";
@@ -43,8 +41,6 @@ const App = () => (
               <Route path="/signup" element={<Signup />} />
               <Route path="/checkout" element={<Checkout />} />
               <Route path="/callback/mercadolivre" element={<MercadoLivreCallback />} />
-              <Route path="/callback/shopify" element={<ShopifyCallback />} />
-              <Route path="/shopify-setup" element={<ShopifySetup />} />
               
               {/* Protected Routes */}
               <Route path="/app" element={<AppLayout />}>
