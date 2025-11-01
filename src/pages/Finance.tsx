@@ -145,123 +145,13 @@ export default function Finance() {
         </p>
       </div>
 
-      <Tabs defaultValue="overview" className="space-y-6">
-        <TabsList className="grid w-full grid-cols-3">
-          <TabsTrigger value="overview">Visão Geral</TabsTrigger>
+      <Tabs defaultValue="calculator" className="space-y-6">
+        <TabsList className="grid w-full grid-cols-2">
           <TabsTrigger value="calculator">Calculadora de Precificação</TabsTrigger>
           <TabsTrigger value="advanced" disabled={!canAccess('RelatoriosAvancados')}>
             Relatórios Avançados
           </TabsTrigger>
         </TabsList>
-
-        {/* Overview Tab */}
-        <TabsContent value="overview" className="space-y-6">
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <TrendingUp className="h-5 w-5 text-primary" />
-                Análise Financeira dos Produtos
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              {isLoading ? (
-                <div className="flex items-center justify-center py-8">
-                  <Loader2 className="h-8 w-8 animate-spin text-primary" />
-                  <span className="ml-2">Carregando produtos...</span>
-                </div>
-              ) : products.length === 0 ? (
-                <div className="text-center py-8">
-                  <Package className="h-12 w-12 mx-auto mb-4 opacity-50" />
-                  <p className="text-muted-foreground">Nenhum produto encontrado</p>
-                  <p className="text-sm text-muted-foreground">
-                    Adicione produtos para ver a análise financeira
-                  </p>
-                </div>
-              ) : (
-                <div className="overflow-x-auto">
-                  <Table>
-                    <TableHeader>
-                      <TableRow>
-                        <TableHead>Produto</TableHead>
-                        <TableHead>SKU</TableHead>
-                        <TableHead>Preço de Custo</TableHead>
-                        <TableHead>Preço de Venda</TableHead>
-                        <TableHead>Gasto com Anúncios</TableHead>
-                        <TableHead>Margem de Lucro</TableHead>
-                        <TableHead>Ações</TableHead>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {products.map((product) => {
-                        const margin = product.cost_price && product.selling_price 
-                          ? calculateMargin(product.cost_price, product.selling_price)
-                          : 0;
-                        
-                        return (
-                          <TableRow key={product.id}>
-                            <TableCell>
-                              <div className="flex items-center gap-3">
-                                 {product.image_url && (
-                                   <img 
-                                     src={product.image_url.replace('http://', 'https://')} 
-                                     alt={product.name}
-                                     className="w-10 h-10 rounded-md object-cover"
-                                   />
-                                 )}
-                                <span className="font-medium">{product.name}</span>
-                              </div>
-                            </TableCell>
-                            <TableCell>
-                              <Badge variant="outline">{product.sku}</Badge>
-                            </TableCell>
-                            <TableCell>
-                              {product.cost_price 
-                                ? formatCurrency(product.cost_price)
-                                : <span className="text-muted-foreground">-</span>
-                              }
-                            </TableCell>
-                            <TableCell>
-                              {product.selling_price 
-                                ? formatCurrency(product.selling_price)
-                                : <span className="text-muted-foreground">-</span>
-                              }
-                            </TableCell>
-                            <TableCell>
-                              {product.ad_spend 
-                                ? formatCurrency(product.ad_spend)
-                                : <span className="text-muted-foreground">R$ 0,00</span>
-                              }
-                            </TableCell>
-                            <TableCell>
-                              {product.cost_price && product.selling_price ? (
-                                <Badge 
-                                  variant={margin >= 20 ? "default" : margin >= 10 ? "secondary" : "destructive"}
-                                >
-                                  {margin.toFixed(1)}%
-                                </Badge>
-                              ) : (
-                                <span className="text-muted-foreground">-</span>
-                              )}
-                            </TableCell>
-                            <TableCell>
-                              <Button 
-                                variant="outline" 
-                                size="sm"
-                                onClick={() => navigate(`/products/${product.id}`)}
-                              >
-                                Editar
-                              </Button>
-                            </TableCell>
-                          </TableRow>
-                        );
-                      })}
-                    </TableBody>
-                  </Table>
-                </div>
-              )}
-            </CardContent>
-          </Card>
-        </TabsContent>
 
         {/* Calculator Tab */}
         <TabsContent value="calculator" className="space-y-6">
