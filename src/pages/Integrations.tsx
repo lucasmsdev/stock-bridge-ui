@@ -44,6 +44,13 @@ const availableIntegrations = [
     popular: true,
     logoUrl: "https://upload.wikimedia.org/wikipedia/commons/d/de/Amazon_icon.png",
     darkInvert: true
+  },
+  {
+    id: "shopify",
+    name: "Shopify",
+    description: "Conecte sua loja Shopify para sincronização de produtos e pedidos",
+    popular: false,
+    logoUrl: "/logos/shopify.svg"
   }
 ];
 
@@ -229,11 +236,8 @@ export default function Integrations() {
         });
       }
     } else if (platformId === 'shopify') {
-      // Show as coming soon
-      toast({
-        title: "Em desenvolvimento",
-        description: "A integração com Shopify estará disponível em breve.",
-      });
+      // Redirect to Shopify setup page
+      window.location.href = '/shopify-setup';
     } else {
       // Mock connection logic for other platforms
       toast({

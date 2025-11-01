@@ -29,26 +29,50 @@ const integrationGuides = [
     ]
   },
   {
-    id: "shopify",
-    name: "Shopify",
+    id: "shopee",
+    name: "Shopee",
     logo: "🛍️",
     difficulty: "Médio",
     difficultyColor: "bg-yellow-500",
     steps: [
-      "Acesse sua loja Shopify como administrador",
-      "Vá para Apps > Manage private apps",
-      "Crie uma nova app privada para o UniStock",
-      "Copie as credenciais de API",
-      "Cole as credenciais na página de Integrações do UniStock"
+      "Registre-se no Shopee Seller Centre",
+      "Acesse 'Configurações' > 'Permissões de Terceiros'",
+      "Clique em 'Conectar Shopee' na página de Integrações do UniStock",
+      "Autorize as permissões solicitadas",
+      "Aguarde a sincronização dos seus produtos"
     ],
     requirements: [
-      "Loja Shopify ativa",
-      "Permissões de administrador",
-      "Plano que suporte apps privadas"
+      "Conta vendedor ativa no Shopee",
+      "Loja configurada e aprovada",
+      "Produtos cadastrados"
     ],
     tips: [
-      "Guarde suas credenciais de API em local seguro",
-      "Configure as permissões mínimas necessárias"
+      "Verifique se sua loja está aprovada antes de conectar",
+      "A sincronização completa pode levar até 30 minutos"
+    ]
+  },
+  {
+    id: "shopify",
+    name: "Shopify",
+    logo: "🏪",
+    difficulty: "Médio",
+    difficultyColor: "bg-blue-500",
+    steps: [
+      "Acesse o Shopify Partners e crie uma aplicação custom",
+      "Configure as URLs de redirecionamento fornecidas pelo UniStock",
+      "Defina as permissões necessárias (produtos, pedidos, estoque)",
+      "Copie o Client ID e Client Secret da aplicação",
+      "Entre em contato com o suporte para configurar as credenciais"
+    ],
+    requirements: [
+      "Conta Shopify ativa (qualquer plano)",
+      "Acesso ao Shopify Partners",
+      "Permissões de administrador na loja"
+    ],
+    tips: [
+      "Guarde as credenciais em local seguro",
+      "A configuração inicial requer contato com suporte",
+      "Após configurado, você pode conectar múltiplas lojas"
     ]
   },
   {
@@ -59,19 +83,21 @@ const integrationGuides = [
     difficultyColor: "bg-red-500",
     steps: [
       "Registre-se no Amazon Seller Central",
-      "Solicite acesso à API do Amazon MWS",
+      "Solicite acesso à API do Amazon MWS ou SP-API",
       "Aguarde aprovação da Amazon (pode levar dias)",
-      "Configure as credenciais no UniStock",
-      "Teste a conexão com produtos de teste"
+      "Clique em 'Conectar Amazon' na página de Integrações",
+      "Configure as credenciais e teste a conexão"
     ],
     requirements: [
       "Conta Amazon Seller verificada",
       "Histórico de vendas estável",
-      "Aprovação da Amazon para API"
+      "Aprovação da Amazon para acesso à API",
+      "Documentação fiscal completa"
     ],
     tips: [
       "O processo de aprovação pode ser demorado",
-      "Mantenha sua documentação fiscal em dia"
+      "Mantenha sua documentação fiscal em dia",
+      "Utilize o ambiente sandbox para testes iniciais"
     ]
   }
 ];
