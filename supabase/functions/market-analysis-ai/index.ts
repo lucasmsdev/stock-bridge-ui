@@ -206,9 +206,29 @@ Retorne JSON puro (sem markdown):
 
     analysisData.analysis = Array.from(platformsMap.values());
 
+    // Calcular resumo de preços apenas com preços válidos (> 0)
+    const validPrices = Array.from(platformsMap.values())
+      .map(item => item.bestOffer.price)
+      .filter(price => price > 0);
+    
+    if (validPrices.length > 0) {
+      analysisData.priceSummary = {
+        lowestPrice: Math.min(...validPrices),
+        highestPrice: Math.max(...validPrices),
+        averagePrice: validPrices.reduce((a, b) => a + b, 0) / validPrices.length
+      };
+    } else {
+      analysisData.priceSummary = {
+        lowestPrice: 0,
+        highestPrice: 0,
+        averagePrice: 0
+      };
+    }
+
     console.log('✅ Análise concluída com sucesso');
     console.log(`📊 Produto: ${analysisData.productTitle}`);
     console.log(`🏪 Plataformas encontradas: ${analysisData.analysis.length}`);
+    console.log(`💰 Preços válidos: ${validPrices.length}`);
 
     return new Response(
       JSON.stringify({ 

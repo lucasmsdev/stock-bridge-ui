@@ -130,13 +130,19 @@ export default function MarketAnalysis() {
   const getPlatformColor = (platform: string) => {
     switch (platform) {
       case 'Mercado Livre':
-        return 'text-yellow-600 bg-yellow-50 border-yellow-200';
+        return 'text-warning bg-warning/10 border-warning/30';
       case 'Shopee':
-        return 'text-orange-600 bg-orange-50 border-orange-200';
+        return 'text-destructive bg-destructive/10 border-destructive/30';
       case 'Amazon':
-        return 'text-blue-600 bg-blue-50 border-blue-200';
+        return 'text-primary bg-primary/10 border-primary/30';
+      case 'Magazine Luiza':
+        return 'text-success bg-success/10 border-success/30';
+      case 'Americanas':
+        return 'text-destructive bg-destructive/10 border-destructive/30';
+      case 'Shopify':
+        return 'text-success bg-success/10 border-success/30';
       default:
-        return 'text-gray-600 bg-gray-50 border-gray-200';
+        return 'text-muted-foreground bg-muted border-border';
     }
   };
 
@@ -261,7 +267,7 @@ export default function MarketAnalysis() {
           <Card className="shadow-soft">
             <CardContent className="pt-6">
               <div className="flex items-center space-x-2">
-                <TrendingUp className="h-5 w-5 text-green-600" />
+                <TrendingUp className="h-5 w-5 text-success" />
                 <div>
                   <p className="text-2xl font-bold text-foreground">
                     {formatPrice(analysis.priceSummary.lowestPrice)}
@@ -275,7 +281,7 @@ export default function MarketAnalysis() {
           <Card className="shadow-soft">
             <CardContent className="pt-6">
               <div className="flex items-center space-x-2">
-                <DollarSign className="h-5 w-5 text-blue-600" />
+                <DollarSign className="h-5 w-5 text-primary" />
                 <div>
                   <p className="text-2xl font-bold text-foreground">
                     {formatPrice(analysis.priceSummary.averagePrice)}
@@ -289,7 +295,7 @@ export default function MarketAnalysis() {
           <Card className="shadow-soft">
             <CardContent className="pt-6">
               <div className="flex items-center space-x-2">
-                <Users className="h-5 w-5 text-orange-600" />
+                <Users className="h-5 w-5 text-warning" />
                 <div>
                   <p className="text-2xl font-bold text-foreground">
                     {formatPrice(analysis.priceSummary.highestPrice)}
@@ -350,8 +356,8 @@ export default function MarketAnalysis() {
                     
                     {/* Price and Action */}
                     <div className="text-right flex-shrink-0">
-                      <p className="text-2xl font-bold text-primary">
-                        {formatPrice(platformAnalysis.bestOffer.price)}
+                      <p className="text-2xl font-bold text-foreground">
+                        {platformAnalysis.bestOffer.price > 0 ? formatPrice(platformAnalysis.bestOffer.price) : 'Consultar'}
                       </p>
                       <Button
                         variant="outline"
@@ -360,7 +366,7 @@ export default function MarketAnalysis() {
                         onClick={() => window.open(platformAnalysis.bestOffer.link, '_blank')}
                       >
                         <ShoppingCart className="w-4 h-4 mr-1" />
-                        Buscar na Loja
+                        Ver Produtos
                       </Button>
                     </div>
                   </div>
