@@ -82,7 +82,7 @@ REGRAS OBRIGATÓRIAS:
 - Preços devem ser números decimais (float), não strings
 - Links devem ser URLs reais e diretas dos produtos
 - Se não encontrar em alguma plataforma específica, não inclua ela no array
-- Retorne SOMENTE o JSON, sem ```json, sem explicações, sem texto antes ou depois`;
+- Retorne SOMENTE o JSON puro, sem blocos de código markdown, sem explicações, sem texto antes ou depois`;
 
     console.log('🤖 Enviando requisição para Perplexity API...');
     
