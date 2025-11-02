@@ -38,58 +38,30 @@ serve(async (req) => {
     }
 
     // Montar o prompt otimizado para a Perplexity
-    const prompt = `TAREFA: Pesquise o produto "${searchTerm}" nas 6 principais plataformas de e-commerce brasileiras e retorne os resultados em JSON.
+    const prompt = `Busque informações sobre o produto "${searchTerm}" em e-commerces brasileiros e retorne em JSON.
 
-PLATAFORMAS OBRIGATÓRIAS (pesquise em TODAS):
-1. Mercado Livre (mercadolivre.com.br) - use: site:mercadolivre.com.br "${searchTerm}"
-2. Shopee (shopee.com.br) - use: site:shopee.com.br "${searchTerm}"
-3. Amazon Brasil (amazon.com.br) - use: site:amazon.com.br "${searchTerm}"
-4. Magazine Luiza (magazineluiza.com.br) - use: site:magazineluiza.com.br "${searchTerm}"
-5. Americanas (americanas.com.br) - use: site:americanas.com.br "${searchTerm}"
-6. Lojas Shopify brasileiras (.myshopify.com) - use: site:myshopify.com "${searchTerm}" brasil
+Inclua preços de TODAS estas plataformas:
+- Mercado Livre
+- Shopee  
+- Amazon
+- Magazine Luiza
+- Americanas
+- Shopify
 
-INSTRUÇÕES DE BUSCA:
-- Faça uma busca WEB específica em CADA plataforma usando os termos site: acima
-- Para cada plataforma, encontre o produto com melhor preço disponível
-- Extraia o link REAL e COMPLETO do produto (URL completa começando com https://)
-- Se a plataforma não tiver o produto, NÃO a inclua no resultado
+Para cada plataforma, tente encontrar preço e título do produto. Se não encontrar, use "price": 0.
 
-FORMATO DE SAÍDA (JSON puro, sem markdown):
+Retorne JSON puro (sem markdown):
 {
   "productTitle": "${searchTerm}",
   "analysis": [
-    {
-      "platform": "Mercado Livre",
-      "bestOffer": {
-        "title": "Nome completo do produto real encontrado",
-        "price": 99.90,
-        "seller": "Nome da loja/vendedor",
-        "link": "https://produto.mercadolivre.com.br/MLB-..."
-      }
-    },
-    {
-      "platform": "Shopee",
-      "bestOffer": {
-        "title": "Nome completo do produto real encontrado",
-        "price": 89.90,
-        "seller": "Nome da loja",
-        "link": "https://shopee.com.br/product/..."
-      }
-    }
-  ],
-  "priceSummary": {
-    "lowestPrice": 89.90,
-    "highestPrice": 150.00,
-    "averagePrice": 110.50
-  }
-}
-
-VALIDAÇÃO:
-✓ Nomes exatos: "Mercado Livre", "Shopee", "Amazon", "Magazine Luiza", "Americanas", "Shopify"
-✓ Links começam com https:// e são URLs reais de produtos
-✓ Preços são números (float), não strings
-✓ Inclua APENAS plataformas onde encontrou o produto
-✓ Retorne JSON puro (sem código markdown, sem texto extra)`;
+    {"platform": "Mercado Livre", "bestOffer": {"title": "nome do produto", "price": 100.00, "seller": "loja", "link": "url-real"}},
+    {"platform": "Shopee", "bestOffer": {"title": "nome", "price": 90.00, "seller": "loja", "link": "url-real"}},
+    {"platform": "Amazon", "bestOffer": {"title": "nome", "price": 95.00, "seller": "loja", "link": "url-real"}},
+    {"platform": "Magazine Luiza", "bestOffer": {"title": "nome", "price": 0, "seller": "N/A", "link": "#"}},
+    {"platform": "Americanas", "bestOffer": {"title": "nome", "price": 0, "seller": "N/A", "link": "#"}},
+    {"platform": "Shopify", "bestOffer": {"title": "nome", "price": 0, "seller": "N/A", "link": "#"}}
+  ]
+}`;
 
     console.log('🤖 Enviando requisição para Perplexity API...');
     
@@ -104,7 +76,7 @@ VALIDAÇÃO:
         messages: [
           {
             role: 'system',
-            content: 'Você é um assistente de pesquisa avançada de e-commerce. Sua tarefa é OBRIGATORIAMENTE buscar produtos em TODAS as 6 plataformas especificadas usando busca web real. Use operadores site: para buscar em cada domínio. Extraia URLs reais e completas dos produtos. Retorne APENAS JSON puro sem formatação markdown.'
+            content: 'Você é um assistente de e-commerce. Retorne dados de TODAS as 6 plataformas solicitadas. Use price: 0 se não encontrar. Retorne APENAS JSON puro.'
           },
           {
             role: 'user',
@@ -184,48 +156,55 @@ VALIDAÇÃO:
       );
     }
 
-    // Manter os links originais da IA (são mais específicos que buscas genéricas)
+    // Garantir que TODAS as 6 plataformas estejam presentes
     const searchQuery = encodeURIComponent(searchTerm);
-    analysisData.analysis = analysisData.analysis.map((item: any) => {
-      // Se a IA não forneceu link válido, usar link de busca genérico
-      if (!item.bestOffer.link || item.bestOffer.link === '#' || !item.bestOffer.link.startsWith('http')) {
-        let searchLink = '';
-        
-        switch (item.platform) {
-          case 'Mercado Livre':
-            searchLink = `https://lista.mercadolivre.com.br/${searchQuery}`;
-            break;
-          case 'Shopee':
-            searchLink = `https://shopee.com.br/search?keyword=${searchQuery}`;
-            break;
-          case 'Amazon':
-            searchLink = `https://www.amazon.com.br/s?k=${searchQuery}`;
-            break;
-          case 'Shopify':
-            searchLink = `https://www.google.com/search?q=${searchQuery}+site:myshopify.com`;
-            break;
-          case 'Magazine Luiza':
-            searchLink = `https://www.magazineluiza.com.br/busca/${searchQuery}`;
-            break;
-          case 'Americanas':
-            searchLink = `https://www.americanas.com.br/busca/${searchQuery}`;
-            break;
-          default:
-            searchLink = `https://www.google.com/search?q=${searchQuery}`;
+    const requiredPlatforms = [
+      { name: 'Mercado Livre', searchUrl: `https://lista.mercadolivre.com.br/${searchQuery}` },
+      { name: 'Shopee', searchUrl: `https://shopee.com.br/search?keyword=${searchQuery}` },
+      { name: 'Amazon', searchUrl: `https://www.amazon.com.br/s?k=${searchQuery}` },
+      { name: 'Magazine Luiza', searchUrl: `https://www.magazineluiza.com.br/busca/${searchQuery}` },
+      { name: 'Americanas', searchUrl: `https://www.americanas.com.br/busca/${searchQuery}` },
+      { name: 'Shopify', searchUrl: `https://www.google.com/search?q=${searchQuery}+site:myshopify.com` }
+    ];
+
+    // Normalizar dados da IA e garantir todas as plataformas
+    const platformsMap = new Map();
+    
+    // Adicionar dados da IA
+    if (analysisData.analysis && Array.isArray(analysisData.analysis)) {
+      analysisData.analysis.forEach((item: any) => {
+        if (item.bestOffer?.price > 0) {
+          platformsMap.set(item.platform, {
+            platform: item.platform,
+            bestOffer: {
+              title: item.bestOffer.title || searchTerm,
+              price: item.bestOffer.price,
+              seller: item.bestOffer.seller || 'Loja',
+              link: item.bestOffer.link && item.bestOffer.link.startsWith('http') 
+                ? item.bestOffer.link 
+                : requiredPlatforms.find(p => p.name === item.platform)?.searchUrl || '#'
+            }
+          });
         }
-        
-        return {
-          ...item,
+      });
+    }
+
+    // Adicionar plataformas faltantes com links de busca
+    requiredPlatforms.forEach(platform => {
+      if (!platformsMap.has(platform.name)) {
+        platformsMap.set(platform.name, {
+          platform: platform.name,
           bestOffer: {
-            ...item.bestOffer,
-            link: searchLink
+            title: `${searchTerm} - Buscar nesta loja`,
+            price: 0,
+            seller: 'Pesquisar',
+            link: platform.searchUrl
           }
-        };
+        });
       }
-      
-      // Manter link original da IA se for válido
-      return item;
     });
+
+    analysisData.analysis = Array.from(platformsMap.values());
 
     console.log('✅ Análise concluída com sucesso');
     console.log(`📊 Produto: ${analysisData.productTitle}`);
