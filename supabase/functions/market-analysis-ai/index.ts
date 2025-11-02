@@ -37,31 +37,52 @@ serve(async (req) => {
       );
     }
 
-    // Montar o prompt otimizado para a Perplexity
-    const prompt = `Busque informações sobre o produto "${searchTerm}" em e-commerces brasileiros e retorne em JSON.
+    // Montar o prompt para a Perplexity
+    const prompt = `Você DEVE pesquisar o produto "${searchTerm}" em TODAS as seguintes plataformas de e-commerce:
 
-Inclua preços de TODAS estas plataformas:
-- Mercado Livre
-- Shopee  
-- Amazon
-- Magazine Luiza
-- Americanas
-- Shopify
+1. Mercado Livre Brasil (mercadolivre.com.br)
+2. Shopee Brasil (shopee.com.br)
+3. Amazon Brasil (amazon.com.br)
+4. Shopify (lojas brasileiras usando shopify.com)
+5. Magazine Luiza/Magalu (magazineluiza.com.br)
+6. Americanas (americanas.com.br)
 
-Para cada plataforma, tente encontrar preço e título do produto. Se não encontrar, use "price": 0.
+Para cada plataforma onde o produto for encontrado, forneça:
+- Nome exato do produto
+- Preço atual em reais (R$)
+- Nome do vendedor/loja
+- Link direto do produto
 
-Retorne JSON puro (sem markdown):
+Retorne APENAS um objeto JSON válido com esta estrutura exata, sem markdown, sem texto adicional:
+
 {
-  "productTitle": "${searchTerm}",
+  "productTitle": "Nome genérico do produto pesquisado",
   "analysis": [
-    {"platform": "Mercado Livre", "bestOffer": {"title": "nome do produto", "price": 100.00, "seller": "loja", "link": "url-real"}},
-    {"platform": "Shopee", "bestOffer": {"title": "nome", "price": 90.00, "seller": "loja", "link": "url-real"}},
-    {"platform": "Amazon", "bestOffer": {"title": "nome", "price": 95.00, "seller": "loja", "link": "url-real"}},
-    {"platform": "Magazine Luiza", "bestOffer": {"title": "nome", "price": 0, "seller": "N/A", "link": "#"}},
-    {"platform": "Americanas", "bestOffer": {"title": "nome", "price": 0, "seller": "N/A", "link": "#"}},
-    {"platform": "Shopify", "bestOffer": {"title": "nome", "price": 0, "seller": "N/A", "link": "#"}}
-  ]
-}`;
+    {
+      "platform": "Nome da Plataforma",
+      "bestOffer": {
+        "title": "Nome completo do produto encontrado",
+        "price": 1234.56,
+        "seller": "Nome do vendedor",
+        "link": "https://url-direta-do-produto"
+      }
+    }
+  ],
+  "priceSummary": {
+    "lowestPrice": 1234.56,
+    "highestPrice": 2345.67,
+    "averagePrice": 1789.11
+  }
+}
+
+REGRAS OBRIGATÓRIAS:
+- Pesquise em TODAS as 6 plataformas listadas acima
+- Inclua no array "analysis" TODAS as plataformas onde encontrar o produto
+- Use os nomes exatos das plataformas: "Mercado Livre", "Shopee", "Amazon", "Shopify", "Magazine Luiza", "Americanas"
+- Preços devem ser números decimais (float), não strings
+- Links devem ser URLs reais e diretas dos produtos
+- Se não encontrar em alguma plataforma específica, não inclua ela no array
+- Retorne SOMENTE o JSON puro, sem blocos de código markdown, sem explicações, sem texto antes ou depois`;
 
     console.log('🤖 Enviando requisição para Perplexity API...');
     
@@ -72,22 +93,20 @@ Retorne JSON puro (sem markdown):
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        model: 'sonar-pro',
+        model: 'sonar',
         messages: [
           {
             role: 'system',
-            content: 'Você é um assistente de e-commerce. Retorne dados de TODAS as 6 plataformas solicitadas. Use price: 0 se não encontrar. Retorne APENAS JSON puro.'
+            content: 'Você é um assistente de pesquisa de preços que DEVE buscar produtos em TODAS as principais plataformas de e-commerce brasileiro. Sempre retorne JSON válido sem markdown ou texto adicional. Busque em: Mercado Livre, Shopee, Amazon, Shopify, Magazine Luiza e Americanas.'
           },
           {
             role: 'user',
             content: prompt
           }
         ],
-        temperature: 0.3,
-        max_tokens: 4000,
-        search_recency_filter: 'month',
-        return_related_questions: false,
-        return_images: false,
+        temperature: 0.1,
+        max_tokens: 3000,
+        search_recency_filter: 'week',
       }),
     });
 
@@ -156,79 +175,52 @@ Retorne JSON puro (sem markdown):
       );
     }
 
-    // Garantir que TODAS as 6 plataformas estejam presentes
+    // Manter os links originais da IA (são mais específicos que buscas genéricas)
     const searchQuery = encodeURIComponent(searchTerm);
-    const requiredPlatforms = [
-      { name: 'Mercado Livre', searchUrl: `https://lista.mercadolivre.com.br/${searchQuery}` },
-      { name: 'Shopee', searchUrl: `https://shopee.com.br/search?keyword=${searchQuery}` },
-      { name: 'Amazon', searchUrl: `https://www.amazon.com.br/s?k=${searchQuery}` },
-      { name: 'Magazine Luiza', searchUrl: `https://www.magazineluiza.com.br/busca/${searchQuery}` },
-      { name: 'Americanas', searchUrl: `https://www.americanas.com.br/busca/${searchQuery}` },
-      { name: 'Shopify', searchUrl: `https://www.google.com/search?q=${searchQuery}+site:myshopify.com` }
-    ];
-
-    // Normalizar dados da IA e garantir todas as plataformas
-    const platformsMap = new Map();
-    
-    // Adicionar dados da IA
-    if (analysisData.analysis && Array.isArray(analysisData.analysis)) {
-      analysisData.analysis.forEach((item: any) => {
-        if (item.bestOffer?.price > 0) {
-          platformsMap.set(item.platform, {
-            platform: item.platform,
-            bestOffer: {
-              title: item.bestOffer.title || searchTerm,
-              price: item.bestOffer.price,
-              seller: item.bestOffer.seller || 'Loja',
-              link: item.bestOffer.link && item.bestOffer.link.startsWith('http') 
-                ? item.bestOffer.link 
-                : requiredPlatforms.find(p => p.name === item.platform)?.searchUrl || '#'
-            }
-          });
+    analysisData.analysis = analysisData.analysis.map((item: any) => {
+      // Se a IA não forneceu link válido, usar link de busca genérico
+      if (!item.bestOffer.link || item.bestOffer.link === '#' || !item.bestOffer.link.startsWith('http')) {
+        let searchLink = '';
+        
+        switch (item.platform) {
+          case 'Mercado Livre':
+            searchLink = `https://lista.mercadolivre.com.br/${searchQuery}`;
+            break;
+          case 'Shopee':
+            searchLink = `https://shopee.com.br/search?keyword=${searchQuery}`;
+            break;
+          case 'Amazon':
+            searchLink = `https://www.amazon.com.br/s?k=${searchQuery}`;
+            break;
+          case 'Shopify':
+            searchLink = `https://www.google.com/search?q=${searchQuery}+site:myshopify.com`;
+            break;
+          case 'Magazine Luiza':
+            searchLink = `https://www.magazineluiza.com.br/busca/${searchQuery}`;
+            break;
+          case 'Americanas':
+            searchLink = `https://www.americanas.com.br/busca/${searchQuery}`;
+            break;
+          default:
+            searchLink = `https://www.google.com/search?q=${searchQuery}`;
         }
-      });
-    }
-
-    // Adicionar plataformas faltantes com links de busca
-    requiredPlatforms.forEach(platform => {
-      if (!platformsMap.has(platform.name)) {
-        platformsMap.set(platform.name, {
-          platform: platform.name,
+        
+        return {
+          ...item,
           bestOffer: {
-            title: `${searchTerm} - Buscar nesta loja`,
-            price: 0,
-            seller: 'Pesquisar',
-            link: platform.searchUrl
+            ...item.bestOffer,
+            link: searchLink
           }
-        });
+        };
       }
+      
+      // Manter link original da IA se for válido
+      return item;
     });
-
-    analysisData.analysis = Array.from(platformsMap.values());
-
-    // Calcular resumo de preços apenas com preços válidos (> 0)
-    const validPrices = Array.from(platformsMap.values())
-      .map(item => item.bestOffer.price)
-      .filter(price => price > 0);
-    
-    if (validPrices.length > 0) {
-      analysisData.priceSummary = {
-        lowestPrice: Math.min(...validPrices),
-        highestPrice: Math.max(...validPrices),
-        averagePrice: validPrices.reduce((a, b) => a + b, 0) / validPrices.length
-      };
-    } else {
-      analysisData.priceSummary = {
-        lowestPrice: 0,
-        highestPrice: 0,
-        averagePrice: 0
-      };
-    }
 
     console.log('✅ Análise concluída com sucesso');
     console.log(`📊 Produto: ${analysisData.productTitle}`);
     console.log(`🏪 Plataformas encontradas: ${analysisData.analysis.length}`);
-    console.log(`💰 Preços válidos: ${validPrices.length}`);
 
     return new Response(
       JSON.stringify({ 
