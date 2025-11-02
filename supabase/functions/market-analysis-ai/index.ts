@@ -37,52 +37,59 @@ serve(async (req) => {
       );
     }
 
-    // Montar o prompt para a Perplexity
-    const prompt = `Você DEVE pesquisar o produto "${searchTerm}" em TODAS as seguintes plataformas de e-commerce:
+    // Montar o prompt otimizado para a Perplexity
+    const prompt = `TAREFA: Pesquise o produto "${searchTerm}" nas 6 principais plataformas de e-commerce brasileiras e retorne os resultados em JSON.
 
-1. Mercado Livre Brasil (mercadolivre.com.br)
-2. Shopee Brasil (shopee.com.br)
-3. Amazon Brasil (amazon.com.br)
-4. Shopify (lojas brasileiras usando shopify.com)
-5. Magazine Luiza/Magalu (magazineluiza.com.br)
-6. Americanas (americanas.com.br)
+PLATAFORMAS OBRIGATÓRIAS (pesquise em TODAS):
+1. Mercado Livre (mercadolivre.com.br) - use: site:mercadolivre.com.br "${searchTerm}"
+2. Shopee (shopee.com.br) - use: site:shopee.com.br "${searchTerm}"
+3. Amazon Brasil (amazon.com.br) - use: site:amazon.com.br "${searchTerm}"
+4. Magazine Luiza (magazineluiza.com.br) - use: site:magazineluiza.com.br "${searchTerm}"
+5. Americanas (americanas.com.br) - use: site:americanas.com.br "${searchTerm}"
+6. Lojas Shopify brasileiras (.myshopify.com) - use: site:myshopify.com "${searchTerm}" brasil
 
-Para cada plataforma onde o produto for encontrado, forneça:
-- Nome exato do produto
-- Preço atual em reais (R$)
-- Nome do vendedor/loja
-- Link direto do produto
+INSTRUÇÕES DE BUSCA:
+- Faça uma busca WEB específica em CADA plataforma usando os termos site: acima
+- Para cada plataforma, encontre o produto com melhor preço disponível
+- Extraia o link REAL e COMPLETO do produto (URL completa começando com https://)
+- Se a plataforma não tiver o produto, NÃO a inclua no resultado
 
-Retorne APENAS um objeto JSON válido com esta estrutura exata, sem markdown, sem texto adicional:
-
+FORMATO DE SAÍDA (JSON puro, sem markdown):
 {
-  "productTitle": "Nome genérico do produto pesquisado",
+  "productTitle": "${searchTerm}",
   "analysis": [
     {
-      "platform": "Nome da Plataforma",
+      "platform": "Mercado Livre",
       "bestOffer": {
-        "title": "Nome completo do produto encontrado",
-        "price": 1234.56,
-        "seller": "Nome do vendedor",
-        "link": "https://url-direta-do-produto"
+        "title": "Nome completo do produto real encontrado",
+        "price": 99.90,
+        "seller": "Nome da loja/vendedor",
+        "link": "https://produto.mercadolivre.com.br/MLB-..."
+      }
+    },
+    {
+      "platform": "Shopee",
+      "bestOffer": {
+        "title": "Nome completo do produto real encontrado",
+        "price": 89.90,
+        "seller": "Nome da loja",
+        "link": "https://shopee.com.br/product/..."
       }
     }
   ],
   "priceSummary": {
-    "lowestPrice": 1234.56,
-    "highestPrice": 2345.67,
-    "averagePrice": 1789.11
+    "lowestPrice": 89.90,
+    "highestPrice": 150.00,
+    "averagePrice": 110.50
   }
 }
 
-REGRAS OBRIGATÓRIAS:
-- Pesquise em TODAS as 6 plataformas listadas acima
-- Inclua no array "analysis" TODAS as plataformas onde encontrar o produto
-- Use os nomes exatos das plataformas: "Mercado Livre", "Shopee", "Amazon", "Shopify", "Magazine Luiza", "Americanas"
-- Preços devem ser números decimais (float), não strings
-- Links devem ser URLs reais e diretas dos produtos
-- Se não encontrar em alguma plataforma específica, não inclua ela no array
-- Retorne SOMENTE o JSON puro, sem blocos de código markdown, sem explicações, sem texto antes ou depois`;
+VALIDAÇÃO:
+✓ Nomes exatos: "Mercado Livre", "Shopee", "Amazon", "Magazine Luiza", "Americanas", "Shopify"
+✓ Links começam com https:// e são URLs reais de produtos
+✓ Preços são números (float), não strings
+✓ Inclua APENAS plataformas onde encontrou o produto
+✓ Retorne JSON puro (sem código markdown, sem texto extra)`;
 
     console.log('🤖 Enviando requisição para Perplexity API...');
     
@@ -93,20 +100,22 @@ REGRAS OBRIGATÓRIAS:
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        model: 'sonar',
+        model: 'llama-3.1-sonar-large-128k-online',
         messages: [
           {
             role: 'system',
-            content: 'Você é um assistente de pesquisa de preços que DEVE buscar produtos em TODAS as principais plataformas de e-commerce brasileiro. Sempre retorne JSON válido sem markdown ou texto adicional. Busque em: Mercado Livre, Shopee, Amazon, Shopify, Magazine Luiza e Americanas.'
+            content: 'Você é um assistente de pesquisa avançada de e-commerce. Sua tarefa é OBRIGATORIAMENTE buscar produtos em TODAS as 6 plataformas especificadas usando busca web real. Use operadores site: para buscar em cada domínio. Extraia URLs reais e completas dos produtos. Retorne APENAS JSON puro sem formatação markdown.'
           },
           {
             role: 'user',
             content: prompt
           }
         ],
-        temperature: 0.1,
-        max_tokens: 3000,
-        search_recency_filter: 'week',
+        temperature: 0.3,
+        max_tokens: 4000,
+        search_recency_filter: 'month',
+        return_related_questions: false,
+        return_images: false,
       }),
     });
 
