@@ -50,7 +50,7 @@ const availableIntegrations = [
     name: "Shopify",
     description: "Conecte sua loja Shopify para sincronização de produtos e pedidos",
     popular: false,
-    logoUrl: "/logos/shopify.svg"
+    logoUrl: "https://cdn.freebiesupply.com/logos/large/2x/shopify-logo-png-transparent.png"
   }
 ];
 
