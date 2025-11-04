@@ -13,13 +13,35 @@ export default function PendingPayment() {
   const [isLoading, setIsLoading] = useState(false);
   const [isCheckingSubscription, setIsCheckingSubscription] = useState(true);
 
-  // Verificar se usuário já tem assinatura ativa
+  // Verificar se usuário já tem assinatura ativa OU se é admin
   useEffect(() => {
     checkSubscription();
   }, []);
 
   const checkSubscription = async () => {
     try {
+      // Primeiro verificar se é admin
+      const { data: { user } } = await supabase.auth.getUser();
+      
+      if (user) {
+        const { data: roleData } = await supabase
+          .from('user_roles')
+          .select('role')
+          .eq('user_id', user.id)
+          .maybeSingle();
+
+        // Se for admin, redireciona direto pro dashboard
+        if (roleData?.role === 'admin') {
+          toast({
+            title: "✅ Acesso Admin",
+            description: "Bem-vindo de volta!",
+          });
+          navigate('/dashboard');
+          return;
+        }
+      }
+
+      // Se não for admin, verificar assinatura normal
       const { data, error } = await supabase.functions.invoke('check-subscription');
       
       if (error) {

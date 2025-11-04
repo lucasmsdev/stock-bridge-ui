@@ -123,32 +123,39 @@ export const usePlan = () => {
     }
 
     try {
-      const { data, error } = await supabase
+      // Buscar o plano do usuário
+      const { data: profileData, error: profileError } = await supabase
         .from('profiles')
-        .select('plan, role')
+        .select('plan')
         .eq('id', user.id)
-        .maybeSingle(); // Use maybeSingle instead of single to avoid errors
+        .maybeSingle();
 
-      if (error) {
-        console.error('Error fetching user plan:', error);
+      if (profileError) {
+        console.error('Error fetching user plan:', profileError);
         setError('Erro ao carregar plano do usuário');
-        // Se não encontrar o perfil, definir plano padrão
         setCurrentPlan('estrategista');
         setUserProfile({ plan: 'estrategista', role: 'user' });
         return;
       }
 
-      if (data) {
-        const plan = data.plan as PlanType || 'estrategista';
-        const role = data.role || 'user';
-        setCurrentPlan(plan);
-        setUserProfile({ plan, role });
-        console.log('User profile loaded:', { plan, role });
-      } else {
-        // Se não tiver perfil definido, usar o padrão
-        setCurrentPlan('estrategista');
-        setUserProfile({ plan: 'estrategista', role: 'user' });
+      // Buscar o role do usuário da tabela user_roles (SEGURO)
+      const { data: roleData, error: roleError } = await supabase
+        .from('user_roles')
+        .select('role')
+        .eq('user_id', user.id)
+        .maybeSingle();
+
+      if (roleError && roleError.code !== 'PGRST116') { // PGRST116 = no rows returned
+        console.error('Error fetching user role:', roleError);
       }
+
+      const plan = (profileData?.plan as PlanType) || 'estrategista';
+      const role = roleData?.role || 'user';
+      
+      setCurrentPlan(plan);
+      setUserProfile({ plan, role });
+      console.log('User profile loaded:', { plan, role, isAdmin: role === 'admin' });
+
     } catch (err) {
       console.error('Unexpected error fetching plan:', err);
       setError('Erro inesperado ao carregar plano');

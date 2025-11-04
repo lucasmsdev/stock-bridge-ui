@@ -30,6 +30,21 @@ export const AppLayout = () => {
       }
 
       try {
+        // Primeiro verificar se é admin
+        const { data: roleData } = await supabase
+          .from('user_roles')
+          .select('role')
+          .eq('user_id', user.id)
+          .maybeSingle();
+
+        // Se for admin, libera acesso total
+        if (roleData?.role === 'admin') {
+          setHasActiveSubscription(true);
+          setIsCheckingSubscription(false);
+          return;
+        }
+
+        // Se não for admin, verificar assinatura normal
         const { data, error } = await supabase.functions.invoke('check-subscription');
         
         if (error) {
