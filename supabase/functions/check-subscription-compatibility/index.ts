@@ -74,11 +74,12 @@ serve(async (req) => {
 
     logStep("Found subscriptions", { count: subscriptions.data.length });
 
-    // Valid modern price IDs
+    // Valid modern price IDs (PRODUCTION)
     const modernPriceIds = [
-      'price_1S6JbRKRFmEnuZwjVgi4VoaG', // Estrategista
-      'price_1S6JruKRFmEnuZwj9i1lrCSG', // Competidor
-      'price_1S6JsdKRFmEnuZwjCP2X0TiQ'  // Dominador
+      'price_1SPocGKdlB8Nu9cynoGjpe2V', // Estrategista
+      'price_1SPocVKdlB8Nu9cyHYEa8b2m', // Competidor
+      'price_1SPocnKRFmEnuZwj3lTe3k2n', // Dominador
+      'price_1SPodWKdlB8Nu9cyShTWmTES'  // Unlimited
     ];
 
     // Analyze subscriptions

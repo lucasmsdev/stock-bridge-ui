@@ -57,11 +57,12 @@ serve(async (req) => {
         return new Response("No user ID found", { status: 400 });
       }
 
-      // Map Stripe price IDs to plan types
+      // Map Stripe price IDs to plan types (PRODUCTION)
       const priceToPlantMap = {
-        'price_1S6JbRKRFmEnuZwjVgi4VoaG': 'estrategista',
-        'price_1S6JruKRFmEnuZwj9i1lrCSG': 'competidor', 
-        'price_1S6JsdKRFmEnuZwjCP2X0TiQ': 'dominador'
+        'price_1SPocGKdlB8Nu9cynoGjpe2V': 'estrategista',
+        'price_1SPocVKdlB8Nu9cyHYEa8b2m': 'competidor', 
+        'price_1SPocnKRFmEnuZwj3lTe3k2n': 'dominador',
+        'price_1SPodWKdlB8Nu9cyShTWmTES': 'unlimited'
       };
 
       let finalPlanType = planType;
@@ -127,9 +128,10 @@ serve(async (req) => {
         // Get the price ID from the subscription
         const priceId = subscription.items.data[0]?.price?.id;
         const priceToPlantMap = {
-          'price_1S6JbRKRFmEnuZwjVgi4VoaG': 'estrategista',
-          'price_1S6JruKRFmEnuZwj9i1lrCSG': 'competidor', 
-          'price_1S6JsdKRFmEnuZwjCP2X0TiQ': 'dominador'
+          'price_1SPocGKdlB8Nu9cynoGjpe2V': 'estrategista',
+          'price_1SPocVKdlB8Nu9cyHYEa8b2m': 'competidor', 
+          'price_1SPocnKRFmEnuZwj3lTe3k2n': 'dominador',
+          'price_1SPodWKdlB8Nu9cyShTWmTES': 'unlimited'
         };
         newPlan = priceToPlantMap[priceId as keyof typeof priceToPlantMap] || 'estrategista';
       }

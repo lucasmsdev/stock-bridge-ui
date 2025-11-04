@@ -40,12 +40,12 @@ serve(async (req) => {
     if (!planType) throw new Error("Plan type is required");
     logStep("Plan type received", { planType });
 
-    // Map plan types to Stripe price IDs
+    // Map plan types to Stripe price IDs (PRODUCTION)
     const planPriceMap = {
-      'estrategista': 'price_1S6JbRKRFmEnuZwjVgi4VoaG',  // R$ 97 (Iniciante)
-      'competidor': 'price_1SPo8UKRFmEnuZwjXoO3C9vB',    // R$ 197 (Profissional)
-      'dominador': 'price_1SPo8sKRFmEnuZwjYhvLWJF6',     // R$ 297 (Enterprise)
-      'unlimited': 'price_1SPo9dKRFmEnuZwjJzwYTgir'      // R$ 397 (Unlimited)
+      'estrategista': 'price_1SPocGKdlB8Nu9cynoGjpe2V',  // R$ 97 (Iniciante)
+      'competidor': 'price_1SPocVKdlB8Nu9cyHYEa8b2m',    // R$ 197 (Profissional)
+      'dominador': 'price_1SPocnKRFmEnuZwj3lTe3k2n',     // R$ 297 (Enterprise)
+      'unlimited': 'price_1SPodWKdlB8Nu9cyShTWmTES'      // R$ 397 (Unlimited)
     };
 
     const priceId = planPriceMap[planType as keyof typeof planPriceMap];
