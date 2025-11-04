@@ -57,6 +57,25 @@ serve(async (req) => {
     const customerId = customers.data[0].id;
     logStep("Found Stripe customer", { customerId });
 
+    // Save stripe_customer_id to profile if not already saved
+    const { data: profile } = await supabaseClient
+      .from('profiles')
+      .select('stripe_customer_id')
+      .eq('id', user.id)
+      .single();
+
+    if (profile && !profile.stripe_customer_id) {
+      logStep("Saving stripe_customer_id to profile", { customerId });
+      const { error: updateError } = await supabaseClient
+        .from('profiles')
+        .update({ stripe_customer_id: customerId })
+        .eq('id', user.id);
+      
+      if (updateError) {
+        logStep("Warning: Could not save stripe_customer_id", { error: updateError.message });
+      }
+    }
+
     // Buscar assinaturas ativas OU em período de teste
     const subscriptions = await stripe.subscriptions.list({
       customer: customerId,

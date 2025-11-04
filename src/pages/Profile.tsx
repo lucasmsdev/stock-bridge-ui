@@ -300,35 +300,6 @@ export default function Profile() {
     try {
       setIsSaving(true);
       
-      // First check subscription compatibility
-      const { data: compatibilityData, error: compatibilityError } = await supabase.functions.invoke('check-subscription-compatibility', {
-        headers: {
-          Authorization: `Bearer ${(await supabase.auth.getSession()).data.session?.access_token}`,
-        },
-      });
-
-      if (compatibilityError) {
-        console.error('❌ Erro ao verificar compatibilidade:', compatibilityError);
-      }
-
-      if (compatibilityData && !compatibilityData.isCompatible) {
-        if (compatibilityData.hasLegacySubscription) {
-          toast({
-            title: "🔄 Assinatura Legacy Detectada",
-            description: "Sua assinatura atual usa o sistema antigo do Stripe. Para acessar o portal de gerenciamento, cancele a assinatura atual na página de Faturamento e faça um novo upgrade.",
-            variant: "default",
-          });
-          return;
-        } else {
-          toast({
-            title: "💡 Nenhuma Assinatura Ativa",
-            description: "Para acessar o portal de gerenciamento, primeiro faça upgrade para um plano pago na página de Faturamento.",
-            variant: "default",
-          });
-          return;
-        }
-      }
-      
       const { data, error } = await supabase.functions.invoke('create-portal-session', {
         headers: {
           Authorization: `Bearer ${(await supabase.auth.getSession()).data.session?.access_token}`,
@@ -337,39 +308,15 @@ export default function Profile() {
 
       if (error) {
         console.error('❌ Erro na função create-portal-session:', error);
-        
-        // Handle specific error messages
-        if (error.message?.includes('ID de cliente do Stripe não encontrado') ||
-            error.message?.includes('não possui uma assinatura ativa') || 
-            error.message?.includes('Você ainda não possui') ||
-            error.message?.includes('não possui assinaturas ativas')) {
-          toast({
-            title: "💡 Portal Não Disponível",
-            description: "Não foi possível encontrar sua assinatura no Stripe. Para gerenciar assinaturas, faça upgrade para um plano atual na página de Faturamento.",
-            variant: "default",
-          });
-          return;
-        }
-        
-        if (error.message?.includes('Perfil do usuário não encontrado')) {
-          toast({
-            title: "❌ Erro de Perfil",
-            description: "Não foi possível encontrar seu perfil. Entre em contato com o suporte.",
-            variant: "destructive",
-          });
-          return;
-        }
-        
         throw new Error(error.message || 'Erro ao acessar portal de assinatura');
       }
 
       if (data?.url) {
         console.log('✅ Sessão do portal criada, redirecionando para:', data.url);
-        // Open Stripe portal in a new tab
         window.open(data.url, '_blank');
         
         toast({
-          title: "🔄 Redirecionando para gerenciamento",
+          title: "🔄 Abrindo portal de gerenciamento",
           description: "Você será redirecionado para gerenciar sua assinatura no Stripe.",
         });
       } else {
