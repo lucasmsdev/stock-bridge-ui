@@ -532,9 +532,6 @@ const Landing = () => {
               </div>
               <div className="flex items-center gap-2">
                 <CheckCircle className="w-4 h-4 text-success" />
-              </div>
-              <div className="flex items-center gap-2">
-                <CheckCircle className="w-4 h-4 text-success" />
                 <span>Cancela quando quiser</span>
               </div>
             </div>
