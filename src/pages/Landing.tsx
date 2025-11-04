@@ -25,6 +25,7 @@ import {
 const Landing = () => {
   const plans = [
     {
+      id: "estrategista",
       name: "Iniciante",
       price: "R$ 97",
       period: "/mês",
@@ -40,6 +41,7 @@ const Landing = () => {
       limitations: []
     },
     {
+      id: "competidor",
       name: "Profissional",
       price: "R$ 197",
       period: "/mês",
@@ -57,6 +59,7 @@ const Landing = () => {
       limitations: []
     },
     {
+      id: "dominador",
       name: "Enterprise",
       price: "R$ 297",
       period: "/mês",
@@ -74,6 +77,7 @@ const Landing = () => {
       limitations: []
     },
     {
+      id: "unlimited",
       name: "Unlimited",
       price: "R$ 397",
       period: "/mês",
@@ -391,7 +395,7 @@ const Landing = () => {
                     ))}
                   </div>
                   <Separator />
-                  <Link to={`/signup?plan=${plan.name.toLowerCase()}`} className="block">
+                  <Link to={`/signup?plan=${plan.id}`} className="block">
                     <Button
                       className={`w-full group ${
                         plan.popular 
