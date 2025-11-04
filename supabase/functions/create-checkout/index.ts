@@ -79,7 +79,7 @@ serve(async (req) => {
       ],
       mode: "subscription",
       subscription_data: {
-        trial_period_days: 3, // Período de teste de 3 dias
+        trial_period_days: 7, // Período de teste de 7 dias
       },
       success_url: `${origin}/billing?success=true&plan=${planType}`,
       cancel_url: `${origin}/billing?canceled=true`,

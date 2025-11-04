@@ -24,7 +24,18 @@ export default function Checkout() {
   const { toast } = useToast();
   const { user } = useAuth();
 
-  const selectedPlan = searchParams.get('plan') || 'estrategista';
+  // Mapear nomes da landing para IDs dos planos
+  const planMap: Record<string, string> = {
+    'iniciante': 'estrategista',
+    'profissional': 'competidor',
+    'enterprise': 'dominador',
+    'estrategista': 'estrategista',
+    'competidor': 'competidor',
+    'dominador': 'dominador'
+  };
+
+  const planParam = searchParams.get('plan')?.toLowerCase() || 'profissional';
+  const selectedPlan = planMap[planParam] || 'competidor';
 
   // Verificar se o plano é válido
   useEffect(() => {
@@ -245,7 +256,7 @@ export default function Checkout() {
             <div>
               <CardTitle className="text-2xl font-bold">Finalizar Assinatura</CardTitle>
               <CardDescription className="text-muted-foreground">
-                Crie sua conta e inicie seu teste de 3 dias grátis
+                Crie sua conta e inicie seu teste de 7 dias grátis
               </CardDescription>
               <div className="flex justify-center mt-4">
                 <Badge variant="secondary" className="text-sm">
@@ -313,10 +324,10 @@ export default function Checkout() {
 
               <div className="bg-muted/50 p-4 rounded-lg text-center">
                 <p className="text-sm text-muted-foreground mb-2">
-                  <strong>Teste gratuito de 3 dias</strong>
+                  <strong>Teste gratuito de 7 dias</strong>
                 </p>
                 <p className="text-xs text-muted-foreground">
-                  Sem cobrança nos primeiros 3 dias. Cancele quando quiser.
+                  Sem cobrança nos primeiros 7 dias. Cancele quando quiser.
                 </p>
               </div>
 
