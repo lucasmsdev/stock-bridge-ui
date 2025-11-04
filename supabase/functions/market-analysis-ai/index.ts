@@ -1,10 +1,205 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
-import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
+
+// ============= CONFIGURAÇÕES =============
+const TIMEOUT_MS = 45000; // 45 segundos
+const MAX_RETRIES = 3;
+const CACHE_TTL_SECONDS = 3600; // 1 hora
+
+// ============= VALIDAÇÃO DE DADOS =============
+interface ProductOffer {
+  title: string;
+  price: number;
+  seller: string;
+  link: string;
+}
+
+interface PlatformAnalysis {
+  platform: string;
+  bestOffer: ProductOffer;
+}
+
+interface AnalysisData {
+  productTitle: string;
+  analysis: PlatformAnalysis[];
+  priceSummary: {
+    lowestPrice: number;
+    highestPrice: number;
+    averagePrice: number;
+  };
+}
+
+function validatePrice(price: number): boolean {
+  return typeof price === 'number' && price > 0 && price < 999999 && !isNaN(price);
+}
+
+function validateUrl(url: string): boolean {
+  if (!url || typeof url !== 'string') return false;
+  try {
+    const urlObj = new URL(url);
+    return urlObj.protocol === 'http:' || urlObj.protocol === 'https:';
+  } catch {
+    return false;
+  }
+}
+
+function sanitizeAnalysisData(data: any): AnalysisData | null {
+  if (!data?.productTitle || !data?.analysis || !Array.isArray(data.analysis)) {
+    return null;
+  }
+
+  const validAnalysis = data.analysis.filter((item: any) => {
+    if (!item?.platform || !item?.bestOffer) return false;
+    
+    const offer = item.bestOffer;
+    const hasValidPrice = validatePrice(offer.price);
+    const hasValidUrl = validateUrl(offer.link);
+    const hasValidTitle = offer.title && typeof offer.title === 'string' && offer.title.trim().length > 0;
+    const hasValidSeller = offer.seller && typeof offer.seller === 'string' && offer.seller.trim().length > 0;
+    
+    return hasValidPrice && hasValidUrl && hasValidTitle && hasValidSeller;
+  });
+
+  if (validAnalysis.length === 0) return null;
+
+  const prices = validAnalysis.map((item: any) => item.bestOffer.price);
+  const lowestPrice = Math.min(...prices);
+  const highestPrice = Math.max(...prices);
+  const averagePrice = prices.reduce((a: number, b: number) => a + b, 0) / prices.length;
+
+  return {
+    productTitle: data.productTitle.trim(),
+    analysis: validAnalysis,
+    priceSummary: {
+      lowestPrice: parseFloat(lowestPrice.toFixed(2)),
+      highestPrice: parseFloat(highestPrice.toFixed(2)),
+      averagePrice: parseFloat(averagePrice.toFixed(2)),
+    }
+  };
+}
+
+// ============= CACHE COM DENO.KV =============
+async function getCachedResult(searchTerm: string): Promise<AnalysisData | null> {
+  try {
+    const kv = await Deno.openKv();
+    const key = ["market_analysis", searchTerm.toLowerCase().trim()];
+    const result = await kv.get(key);
+    await kv.close();
+    
+    if (result.value) {
+      console.log('💾 Cache HIT para:', searchTerm);
+      return result.value as AnalysisData;
+    }
+    console.log('💾 Cache MISS para:', searchTerm);
+    return null;
+  } catch (error) {
+    console.error('⚠️ Erro ao acessar cache:', error);
+    return null;
+  }
+}
+
+async function setCachedResult(searchTerm: string, data: AnalysisData): Promise<void> {
+  try {
+    const kv = await Deno.openKv();
+    const key = ["market_analysis", searchTerm.toLowerCase().trim()];
+    await kv.set(key, data, { expireIn: CACHE_TTL_SECONDS * 1000 });
+    await kv.close();
+    console.log('💾 Resultado armazenado em cache');
+  } catch (error) {
+    console.error('⚠️ Erro ao salvar em cache:', error);
+  }
+}
+
+// ============= RETRY COM BACKOFF EXPONENCIAL =============
+async function fetchWithRetry(
+  url: string,
+  options: RequestInit,
+  maxRetries: number = MAX_RETRIES
+): Promise<Response> {
+  let lastError: Error | null = null;
+  
+  for (let attempt = 1; attempt <= maxRetries; attempt++) {
+    try {
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), TIMEOUT_MS);
+      
+      const response = await fetch(url, {
+        ...options,
+        signal: controller.signal,
+      });
+      
+      clearTimeout(timeoutId);
+      
+      if (response.ok) {
+        console.log(`✅ Requisição bem-sucedida (tentativa ${attempt}/${maxRetries})`);
+        return response;
+      }
+      
+      // Se for erro 4xx (exceto rate limit), não retry
+      if (response.status >= 400 && response.status < 500 && response.status !== 429) {
+        throw new Error(`HTTP ${response.status}: ${await response.text()}`);
+      }
+      
+      lastError = new Error(`HTTP ${response.status}`);
+    } catch (error: any) {
+      lastError = error;
+      console.warn(`⚠️ Tentativa ${attempt}/${maxRetries} falhou:`, error.message);
+      
+      // Se for timeout ou erro de rede, fazer retry
+      if (attempt < maxRetries && (error.name === 'AbortError' || error.message.includes('fetch'))) {
+        const delay = Math.min(1000 * Math.pow(2, attempt - 1), 10000); // Max 10s
+        console.log(`⏳ Aguardando ${delay}ms antes de retry...`);
+        await new Promise(resolve => setTimeout(resolve, delay));
+        continue;
+      }
+      
+      throw error;
+    }
+  }
+  
+  throw lastError || new Error('Falha após múltiplas tentativas');
+}
+
+// ============= PROMPT OTIMIZADO COM FEW-SHOT =============
+function buildOptimizedPrompt(searchTerm: string): string {
+  return `Busque "${searchTerm}" nas plataformas: Mercado Livre, Shopee, Amazon, Magazine Luiza, Americanas.
+
+Retorne JSON puro (sem markdown):
+
+{
+  "productTitle": "nome do produto",
+  "analysis": [
+    {"platform": "Mercado Livre", "bestOffer": {"title": "produto", "price": 99.90, "seller": "loja", "link": "https://..."}}
+  ],
+  "priceSummary": {"lowestPrice": 99.90, "highestPrice": 99.90, "averagePrice": 99.90}
+}
+
+Exemplo 1:
+Busca: "iPhone 14"
+{
+  "productTitle": "iPhone 14",
+  "analysis": [
+    {"platform": "Mercado Livre", "bestOffer": {"title": "iPhone 14 128GB Azul", "price": 3499.00, "seller": "Apple Premium", "link": "https://produto.mercadolivre.com.br/MLB-123"}},
+    {"platform": "Amazon", "bestOffer": {"title": "Apple iPhone 14 128GB", "price": 3599.00, "seller": "Amazon.com.br", "link": "https://www.amazon.com.br/dp/B0BN..."}}
+  ],
+  "priceSummary": {"lowestPrice": 3499.00, "highestPrice": 3599.00, "averagePrice": 3549.00}
+}
+
+Exemplo 2:
+Busca: "notebook gamer"
+{
+  "productTitle": "Notebook Gamer",
+  "analysis": [
+    {"platform": "Magazine Luiza", "bestOffer": {"title": "Notebook Gamer Acer Nitro 5", "price": 4299.00, "seller": "Magazine Luiza", "link": "https://www.magazineluiza.com.br/notebook-gamer..."}},
+    {"platform": "Americanas", "bestOffer": {"title": "Notebook Gamer Lenovo Legion", "price": 4599.00, "seller": "Americanas", "link": "https://www.americanas.com.br/produto/..."}}
+  ],
+  "priceSummary": {"lowestPrice": 4299.00, "highestPrice": 4599.00, "averagePrice": 4449.00}
+}`;
+}
 
 serve(async (req) => {
   if (req.method === 'OPTIONS') {
@@ -13,15 +208,22 @@ serve(async (req) => {
 
   try {
     const { searchTerm } = await req.json();
-    console.log('🔍 Iniciando análise de mercado com IA para:', searchTerm);
+    console.log('🔍 Análise de mercado:', searchTerm);
 
-    if (!searchTerm || typeof searchTerm !== 'string' || searchTerm.trim() === '') {
+    if (!searchTerm?.trim()) {
       return new Response(
-        JSON.stringify({ 
-          success: false, 
-          error: 'Termo de busca é obrigatório' 
-        }),
+        JSON.stringify({ success: false, error: 'Termo de busca obrigatório' }),
         { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 400 }
+      );
+    }
+
+    // Verificar cache
+    const cached = await getCachedResult(searchTerm);
+    if (cached) {
+      console.log('✅ Retornando resultado do cache');
+      return new Response(
+        JSON.stringify({ success: true, step: 'analysis', data: cached, cached: true }),
+        { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
 
@@ -29,216 +231,136 @@ serve(async (req) => {
     if (!perplexityApiKey) {
       console.error('❌ PERPLEXITY_API_KEY não configurada');
       return new Response(
-        JSON.stringify({ 
-          success: false, 
-          error: 'Chave da API Perplexity não configurada' 
-        }),
+        JSON.stringify({ success: false, error: 'API não configurada' }),
         { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 500 }
       );
     }
 
-    // Montar o prompt para a Perplexity
-    const prompt = `Você DEVE pesquisar o produto "${searchTerm}" em TODAS as seguintes plataformas de e-commerce:
+    const prompt = buildOptimizedPrompt(searchTerm);
 
-1. Mercado Livre Brasil (mercadolivre.com.br)
-2. Shopee Brasil (shopee.com.br)
-3. Amazon Brasil (amazon.com.br)
-4. Shopify (lojas brasileiras usando shopify.com)
-5. Magazine Luiza/Magalu (magazineluiza.com.br)
-6. Americanas (americanas.com.br)
-
-Para cada plataforma onde o produto for encontrado, forneça:
-- Nome exato do produto
-- Preço atual em reais (R$)
-- Nome do vendedor/loja
-- Link direto do produto
-
-Retorne APENAS um objeto JSON válido com esta estrutura exata, sem markdown, sem texto adicional:
-
-{
-  "productTitle": "Nome genérico do produto pesquisado",
-  "analysis": [
-    {
-      "platform": "Nome da Plataforma",
-      "bestOffer": {
-        "title": "Nome completo do produto encontrado",
-        "price": 1234.56,
-        "seller": "Nome do vendedor",
-        "link": "https://url-direta-do-produto"
-      }
-    }
-  ],
-  "priceSummary": {
-    "lowestPrice": 1234.56,
-    "highestPrice": 2345.67,
-    "averagePrice": 1789.11
-  }
-}
-
-REGRAS OBRIGATÓRIAS:
-- Pesquise em TODAS as 6 plataformas listadas acima
-- Inclua no array "analysis" TODAS as plataformas onde encontrar o produto
-- Use os nomes exatos das plataformas: "Mercado Livre", "Shopee", "Amazon", "Shopify", "Magazine Luiza", "Americanas"
-- Preços devem ser números decimais (float), não strings
-- Links devem ser URLs reais e diretas dos produtos
-- Se não encontrar em alguma plataforma específica, não inclua ela no array
-- Retorne SOMENTE o JSON puro, sem blocos de código markdown, sem explicações, sem texto antes ou depois`;
-
-    console.log('🤖 Enviando requisição para Perplexity API...');
+    console.log('🤖 Chamando Perplexity API com retry e timeout...');
     
-    const perplexityResponse = await fetch('https://api.perplexity.ai/chat/completions', {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${perplexityApiKey}`,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        model: 'sonar',
-        messages: [
-          {
-            role: 'system',
-            content: 'Você é um assistente de pesquisa de preços que DEVE buscar produtos em TODAS as principais plataformas de e-commerce brasileiro. Sempre retorne JSON válido sem markdown ou texto adicional. Busque em: Mercado Livre, Shopee, Amazon, Shopify, Magazine Luiza e Americanas.'
-          },
-          {
-            role: 'user',
-            content: prompt
-          }
-        ],
-        temperature: 0.1,
-        max_tokens: 3000,
-        search_recency_filter: 'week',
-      }),
-    });
-
-    if (!perplexityResponse.ok) {
-      const errorText = await perplexityResponse.text();
-      console.error('❌ Erro da Perplexity API:', perplexityResponse.status, errorText);
-      return new Response(
-        JSON.stringify({ 
-          success: false, 
-          error: 'Erro ao consultar a API de busca. Tente novamente.' 
+    const perplexityResponse = await fetchWithRetry(
+      'https://api.perplexity.ai/chat/completions',
+      {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${perplexityApiKey}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          model: 'sonar',
+          messages: [
+            {
+              role: 'system',
+              content: 'Assistente de preços. Retorne apenas JSON puro sem markdown.'
+            },
+            {
+              role: 'user',
+              content: prompt
+            }
+          ],
+          temperature: 0.1,
+          max_tokens: 2000,
+          search_recency_filter: 'week',
         }),
-        { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 500 }
-      );
-    }
+      }
+    );
 
     const perplexityData = await perplexityResponse.json();
-    console.log('📥 Resposta da Perplexity recebida');
-
     const aiResponse = perplexityData.choices?.[0]?.message?.content;
+    
     if (!aiResponse) {
-      console.error('❌ Resposta vazia da Perplexity');
+      console.error('❌ Resposta vazia');
       return new Response(
-        JSON.stringify({ 
-          success: false, 
-          error: 'Nenhum resultado encontrado' 
-        }),
+        JSON.stringify({ success: false, error: 'Nenhum resultado encontrado' }),
         { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 404 }
       );
     }
 
-    console.log('📄 Resposta da IA:', aiResponse.substring(0, 200) + '...');
+    console.log('📄 Resposta recebida:', aiResponse.substring(0, 150) + '...');
 
-    // Extrair JSON da resposta (remove markdown se houver)
-    let jsonResponse = aiResponse.trim();
-    if (jsonResponse.startsWith('```json')) {
-      jsonResponse = jsonResponse.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim();
-    } else if (jsonResponse.startsWith('```')) {
-      jsonResponse = jsonResponse.replace(/```\n?/g, '').trim();
-    }
+    // Extrair e parsear JSON
+    let jsonResponse = aiResponse.trim()
+      .replace(/```json\n?/g, '')
+      .replace(/```\n?/g, '')
+      .trim();
 
-    let analysisData;
+    let rawData;
     try {
-      analysisData = JSON.parse(jsonResponse);
-      console.log('✅ JSON parseado com sucesso');
+      rawData = JSON.parse(jsonResponse);
+      console.log('✅ JSON parseado');
     } catch (parseError) {
       console.error('❌ Erro ao parsear JSON:', parseError);
-      console.error('Resposta recebida:', jsonResponse);
       return new Response(
-        JSON.stringify({ 
-          success: false, 
-          error: 'Erro ao processar os resultados da análise' 
-        }),
+        JSON.stringify({ success: false, error: 'Erro ao processar resultados' }),
         { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 500 }
       );
     }
 
-    // Validar estrutura
-    if (!analysisData.productTitle || !analysisData.analysis || !Array.isArray(analysisData.analysis)) {
-      console.error('❌ Estrutura de dados inválida');
+    // Sanitizar e validar dados
+    const analysisData = sanitizeAnalysisData(rawData);
+    if (!analysisData) {
+      console.error('❌ Dados inválidos após sanitização');
       return new Response(
-        JSON.stringify({ 
-          success: false, 
-          error: 'Estrutura de dados inválida retornada pela IA' 
-        }),
+        JSON.stringify({ success: false, error: 'Dados inválidos retornados pela IA' }),
         { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 500 }
       );
     }
 
-    // Manter os links originais da IA (são mais específicos que buscas genéricas)
+    // Adicionar fallback para links inválidos
     const searchQuery = encodeURIComponent(searchTerm);
-    analysisData.analysis = analysisData.analysis.map((item: any) => {
-      // Se a IA não forneceu link válido, usar link de busca genérico
-      if (!item.bestOffer.link || item.bestOffer.link === '#' || !item.bestOffer.link.startsWith('http')) {
-        let searchLink = '';
-        
-        switch (item.platform) {
-          case 'Mercado Livre':
-            searchLink = `https://lista.mercadolivre.com.br/${searchQuery}`;
-            break;
-          case 'Shopee':
-            searchLink = `https://shopee.com.br/search?keyword=${searchQuery}`;
-            break;
-          case 'Amazon':
-            searchLink = `https://www.amazon.com.br/s?k=${searchQuery}`;
-            break;
-          case 'Shopify':
-            searchLink = `https://www.google.com/search?q=${searchQuery}+site:myshopify.com`;
-            break;
-          case 'Magazine Luiza':
-            searchLink = `https://www.magazineluiza.com.br/busca/${searchQuery}`;
-            break;
-          case 'Americanas':
-            searchLink = `https://www.americanas.com.br/busca/${searchQuery}`;
-            break;
-          default:
-            searchLink = `https://www.google.com/search?q=${searchQuery}`;
-        }
-        
-        return {
-          ...item,
-          bestOffer: {
-            ...item.bestOffer,
-            link: searchLink
-          }
+    analysisData.analysis = analysisData.analysis.map((item) => {
+      if (!validateUrl(item.bestOffer.link)) {
+        const fallbackLinks: Record<string, string> = {
+          'Mercado Livre': `https://lista.mercadolivre.com.br/${searchQuery}`,
+          'Shopee': `https://shopee.com.br/search?keyword=${searchQuery}`,
+          'Amazon': `https://www.amazon.com.br/s?k=${searchQuery}`,
+          'Magazine Luiza': `https://www.magazineluiza.com.br/busca/${searchQuery}`,
+          'Americanas': `https://www.americanas.com.br/busca/${searchQuery}`,
         };
+        
+        item.bestOffer.link = fallbackLinks[item.platform] || `https://www.google.com/search?q=${searchQuery}`;
       }
-      
-      // Manter link original da IA se for válido
       return item;
     });
 
-    console.log('✅ Análise concluída com sucesso');
-    console.log(`📊 Produto: ${analysisData.productTitle}`);
-    console.log(`🏪 Plataformas encontradas: ${analysisData.analysis.length}`);
+    // Salvar no cache
+    await setCachedResult(searchTerm, analysisData);
+
+    console.log('✅ Análise concluída');
+    console.log(`📊 ${analysisData.productTitle} | ${analysisData.analysis.length} plataformas`);
 
     return new Response(
       JSON.stringify({ 
         success: true,
         step: 'analysis',
-        data: analysisData
+        data: analysisData,
+        cached: false
       }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
 
-  } catch (error) {
-    console.error('💥 Erro inesperado:', error);
+  } catch (error: any) {
+    console.error('💥 Erro:', error);
+    
+    let errorMessage = 'Erro inesperado';
+    let statusCode = 500;
+    
+    if (error.name === 'AbortError') {
+      errorMessage = 'Tempo limite excedido. Tente novamente.';
+      statusCode = 504;
+    } else if (error.message?.includes('429')) {
+      errorMessage = 'Muitas requisições. Aguarde um momento.';
+      statusCode = 429;
+    } else if (error.message?.includes('fetch')) {
+      errorMessage = 'Erro de conexão. Verifique sua internet.';
+      statusCode = 503;
+    }
+    
     return new Response(
-      JSON.stringify({ 
-        success: false, 
-        error: error.message || 'Erro inesperado no servidor' 
-      }),
-      { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 500 }
+      JSON.stringify({ success: false, error: errorMessage }),
+      { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: statusCode }
     );
   }
 });
