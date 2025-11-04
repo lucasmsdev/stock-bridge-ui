@@ -339,11 +339,24 @@ function validatePriceWithContext(
   };
 }
 
-function sanitizeAnalysisData(data: any, searchTerm: string): AnalysisData | null {
-  if (!data?.productTitle || !data?.analysis || !Array.isArray(data.analysis)) {
-    return null;
+function sanitizeAnalysisData(data: any, searchTerm: string): AnalysisData {
+  // Se productTitle vazio, usar searchTerm
+  const productTitle = data?.productTitle?.trim() || searchTerm;
+  
+  // Se analysis não é array, inicializar vazio
+  if (!Array.isArray(data?.analysis)) {
+    return {
+      productTitle,
+      analysis: [],
+      priceSummary: {
+        lowestPrice: 0,
+        highestPrice: 0,
+        averagePrice: 0
+      }
+    };
   }
-
+  
+  // Filtrar apenas ofertas válidas
   const validAnalysis = data.analysis.filter((item: any) => {
     if (!item?.platform || !item?.bestOffer) return false;
     
@@ -356,19 +369,29 @@ function sanitizeAnalysisData(data: any, searchTerm: string): AnalysisData | nul
     return hasValidPrice && hasValidUrl && hasValidTitle && hasValidSeller;
   });
 
-  if (validAnalysis.length === 0) return null;
+  // Calcular priceSummary apenas se houver ofertas válidas
+  let priceSummary = {
+    lowestPrice: 0,
+    highestPrice: 0,
+    averagePrice: 0
+  };
+  
+  if (validAnalysis.length > 0) {
+    const prices = validAnalysis.map((item: any) => item.bestOffer.price);
+    priceSummary = {
+      lowestPrice: parseFloat(Math.min(...prices).toFixed(2)),
+      highestPrice: parseFloat(Math.max(...prices).toFixed(2)),
+      averagePrice: parseFloat((prices.reduce((a: number, b: number) => a + b, 0) / prices.length).toFixed(2))
+    };
+  }
 
   return {
-    productTitle: data.productTitle.trim(),
+    productTitle,
     analysis: validAnalysis.map((item: any) => ({
       platform: item.platform,
       bestOffer: item.bestOffer
     })),
-    priceSummary: {
-      lowestPrice: 0,
-      highestPrice: 0,
-      averagePrice: 0
-    }
+    priceSummary
   };
 }
 
@@ -485,6 +508,64 @@ async function enhanceAnalysisWithValidation(
   };
 }
 
+// ============= Validation Functions =============
+
+/**
+ * Valida se a resposta da AI é um JSON válido
+ */
+function isValidJsonResponse(aiResponse: string | null): boolean {
+  if (!aiResponse || typeof aiResponse !== 'string') return false;
+  if (aiResponse.length < 50) return false;
+  if (!aiResponse.includes('{') || !aiResponse.includes('}')) return false;
+  if (!aiResponse.includes('analysis')) return false;
+  if (!aiResponse.includes('productTitle')) return false;
+  return true;
+}
+
+/**
+ * Gera análise de fallback quando nenhum produto é encontrado
+ */
+async function buildFallbackAnalysis(searchTerm: string): Promise<AnalysisData> {
+  console.log('⚠️ Nenhum resultado específico encontrado, gerando fallback...');
+  
+  const platforms = ['Mercado Livre', 'Shopee', 'Amazon', 'Magazine Luiza', 'Americanas'];
+  
+  const analysis = platforms.map(platform => ({
+    platform,
+    bestOffer: {
+      title: `Buscar "${searchTerm}" em ${platform}`,
+      price: 0,
+      seller: 'Não encontrado - clique para buscar',
+      link: generateSearchUrl(platform, searchTerm),
+      urlConfidence: 'low' as const,
+      priceConfidence: 'low' as const
+    }
+  }));
+  
+  return {
+    productTitle: searchTerm,
+    analysis,
+    priceSummary: {
+      lowestPrice: 0,
+      highestPrice: 0,
+      averagePrice: 0
+    },
+    confidence: {
+      urls: {
+        verified: 0,
+        total: 0,
+        averageConfidence: 'low'
+      },
+      prices: {
+        hasOutliers: false,
+        anomaliesCount: 0,
+        averageConfidence: 'low'
+      }
+    },
+    disclaimer: `⚠️ Produto não encontrado nas buscas diretas. Clique nos links para buscar manualmente em cada plataforma. Os resultados abaixo são páginas de busca, não produtos específicos.`
+  };
+}
+
 // ============= CACHE COM DENO.KV =============
 async function getCachedResult(searchTerm: string): Promise<AnalysisData | null> {
   try {
@@ -519,35 +600,49 @@ async function setCachedResult(searchTerm: string, data: AnalysisData): Promise<
 
 // ============= PROMPT OTIMIZADO COM PADRÕES DE URL =============
 function buildOptimizedPrompt(searchTerm: string): string {
-  return `Busque EXATAMENTE o produto "${searchTerm}" nas seguintes plataformas brasileiras:
-1. Mercado Livre
-2. Shopee
-3. Amazon
-4. Magazine Luiza
-5. Americanas
+  return `Tarefa: Buscar o produto "${searchTerm}" em plataformas brasileiras de e-commerce.
 
-REGRAS OBRIGATÓRIAS PARA URLs:
-- Mercado Livre: DEVE conter "MLB-" seguido de 10 dígitos. Exemplo: https://produto.mercadolivre.com.br/MLB-2973405859-notebook
-- Shopee: DEVE conter "/product/" com 12 dígitos "/" 11 dígitos. Exemplo: https://shopee.com.br/product/447801038/22393211083
-- Amazon: DEVE conter "/dp/" ou "/gp/product/" seguido de 10 caracteres alfanuméricos. Exemplo: https://www.amazon.com.br/dp/B07FZ8S74R
-- Magazine Luiza: DEVE terminar com "/p". Exemplo: https://www.magazineluiza.com.br/notebook-positivo-i5/p
-- Americanas: DEVE conter "/produto/" seguido de 9 dígitos. Exemplo: https://www.americanas.com.br/produto/123456789/notebook
+PLATAFORMAS OBRIGATÓRIAS (buscar em TODAS):
+1. Mercado Livre (mercadolivre.com.br)
+2. Shopee (shopee.com.br)
+3. Amazon Brasil (amazon.com.br)
+4. Magazine Luiza (magazineluiza.com.br)
+5. Americanas (americanas.com.br)
 
-SE NÃO conseguir encontrar a URL exata que segue esses padrões, retorne null no campo "link".
+INSTRUÇÕES:
+- Procure pelo melhor preço disponível
+- Se encontrar em uma plataforma: retorne TÍTULO EXATO, PREÇO e URL DIRETA
+- Se NÃO encontrar em uma plataforma: IGNORE COMPLETAMENTE (não inclua no resultado)
+- Se ENCONTRAR MÚLTIPLOS SELLERS: escolha o com melhor preço
 
-Preços: Retorne como número decimal (ex: 1999.90, não "R$ 1.999,90").
+FORMATO DE URL ESPERADO:
+- Mercado Livre: deve conter "MLB-" seguido de 10 dígitos
+- Shopee: deve conter "/product/" ou "shp.ee"
+- Amazon: deve conter "/dp/" ou "/gp/product/"
+- Magazine Luiza: deve terminar em "/p"
+- Americanas: deve conter "/produto/" ou "/p/"
 
-Retorne APENAS este JSON válido (SEM MARKDOWN):
+REGRA DE PREÇO:
+- Sempre número decimal: 1999.90 (não "R$ 1.999,90")
+- Intervalo válido: maior que 0 e menor que 999999
+- Se preço não faz sentido (ex: 1.90 para notebook), não inclua
+
+REGRA DE QUALIDADE:
+- Não invente URLs
+- Não retorne produtos muito diferentes do buscado
+- Se absolutamente não encontrar em nenhuma plataforma, retorne analysis vazio
+
+FORMATO JSON (copie exatamente):
 {
-  "productTitle": "Nome genérico do produto",
+  "productTitle": "Nome do produto encontrado",
   "analysis": [
     {
-      "platform": "Nome da Plataforma",
+      "platform": "Nome Plataforma",
       "bestOffer": {
-        "title": "Título exato do produto",
+        "title": "Título exato como aparece no site",
         "price": 1999.90,
-        "seller": "Nome do vendedor/loja",
-        "link": "https://url-que-existe"
+        "seller": "Nome do vendedor ou loja",
+        "link": "https://url-que-funciona"
       }
     }
   ],
@@ -558,18 +653,25 @@ Retorne APENAS este JSON válido (SEM MARKDOWN):
   }
 }
 
-Exemplo Real:
-Busca: "iPhone 14 128GB"
+EXEMPLO (3 plataformas encontraram):
 {
-  "productTitle": "iPhone 14 128GB",
+  "productTitle": "Notebook Intel i5 16GB",
   "analysis": [
-    {"platform": "Mercado Livre", "bestOffer": {"title": "iPhone 14 128GB Azul", "price": 3499.00, "seller": "Apple Premium", "link": "https://produto.mercadolivre.com.br/MLB-3273405859-iphone-14-128gb"}},
-    {"platform": "Amazon", "bestOffer": {"title": "Apple iPhone 14 128GB", "price": 3599.00, "seller": "Amazon.com.br", "link": "https://www.amazon.com.br/dp/B0BN94DKK1"}}
+    {"platform": "Mercado Livre", "bestOffer": {"title": "Notebook Positivo Intel i5 16GB", "price": 2499.90, "seller": "Tech Store", "link": "https://produto.mercadolivre.com.br/MLB-2973405859-notebook"}},
+    {"platform": "Shopee", "bestOffer": {"title": "Notebook i5 16GB 256GB", "price": 2599.90, "seller": "Shop Tech", "link": "https://shopee.com.br/product/447801038/22393211083"}},
+    {"platform": "Amazon", "bestOffer": {"title": "Notebook Intel Core i5 16GB", "price": 2699.90, "seller": "Amazon.com.br", "link": "https://www.amazon.com.br/dp/B07FZ8S74R"}}
   ],
-  "priceSummary": {"lowestPrice": 3499.00, "highestPrice": 3599.00, "averagePrice": 3549.00}
+  "priceSummary": {"lowestPrice": 2499.90, "highestPrice": 2699.90, "averagePrice": 2599.90}
 }
 
-REGRA: URLs devem levar DIRETO ao produto. Se não tem certeza, use null.`;
+EXEMPLO (nenhuma encontrou - retorne vazio):
+{
+  "productTitle": "${searchTerm}",
+  "analysis": [],
+  "priceSummary": {"lowestPrice": 0, "highestPrice": 0, "averagePrice": 0}
+}
+
+RETORNE APENAS JSON, SEM MARKDOWN, SEM EXPLICAÇÕES.`;
 }
 
 // ============= RETRY COM BACKOFF EXPONENCIAL =============
@@ -675,15 +777,15 @@ serve(async (req) => {
           messages: [
             {
               role: 'system',
-              content: 'Assistente de preços. Retorne apenas JSON puro sem markdown.'
+              content: 'Você é um assistente de pesquisa de preços. Retorne APENAS JSON válido, sem markdown, sem explicações, sem blocos de código.'
             },
             {
               role: 'user',
               content: prompt
             }
           ],
-          temperature: 0.1,
-          max_tokens: 2000,
+          temperature: 0.2,
+          max_tokens: 2500,
           search_recency_filter: 'week',
         }),
       }
@@ -692,11 +794,24 @@ serve(async (req) => {
     const perplexityData = await perplexityResponse.json();
     const aiResponse = perplexityData.choices?.[0]?.message?.content;
     
-    if (!aiResponse) {
-      console.error('❌ Resposta vazia');
+    // Validação melhorada de resposta
+    if (!isValidJsonResponse(aiResponse)) {
+      console.error('❌ Resposta inválida da Perplexity:', aiResponse?.substring(0, 100));
+      
+      // Em vez de retornar erro, usar fallback
+      console.log('⚠️ Usando fallback devido a resposta inválida');
+      const fallbackAnalysis = await buildFallbackAnalysis(searchTerm);
+      await setCachedResult(searchTerm, fallbackAnalysis);
+      
       return new Response(
-        JSON.stringify({ success: false, error: 'Nenhum resultado encontrado' }),
-        { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 404 }
+        JSON.stringify({ 
+          success: true,
+          step: 'analysis',
+          data: fallbackAnalysis,
+          cached: false,
+          note: 'Resposta da IA inválida - usando fallback'
+        }),
+        { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
 
@@ -714,23 +829,49 @@ serve(async (req) => {
       console.log('✅ JSON parseado');
     } catch (parseError) {
       console.error('❌ Erro ao parsear JSON:', parseError);
+      
+      // Fallback em caso de erro de parse
+      const fallbackAnalysis = await buildFallbackAnalysis(searchTerm);
+      await setCachedResult(searchTerm, fallbackAnalysis);
+      
       return new Response(
-        JSON.stringify({ success: false, error: 'Erro ao processar resultados' }),
-        { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 500 }
+        JSON.stringify({ 
+          success: true,
+          step: 'analysis',
+          data: fallbackAnalysis,
+          cached: false,
+          note: 'Erro ao processar resposta - usando fallback'
+        }),
+        { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
 
-    // Sanitizar dados básicos primeiro
+    // Sanitizar dados
     const sanitizedData = sanitizeAnalysisData(rawData, searchTerm);
-    if (!sanitizedData) {
-      console.error('❌ Dados inválidos após sanitização');
+    
+    console.log(`📊 Análise sanitizada: ${sanitizedData.analysis.length} plataformas encontradas`);
+
+    // SE NENHUMA PLATAFORMA ENCONTROU, USAR FALLBACK
+    if (sanitizedData.analysis.length === 0) {
+      console.warn('⚠️ Nenhum resultado específico encontrado');
+      const fallbackAnalysis = await buildFallbackAnalysis(searchTerm);
+      
+      // Salvar fallback no cache para evitar retry
+      await setCachedResult(searchTerm, fallbackAnalysis);
+      
       return new Response(
-        JSON.stringify({ success: false, error: 'Dados inválidos retornados pela IA' }),
-        { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 500 }
+        JSON.stringify({ 
+          success: true,
+          step: 'analysis',
+          data: fallbackAnalysis,
+          cached: false,
+          note: 'Produto não encontrado - usando URLs de busca'
+        }),
+        { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
 
-    // Melhorar com validação de URLs e preços
+    // SE TEM RESULTADOS, FAZER VALIDAÇÃO COMPLETA
     console.log('🔍 Validando URLs e preços...');
     const analysisData = await enhanceAnalysisWithValidation(sanitizedData, searchTerm);
 
