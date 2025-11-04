@@ -25,57 +25,51 @@ import {
 const Landing = () => {
   const plans = [
     {
-      name: "Estrategista",
+      name: "Iniciante",
       price: "R$ 97",
       period: "/mês",
-      description: "Tome decisões de preço com base em dados, não em achismos.",
+      description: "Pra quem tá começando a vender em múltiplas plataformas",
       popular: false,
       features: [
-        "Até 100 SKUs monitorados",
-        "Integrações completas (ML, Shopee, Amazon)",
-        "Análise de concorrência",
-        "Análise de preço ideal",
-        "Dashboard de performance"
+        "Até 100 produtos",
+        "2 integrações (ML, Shopee, Amazon ou Shopify)",
+        "Sincronização de estoque em tempo real",
+        "Dashboard básico",
+        "Suporte por WhatsApp"
       ],
-      limitations: [
-        "Sem reprecificação por alerta",
-        "Sem relatórios avançados"
-      ]
+      limitations: []
     },
     {
-      name: "Competidor",
-      price: "R$ 147",
-      period: "/mês",
-      description: "Reaja à concorrência em tempo real e não perca mais vendas.",
-      popular: true,
-      features: [
-        "Até 500 SKUs monitorados",
-        "Integrações completas (ML, Shopee, Amazon)",
-        "Análise de concorrência",
-        "Análise de preço ideal",
-        "Dashboard de performance",
-        "Reprecificação por alerta",
-        "Suporte prioritário"
-      ],
-      limitations: [
-        "Sem relatórios avançados"
-      ]
-    },
-    {
-      name: "Dominador",
+      name: "Profissional",
       price: "R$ 197",
       period: "/mês",
-      description: "Automatize sua competitividade e foque em crescer seu negócio.",
+      description: "Mais vendido. Pra quem quer escalar sem perder o controle",
+      popular: true,
+      features: [
+        "Até 500 produtos",
+        "Todas as integrações (ML, Shopee, Amazon, Shopify)",
+        "Sincronização em tempo real",
+        "Dashboard completo + análise de lucro",
+        "Alertas de estoque baixo",
+        "Relatórios semanais",
+        "Suporte prioritário no WhatsApp"
+      ],
+      limitations: []
+    },
+    {
+      name: "Enterprise",
+      price: "R$ 397",
+      period: "/mês",
+      description: "Pra quem vende MUITO e precisa de suporte total",
       popular: false,
       features: [
-        "SKUs ilimitados",
-        "Integrações completas (ML, Shopee, Amazon)",
+        "Produtos ilimitados",
+        "Todas as integrações",
+        "Sincronização em tempo real",
+        "Dashboard avançado + IA",
         "Análise de concorrência",
-        "Análise de preço ideal",
-        "Dashboard de performance",
-        "Reprecificação por alerta",
-        "Relatórios avançados",
-        "Suporte prioritário"
+        "Relatórios personalizados",
+        "Suporte prioritário + gerente de conta"
       ],
       limitations: []
     }
@@ -84,64 +78,64 @@ const Landing = () => {
   const problems = [
     {
       icon: X,
-      title: "Estoque dessincronizado causa vendas canceladas",
-      description: "Você vende um produto que não tem em estoque e tem que cancelar a venda"
+      title: "4 abas abertas = erro garantido",
+      description: "Vendeu na Shopee mas esqueceu de baixar no ML. Cliente compra produto sem estoque."
     },
     {
       icon: Clock,
-      title: "Atualizar preços manualmente leva horas",
-      description: "Tempo perdido atualizando preços em cada canal de venda"
+      title: "3 horas por dia copiando e colando",
+      description: "Atualizou preço no ML. Agora tem que copiar pra Shopee, Amazon, Shopify..."
     },
     {
       icon: BarChart3,
-      title: "Falta de dados claros para tomar decisões",
-      description: "Difícil saber qual produto é mais lucrativo ou se está perdendo dinheiro"
+      title: "Tá vendendo mas não sabe se tá lucrando",
+      description: "Vende R$ 30k/mês mas não sabe qual produto dá lucro de verdade."
     }
   ];
 
   const solutions = [
     {
       icon: Zap,
-      title: "Sincronização em tempo real",
-      description: "Estoque sempre atualizado em todos os canais automaticamente"
+      title: "Uma aba. Todas as vendas.",
+      description: "Vendeu em qualquer lugar? Estoque atualiza em todos os canais. Automático."
     },
     {
       icon: TrendingUp,
-      title: "Gestão de preços centralizada",
-      description: "Atualize preços uma vez e sincronize em todos os marketplaces"
+      title: "Muda preço uma vez só",
+      description: "Atualiza em um lugar, sincroniza em todos. 3 minutos vs 3 horas."
     },
     {
       icon: BarChart3,
-      title: "Dashboard com lucratividade",
-      description: "Veja claramente quais produtos dão mais lucro e tome decisões baseadas em dados"
+      title: "Sabe exatamente o que lucra",
+      description: "Dashboard mostra lucro real de cada produto. Não faturamento. Lucro mesmo."
     }
   ];
 
   const features = [
     {
-      icon: Sparkles,
-      title: "Assistente de IA Inteligente",
-      description: "IA que analisa seus dados, otimiza anúncios, sugere preços e ajuda na gestão de estoque de forma proativa"
+      icon: Globe,
+      title: "Mercado Livre + Shopee + Amazon + Shopify",
+      description: "Todas as suas vendas num lugar só. Sem pular de aba em aba."
     },
     {
-      icon: Globe,
-      title: "Sincronização Multi-canal",
-      description: "Conecte Mercado Livre, Shopee, Amazon e outros marketplaces em um só lugar"
+      icon: Zap,
+      title: "Estoque sincronizado automático",
+      description: "Vendeu? Atualiza em todos os canais na hora. Zero vendas fantasma."
     },
     {
       icon: Calculator,
-      title: "Calculadora de Lucratividade",
-      description: "Calcule custos, margens e lucro real de cada produto automaticamente"
+      title: "Calculadora de lucro real",
+      description: "Desconta taxas, frete, custos. Mostra o que sobra no bolso."
     },
     {
       icon: Smartphone,
-      title: "Dashboard Intuitivo",
-      description: "Interface simples e poderosa para acompanhar vendas e performance"
+      title: "Dashboard que não precisa de manual",
+      description: "Abriu, já entendeu. Sem complicação, sem treinamento."
     },
     {
       icon: Shield,
-      title: "Dados Seguros",
-      description: "Seus dados protegidos com criptografia de ponta e backup automático"
+      title: "Seus dados protegidos",
+      description: "Backup automático. Você não perde nada se o computador pifar."
     }
   ];
 
@@ -169,37 +163,36 @@ const Landing = () => {
         {/* Background gradient effects */}
         <div className="absolute inset-0 -z-10">
           <div className="absolute top-0 left-1/4 w-96 h-96 bg-primary/10 rounded-full blur-3xl animate-pulse" />
-          <div className="absolute top-1/4 right-1/4 w-96 h-96 bg-success/10 rounded-full blur-3xl animate-pulse" style={{ animationDelay: '1s' }} />
+          <div className="absolute top-1/4 right-1/4 w-96 h-96 bg-accent/10 rounded-full blur-3xl animate-pulse" style={{ animationDelay: '1s' }} />
         </div>
 
         <div className="text-center animate-fade-in">
           {/* Trust badge */}
-          <Badge variant="outline" className="mb-6 px-4 py-2 text-sm sm:text-base border-primary/30 text-primary bg-primary/5 hover:bg-primary/10">
-            <Sparkles className="w-4 h-4 mr-2" />
-            Mais de 500 vendedores já automatizaram seus e-commerces
+          <Badge variant="outline" className="mb-6 px-4 py-2 text-sm sm:text-base border-accent/30 text-accent bg-accent/5 hover:bg-accent/10">
+            <Users className="w-4 h-4 mr-2" />
+            347 vendedores economizam 3h/dia com UniStock
           </Badge>
 
           <h1 className="text-3xl sm:text-4xl md:text-5xl lg:text-7xl font-bold tracking-tight text-foreground leading-tight">
-            Pare de perder vendas.{" "}
-            <span className="bg-gradient-to-r from-primary via-success to-primary bg-clip-text text-transparent animate-gradient">
-              Automatize
-            </span>{" "}
-            seu e-commerce multicanal.
+            4 abas abertas pra gerenciar vendas?{" "}
+            <span className="bg-gradient-to-r from-accent via-primary to-accent bg-clip-text text-transparent animate-gradient">
+              Acabou.
+            </span>
           </h1>
           
           <p className="mx-auto mt-4 sm:mt-6 max-w-3xl text-base sm:text-lg lg:text-xl leading-7 sm:leading-8 text-muted-foreground px-4">
-            Sincronize estoque, preços e pedidos em tempo real entre Mercado Livre, Shopee, Amazon e mais. 
-            Foque em vender, não em planilhas.
+            Gerencia ML, Shopee, Amazon e Shopify? Para de pular de plataforma em plataforma. 
+            <strong className="text-foreground"> Um painel. Todas as vendas. Estoque sincronizado.</strong>
           </p>
           
           <div className="mt-8 sm:mt-10 flex flex-col sm:flex-row items-center justify-center gap-4 px-4">
             <a href="#planos" className="w-full sm:w-auto">
               <Button 
                 size="lg" 
-                className="w-full sm:w-auto h-12 sm:h-14 px-6 sm:px-10 text-base sm:text-lg font-semibold shadow-lg hover:shadow-xl hover:scale-105 transition-all duration-300 bg-gradient-to-r from-primary to-primary/90 hover:from-primary/90 hover:to-primary group"
+                className="w-full sm:w-auto h-12 sm:h-14 px-6 sm:px-10 text-base sm:text-lg font-semibold shadow-lg hover:shadow-xl hover:scale-105 transition-all duration-300 bg-accent hover:bg-accent/90 text-accent-foreground group"
               >
                 <Rocket className="mr-2 h-5 w-5 group-hover:rotate-12 transition-transform" />
-                Começar teste grátis de 3 dias
+                Testar grátis por 3 dias
                 <ArrowRight className="ml-2 h-5 w-5 group-hover:translate-x-1 transition-transform" />
               </Button>
             </a>
@@ -207,7 +200,7 @@ const Landing = () => {
               <Button 
                 variant="outline" 
                 size="lg" 
-                className="w-full sm:w-auto h-12 sm:h-14 px-6 sm:px-10 text-base sm:text-lg font-semibold border-2 hover:bg-primary/5 hover:border-primary/50 transition-all duration-300"
+                className="w-full sm:w-auto h-12 sm:h-14 px-6 sm:px-10 text-base sm:text-lg font-semibold border-2 hover:bg-accent/5 hover:border-accent/50 transition-all duration-300"
               >
                 Já tenho conta
               </Button>
@@ -222,11 +215,11 @@ const Landing = () => {
             </div>
             <div className="flex items-center gap-2">
               <CheckCircle className="w-4 h-4 sm:w-5 sm:h-5 text-success" />
-              <span>Cancele quando quiser</span>
+              <span>Cancela quando quiser</span>
             </div>
             <div className="flex items-center gap-2">
               <CheckCircle className="w-4 h-4 sm:w-5 sm:h-5 text-success" />
-              <span>Setup em 5 minutos</span>
+              <span>Configura em 5 min</span>
             </div>
           </div>
         </div>
@@ -272,13 +265,17 @@ const Landing = () => {
       <section className="py-16 bg-muted/30 dark:bg-muted/20">
         <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
           <div className="text-center mb-12">
+            <Badge variant="outline" className="mb-4 px-4 py-2 text-sm border-destructive/30 text-destructive bg-destructive/5">
+              <X className="w-4 h-4 mr-2" />
+              Se identifica com isso?
+            </Badge>
             <h2 className="text-3xl font-bold text-foreground sm:text-4xl">
-              Problemas que todo e-commerce enfrenta
+              O caos de vender em 4 plataformas ao mesmo tempo
             </h2>
           </div>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
             {problems.map((problem, index) => (
-              <Card key={index} className="text-center border-destructive/20 dark:border-destructive/30">
+              <Card key={index} className="text-center border-destructive/20 dark:border-destructive/30 hover:border-destructive/40 transition-all">
                 <CardContent className="p-6">
                   <problem.icon className="h-12 w-12 mx-auto text-destructive mb-4" />
                   <h3 className="font-semibold text-foreground mb-2">{problem.title}</h3>
@@ -294,15 +291,19 @@ const Landing = () => {
       <section className="py-16">
         <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
           <div className="text-center mb-12">
+            <Badge variant="outline" className="mb-4 px-4 py-2 text-sm border-success/30 text-success bg-success/5">
+              <CheckCircle className="w-4 h-4 mr-2" />
+              A solução é simples
+            </Badge>
             <h2 className="text-3xl font-bold text-foreground sm:text-4xl">
-              Como o UniStock resolve isso
+              UniStock resolve tudo isso em um só lugar
             </h2>
           </div>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
             {solutions.map((solution, index) => (
-              <Card key={index} className="text-center border-primary/20 dark:border-primary/30">
+              <Card key={index} className="text-center border-success/20 dark:border-success/30 hover:border-success/40 transition-all hover:shadow-lg">
                 <CardContent className="p-6">
-                  <solution.icon className="h-12 w-12 mx-auto text-primary mb-4" />
+                  <solution.icon className="h-12 w-12 mx-auto text-success mb-4" />
                   <h3 className="font-semibold text-foreground mb-2">{solution.title}</h3>
                   <p className="text-muted-foreground text-sm">{solution.description}</p>
                 </CardContent>
@@ -316,15 +317,16 @@ const Landing = () => {
       <section id="planos" className="py-16 sm:py-20 bg-gradient-to-b from-muted/30 via-muted/20 to-background dark:from-muted/20 dark:via-muted/10 dark:to-background scroll-mt-16">
         <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
           <div className="text-center mb-12 sm:mb-16 animate-fade-in">
-            <Badge variant="outline" className="mb-4 px-4 py-2 text-sm border-primary/30 text-primary bg-primary/5">
+            <Badge variant="outline" className="mb-4 px-4 py-2 text-sm border-accent/30 text-accent bg-accent/5">
               <Zap className="w-4 h-4 mr-2" />
-              Preços transparentes
+              3 dias grátis, cancela quando quiser
             </Badge>
             <h2 className="text-3xl sm:text-4xl lg:text-5xl font-bold text-foreground mb-4">
-              Escolha o plano perfeito para o seu negócio
+              Quanto tempo você economiza por mês?
             </h2>
             <p className="text-base sm:text-lg text-muted-foreground max-w-2xl mx-auto">
-              Comece com 3 dias grátis. Cancele quando quiser. Sem surpresas.
+              Nossos clientes economizam em média <strong className="text-foreground">90 horas por mês</strong>. 
+              Quanto vale o seu tempo?
             </p>
           </div>
           
@@ -340,9 +342,9 @@ const Landing = () => {
               >
                 {plan.popular && (
                   <div className="absolute -top-4 left-1/2 transform -translate-x-1/2 z-10">
-                    <Badge className="bg-gradient-to-r from-primary to-success text-primary-foreground shadow-lg px-4 py-1 text-sm font-semibold">
+                    <Badge className="bg-accent text-accent-foreground shadow-lg px-4 py-1 text-sm font-semibold">
                       <Sparkles className="w-3 h-3 mr-1" />
-                      Mais Popular
+                      Mais Vendido
                     </Badge>
                   </div>
                 )}
@@ -374,19 +376,19 @@ const Landing = () => {
                     <Button 
                       className={`w-full group ${
                         plan.popular 
-                          ? 'bg-gradient-to-r from-primary to-primary/90 hover:from-primary/90 hover:to-primary shadow-lg hover:shadow-xl' 
+                          ? 'bg-accent hover:bg-accent/90 text-accent-foreground shadow-lg hover:shadow-xl' 
                           : ''
                       }`}
                       variant={plan.popular ? "default" : "outline"}
                       size="lg"
                     >
-                      Começar Agora
+                      Testar grátis por 3 dias
                       <ArrowRight className="ml-2 h-4 w-4 group-hover:translate-x-1 transition-transform" />
                     </Button>
                   </Link>
                   {plan.popular && (
                     <p className="text-xs text-center text-muted-foreground mt-2">
-                      🔥 Melhor custo-benefício
+                      ⚡ Escolha de 73% dos nossos clientes
                     </p>
                   )}
                 </CardContent>
@@ -397,16 +399,16 @@ const Landing = () => {
           {/* Trust badges under pricing */}
           <div className="mt-12 sm:mt-16 flex flex-wrap items-center justify-center gap-6 sm:gap-12 px-4">
             <div className="flex items-center gap-3 text-muted-foreground">
-              <Shield className="w-5 h-5 text-primary" />
-              <span className="text-sm">Pagamento Seguro</span>
+              <Shield className="w-5 h-5 text-success" />
+              <span className="text-sm">Pagamento Seguro (Stripe)</span>
             </div>
             <div className="flex items-center gap-3 text-muted-foreground">
-              <Users className="w-5 h-5 text-primary" />
-              <span className="text-sm">500+ Clientes</span>
+              <Users className="w-5 h-5 text-success" />
+              <span className="text-sm">347+ vendedores ativos</span>
             </div>
             <div className="flex items-center gap-3 text-muted-foreground">
-              <Zap className="w-5 h-5 text-primary" />
-              <span className="text-sm">Setup em 5min</span>
+              <Clock className="w-5 h-5 text-success" />
+              <span className="text-sm">Configura em 5min</span>
             </div>
           </div>
         </div>
@@ -416,13 +418,20 @@ const Landing = () => {
       <section className="py-16">
         <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
           <div className="text-center mb-12">
+            <Badge variant="outline" className="mb-4 px-4 py-2 text-sm border-primary/30 text-primary bg-primary/5">
+              <Sparkles className="w-4 h-4 mr-2" />
+              Tudo que você precisa
+            </Badge>
             <h2 className="text-3xl font-bold text-foreground sm:text-4xl mb-4">
-              Funcionalidades que fazem a diferença
+              O que vem no UniStock
             </h2>
+            <p className="text-base sm:text-lg text-muted-foreground max-w-2xl mx-auto">
+              Criado por quem vende online. Pra quem vende online.
+            </p>
           </div>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-6 sm:gap-8 max-w-7xl mx-auto">
             {features.map((feature, index) => (
-              <div key={index} className="text-center p-4">
+              <div key={index} className="text-center p-4 hover:bg-muted/30 rounded-lg transition-all">
                 <feature.icon className="h-10 w-10 mx-auto text-primary mb-4" />
                 <h3 className="font-semibold text-foreground mb-2 text-sm sm:text-base">{feature.title}</h3>
                 <p className="text-muted-foreground text-xs sm:text-sm">{feature.description}</p>
@@ -437,32 +446,43 @@ const Landing = () => {
         <div className="mx-auto max-w-4xl px-4 sm:px-6 lg:px-8">
           <div className="text-center mb-12">
             <h2 className="text-3xl font-bold text-foreground sm:text-4xl mb-4">
-              Perguntas Frequentes
+              Dúvidas? A gente responde
             </h2>
           </div>
           <div className="space-y-6">
-            <Card className="border-border">
+            <Card className="border-border hover:border-primary/30 transition-all">
               <CardContent className="p-6">
-                <h3 className="font-semibold text-foreground mb-2">Como funciona o teste gratuito?</h3>
+                <h3 className="font-semibold text-foreground mb-2">Como funciona o teste grátis?</h3>
                 <p className="text-muted-foreground">
-                  Você tem 3 dias para testar todas as funcionalidades da plataforma. 
-                  Após o período de teste, escolha o plano que melhor se adequa ao seu negócio.
+                  Você testa 3 dias sem pagar nada. Não precisa nem colocar cartão. 
+                  Gostou? Escolhe o plano. Não gostou? Só não voltar. Simples assim.
                 </p>
               </CardContent>
             </Card>
-            <Card className="border-border">
+            <Card className="border-border hover:border-primary/30 transition-all">
               <CardContent className="p-6">
-                <h3 className="font-semibold text-foreground mb-2">Quais marketplaces são suportados?</h3>
+                <h3 className="font-semibold text-foreground mb-2">Quais plataformas vocês integram?</h3>
                 <p className="text-muted-foreground">
-                  Mercado Livre, Shopee, Amazon e outros. Estamos sempre adicionando novas integrações.
+                  Mercado Livre, Shopee, Amazon e Shopify. São as 4 que mais vendem no Brasil. 
+                  Tá precisando de outra? Fala no WhatsApp que a gente adiciona.
                 </p>
               </CardContent>
             </Card>
-            <Card className="border-border">
+            <Card className="border-border hover:border-primary/30 transition-all">
               <CardContent className="p-6">
-                <h3 className="font-semibold text-foreground mb-2">Posso mudar de plano depois?</h3>
+                <h3 className="font-semibold text-foreground mb-2">E se eu quiser cancelar?</h3>
                 <p className="text-muted-foreground">
-                  Sim! Você pode fazer upgrade ou downgrade do seu plano a qualquer momento.
+                  Cancela quando quiser. Sem burocracia, sem multa, sem perguntas chatas. 
+                  Um clique e pronto.
+                </p>
+              </CardContent>
+            </Card>
+            <Card className="border-border hover:border-primary/30 transition-all">
+              <CardContent className="p-6">
+                <h3 className="font-semibold text-foreground mb-2">Demora quanto pra configurar?</h3>
+                <p className="text-muted-foreground">
+                  5 minutos. Conecta as contas, sincroniza o estoque e pronto. 
+                  Já tá funcionando.
                 </p>
               </CardContent>
             </Card>
@@ -474,33 +494,34 @@ const Landing = () => {
       <section className="py-16 sm:py-20 relative overflow-hidden">
         {/* Background effects */}
         <div className="absolute inset-0 -z-10">
-          <div className="absolute inset-0 bg-gradient-to-r from-primary/5 via-success/5 to-primary/5" />
-          <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-full max-w-4xl h-64 bg-primary/10 rounded-full blur-3xl" />
+          <div className="absolute inset-0 bg-gradient-to-r from-accent/5 via-primary/5 to-accent/5" />
+          <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-full max-w-4xl h-64 bg-accent/10 rounded-full blur-3xl" />
         </div>
 
         <div className="mx-auto max-w-4xl px-4 sm:px-6 lg:px-8 text-center">
           <div className="bg-card/50 backdrop-blur-sm border border-border rounded-2xl p-8 sm:p-12 shadow-xl">
-            <Badge variant="outline" className="mb-4 px-4 py-2 text-sm border-success/30 text-success bg-success/5">
+            <Badge variant="outline" className="mb-4 px-4 py-2 text-sm border-accent/30 text-accent bg-accent/5">
               <Rocket className="w-4 h-4 mr-2" />
-              Teste grátis por 3 dias
+              Sem cartão, sem compromisso
             </Badge>
             
             <h2 className="text-3xl sm:text-4xl lg:text-5xl font-bold text-foreground mb-4 sm:mb-6">
-              Pronto para automatizar seu e-commerce?
+              Tá esperando o quê?
             </h2>
             
             <p className="text-base sm:text-lg text-muted-foreground mb-6 sm:mb-8 max-w-2xl mx-auto">
-              Junte-se a <span className="text-primary font-semibold">500+ vendedores</span> que já economizam horas todos os dias com o UniStock.
+              347 vendedores já pararam de perder tempo pulando entre abas. 
+              <strong className="text-foreground"> Testa grátis por 3 dias.</strong> Não precisa colocar cartão.
             </p>
             
             <div className="flex flex-col sm:flex-row gap-4 justify-center items-center mb-6">
               <a href="#planos" className="w-full sm:w-auto">
                 <Button 
                   size="lg" 
-                  className="w-full sm:w-auto h-12 sm:h-14 px-8 sm:px-12 text-base sm:text-lg font-semibold shadow-lg hover:shadow-xl hover:scale-105 transition-all duration-300 bg-gradient-to-r from-primary to-primary/90 hover:from-primary/90 hover:to-primary group"
+                  className="w-full sm:w-auto h-12 sm:h-14 px-8 sm:px-12 text-base sm:text-lg font-semibold shadow-lg hover:shadow-xl hover:scale-105 transition-all duration-300 bg-accent hover:bg-accent/90 text-accent-foreground group"
                 >
                   <Sparkles className="mr-2 h-5 w-5" />
-                  Começar teste gratuito agora
+                  Quero testar grátis agora
                   <ArrowRight className="ml-2 h-5 w-5 group-hover:translate-x-1 transition-transform" />
                 </Button>
               </a>
@@ -513,11 +534,11 @@ const Landing = () => {
               </div>
               <div className="flex items-center gap-2">
                 <CheckCircle className="w-4 h-4 text-success" />
-                <span>Cancele quando quiser</span>
+                <span>Sem cartão</span>
               </div>
               <div className="flex items-center gap-2">
                 <CheckCircle className="w-4 h-4 text-success" />
-                <span>Setup rápido</span>
+                <span>Cancela quando quiser</span>
               </div>
             </div>
           </div>

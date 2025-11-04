@@ -13,58 +13,59 @@ All colors MUST be HSL.
   
   :root {
     /* Base colors */
-    --background: 244 48% 98%;
-    --foreground: 215 25% 20%;
+    --background: 0 0% 100%; /* #FFFFFF */
+    --foreground: 215 16% 26%; /* #374151 */
 
     /* Card components */
     --card: 0 0% 100%;
-    --card-foreground: 215 25% 20%;
+    --card-foreground: 215 16% 26%;
 
     /* Popover components */
     --popover: 0 0% 100%;
-    --popover-foreground: 215 25% 20%;
+    --popover-foreground: 215 16% 26%;
 
-    /* UniStock Brand Colors */
-    --primary: 221 68% 65%; /* #6890e4 - Friendly blue */
+    /* UniStock Brand Colors - Light Mode */
+    --primary: 221 66% 32%; /* #1E3A8A - Azul */
     --primary-foreground: 0 0% 100%;
-    --primary-hover: 221 68% 58%;
-    --primary-glow: 221 68% 75%;
+    --primary-hover: 221 66% 28%;
+    --primary-glow: 221 66% 42%;
 
-    --success: 74 65% 65%; /* #c3e468 - Vibrant lime green */
-    --success-foreground: 74 65% 15%;
-    --success-muted: 74 65% 95%;
+    --accent: 25 100% 56%; /* #FF8B21 - Laranja */
+    --accent-foreground: 0 0% 100%;
+
+    --success: 142 71% 45%; /* #10B981 - Verde */
+    --success-foreground: 0 0% 100%;
+    --success-muted: 142 71% 95%;
 
     /* Neutral grays */
-    --secondary: 220 14% 96%;
-    --secondary-foreground: 215 25% 20%;
+    --secondary: 220 14% 96%; /* #F3F4F6 */
+    --secondary-foreground: 215 16% 26%;
 
     --muted: 220 14% 96%;
     --muted-foreground: 215 10% 45%;
 
-    --accent: 220 14% 96%;
-    --accent-foreground: 215 25% 20%;
-
     /* Status colors */
-    --destructive: 0 65% 58%;
+    --destructive: 0 84% 60%; /* #EF4444 - Vermelho */
     --destructive-foreground: 0 0% 100%;
 
-    --warning: 38 85% 58%;
+    --warning: 25 100% 56%; /* #FF8B21 - Laranja (igual ao accent) */
     --warning-foreground: 0 0% 100%;
 
     /* UI elements */
     --border: 220 13% 88%;
     --input: 220 13% 91%;
-    --ring: 221 68% 65%;
+    --ring: 221 66% 32%;
 
     /* Gradients */
-    --gradient-primary: linear-gradient(135deg, hsl(221 68% 65%), hsl(250 68% 68%));
-    --gradient-success: linear-gradient(135deg, hsl(74 65% 65%), hsl(100 65% 68%));
-    --gradient-subtle: linear-gradient(180deg, hsl(244 48% 98%), hsl(240 48% 96%));
+    --gradient-primary: linear-gradient(135deg, hsl(221 66% 32%), hsl(221 66% 42%));
+    --gradient-accent: linear-gradient(135deg, hsl(25 100% 56%), hsl(25 100% 66%));
+    --gradient-success: linear-gradient(135deg, hsl(142 71% 45%), hsl(142 71% 55%));
+    --gradient-subtle: linear-gradient(180deg, hsl(0 0% 100%), hsl(220 14% 98%));
 
     /* Shadows */
-    --shadow-soft: 0 2px 8px hsl(215 25% 20% / 0.08);
-    --shadow-medium: 0 4px 16px hsl(215 25% 20% / 0.12);
-    --shadow-primary: 0 8px 24px hsl(221 68% 65% / 0.24);
+    --shadow-soft: 0 2px 8px hsl(215 16% 26% / 0.08);
+    --shadow-medium: 0 4px 16px hsl(215 16% 26% / 0.12);
+    --shadow-primary: 0 8px 24px hsl(221 66% 32% / 0.24);
 
     /* Animations */
     --transition-smooth: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
@@ -75,58 +76,59 @@ All colors MUST be HSL.
 
   .dark {
     /* Base colors */
-    --background: 215 25% 12%;
-    --foreground: 210 40% 98%;
+    --background: 215 30% 7%; /* #0F172A */
+    --foreground: 210 40% 93%; /* #E2E8F0 */
 
     /* Card components */
-    --card: 215 25% 15%;
-    --card-foreground: 210 40% 98%;
+    --card: 215 26% 14%; /* #1E293B */
+    --card-foreground: 210 40% 98%; /* #F8FAFC */
 
     /* Popover components */
-    --popover: 215 25% 15%;
+    --popover: 215 26% 14%;
     --popover-foreground: 210 40% 98%;
 
-    /* UniStock Brand Colors (adjusted for dark mode) */
-    --primary: 221 68% 68%; /* Slightly lighter in dark mode */
-    --primary-foreground: 215 25% 12%;
-    --primary-hover: 221 68% 75%;
-    --primary-glow: 221 68% 80%;
+    /* UniStock Brand Colors - Dark Mode */
+    --primary: 217 91% 60%; /* #3B82F6 - Azul claro */
+    --primary-foreground: 215 30% 7%;
+    --primary-hover: 217 91% 65%;
+    --primary-glow: 217 91% 75%;
 
-    --success: 74 65% 68%; /* Slightly lighter in dark mode */
-    --success-foreground: 215 25% 12%;
-    --success-muted: 74 25% 18%;
+    --accent: 25 100% 56%; /* #FF8B21 - Laranja (mantém) */
+    --accent-foreground: 215 30% 7%;
+
+    --success: 142 71% 45%; /* #10B981 - Verde (mantém) */
+    --success-foreground: 215 30% 7%;
+    --success-muted: 142 40% 15%;
 
     /* Neutral grays (dark mode) */
-    --secondary: 215 25% 18%;
-    --secondary-foreground: 210 40% 98%;
+    --secondary: 215 26% 14%; /* #1E293B */
+    --secondary-foreground: 210 40% 93%;
 
-    --muted: 215 25% 18%;
-    --muted-foreground: 215 10% 65%;
-
-    --accent: 215 25% 18%;
-    --accent-foreground: 210 40% 98%;
+    --muted: 215 26% 14%;
+    --muted-foreground: 215 15% 65%;
 
     /* Status colors (dark mode) */
-    --destructive: 0 65% 65%;
+    --destructive: 0 84% 60%; /* #EF4444 - Vermelho */
     --destructive-foreground: 210 40% 98%;
 
-    --warning: 38 85% 65%;
-    --warning-foreground: 215 25% 12%;
+    --warning: 25 100% 56%; /* #FF8B21 - Laranja */
+    --warning-foreground: 215 30% 7%;
 
     /* UI elements (dark mode) */
-    --border: 215 25% 22%;
-    --input: 215 25% 20%;
-    --ring: 221 68% 68%;
+    --border: 215 21% 20%; /* #334155 */
+    --input: 215 26% 14%;
+    --ring: 217 91% 60%;
 
     /* Gradients (dark mode) */
-    --gradient-primary: linear-gradient(135deg, hsl(221 68% 68%), hsl(250 68% 72%));
-    --gradient-success: linear-gradient(135deg, hsl(74 65% 68%), hsl(100 65% 72%));
-    --gradient-subtle: linear-gradient(180deg, hsl(215 25% 12%), hsl(215 25% 8%));
+    --gradient-primary: linear-gradient(135deg, hsl(217 91% 60%), hsl(217 91% 70%));
+    --gradient-accent: linear-gradient(135deg, hsl(25 100% 56%), hsl(25 100% 66%));
+    --gradient-success: linear-gradient(135deg, hsl(142 71% 45%), hsl(142 71% 55%));
+    --gradient-subtle: linear-gradient(180deg, hsl(215 30% 7%), hsl(215 30% 4%));
 
     /* Shadows (dark mode) */
-    --shadow-soft: 0 2px 8px hsl(215 25% 8% / 0.4);
-    --shadow-medium: 0 4px 16px hsl(215 25% 8% / 0.6);
-    --shadow-primary: 0 8px 24px hsl(221 68% 68% / 0.3);
+    --shadow-soft: 0 2px 8px hsl(215 30% 4% / 0.4);
+    --shadow-medium: 0 4px 16px hsl(215 30% 4% / 0.6);
+    --shadow-primary: 0 8px 24px hsl(217 91% 60% / 0.3);
   }
 }
 
