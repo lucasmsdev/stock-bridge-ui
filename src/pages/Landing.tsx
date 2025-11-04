@@ -58,9 +58,26 @@ const Landing = () => {
     },
     {
       name: "Enterprise",
+      price: "R$ 297",
+      period: "/mês",
+      description: "Pra quem vende muito e precisa de análise avançada",
+      popular: false,
+      features: [
+        "Até 1000 produtos",
+        "Todas as integrações",
+        "Sincronização em tempo real",
+        "Dashboard avançado + IA",
+        "Análise de concorrência",
+        "Relatórios personalizados",
+        "Suporte prioritário"
+      ],
+      limitations: []
+    },
+    {
+      name: "Unlimited",
       price: "R$ 397",
       period: "/mês",
-      description: "Pra quem vende MUITO e precisa de suporte total",
+      description: "Produtos ilimitados + API e automação completa",
       popular: false,
       features: [
         "Produtos ilimitados",
@@ -69,7 +86,9 @@ const Landing = () => {
         "Dashboard avançado + IA",
         "Análise de concorrência",
         "Relatórios personalizados",
-        "Suporte prioritário + gerente de conta"
+        "Acesso à API",
+        "Automação completa",
+        "Gerente de conta dedicado"
       ],
       limitations: []
     }
@@ -330,7 +349,7 @@ const Landing = () => {
             </p>
           </div>
           
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6 sm:gap-8 max-w-6xl mx-auto">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 sm:gap-8 max-w-7xl mx-auto">
             {plans.map((plan, index) => (
               <Card 
                 key={index} 

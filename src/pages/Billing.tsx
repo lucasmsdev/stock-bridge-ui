@@ -18,18 +18,21 @@ const planIcons = {
   estrategista: Crown,
   competidor: Zap,
   dominador: Star,
+  unlimited: Star,
 };
 
 const planColors = {
   estrategista: 'border-blue-500',
   competidor: 'border-green-500',
   dominador: 'border-purple-500',
+  unlimited: 'border-yellow-500',
 };
 
 const planGradients = {
   estrategista: 'bg-gradient-to-br from-blue-50 to-blue-100 dark:from-blue-900/20 dark:to-blue-800/20',
   competidor: 'bg-gradient-to-br from-green-50 to-green-100 dark:from-green-900/20 dark:to-green-800/20',
   dominador: 'bg-gradient-to-br from-purple-50 to-purple-100 dark:from-purple-900/20 dark:to-purple-800/20',
+  unlimited: 'bg-gradient-to-br from-yellow-50 to-yellow-100 dark:from-yellow-900/20 dark:to-yellow-800/20',
 };
 
 export default function Billing() {
@@ -126,7 +129,7 @@ export default function Billing() {
 
   const isCurrentPlan = (planKey: PlanType) => planKey === currentPlan;
   const isPlanUpgrade = (planKey: PlanType) => {
-    const planPrices = { estrategista: 97.00, competidor: 147.00, dominador: 197.00 };
+    const planPrices = { estrategista: 97.00, competidor: 197.00, dominador: 297.00, unlimited: 397.00 };
     return planPrices[planKey] > planPrices[currentPlan];
   };
 
@@ -161,7 +164,7 @@ export default function Billing() {
         />
       )}
 
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 md:gap-6">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 md:gap-6">
         {Object.entries(allPlans).map(([planKey, plan]) => {
           const PlanIcon = planIcons[planKey as PlanType];
           const isCurrent = isCurrentPlan(planKey as PlanType);

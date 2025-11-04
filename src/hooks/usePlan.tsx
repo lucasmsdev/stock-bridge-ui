@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback } from "react";
 import { useAuth } from "./useAuth";
 import { supabase } from "@/integrations/supabase/client";
 
-export type PlanType = 'estrategista' | 'competidor' | 'dominador';
+export type PlanType = 'estrategista' | 'competidor' | 'dominador' | 'unlimited';
 
 // Definição clara de features disponíveis
 export type FeatureName = 
@@ -42,8 +42,8 @@ const planFeatures: Record<PlanType, PlanFeatures> = {
       'DashboardDePerformance'
     ],
     price: 97.00,
-    description: 'Tome decisões de preço com base em dados, não em achismos.',
-    name: 'Estrategista'
+    description: 'Essencial para gerenciar vendas em múltiplas plataformas',
+    name: 'Iniciante'
   },
   competidor: {
     maxSkus: 500,
@@ -55,11 +55,26 @@ const planFeatures: Record<PlanType, PlanFeatures> = {
       'ReprecificacaoPorAlerta',
       'SuportePrioritario'
     ],
-    price: 147.00,
-    description: 'Reaja à concorrência em tempo real e não perca mais vendas.',
-    name: 'Competidor'
+    price: 197.00,
+    description: 'Para escalar operações e aumentar eficiência',
+    name: 'Profissional'
   },
   dominador: {
+    maxSkus: 1000,
+    features: [
+      'IntegracoesCompletas',
+      'AnaliseDeConcorrencia',
+      'AnaliseDePrecoIdeal',
+      'DashboardDePerformance', 
+      'ReprecificacaoPorAlerta',
+      'RelatoriosAvancados',
+      'SuportePrioritario'
+    ],
+    price: 297.00,
+    description: 'Solução completa com análise avançada e IA',
+    name: 'Enterprise'
+  },
+  unlimited: {
     maxSkus: Infinity,
     features: [
       'IntegracoesCompletas',
@@ -70,9 +85,9 @@ const planFeatures: Record<PlanType, PlanFeatures> = {
       'RelatoriosAvancados',
       'SuportePrioritario'
     ],
-    price: 197.00,
-    description: 'Automatize sua competitividade e foque em crescer seu negócio.',
-    name: 'Dominador'
+    price: 397.00,
+    description: 'SKUs ilimitados, todas features + API e automação completa',
+    name: 'Unlimited'
   },
 };
 

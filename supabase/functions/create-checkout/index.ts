@@ -42,9 +42,10 @@ serve(async (req) => {
 
     // Map plan types to Stripe price IDs
     const planPriceMap = {
-      'estrategista': 'price_1S6JbRKRFmEnuZwjVgi4VoaG',
-      'competidor': 'price_1S6JruKRFmEnuZwj9i1lrCSG',
-      'dominador': 'price_1S6JsdKRFmEnuZwjCP2X0TiQ'
+      'estrategista': 'price_1S6JbRKRFmEnuZwjVgi4VoaG',  // R$ 97 (Iniciante)
+      'competidor': 'price_1SPo8UKRFmEnuZwjXoO3C9vB',    // R$ 197 (Profissional)
+      'dominador': 'price_1SPo8sKRFmEnuZwjYhvLWJF6',     // R$ 297 (Enterprise)
+      'unlimited': 'price_1SPo9dKRFmEnuZwjJzwYTgir'      // R$ 397 (Unlimited)
     };
 
     const priceId = planPriceMap[planType as keyof typeof planPriceMap];
@@ -81,6 +82,7 @@ serve(async (req) => {
       subscription_data: {
         trial_period_days: 7, // Período de teste de 7 dias
       },
+      allow_promotion_codes: true, // Habilita campo de cupons
       success_url: `${origin}/billing?success=true&plan=${planType}`,
       cancel_url: `${origin}/billing?canceled=true`,
       metadata: {

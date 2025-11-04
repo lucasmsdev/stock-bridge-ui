@@ -29,6 +29,7 @@ export default function Checkout() {
     'iniciante': 'estrategista',
     'profissional': 'competidor',
     'enterprise': 'dominador',
+    'unlimited': 'unlimited',
     'estrategista': 'estrategista',
     'competidor': 'competidor',
     'dominador': 'dominador'
