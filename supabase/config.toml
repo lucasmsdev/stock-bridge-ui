@@ -48,6 +48,9 @@ verify_jwt = true
 [functions.check-subscription-compatibility]
 verify_jwt = true
 
+[functions.check-subscription]
+verify_jwt = true
+
 [functions.set-admin-role]
 verify_jwt = true
 
