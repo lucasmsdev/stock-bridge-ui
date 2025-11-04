@@ -50,11 +50,11 @@ interface AnalysisData {
 
 // ============= PADRÕES DE URL POR PLATAFORMA =============
 const URL_PATTERNS: Record<string, RegExp> = {
-  'Mercado Livre': /https?:\/\/(?:produto\.)?mercadolivre\.com\.br\/MLB-\d{10}/i,
-  'Shopee': /https?:\/\/(?:shopee\.com\.br\/product\/\d{9,12}\/\d{9,11}|shp\.ee\/[a-zA-Z0-9]+)/i,
-  'Amazon': /https?:\/\/(?:www\.)?amazon\.com\.br\/(?:dp|gp\/product)\/[A-Z0-9]{10}/i,
-  'Magazine Luiza': /https?:\/\/(?:www\.)?magazineluiza\.com\.br\/[a-z0-9-]+\/p/i,
-  'Americanas': /https?:\/\/(?:www\.)?americanas\.com\.br\/(?:produto|p)\/\d{7,10}/i,
+  'Mercado Livre': /https?:\/\/(?:produto\.)?mercadolivre\.com\.br\/.*(MLB-\d{10})/i,
+  'Shopee': /https?:\/\/(?:shopee\.com\.br\/product\/\d{12}\/\d{11}|shp\.ee\/[a-zA-Z0-9]+)/,
+  'Amazon': /https?:\/\/(?:www\.)?amazon\.com\.br\/(?:dp|gp\/product)\/[A-Z0-9]{10}/,
+  'Magazine Luiza': /https?:\/\/(?:www\.)?magazineluiza\.com\.br\/[a-z0-9-]+\/p(?:[/?]|$)/i,
+  'Americanas': /https?:\/\/(?:www\.)?americanas\.com\.br\/(?:produto|p)\/\d{9}/,
   'Shopify': /https?:\/\/[a-z0-9-]+\.(?:myshopify\.com|[a-z0-9-]+\.com\.br)\/products\/[a-z0-9-]+/i,
 };
 
@@ -64,6 +64,7 @@ const SEARCH_URLS: Record<string, string> = {
   'Amazon': 'https://www.amazon.com.br/s?k=',
   'Magazine Luiza': 'https://www.magazineluiza.com.br/busca/',
   'Americanas': 'https://www.americanas.com.br/busca/',
+  'Shopify': 'https://www.google.com/search?q='
 };
 
 function validatePrice(price: number): boolean {
@@ -80,11 +81,77 @@ function validateUrl(url: string): boolean {
   }
 }
 
-function isValidUrlForPlatform(url: string, platform: string): boolean {
-  if (!url || typeof url !== 'string') return false;
+function isValidUrlForPlatform(url: string | null, platform: string): boolean {
+  if (!url || typeof url !== 'string' || url.trim() === '') {
+    return false;
+  }
   const pattern = URL_PATTERNS[platform];
   if (!pattern) return false;
   return pattern.test(url);
+}
+
+async function verifyUrlExists(url: string, timeout: number = 5000): Promise<boolean> {
+  if (!url) return false;
+  
+  try {
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), timeout);
+    
+    const response = await fetch(url, {
+      method: 'HEAD',
+      signal: controller.signal,
+      redirect: 'follow',
+      headers: {
+        'User-Agent': 'Mozilla/5.0 (compatible; PriceBot/1.0)'
+      }
+    });
+    
+    clearTimeout(timeoutId);
+    return response.status >= 200 && response.status < 400;
+  } catch (error) {
+    return false;
+  }
+}
+
+function sanitizeUrlForPlatform(url: string, platform: string): string {
+  try {
+    const urlObj = new URL(url);
+    
+    const trackingParams = [
+      'ref', 'utm_source', 'utm_medium', 'utm_campaign', 
+      'fbclid', '_gl', 'gclid', 'msclkid', 'dp_url'
+    ];
+    
+    trackingParams.forEach(param => urlObj.searchParams.delete(param));
+    
+    if (platform === 'Amazon') {
+      const urlStr = urlObj.toString();
+      const dpIndex = urlStr.indexOf('/dp/');
+      if (dpIndex !== -1) {
+        const asinMatch = urlStr.substring(dpIndex).match(/\/dp\/([A-Z0-9]{10})/);
+        if (asinMatch) {
+          return `https://www.amazon.com.br/dp/${asinMatch[1]}`;
+        }
+      }
+    }
+    
+    if (platform === 'Mercado Livre') {
+      const baseUrl = urlObj.toString().split('#')[0];
+      return baseUrl.replace(/\?.*$/, '');
+    }
+    
+    if (platform === 'Magazine Luiza') {
+      let result = urlObj.toString().split('?')[0];
+      if (!result.endsWith('/p')) {
+        result += '/p';
+      }
+      return result;
+    }
+    
+    return urlObj.toString();
+  } catch {
+    return url;
+  }
 }
 
 function generateSearchUrl(platform: string, searchTerm: string): string {
@@ -99,46 +166,177 @@ function generateSearchUrl(platform: string, searchTerm: string): string {
     return `${baseUrl}/${encoded}`;
   }
   
+  if (platform === 'Shopify') {
+    return `https://www.google.com/search?q=${encoded}+site:myshopify.com`;
+  }
+  
   return `${baseUrl}${encoded}`;
 }
 
-function calculateStats(prices: number[]): { mean: number; stdDev: number } {
-  if (prices.length === 0) return { mean: 0, stdDev: 0 };
+async function validateAndFixUrl(
+  originalUrl: string | null,
+  platform: string,
+  searchTerm: string,
+  attemptVerification: boolean = true
+): Promise<{
+  url: string;
+  isVerified: boolean;
+  confidence: 'high' | 'medium' | 'low';
+  isGenericSearch: boolean;
+}> {
+  if (!originalUrl) {
+    console.warn(`⚠️ URL nula para ${platform}`);
+    return {
+      url: generateSearchUrl(platform, searchTerm),
+      isVerified: false,
+      confidence: 'low',
+      isGenericSearch: true
+    };
+  }
   
+  const cleanedUrl = sanitizeUrlForPlatform(originalUrl, platform);
+  
+  if (!isValidUrlForPlatform(cleanedUrl, platform)) {
+    console.warn(`⚠️ URL não segue padrão ${platform}: ${cleanedUrl}`);
+    return {
+      url: generateSearchUrl(platform, searchTerm),
+      isVerified: false,
+      confidence: 'low',
+      isGenericSearch: true
+    };
+  }
+  
+  if (attemptVerification) {
+    if (await verifyUrlExists(cleanedUrl)) {
+      return {
+        url: cleanedUrl,
+        isVerified: true,
+        confidence: 'high',
+        isGenericSearch: false
+      };
+    }
+    console.warn(`⚠️ URL retornou 404: ${platform}`);
+  }
+  
+  return {
+    url: generateSearchUrl(platform, searchTerm),
+    isVerified: false,
+    confidence: 'low',
+    isGenericSearch: true
+  };
+}
+
+function calculateStats(prices: number[]): { mean: number; median: number; stdDev: number } {
+  if (prices.length === 0) return { mean: 0, median: 0, stdDev: 0 };
+  
+  const sorted = [...prices].sort((a, b) => a - b);
   const mean = prices.reduce((a, b) => a + b, 0) / prices.length;
+  const median = sorted.length % 2 === 0
+    ? (sorted[sorted.length / 2 - 1] + sorted[sorted.length / 2]) / 2
+    : sorted[Math.floor(sorted.length / 2)];
+  
   const variance = prices.reduce((a, b) => a + Math.pow(b - mean, 2), 0) / prices.length;
   const stdDev = Math.sqrt(variance);
   
-  return { mean, stdDev };
+  return { 
+    mean: parseFloat(mean.toFixed(2)),
+    median: parseFloat(median.toFixed(2)),
+    stdDev: parseFloat(stdDev.toFixed(2))
+  };
+}
+
+function detectPriceAnomalies(prices: number[]): {
+  valid: number[];
+  anomalies: number[];
+  stats: ReturnType<typeof calculateStats>;
+} {
+  const stats = calculateStats(prices);
+  
+  if (prices.length < 2) {
+    return {
+      valid: prices,
+      anomalies: [],
+      stats
+    };
+  }
+  
+  const valid: number[] = [];
+  const anomalies: number[] = [];
+  
+  prices.forEach(price => {
+    const zScore = Math.abs((price - stats.mean) / (stats.stdDev || 1));
+    if (zScore > 2.5) {
+      anomalies.push(price);
+    } else {
+      valid.push(price);
+    }
+  });
+  
+  return { valid, anomalies, stats };
 }
 
 function validatePriceWithContext(
   price: number,
+  platform: string,
   allPrices: number[]
-): { confidence: 'high' | 'medium' | 'low'; isOutlier: boolean } {
+): { 
+  isValid: boolean;
+  confidence: 'high' | 'medium' | 'low'; 
+  isOutlier: boolean;
+  note?: string;
+} {
   if (!validatePrice(price)) {
-    return { confidence: 'low', isOutlier: true };
+    return { 
+      isValid: false,
+      confidence: 'low', 
+      isOutlier: true,
+      note: 'Preço fora do intervalo válido (0 < preço < 999999)'
+    };
   }
   
-  if (allPrices.length < 2) {
-    return { confidence: 'medium', isOutlier: false };
+  if (allPrices.length <= 1) {
+    return { 
+      isValid: true,
+      confidence: 'medium', 
+      isOutlier: false,
+      note: 'Único preço encontrado'
+    };
   }
   
-  const { mean, stdDev } = calculateStats(allPrices);
+  const { stats, anomalies } = detectPriceAnomalies(allPrices);
   
-  if (stdDev === 0) {
-    return { confidence: 'high', isOutlier: false };
+  if (anomalies.includes(price)) {
+    return { 
+      isValid: true,
+      confidence: 'low', 
+      isOutlier: true,
+      note: `Preço muito desviante (${((price - stats.mean) / stats.mean * 100).toFixed(0)}% diferença). SEMPRE verifique.`
+    };
   }
   
-  const zScore = Math.abs((price - mean) / stdDev);
+  const deviation = Math.abs((price - stats.mean) / stats.mean * 100);
   
-  if (zScore > 2.5) {
-    return { confidence: 'low', isOutlier: true };
-  } else if (zScore > 1.5) {
-    return { confidence: 'medium', isOutlier: false };
+  if (deviation < 5) {
+    return { 
+      isValid: true,
+      confidence: 'high', 
+      isOutlier: false
+    };
+  } else if (deviation < 15) {
+    return { 
+      isValid: true,
+      confidence: 'medium', 
+      isOutlier: false,
+      note: `Preço ${price > stats.mean ? 'acima' : 'abaixo'} da média em ${deviation.toFixed(0)}%`
+    };
   }
   
-  return { confidence: 'high', isOutlier: false };
+  return { 
+    isValid: true,
+    confidence: 'low', 
+    isOutlier: false,
+    note: `Preço discrepante em ${deviation.toFixed(0)}%. Possível produto diferente.`
+  };
 }
 
 function sanitizeAnalysisData(data: any, searchTerm: string): AnalysisData | null {
@@ -160,56 +358,82 @@ function sanitizeAnalysisData(data: any, searchTerm: string): AnalysisData | nul
 
   if (validAnalysis.length === 0) return null;
 
-  const prices = validAnalysis.map((item: any) => item.bestOffer.price);
+  return {
+    productTitle: data.productTitle.trim(),
+    analysis: validAnalysis.map((item: any) => ({
+      platform: item.platform,
+      bestOffer: item.bestOffer
+    })),
+    priceSummary: {
+      lowestPrice: 0,
+      highestPrice: 0,
+      averagePrice: 0
+    }
+  };
+}
+
+async function enhanceAnalysisWithValidation(
+  analysisData: AnalysisData,
+  searchTerm: string
+): Promise<AnalysisData> {
+  const urlStats = { verified: 0, generic: 0, total: 0 };
+  const priceAnomalies = new Set<number>();
+  
+  // Validar e melhorar URLs
+  const enhancedAnalysis = await Promise.all(
+    analysisData.analysis.map(async (item) => {
+      urlStats.total++;
+      
+      const { url, isVerified, confidence, isGenericSearch } = await validateAndFixUrl(
+        item.bestOffer.link,
+        item.platform,
+        searchTerm,
+        true
+      );
+      
+      if (isVerified) urlStats.verified++;
+      if (isGenericSearch) urlStats.generic++;
+      
+      return {
+        platform: item.platform,
+        bestOffer: {
+          ...item.bestOffer,
+          link: url,
+          urlConfidence: confidence
+        }
+      };
+    })
+  );
+  
+  // Validar preços
+  const prices = enhancedAnalysis.map(a => a.bestOffer.price);
   const lowestPrice = Math.min(...prices);
   const highestPrice = Math.max(...prices);
-  const averagePrice = prices.reduce((a: number, b: number) => a + b, 0) / prices.length;
-
-  // Adicionar validação de URLs e preços com confiança
-  let urlsVerified = 0;
-  let priceOutliers = 0;
+  const averagePrice = prices.reduce((a, b) => a + b, 0) / prices.length;
   
-  const analysisWithConfidence = validAnalysis.map((item: any) => {
-    const platform = item.platform;
-    const offer = item.bestOffer;
-    
-    // Validar URL por padrão
-    const isValidPattern = isValidUrlForPlatform(offer.link, platform);
-    const urlConfidence: 'high' | 'medium' | 'low' = isValidPattern ? 'high' : 'low';
-    
-    if (isValidPattern) {
-      urlsVerified++;
-    } else {
-      // Fallback para URL de busca
-      console.warn(`⚠️ URL não segue padrão ${platform}: ${offer.link}`);
-      offer.link = generateSearchUrl(platform, searchTerm);
-    }
-    
-    // Validar preço com contexto
-    const priceValidation = validatePriceWithContext(offer.price, prices);
+  // Marcar preços com confiança
+  const enhancedWithPrices = enhancedAnalysis.map((item) => {
+    const priceValidation = validatePriceWithContext(
+      item.bestOffer.price,
+      item.platform,
+      prices
+    );
     
     if (priceValidation.isOutlier) {
-      priceOutliers++;
+      priceAnomalies.add(item.bestOffer.price);
     }
     
     return {
-      platform,
+      ...item,
       bestOffer: {
-        ...offer,
-        urlConfidence,
+        ...item.bestOffer,
         priceConfidence: priceValidation.confidence
       }
     };
   });
-
-  // Calcular confiança média
-  const urlConfidenceAvg = urlsVerified > analysisWithConfidence.length * 0.7 ? 'high' : 
-                           urlsVerified > analysisWithConfidence.length * 0.4 ? 'medium' : 'low';
   
-  const priceConfidenceAvg = priceOutliers === 0 ? 'high' :
-                             priceOutliers <= analysisWithConfidence.length * 0.3 ? 'medium' : 'low';
-
   // Gerar disclaimer
+  const urlPercentage = Math.round((urlStats.verified / urlStats.total) * 100);
   const now = new Date().toLocaleString('pt-BR', { 
     timeZone: 'America/Sao_Paulo',
     day: '2-digit',
@@ -219,33 +443,41 @@ function sanitizeAnalysisData(data: any, searchTerm: string): AnalysisData | nul
     minute: '2-digit'
   });
   
-  let disclaimer = `⚠️ ${urlsVerified}/${analysisWithConfidence.length} URLs verificadas. `;
+  let disclaimer = `⚠️ ${urlStats.verified}/${urlStats.total} URLs verificadas (${urlPercentage}%). `;
   
-  if (priceOutliers > 0) {
-    disclaimer += `Detectados ${priceOutliers} preço(s) anômalo(s) - verifique no site. `;
+  if (urlStats.generic > 0) {
+    disclaimer += `${urlStats.generic} são buscas genéricas (click leva a página de busca). `;
+  }
+  
+  if (priceAnomalies.size > 0) {
+    disclaimer += `${priceAnomalies.size} preço(s) anômalo(s) detectado(s). `;
   } else {
     disclaimer += 'Preços parecem consistentes. ';
   }
   
-  disclaimer += `Dados coletados em ${now}. Preços e disponibilidade sujeitos a mudanças. SEMPRE verifique no site antes de comprar.`;
-
+  disclaimer += `Dados de ${now}. SEMPRE verifique no site antes de comprar.`;
+  
+  const urlConfidenceAvg = urlPercentage > 70 ? 'high' : urlPercentage > 40 ? 'medium' : 'low';
+  const priceConfidenceAvg = priceAnomalies.size === 0 ? 'high' :
+                             priceAnomalies.size <= enhancedWithPrices.length * 0.3 ? 'medium' : 'low';
+  
   return {
-    productTitle: data.productTitle.trim(),
-    analysis: analysisWithConfidence,
+    productTitle: analysisData.productTitle,
+    analysis: enhancedWithPrices,
     priceSummary: {
       lowestPrice: parseFloat(lowestPrice.toFixed(2)),
       highestPrice: parseFloat(highestPrice.toFixed(2)),
-      averagePrice: parseFloat(averagePrice.toFixed(2)),
+      averagePrice: parseFloat(averagePrice.toFixed(2))
     },
     confidence: {
       urls: {
-        verified: urlsVerified,
-        total: analysisWithConfidence.length,
+        verified: urlStats.verified,
+        total: urlStats.total,
         averageConfidence: urlConfidenceAvg
       },
       prices: {
-        hasOutliers: priceOutliers > 0,
-        anomaliesCount: priceOutliers,
+        hasOutliers: priceAnomalies.size > 0,
+        anomaliesCount: priceAnomalies.size,
         averageConfidence: priceConfidenceAvg
       }
     },
@@ -287,31 +519,49 @@ async function setCachedResult(searchTerm: string, data: AnalysisData): Promise<
 
 // ============= PROMPT OTIMIZADO COM PADRÕES DE URL =============
 function buildOptimizedPrompt(searchTerm: string): string {
-  return `Busque EXATAMENTE "${searchTerm}" nas plataformas brasileiras: Mercado Livre, Shopee, Amazon, Magazine Luiza, Americanas.
+  return `Busque EXATAMENTE o produto "${searchTerm}" nas seguintes plataformas brasileiras:
+1. Mercado Livre
+2. Shopee
+3. Amazon
+4. Magazine Luiza
+5. Americanas
 
-CRÍTICO - Use APENAS URLs que seguem estes padrões EXATOS:
-- Mercado Livre: https://produto.mercadolivre.com.br/MLB-XXXXXXXXXX-[nome-produto]
-- Shopee: https://shopee.com.br/product/XXXXXXXXXXXX/XXXXXXXXXXX
-- Amazon: https://www.amazon.com.br/dp/XXXXXXXXXX
-- Magazine Luiza: https://www.magazineluiza.com.br/[nome-produto]/p
-- Americanas: https://www.americanas.com.br/produto/XXXXXXXXX/[nome]
+REGRAS OBRIGATÓRIAS PARA URLs:
+- Mercado Livre: DEVE conter "MLB-" seguido de 10 dígitos. Exemplo: https://produto.mercadolivre.com.br/MLB-2973405859-notebook
+- Shopee: DEVE conter "/product/" com 12 dígitos "/" 11 dígitos. Exemplo: https://shopee.com.br/product/447801038/22393211083
+- Amazon: DEVE conter "/dp/" ou "/gp/product/" seguido de 10 caracteres alfanuméricos. Exemplo: https://www.amazon.com.br/dp/B07FZ8S74R
+- Magazine Luiza: DEVE terminar com "/p". Exemplo: https://www.magazineluiza.com.br/notebook-positivo-i5/p
+- Americanas: DEVE conter "/produto/" seguido de 9 dígitos. Exemplo: https://www.americanas.com.br/produto/123456789/notebook
 
-Se não conseguir URL no padrão exato, coloque null no campo "link".
+SE NÃO conseguir encontrar a URL exata que segue esses padrões, retorne null no campo "link".
 
-Retorne JSON puro (sem markdown):
+Preços: Retorne como número decimal (ex: 1999.90, não "R$ 1.999,90").
 
+Retorne APENAS este JSON válido (SEM MARKDOWN):
 {
-  "productTitle": "nome do produto",
+  "productTitle": "Nome genérico do produto",
   "analysis": [
-    {"platform": "Mercado Livre", "bestOffer": {"title": "produto", "price": 99.90, "seller": "loja", "link": "https://..."}}
+    {
+      "platform": "Nome da Plataforma",
+      "bestOffer": {
+        "title": "Título exato do produto",
+        "price": 1999.90,
+        "seller": "Nome do vendedor/loja",
+        "link": "https://url-que-existe"
+      }
+    }
   ],
-  "priceSummary": {"lowestPrice": 99.90, "highestPrice": 99.90, "averagePrice": 99.90}
+  "priceSummary": {
+    "lowestPrice": 1999.90,
+    "highestPrice": 2999.90,
+    "averagePrice": 2499.90
+  }
 }
 
-Exemplo 1:
-Busca: "iPhone 14"
+Exemplo Real:
+Busca: "iPhone 14 128GB"
 {
-  "productTitle": "iPhone 14",
+  "productTitle": "iPhone 14 128GB",
   "analysis": [
     {"platform": "Mercado Livre", "bestOffer": {"title": "iPhone 14 128GB Azul", "price": 3499.00, "seller": "Apple Premium", "link": "https://produto.mercadolivre.com.br/MLB-3273405859-iphone-14-128gb"}},
     {"platform": "Amazon", "bestOffer": {"title": "Apple iPhone 14 128GB", "price": 3599.00, "seller": "Amazon.com.br", "link": "https://www.amazon.com.br/dp/B0BN94DKK1"}}
@@ -319,18 +569,7 @@ Busca: "iPhone 14"
   "priceSummary": {"lowestPrice": 3499.00, "highestPrice": 3599.00, "averagePrice": 3549.00}
 }
 
-Exemplo 2:
-Busca: "notebook gamer"
-{
-  "productTitle": "Notebook Gamer",
-  "analysis": [
-    {"platform": "Magazine Luiza", "bestOffer": {"title": "Notebook Gamer Acer Nitro 5", "price": 4299.00, "seller": "Magazine Luiza", "link": "https://www.magazineluiza.com.br/notebook-gamer-acer-nitro-5/p"}},
-    {"platform": "Americanas", "bestOffer": {"title": "Notebook Gamer Lenovo Legion", "price": 4599.00, "seller": "Americanas", "link": "https://www.americanas.com.br/produto/123456789/notebook-gamer-lenovo"}}
-  ],
-  "priceSummary": {"lowestPrice": 4299.00, "highestPrice": 4599.00, "averagePrice": 4449.00}
-}
-
-REGRA: URLs devem levar DIRETO ao produto, não à busca. Se não tem certeza, use null.`;
+REGRA: URLs devem levar DIRETO ao produto. Se não tem certeza, use null.`;
 }
 
 // ============= RETRY COM BACKOFF EXPONENCIAL =============
@@ -481,15 +720,19 @@ serve(async (req) => {
       );
     }
 
-    // Sanitizar e validar dados (agora com validação de URLs e confiança)
-    const analysisData = sanitizeAnalysisData(rawData, searchTerm);
-    if (!analysisData) {
+    // Sanitizar dados básicos primeiro
+    const sanitizedData = sanitizeAnalysisData(rawData, searchTerm);
+    if (!sanitizedData) {
       console.error('❌ Dados inválidos após sanitização');
       return new Response(
         JSON.stringify({ success: false, error: 'Dados inválidos retornados pela IA' }),
         { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 500 }
       );
     }
+
+    // Melhorar com validação de URLs e preços
+    console.log('🔍 Validando URLs e preços...');
+    const analysisData = await enhanceAnalysisWithValidation(sanitizedData, searchTerm);
 
     // Salvar no cache
     await setCachedResult(searchTerm, analysisData);
