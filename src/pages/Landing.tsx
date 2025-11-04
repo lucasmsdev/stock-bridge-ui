@@ -454,7 +454,7 @@ const Landing = () => {
               <CardContent className="p-6">
                 <h3 className="font-semibold text-foreground mb-2">Como funciona o teste grátis?</h3>
                 <p className="text-muted-foreground">
-                  Você testa 3 dias sem pagar nada. Não precisa nem colocar cartão. 
+                  Você testa 7 dias sem pagar pelo teste. 
                   Gostou? Escolhe o plano. Não gostou? Só não voltar. Simples assim.
                 </p>
               </CardContent>
@@ -501,8 +501,6 @@ const Landing = () => {
         <div className="mx-auto max-w-4xl px-4 sm:px-6 lg:px-8 text-center">
           <div className="bg-card/50 backdrop-blur-sm border border-border rounded-2xl p-8 sm:p-12 shadow-xl">
             <Badge variant="outline" className="mb-4 px-4 py-2 text-sm border-accent/30 text-accent bg-accent/5">
-              <Rocket className="w-4 h-4 mr-2" />
-              Sem cartão, sem compromisso
             </Badge>
             
             <h2 className="text-3xl sm:text-4xl lg:text-5xl font-bold text-foreground mb-4 sm:mb-6">
@@ -511,7 +509,7 @@ const Landing = () => {
             
             <p className="text-base sm:text-lg text-muted-foreground mb-6 sm:mb-8 max-w-2xl mx-auto">
               347 vendedores já pararam de perder tempo pulando entre abas. 
-              <strong className="text-foreground"> Testa grátis por 3 dias.</strong> Não precisa colocar cartão.
+              <strong className="text-foreground"> Testa grátis por 7 dias.</strong>
             </p>
             
             <div className="flex flex-col sm:flex-row gap-4 justify-center items-center mb-6">
@@ -534,7 +532,6 @@ const Landing = () => {
               </div>
               <div className="flex items-center gap-2">
                 <CheckCircle className="w-4 h-4 text-success" />
-                <span>Sem cartão</span>
               </div>
               <div className="flex items-center gap-2">
                 <CheckCircle className="w-4 h-4 text-success" />
