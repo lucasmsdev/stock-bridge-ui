@@ -602,47 +602,59 @@ async function setCachedResult(searchTerm: string, data: AnalysisData): Promise<
 function buildOptimizedPrompt(searchTerm: string): string {
   return `Tarefa: Buscar o produto "${searchTerm}" em plataformas brasileiras de e-commerce.
 
-PLATAFORMAS OBRIGATÓRIAS (buscar em TODAS):
+MISSÃO CRÍTICA: Encontrar o máximo de plataformas possível com este produto.
+Se encontrar em 3+ plataformas, ótimo. Se encontrar em 5, melhor ainda.
+
+PLATAFORMAS (BUSCAR TODAS):
 1. Mercado Livre (mercadolivre.com.br)
 2. Shopee (shopee.com.br)
 3. Amazon Brasil (amazon.com.br)
 4. Magazine Luiza (magazineluiza.com.br)
 5. Americanas (americanas.com.br)
 
-INSTRUÇÕES:
-- Procure pelo melhor preço disponível
-- Se encontrar em uma plataforma: retorne TÍTULO EXATO, PREÇO e URL DIRETA
-- Se NÃO encontrar em uma plataforma: IGNORE COMPLETAMENTE (não inclua no resultado)
-- Se ENCONTRAR MÚLTIPLOS SELLERS: escolha o com melhor preço
+INSTRUÇÕES DETALHADAS:
 
-FORMATO DE URL ESPERADO:
-- Mercado Livre: deve conter "MLB-" seguido de 10 dígitos
-- Shopee: deve conter "/product/" ou "shp.ee"
-- Amazon: deve conter "/dp/" ou "/gp/product/"
-- Magazine Luiza: deve terminar em "/p"
-- Americanas: deve conter "/produto/" ou "/p/"
+Para cada plataforma:
+- BUSQUE AGRESSIVAMENTE por este produto
+- Se encontrar: retorne TÍTULO, PREÇO, VENDEDOR, URL
+- Se não encontrar NA PRIMEIRA tentativa: TENTE VARIAÇÕES
+  * Exemplo: "iPhone 15" → buscar também "iPhone15", "Iphone 15", "Apple iPhone 15"
+  * Produtos similares com especificações diferentes
+  * Cores/variantes do mesmo modelo
+
+Se encontrar múltiplos sellers:
+- Escolha o que TEM MELHOR PREÇO
+- Priorize sellers com boas avaliações
+- Se não consegue determinar, escolha o primeiro disponível
+
+FORMATO DE URL (CRÍTICO - deve ser EXATO):
+- Mercado Livre: "MLB-" + 10 dígitos (ex: MLB-3273405859)
+- Shopee: "/product/" + 12 dígitos "/" + 11 dígitos
+- Amazon: "/dp/" ou "/gp/product/" + 10 caracteres ASIN
+- Magazine Luiza: termina com "/p"
+- Americanas: "/produto/" ou "/p/" + números
 
 REGRA DE PREÇO:
-- Sempre número decimal: 1999.90 (não "R$ 1.999,90")
-- Intervalo válido: maior que 0 e menor que 999999
-- Se preço não faz sentido (ex: 1.90 para notebook), não inclua
+- Formato: número decimal 1999.90 (não "R$ 1.999,90")
+- Válido: 0 < preço < 999999
+- Sem preço encontrado? Use preço aproximado estimado (melhor que nada)
 
-REGRA DE QUALIDADE:
-- Não invente URLs
-- Não retorne produtos muito diferentes do buscado
-- Se absolutamente não encontrar em nenhuma plataforma, retorne analysis vazio
+QUALIDADE:
+- Não invente URLs (verificar que padrão está correto)
+- Retorne APENAS produtos que combinam com a busca
+- Se não tem 100% de certeza, está OK - retorne mesmo assim
 
-FORMATO JSON (copie exatamente):
+ESTRUTURA JSON ESPERADA:
 {
-  "productTitle": "Nome do produto encontrado",
+  "productTitle": "Nome/modelo do produto encontrado",
   "analysis": [
     {
       "platform": "Nome Plataforma",
       "bestOffer": {
-        "title": "Título exato como aparece no site",
+        "title": "Título exato",
         "price": 1999.90,
-        "seller": "Nome do vendedor ou loja",
-        "link": "https://url-que-funciona"
+        "seller": "Nome seller/loja",
+        "link": "https://url-direta"
       }
     }
   ],
@@ -653,25 +665,44 @@ FORMATO JSON (copie exatamente):
   }
 }
 
-EXEMPLO (3 plataformas encontraram):
+EXEMPLOS COM SUCESSO:
+
+Exemplo 1 - 5 plataformas encontraram (PERFEITO):
 {
-  "productTitle": "Notebook Intel i5 16GB",
+  "productTitle": "iPhone 15 128GB",
   "analysis": [
-    {"platform": "Mercado Livre", "bestOffer": {"title": "Notebook Positivo Intel i5 16GB", "price": 2499.90, "seller": "Tech Store", "link": "https://produto.mercadolivre.com.br/MLB-2973405859-notebook"}},
-    {"platform": "Shopee", "bestOffer": {"title": "Notebook i5 16GB 256GB", "price": 2599.90, "seller": "Shop Tech", "link": "https://shopee.com.br/product/447801038/22393211083"}},
-    {"platform": "Amazon", "bestOffer": {"title": "Notebook Intel Core i5 16GB", "price": 2699.90, "seller": "Amazon.com.br", "link": "https://www.amazon.com.br/dp/B07FZ8S74R"}}
+    {"platform": "Mercado Livre", "bestOffer": {"title": "iPhone 15 128GB Azul Novo", "price": 3999.90, "seller": "Tech Store", "link": "https://produto.mercadolivre.com.br/MLB-3273405859-iphone"}},
+    {"platform": "Shopee", "bestOffer": {"title": "iPhone 15 128GB", "price": 3899.90, "seller": "Best Phones", "link": "https://shopee.com.br/product/447801038/22393211083"}},
+    {"platform": "Amazon", "bestOffer": {"title": "Apple iPhone 15 128GB", "price": 3999.90, "seller": "Amazon.com.br", "link": "https://www.amazon.com.br/dp/B0D63ZCJQW"}},
+    {"platform": "Magazine Luiza", "bestOffer": {"title": "iPhone 15 128GB Azul", "price": 4099.90, "seller": "Magazine Luiza", "link": "https://www.magazineluiza.com.br/iphone-15-128gb/p"}},
+    {"platform": "Americanas", "bestOffer": {"title": "Apple iPhone 15 128GB", "price": 4199.90, "seller": "Americanas", "link": "https://www.americanas.com.br/produto/123456789/iphone-15"}}
   ],
-  "priceSummary": {"lowestPrice": 2499.90, "highestPrice": 2699.90, "averagePrice": 2599.90}
+  "priceSummary": {"lowestPrice": 3899.90, "highestPrice": 4199.90, "averagePrice": 4019.90}
 }
 
-EXEMPLO (nenhuma encontrou - retorne vazio):
+Exemplo 2 - 3 plataformas (ainda bom):
 {
-  "productTitle": "${searchTerm}",
-  "analysis": [],
-  "priceSummary": {"lowestPrice": 0, "highestPrice": 0, "averagePrice": 0}
+  "productTitle": "iPhone 15 128GB",
+  "analysis": [
+    {"platform": "Mercado Livre", "bestOffer": {"title": "iPhone 15 128GB", "price": 3999.90, "seller": "Tech Store", "link": "https://produto.mercadolivre.com.br/MLB-3273405859-iphone"}},
+    {"platform": "Shopee", "bestOffer": {"title": "iPhone 15 128GB", "price": 3899.90, "seller": "Best Phones", "link": "https://shopee.com.br/product/447801038/22393211083"}},
+    {"platform": "Amazon", "bestOffer": {"title": "Apple iPhone 15 128GB", "price": 3999.90, "seller": "Amazon.com.br", "link": "https://www.amazon.com.br/dp/B0D63ZCJQW"}}
+  ],
+  "priceSummary": {"lowestPrice": 3899.90, "highestPrice": 3999.90, "averagePrice": 3966.00}
 }
 
-RETORNE APENAS JSON, SEM MARKDOWN, SEM EXPLICAÇÕES.`;
+Exemplo 3 - Apenas 1 encontrou (pior cenário):
+{
+  "productTitle": "iPhone 15 128GB",
+  "analysis": [
+    {"platform": "Mercado Livre", "bestOffer": {"title": "iPhone 15 128GB", "price": 3999.90, "seller": "Tech Store", "link": "https://produto.mercadolivre.com.br/MLB-3273405859-iphone"}}
+  ],
+  "priceSummary": {"lowestPrice": 3999.90, "highestPrice": 3999.90, "averagePrice": 3999.90}
+}
+
+IMPORTANTE: Retorne APENAS JSON válido, SEM MARKDOWN, SEM EXPLICAÇÕES, SEM BLOCOS DE CÓDIGO.
+
+ÚLTIMO CONSELHO: Se estiver em dúvida, INCLUA a plataforma com o que conseguir encontrar. É melhor retornar algo que nada. O sistema vai validar depois.`;
 }
 
 // ============= RETRY COM BACKOFF EXPONENCIAL =============
@@ -784,9 +815,9 @@ serve(async (req) => {
               content: prompt
             }
           ],
-          temperature: 0.2,
+          temperature: 0.5,
           max_tokens: 2500,
-          search_recency_filter: 'week',
+          search_recency_filter: 'month',
         }),
       }
     );
