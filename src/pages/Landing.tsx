@@ -192,7 +192,7 @@ const Landing = () => {
                 className="w-full sm:w-auto h-12 sm:h-14 px-6 sm:px-10 text-base sm:text-lg font-semibold shadow-lg hover:shadow-xl hover:scale-105 transition-all duration-300 bg-accent hover:bg-accent/90 text-accent-foreground group"
               >
                 <Rocket className="mr-2 h-5 w-5 group-hover:rotate-12 transition-transform" />
-                Testar grátis por 3 dias
+                Testar grátis por 7 dias
                 <ArrowRight className="ml-2 h-5 w-5 group-hover:translate-x-1 transition-transform" />
               </Button>
             </a>
@@ -211,7 +211,7 @@ const Landing = () => {
           <div className="mt-8 sm:mt-10 flex flex-wrap items-center justify-center gap-4 sm:gap-8 text-xs sm:text-sm text-muted-foreground px-4">
             <div className="flex items-center gap-2">
               <CheckCircle className="w-4 h-4 sm:w-5 sm:h-5 text-success" />
-              <span>3 dias grátis</span>
+              <span>7 dias grátis</span>
             </div>
             <div className="flex items-center gap-2">
               <CheckCircle className="w-4 h-4 sm:w-5 sm:h-5 text-success" />
@@ -319,7 +319,7 @@ const Landing = () => {
           <div className="text-center mb-12 sm:mb-16 animate-fade-in">
             <Badge variant="outline" className="mb-4 px-4 py-2 text-sm border-accent/30 text-accent bg-accent/5">
               <Zap className="w-4 h-4 mr-2" />
-              3 dias grátis, cancela quando quiser
+              7 dias grátis, cancela quando quiser
             </Badge>
             <h2 className="text-3xl sm:text-4xl lg:text-5xl font-bold text-foreground mb-4">
               Quanto tempo você economiza por mês?
@@ -382,7 +382,7 @@ const Landing = () => {
                       variant={plan.popular ? "default" : "outline"}
                       size="lg"
                     >
-                      Testar grátis por 3 dias
+                      Testar grátis por 7 dias
                       <ArrowRight className="ml-2 h-4 w-4 group-hover:translate-x-1 transition-transform" />
                     </Button>
                   </Link>
@@ -528,7 +528,7 @@ const Landing = () => {
             <div className="flex flex-wrap items-center justify-center gap-4 sm:gap-6 text-xs sm:text-sm text-muted-foreground">
               <div className="flex items-center gap-2">
                 <CheckCircle className="w-4 h-4 text-success" />
-                <span>3 dias grátis</span>
+                <span>7 dias grátis</span>
               </div>
               <div className="flex items-center gap-2">
                 <CheckCircle className="w-4 h-4 text-success" />
