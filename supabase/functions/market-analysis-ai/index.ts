@@ -16,6 +16,8 @@ interface ProductOffer {
   price: number;
   seller: string;
   link: string;
+  urlConfidence?: 'high' | 'medium' | 'low';
+  priceConfidence?: 'high' | 'medium' | 'low';
 }
 
 interface PlatformAnalysis {
@@ -31,7 +33,38 @@ interface AnalysisData {
     highestPrice: number;
     averagePrice: number;
   };
+  confidence?: {
+    urls: {
+      verified: number;
+      total: number;
+      averageConfidence: 'high' | 'medium' | 'low';
+    };
+    prices: {
+      hasOutliers: boolean;
+      anomaliesCount: number;
+      averageConfidence: 'high' | 'medium' | 'low';
+    };
+  };
+  disclaimer?: string;
 }
+
+// ============= PADRÕES DE URL POR PLATAFORMA =============
+const URL_PATTERNS: Record<string, RegExp> = {
+  'Mercado Livre': /https?:\/\/(?:produto\.)?mercadolivre\.com\.br\/MLB-\d{10}/i,
+  'Shopee': /https?:\/\/(?:shopee\.com\.br\/product\/\d{9,12}\/\d{9,11}|shp\.ee\/[a-zA-Z0-9]+)/i,
+  'Amazon': /https?:\/\/(?:www\.)?amazon\.com\.br\/(?:dp|gp\/product)\/[A-Z0-9]{10}/i,
+  'Magazine Luiza': /https?:\/\/(?:www\.)?magazineluiza\.com\.br\/[a-z0-9-]+\/p/i,
+  'Americanas': /https?:\/\/(?:www\.)?americanas\.com\.br\/(?:produto|p)\/\d{7,10}/i,
+  'Shopify': /https?:\/\/[a-z0-9-]+\.(?:myshopify\.com|[a-z0-9-]+\.com\.br)\/products\/[a-z0-9-]+/i,
+};
+
+const SEARCH_URLS: Record<string, string> = {
+  'Mercado Livre': 'https://lista.mercadolivre.com.br',
+  'Shopee': 'https://shopee.com.br/search?keyword=',
+  'Amazon': 'https://www.amazon.com.br/s?k=',
+  'Magazine Luiza': 'https://www.magazineluiza.com.br/busca/',
+  'Americanas': 'https://www.americanas.com.br/busca/',
+};
 
 function validatePrice(price: number): boolean {
   return typeof price === 'number' && price > 0 && price < 999999 && !isNaN(price);
@@ -47,7 +80,68 @@ function validateUrl(url: string): boolean {
   }
 }
 
-function sanitizeAnalysisData(data: any): AnalysisData | null {
+function isValidUrlForPlatform(url: string, platform: string): boolean {
+  if (!url || typeof url !== 'string') return false;
+  const pattern = URL_PATTERNS[platform];
+  if (!pattern) return false;
+  return pattern.test(url);
+}
+
+function generateSearchUrl(platform: string, searchTerm: string): string {
+  const encoded = encodeURIComponent(searchTerm);
+  const baseUrl = SEARCH_URLS[platform];
+  
+  if (!baseUrl) {
+    return `https://www.google.com/search?q=${encoded}`;
+  }
+  
+  if (platform === 'Mercado Livre') {
+    return `${baseUrl}/${encoded}`;
+  }
+  
+  return `${baseUrl}${encoded}`;
+}
+
+function calculateStats(prices: number[]): { mean: number; stdDev: number } {
+  if (prices.length === 0) return { mean: 0, stdDev: 0 };
+  
+  const mean = prices.reduce((a, b) => a + b, 0) / prices.length;
+  const variance = prices.reduce((a, b) => a + Math.pow(b - mean, 2), 0) / prices.length;
+  const stdDev = Math.sqrt(variance);
+  
+  return { mean, stdDev };
+}
+
+function validatePriceWithContext(
+  price: number,
+  allPrices: number[]
+): { confidence: 'high' | 'medium' | 'low'; isOutlier: boolean } {
+  if (!validatePrice(price)) {
+    return { confidence: 'low', isOutlier: true };
+  }
+  
+  if (allPrices.length < 2) {
+    return { confidence: 'medium', isOutlier: false };
+  }
+  
+  const { mean, stdDev } = calculateStats(allPrices);
+  
+  if (stdDev === 0) {
+    return { confidence: 'high', isOutlier: false };
+  }
+  
+  const zScore = Math.abs((price - mean) / stdDev);
+  
+  if (zScore > 2.5) {
+    return { confidence: 'low', isOutlier: true };
+  } else if (zScore > 1.5) {
+    return { confidence: 'medium', isOutlier: false };
+  }
+  
+  return { confidence: 'high', isOutlier: false };
+}
+
+function sanitizeAnalysisData(data: any, searchTerm: string): AnalysisData | null {
   if (!data?.productTitle || !data?.analysis || !Array.isArray(data.analysis)) {
     return null;
   }
@@ -71,14 +165,91 @@ function sanitizeAnalysisData(data: any): AnalysisData | null {
   const highestPrice = Math.max(...prices);
   const averagePrice = prices.reduce((a: number, b: number) => a + b, 0) / prices.length;
 
+  // Adicionar validação de URLs e preços com confiança
+  let urlsVerified = 0;
+  let priceOutliers = 0;
+  
+  const analysisWithConfidence = validAnalysis.map((item: any) => {
+    const platform = item.platform;
+    const offer = item.bestOffer;
+    
+    // Validar URL por padrão
+    const isValidPattern = isValidUrlForPlatform(offer.link, platform);
+    const urlConfidence: 'high' | 'medium' | 'low' = isValidPattern ? 'high' : 'low';
+    
+    if (isValidPattern) {
+      urlsVerified++;
+    } else {
+      // Fallback para URL de busca
+      console.warn(`⚠️ URL não segue padrão ${platform}: ${offer.link}`);
+      offer.link = generateSearchUrl(platform, searchTerm);
+    }
+    
+    // Validar preço com contexto
+    const priceValidation = validatePriceWithContext(offer.price, prices);
+    
+    if (priceValidation.isOutlier) {
+      priceOutliers++;
+    }
+    
+    return {
+      platform,
+      bestOffer: {
+        ...offer,
+        urlConfidence,
+        priceConfidence: priceValidation.confidence
+      }
+    };
+  });
+
+  // Calcular confiança média
+  const urlConfidenceAvg = urlsVerified > analysisWithConfidence.length * 0.7 ? 'high' : 
+                           urlsVerified > analysisWithConfidence.length * 0.4 ? 'medium' : 'low';
+  
+  const priceConfidenceAvg = priceOutliers === 0 ? 'high' :
+                             priceOutliers <= analysisWithConfidence.length * 0.3 ? 'medium' : 'low';
+
+  // Gerar disclaimer
+  const now = new Date().toLocaleString('pt-BR', { 
+    timeZone: 'America/Sao_Paulo',
+    day: '2-digit',
+    month: '2-digit', 
+    year: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit'
+  });
+  
+  let disclaimer = `⚠️ ${urlsVerified}/${analysisWithConfidence.length} URLs verificadas. `;
+  
+  if (priceOutliers > 0) {
+    disclaimer += `Detectados ${priceOutliers} preço(s) anômalo(s) - verifique no site. `;
+  } else {
+    disclaimer += 'Preços parecem consistentes. ';
+  }
+  
+  disclaimer += `Dados coletados em ${now}. Preços e disponibilidade sujeitos a mudanças. SEMPRE verifique no site antes de comprar.`;
+
   return {
     productTitle: data.productTitle.trim(),
-    analysis: validAnalysis,
+    analysis: analysisWithConfidence,
     priceSummary: {
       lowestPrice: parseFloat(lowestPrice.toFixed(2)),
       highestPrice: parseFloat(highestPrice.toFixed(2)),
       averagePrice: parseFloat(averagePrice.toFixed(2)),
-    }
+    },
+    confidence: {
+      urls: {
+        verified: urlsVerified,
+        total: analysisWithConfidence.length,
+        averageConfidence: urlConfidenceAvg
+      },
+      prices: {
+        hasOutliers: priceOutliers > 0,
+        anomaliesCount: priceOutliers,
+        averageConfidence: priceConfidenceAvg
+      }
+    },
+    disclaimer
   };
 }
 
@@ -112,6 +283,54 @@ async function setCachedResult(searchTerm: string, data: AnalysisData): Promise<
   } catch (error) {
     console.error('⚠️ Erro ao salvar em cache:', error);
   }
+}
+
+// ============= PROMPT OTIMIZADO COM PADRÕES DE URL =============
+function buildOptimizedPrompt(searchTerm: string): string {
+  return `Busque EXATAMENTE "${searchTerm}" nas plataformas brasileiras: Mercado Livre, Shopee, Amazon, Magazine Luiza, Americanas.
+
+CRÍTICO - Use APENAS URLs que seguem estes padrões EXATOS:
+- Mercado Livre: https://produto.mercadolivre.com.br/MLB-XXXXXXXXXX-[nome-produto]
+- Shopee: https://shopee.com.br/product/XXXXXXXXXXXX/XXXXXXXXXXX
+- Amazon: https://www.amazon.com.br/dp/XXXXXXXXXX
+- Magazine Luiza: https://www.magazineluiza.com.br/[nome-produto]/p
+- Americanas: https://www.americanas.com.br/produto/XXXXXXXXX/[nome]
+
+Se não conseguir URL no padrão exato, coloque null no campo "link".
+
+Retorne JSON puro (sem markdown):
+
+{
+  "productTitle": "nome do produto",
+  "analysis": [
+    {"platform": "Mercado Livre", "bestOffer": {"title": "produto", "price": 99.90, "seller": "loja", "link": "https://..."}}
+  ],
+  "priceSummary": {"lowestPrice": 99.90, "highestPrice": 99.90, "averagePrice": 99.90}
+}
+
+Exemplo 1:
+Busca: "iPhone 14"
+{
+  "productTitle": "iPhone 14",
+  "analysis": [
+    {"platform": "Mercado Livre", "bestOffer": {"title": "iPhone 14 128GB Azul", "price": 3499.00, "seller": "Apple Premium", "link": "https://produto.mercadolivre.com.br/MLB-3273405859-iphone-14-128gb"}},
+    {"platform": "Amazon", "bestOffer": {"title": "Apple iPhone 14 128GB", "price": 3599.00, "seller": "Amazon.com.br", "link": "https://www.amazon.com.br/dp/B0BN94DKK1"}}
+  ],
+  "priceSummary": {"lowestPrice": 3499.00, "highestPrice": 3599.00, "averagePrice": 3549.00}
+}
+
+Exemplo 2:
+Busca: "notebook gamer"
+{
+  "productTitle": "Notebook Gamer",
+  "analysis": [
+    {"platform": "Magazine Luiza", "bestOffer": {"title": "Notebook Gamer Acer Nitro 5", "price": 4299.00, "seller": "Magazine Luiza", "link": "https://www.magazineluiza.com.br/notebook-gamer-acer-nitro-5/p"}},
+    {"platform": "Americanas", "bestOffer": {"title": "Notebook Gamer Lenovo Legion", "price": 4599.00, "seller": "Americanas", "link": "https://www.americanas.com.br/produto/123456789/notebook-gamer-lenovo"}}
+  ],
+  "priceSummary": {"lowestPrice": 4299.00, "highestPrice": 4599.00, "averagePrice": 4449.00}
+}
+
+REGRA: URLs devem levar DIRETO ao produto, não à busca. Se não tem certeza, use null.`;
 }
 
 // ============= RETRY COM BACKOFF EXPONENCIAL =============
@@ -164,42 +383,6 @@ async function fetchWithRetry(
   throw lastError || new Error('Falha após múltiplas tentativas');
 }
 
-// ============= PROMPT OTIMIZADO COM FEW-SHOT =============
-function buildOptimizedPrompt(searchTerm: string): string {
-  return `Busque "${searchTerm}" nas plataformas: Mercado Livre, Shopee, Amazon, Magazine Luiza, Americanas.
-
-Retorne JSON puro (sem markdown):
-
-{
-  "productTitle": "nome do produto",
-  "analysis": [
-    {"platform": "Mercado Livre", "bestOffer": {"title": "produto", "price": 99.90, "seller": "loja", "link": "https://..."}}
-  ],
-  "priceSummary": {"lowestPrice": 99.90, "highestPrice": 99.90, "averagePrice": 99.90}
-}
-
-Exemplo 1:
-Busca: "iPhone 14"
-{
-  "productTitle": "iPhone 14",
-  "analysis": [
-    {"platform": "Mercado Livre", "bestOffer": {"title": "iPhone 14 128GB Azul", "price": 3499.00, "seller": "Apple Premium", "link": "https://produto.mercadolivre.com.br/MLB-123"}},
-    {"platform": "Amazon", "bestOffer": {"title": "Apple iPhone 14 128GB", "price": 3599.00, "seller": "Amazon.com.br", "link": "https://www.amazon.com.br/dp/B0BN..."}}
-  ],
-  "priceSummary": {"lowestPrice": 3499.00, "highestPrice": 3599.00, "averagePrice": 3549.00}
-}
-
-Exemplo 2:
-Busca: "notebook gamer"
-{
-  "productTitle": "Notebook Gamer",
-  "analysis": [
-    {"platform": "Magazine Luiza", "bestOffer": {"title": "Notebook Gamer Acer Nitro 5", "price": 4299.00, "seller": "Magazine Luiza", "link": "https://www.magazineluiza.com.br/notebook-gamer..."}},
-    {"platform": "Americanas", "bestOffer": {"title": "Notebook Gamer Lenovo Legion", "price": 4599.00, "seller": "Americanas", "link": "https://www.americanas.com.br/produto/..."}}
-  ],
-  "priceSummary": {"lowestPrice": 4299.00, "highestPrice": 4599.00, "averagePrice": 4449.00}
-}`;
-}
 
 serve(async (req) => {
   if (req.method === 'OPTIONS') {
@@ -298,8 +481,8 @@ serve(async (req) => {
       );
     }
 
-    // Sanitizar e validar dados
-    const analysisData = sanitizeAnalysisData(rawData);
+    // Sanitizar e validar dados (agora com validação de URLs e confiança)
+    const analysisData = sanitizeAnalysisData(rawData, searchTerm);
     if (!analysisData) {
       console.error('❌ Dados inválidos após sanitização');
       return new Response(
@@ -307,23 +490,6 @@ serve(async (req) => {
         { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 500 }
       );
     }
-
-    // Adicionar fallback para links inválidos
-    const searchQuery = encodeURIComponent(searchTerm);
-    analysisData.analysis = analysisData.analysis.map((item) => {
-      if (!validateUrl(item.bestOffer.link)) {
-        const fallbackLinks: Record<string, string> = {
-          'Mercado Livre': `https://lista.mercadolivre.com.br/${searchQuery}`,
-          'Shopee': `https://shopee.com.br/search?keyword=${searchQuery}`,
-          'Amazon': `https://www.amazon.com.br/s?k=${searchQuery}`,
-          'Magazine Luiza': `https://www.magazineluiza.com.br/busca/${searchQuery}`,
-          'Americanas': `https://www.americanas.com.br/busca/${searchQuery}`,
-        };
-        
-        item.bestOffer.link = fallbackLinks[item.platform] || `https://www.google.com/search?q=${searchQuery}`;
-      }
-      return item;
-    });
 
     // Salvar no cache
     await setCachedResult(searchTerm, analysisData);
