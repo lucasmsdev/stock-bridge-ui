@@ -83,10 +83,17 @@ export default function Profile() {
     confirmPassword: ''
   });
 
+  // Mapeamento de product_id do Stripe para nomes de planos
+  const stripePlanMapping: Record<string, { name: string; color: string }> = {
+    'prod_TMXhL6PpJGIdes': { name: 'Iniciante', color: 'bg-blue-500' },
+    'prod_TMXhvv2uUeASgd': { name: 'Profissional', color: 'bg-purple-500' },
+    'prod_TMXi6ibUp81vUz': { name: 'Unlimited', color: 'bg-gold-500' },
+  };
+
   const planNames = {
-    estrategista: 'Estrategista',
-    competidor: 'Competidor',
-    dominador: 'Dominador',
+    estrategista: 'Estrategista (Legacy)',
+    competidor: 'Competidor (Legacy)',
+    dominador: 'Dominador (Legacy)',
     admin: 'Administrador ✨'
   };
 
@@ -97,9 +104,44 @@ export default function Profile() {
     admin: 'bg-gradient-to-r from-purple-500 to-pink-500'
   };
 
+  // Estado para armazenar dados da assinatura do Stripe
+  const [stripeSubscription, setStripeSubscription] = useState<{
+    productId: string | null;
+    subscriptionEnd: string | null;
+    subscribed: boolean;
+  }>({ productId: null, subscriptionEnd: null, subscribed: false });
+
   useEffect(() => {
     loadProfileData();
+    checkStripeSubscription();
   }, [user]);
+
+  const checkStripeSubscription = async () => {
+    if (!user) return;
+    
+    try {
+      const { data, error } = await supabase.functions.invoke('check-subscription', {
+        headers: {
+          Authorization: `Bearer ${(await supabase.auth.getSession()).data.session?.access_token}`,
+        },
+      });
+
+      if (error) {
+        console.error('Erro ao verificar assinatura:', error);
+        return;
+      }
+
+      if (data) {
+        setStripeSubscription({
+          productId: data.product_id || null,
+          subscriptionEnd: data.subscription_end || null,
+          subscribed: data.subscribed || false,
+        });
+      }
+    } catch (error) {
+      console.error('Erro ao verificar assinatura:', error);
+    }
+  };
 
   const loadProfileData = async () => {
     if (!user) return;
@@ -561,17 +603,30 @@ export default function Profile() {
             </CardHeader>
             <CardContent className="space-y-4">
               <div className="text-center space-y-3">
-                <Badge 
-                  variant="outline" 
-                  className={`${isAdmin ? planColors.admin : planColors[currentPlan]} text-white border-none px-4 py-2 text-sm font-medium`}
-                >
-                  <Crown className="h-3 w-3 mr-1" />
-                  Plano {isAdmin ? planNames.admin : planNames[currentPlan]}
-                </Badge>
+                {/* Mostrar nome do plano do Stripe se houver assinatura ativa */}
+                {stripeSubscription.subscribed && stripeSubscription.productId ? (
+                  <Badge 
+                    variant="outline" 
+                    className={`${stripePlanMapping[stripeSubscription.productId]?.color || 'bg-primary'} text-white border-none px-4 py-2 text-sm font-medium`}
+                  >
+                    <Crown className="h-3 w-3 mr-1" />
+                    Plano {stripePlanMapping[stripeSubscription.productId]?.name || 'Atual'}
+                  </Badge>
+                ) : (
+                  <Badge 
+                    variant="outline" 
+                    className={`${isAdmin ? planColors.admin : planColors[currentPlan]} text-white border-none px-4 py-2 text-sm font-medium`}
+                  >
+                    <Crown className="h-3 w-3 mr-1" />
+                    Plano {isAdmin ? planNames.admin : planNames[currentPlan]}
+                  </Badge>
+                )}
                 
                 <div className="p-3 bg-muted/50 rounded-lg">
                   <p className="text-sm font-medium text-foreground">Status</p>
-                  <p className="text-lg font-semibold text-green-600">Ativo</p>
+                  <p className="text-lg font-semibold text-green-600">
+                    {stripeSubscription.subscribed ? 'Ativo' : 'Legacy'}
+                  </p>
                 </div>
               </div>
 
@@ -599,33 +654,38 @@ export default function Profile() {
                   </div>
               </div>
 
-              {/* Only show manage subscription button for users with current plan different from legacy plans */}
-              {currentPlan !== 'estrategista' && currentPlan !== 'competidor' && currentPlan !== 'dominador' ? (
-                <Button 
-                  variant="outline" 
-                  className="w-full"
-                  onClick={handleManageSubscription}
-                  disabled={isSaving}
-                >
-                  {isSaving ? (
-                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                  ) : (
-                    <CreditCard className="h-4 w-4 mr-2" />
-                  )}
-                  Gerenciar Assinatura
-                </Button>
-              ) : (
+              {/* Mostrar botões apropriados baseado na assinatura */}
+              {stripeSubscription.subscribed ? (
                 <div className="space-y-2">
                   <Button 
                     variant="outline" 
                     className="w-full"
-                    disabled
+                    onClick={handleManageSubscription}
+                    disabled={isSaving}
                   >
-                    <CreditCard className="h-4 w-4 mr-2" />
-                    Plano Legacy Ativo
+                    {isSaving ? (
+                      <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                    ) : (
+                      <CreditCard className="h-4 w-4 mr-2" />
+                    )}
+                    Gerenciar Assinatura
                   </Button>
                   <p className="text-xs text-muted-foreground text-center">
-                    Você possui um plano legacy. Para gerenciar assinaturas, faça upgrade para um plano atual.
+                    Cancele ou altere seu plano no portal do Stripe
+                  </p>
+                </div>
+              ) : (
+                <div className="space-y-2">
+                  <Button 
+                    variant="default" 
+                    className="w-full bg-gradient-primary hover:bg-primary-hover"
+                    onClick={() => window.location.href = '/billing'}
+                  >
+                    <Crown className="h-4 w-4 mr-2" />
+                    Fazer Upgrade
+                  </Button>
+                  <p className="text-xs text-muted-foreground text-center">
+                    Desbloqueie todos os recursos com um plano atual
                   </p>
                 </div>
               )}
