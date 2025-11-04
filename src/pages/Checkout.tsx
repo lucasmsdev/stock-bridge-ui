@@ -40,7 +40,7 @@ export default function Checkout() {
 
   // Verificar se o plano é válido
   useEffect(() => {
-    if (!['estrategista', 'competidor', 'dominador'].includes(selectedPlan)) {
+    if (!['estrategista', 'competidor', 'dominador', 'unlimited'].includes(selectedPlan)) {
       navigate('/');
       return;
     }
@@ -59,9 +59,10 @@ export default function Checkout() {
   }, [user?.id, selectedPlan]); // Dependências específicas para evitar loops
 
   const planDetails = {
-    estrategista: { name: 'Estrategista', price: 'R$ 97', description: 'Tome decisões de preço com base em dados' },
-    competidor: { name: 'Competidor', price: 'R$ 147', description: 'Reaja à concorrência em tempo real' },
-    dominador: { name: 'Dominador', price: 'R$ 197', description: 'Automatize sua competitividade' }
+    estrategista: { name: 'Iniciante', price: 'R$ 97', description: 'Essencial para gerenciar vendas em múltiplas plataformas' },
+    competidor: { name: 'Profissional', price: 'R$ 197', description: 'Para escalar operações e aumentar eficiência' },
+    dominador: { name: 'Enterprise', price: 'R$ 297', description: 'Solução completa com análise avançada e IA' },
+    unlimited: { name: 'Unlimited', price: 'R$ 397', description: 'SKUs ilimitados, todas features + API e automação' }
   };
 
   const currentPlan = planDetails[selectedPlan as keyof typeof planDetails];
