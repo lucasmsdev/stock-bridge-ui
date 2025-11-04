@@ -71,6 +71,7 @@ export default function Profile() {
   const [isSaving, setIsSaving] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
   const [isSeeding, setIsSeeding] = useState(false);
+  const [isCheckingSubscription, setIsCheckingSubscription] = useState(true);
   const [profileData, setProfileData] = useState<ProfileData>({
     full_name: '',
     company_name: '',
@@ -117,9 +118,13 @@ export default function Profile() {
   }, [user]);
 
   const checkStripeSubscription = async () => {
-    if (!user) return;
+    if (!user) {
+      setIsCheckingSubscription(false);
+      return;
+    }
     
     try {
+      setIsCheckingSubscription(true);
       const { data, error } = await supabase.functions.invoke('check-subscription', {
         headers: {
           Authorization: `Bearer ${(await supabase.auth.getSession()).data.session?.access_token}`,
@@ -128,6 +133,7 @@ export default function Profile() {
 
       if (error) {
         console.error('Erro ao verificar assinatura:', error);
+        setIsCheckingSubscription(false);
         return;
       }
 
@@ -140,6 +146,8 @@ export default function Profile() {
       }
     } catch (error) {
       console.error('Erro ao verificar assinatura:', error);
+    } finally {
+      setIsCheckingSubscription(false);
     }
   };
 
@@ -602,7 +610,11 @@ export default function Profile() {
               </div>
 
               {/* Mostrar botões apropriados baseado na assinatura */}
-              {stripeSubscription.subscribed ? (
+              {isCheckingSubscription ? (
+                <div className="flex justify-center py-4">
+                  <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
+                </div>
+              ) : stripeSubscription.subscribed ? (
                 <div className="space-y-2">
                   <Button 
                     variant="outline" 
