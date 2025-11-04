@@ -8,6 +8,7 @@ import { AuthProvider } from "./hooks/useAuth";
 import { ThemeProvider } from "./components/layout/ThemeProvider";
 import Login from "./pages/auth/Login";
 import Signup from "./pages/auth/Signup";
+import PendingPayment from "./pages/auth/PendingPayment";
 import Dashboard from "./pages/Dashboard";
 import Products from "./pages/Products";
 import ProductDetails from "./pages/ProductDetails";
@@ -39,6 +40,7 @@ const App = () => (
               {/* Public Routes */}
               <Route path="/login" element={<Login />} />
               <Route path="/signup" element={<Signup />} />
+              <Route path="/pending-payment" element={<PendingPayment />} />
               <Route path="/checkout" element={<Checkout />} />
               <Route path="/callback/mercadolivre" element={<MercadoLivreCallback />} />
               

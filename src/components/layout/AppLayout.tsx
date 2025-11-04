@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { Outlet, Navigate, useLocation } from "react-router-dom";
+import { Outlet, Navigate, useLocation, useNavigate } from "react-router-dom";
 import { AppSidebar } from "./AppSidebar";
 import { Button } from "@/components/ui/button";
 import { Menu, Loader2, Moon, Sun } from "lucide-react";
@@ -7,17 +7,58 @@ import { useAuth } from "@/hooks/useAuth";
 import { useThemeProvider } from "@/components/layout/ThemeProvider";
 import { usePlan } from "@/hooks/usePlan";
 import { NotificationsPopover } from "@/components/notifications/NotificationsPopover";
+import { supabase } from "@/integrations/supabase/client";
 
 export const AppLayout = () => {
   const { user, isLoading } = useAuth();
   const { theme, toggleTheme } = useThemeProvider();
   const { currentPlan, isLoading: planLoading } = usePlan();
   const [sidebarOpen, setSidebarOpen] = useState(true);
+  const [isCheckingSubscription, setIsCheckingSubscription] = useState(true);
+  const [hasActiveSubscription, setHasActiveSubscription] = useState(false);
   const location = useLocation();
+  const navigate = useNavigate();
 
   console.log('🏗️ AppLayout: user=', !!user, 'isLoading=', isLoading, 'planLoading=', planLoading, 'location=', location.pathname);
 
-  if (isLoading || planLoading) {
+  // Verificar assinatura ao carregar
+  useEffect(() => {
+    const checkSubscription = async () => {
+      if (!user) {
+        setIsCheckingSubscription(false);
+        return;
+      }
+
+      try {
+        const { data, error } = await supabase.functions.invoke('check-subscription');
+        
+        if (error) {
+          console.error('Erro ao verificar assinatura:', error);
+          setIsCheckingSubscription(false);
+          return;
+        }
+
+        const hasSubscription = data?.subscribed === true;
+        setHasActiveSubscription(hasSubscription);
+        
+        // Se não tem assinatura e não está na página de billing, redireciona para pending-payment
+        if (!hasSubscription && location.pathname !== '/app/billing') {
+          navigate('/pending-payment', { replace: true });
+        }
+        
+        setIsCheckingSubscription(false);
+      } catch (error) {
+        console.error('Erro ao verificar assinatura:', error);
+        setIsCheckingSubscription(false);
+      }
+    };
+
+    if (user && !isLoading) {
+      checkSubscription();
+    }
+  }, [user, isLoading, location.pathname, navigate]);
+
+  if (isLoading || planLoading || isCheckingSubscription) {
     return (
       <div className="min-h-screen bg-gradient-subtle flex items-center justify-center">
         <div className="text-center space-y-4">

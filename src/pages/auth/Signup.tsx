@@ -25,7 +25,7 @@ export default function Signup() {
   // Get plan from URL parameter and enforce plan selection
   useEffect(() => {
     const planParam = searchParams.get('plan');
-    if (!planParam || !['estrategista', 'competidor', 'dominador'].includes(planParam)) {
+    if (!planParam || !['estrategista', 'competidor', 'dominador', 'unlimited'].includes(planParam)) {
       // Se não há plano na URL ou é inválido, redireciona para landing page
       navigate('/?signup=true');
       return;
@@ -83,11 +83,13 @@ export default function Signup() {
 
       toast({
         title: "✅ Conta criada com sucesso!",
-        description: "Você será redirecionado para o dashboard.",
+        description: "Redirecionando para o checkout...",
       });
 
-      // Redirect to dashboard
-      navigate("/app");
+      // Redireciona direto pro checkout com o plano escolhido
+      setTimeout(() => {
+        navigate(`/checkout?plan=${selectedPlan}`);
+      }, 1000);
     } catch (error) {
       console.error("Unexpected signup error:", error);
       toast({
@@ -108,9 +110,10 @@ export default function Signup() {
   };
 
   const planNames = {
-    estrategista: 'Estrategista',
-    competidor: 'Competidor', 
-    dominador: 'Dominador'
+    estrategista: 'Iniciante',
+    competidor: 'Profissional', 
+    dominador: 'Enterprise',
+    unlimited: 'Unlimited'
   };
 
   return (

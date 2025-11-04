@@ -36,6 +36,25 @@ export default function Login() {
       }
 
       if (data.user) {
+        // Verificar se usuário tem assinatura ativa
+        const { data: subscriptionData, error: subError } = await supabase.functions.invoke('check-subscription');
+        
+        if (subError) {
+          console.error('Erro ao verificar assinatura:', subError);
+        }
+
+        // Se não tem assinatura ativa, redireciona para página de pagamento pendente
+        if (!subscriptionData?.subscribed) {
+          toast({
+            title: "Complete seu pagamento",
+            description: "Finalize seu pagamento para acessar o UniStock",
+            variant: "default",
+          });
+          navigate("/pending-payment");
+          return;
+        }
+
+        // Se tem assinatura, vai pro dashboard
         toast({
           title: "Login realizado com sucesso!",
           description: "Bem-vindo ao UniStock",

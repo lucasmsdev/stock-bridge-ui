@@ -391,8 +391,8 @@ const Landing = () => {
                     ))}
                   </div>
                   <Separator />
-                  <Link to={`/checkout?plan=${plan.name.toLowerCase()}`} className="block">
-                    <Button 
+                  <Link to={`/signup?plan=${plan.name.toLowerCase()}`} className="block">
+                    <Button
                       className={`w-full group ${
                         plan.popular 
                           ? 'bg-accent hover:bg-accent/90 text-accent-foreground shadow-lg hover:shadow-xl' 
