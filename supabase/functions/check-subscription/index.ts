@@ -75,7 +75,18 @@ serve(async (req) => {
 
     if (hasActiveSub) {
       const subscription = activeOrTrialSubs[0];
-      subscriptionEnd = new Date(subscription.current_period_end * 1000).toISOString();
+      
+      // Safely handle the subscription end date
+      try {
+        if (subscription.current_period_end) {
+          subscriptionEnd = new Date(subscription.current_period_end * 1000).toISOString();
+        } else if (subscription.trial_end) {
+          subscriptionEnd = new Date(subscription.trial_end * 1000).toISOString();
+        }
+      } catch (error) {
+        logStep("Warning: Could not parse subscription end date", { error: error.message });
+      }
+      
       logStep("Active or trialing subscription found", { 
         subscriptionId: subscription.id, 
         status: subscription.status,
