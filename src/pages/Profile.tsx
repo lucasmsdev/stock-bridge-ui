@@ -88,7 +88,8 @@ export default function Profile() {
   const stripePlanMapping: Record<string, { name: string; color: string }> = {
     'prod_TMXhL6PpJGIdes': { name: 'Iniciante', color: 'bg-blue-500' },
     'prod_TMXhvv2uUeASgd': { name: 'Profissional', color: 'bg-purple-500' },
-    'prod_TMXi6ibUp81vUz': { name: 'Unlimited', color: 'bg-gold-500' },
+    'prod_TMZ21bgbH6pvO1': { name: 'Enterprise', color: 'bg-gold-500' },
+    'prod_TMXi6ibUp81vUz': { name: 'Unlimited', color: 'bg-gradient-to-r from-gold-500 to-orange-500' },
   };
 
   const planNames = {

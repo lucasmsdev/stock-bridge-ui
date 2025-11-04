@@ -61,7 +61,7 @@ serve(async (req) => {
       const priceToPlantMap = {
         'price_1SPocGKdlB8Nu9cynoGjpe2V': 'estrategista',
         'price_1SPocVKdlB8Nu9cyHYEa8b2m': 'competidor', 
-        'price_1SPocnKRFmEnuZwj3lTe3k2n': 'dominador',
+        'price_1SPpumKRFmEnuZwjDVJSIOZ2': 'dominador',
         'price_1SPodWKdlB8Nu9cyShTWmTES': 'unlimited'
       };
 
@@ -130,7 +130,7 @@ serve(async (req) => {
         const priceToPlantMap = {
           'price_1SPocGKdlB8Nu9cynoGjpe2V': 'estrategista',
           'price_1SPocVKdlB8Nu9cyHYEa8b2m': 'competidor', 
-          'price_1SPocnKRFmEnuZwj3lTe3k2n': 'dominador',
+          'price_1SPpumKRFmEnuZwjDVJSIOZ2': 'dominador',
           'price_1SPodWKdlB8Nu9cyShTWmTES': 'unlimited'
         };
         newPlan = priceToPlantMap[priceId as keyof typeof priceToPlantMap] || 'estrategista';
