@@ -377,198 +377,27 @@ serve(async (req) => {
       }
     } else if (platform === 'amazon') {
       console.log('🛒 Importando produtos da Amazon SP-API...');
-
-      try {
-        // First, check if token needs refresh
-        let accessToken = integration.access_token;
-        
-        // Try to get refresh token from secrets
-        const amazonClientId = Deno.env.get('AMAZON_CLIENT_ID');
-        const amazonClientSecret = Deno.env.get('AMAZON_CLIENT_SECRET');
-        const amazonRefreshToken = Deno.env.get('AMAZON_REFRESH_TOKEN');
-        
-        // If we have refresh token, try to get a new access token
-        if (amazonClientId && amazonClientSecret && amazonRefreshToken) {
-          console.log('🔄 Renovando token da Amazon...');
-          
-          try {
-            const tokenResponse = await fetch('https://api.amazon.com/auth/o2/token', {
-              method: 'POST',
-              headers: {
-                'Content-Type': 'application/x-www-form-urlencoded',
-              },
-              body: new URLSearchParams({
-                grant_type: 'refresh_token',
-                refresh_token: amazonRefreshToken,
-                client_id: amazonClientId,
-                client_secret: amazonClientSecret,
-              }),
-            });
-
-            if (tokenResponse.ok) {
-              const tokenData = await tokenResponse.json();
-              
-              if (!tokenData.access_token) {
-                console.error('❌ Resposta do token não contém access_token:', tokenData);
-                throw new Error('Resposta do token não contém access_token');
-              }
-              
-              accessToken = tokenData.access_token;
-              
-              // Update token in database
-              const { error: updateError } = await supabaseClient
-                .from('integrations')
-                .update({ access_token: accessToken })
-                .eq('user_id', user.id)
-                .eq('platform', 'amazon');
-              
-              if (updateError) {
-                console.warn('⚠️ Erro ao atualizar token no banco:', updateError);
-              }
-              
-              console.log('✅ Token renovado com sucesso');
-            } else {
-              const errorText = await tokenResponse.text();
-              console.error('❌ Falha na renovação do token:', tokenResponse.status, errorText);
-              throw new Error(`Falha na renovação do token: ${tokenResponse.status}`);
-            }
-          } catch (refreshError) {
-            console.warn('⚠️ Erro ao renovar token:', refreshError);
-          }
+      console.log('⚠️ AVISO: A integração da Amazon requer configuração AWS avançada');
+      
+      return new Response(
+        JSON.stringify({ 
+          error: 'Amazon SP-API requer configuração avançada',
+          message: 'A Amazon SP-API requer assinatura AWS Signature V4 para todas as requisições. Isso necessita de:\n\n' +
+                   '1. AWS Access Key ID e Secret Access Key\n' +
+                   '2. Seller ID e Marketplace IDs\n' +
+                   '3. Implementação de assinatura AWS SigV4\n\n' +
+                   'Esta é uma integração complexa que requer desenvolvimento adicional.\n\n' +
+                   'Como alternativa, recomendamos:\n' +
+                   '• Importar manualmente via CSV\n' +
+                   '• Usar integração direta com Mercado Livre ou Shopify\n' +
+                   '• Contactar suporte para setup personalizado da Amazon',
+          documentation: 'https://developer-docs.amazon.com/sp-api/docs/sp-api-authentication'
+        }), 
+        { 
+          status: 501, // Not Implemented
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
         }
-
-        // Step 1: Get seller's listings using Inventory API
-        // Using Listings Items API to get seller's products
-        const listingsUrl = 'https://sellingpartnerapi-na.amazon.com/listings/2021-08-01/items';
-        
-        console.log('📦 Buscando listagens da Amazon...');
-        
-        const listingsResponse = await fetch(listingsUrl, {
-          method: 'GET',
-          headers: {
-            'Authorization': `Bearer ${accessToken}`,
-            'x-amz-access-token': accessToken,
-            'Content-Type': 'application/json',
-          },
-        });
-
-        if (!listingsResponse.ok) {
-          const errorText = await listingsResponse.text();
-          console.error('❌ Erro ao buscar listagens da Amazon:', errorText);
-          
-          // Try alternative: Inventory API
-          console.log('🔄 Tentando API de Inventário...');
-          
-          const inventoryUrl = 'https://sellingpartnerapi-na.amazon.com/fba/inventory/v1/summaries';
-          const inventoryResponse = await fetch(inventoryUrl, {
-            method: 'GET',
-            headers: {
-              'Authorization': `Bearer ${accessToken}`,
-              'x-amz-access-token': accessToken,
-              'Content-Type': 'application/json',
-            },
-          });
-
-          if (!inventoryResponse.ok) {
-            const invErrorText = await inventoryResponse.text();
-            console.error('❌ Erro no inventário Amazon:', invErrorText);
-            return new Response(
-              JSON.stringify({ 
-                error: 'Falha ao buscar produtos da Amazon. Verifique se tem produtos cadastrados na conta.',
-                details: invErrorText 
-              }), 
-              { 
-                status: 500, 
-                headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
-              }
-            );
-          }
-
-          const inventoryData = await inventoryResponse.json();
-          console.log('📦 Dados de inventário recebidos:', JSON.stringify(inventoryData, null, 2));
-
-          const inventorySummaries = inventoryData.payload?.inventorySummaries || [];
-          
-          if (inventorySummaries.length === 0) {
-            console.log('⚠️ Nenhum produto no inventário Amazon');
-            return new Response(
-              JSON.stringify({ message: 'Nenhum produto encontrado no inventário da Amazon', count: 0 }), 
-              { 
-                status: 200, 
-                headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
-              }
-            );
-          }
-
-          console.log(`✅ ${inventorySummaries.length} produtos encontrados no inventário`);
-
-          // Map inventory items to our format
-          productsToInsert = inventorySummaries.map((item: any) => {
-            const fnSku = item.fnSku || item.sellerSku || 'UNKNOWN';
-            const productName = item.productName || fnSku;
-            const availableQuantity = item.totalQuantity || 0;
-            
-            return {
-              user_id: user.id,
-              name: productName,
-              sku: fnSku,
-              stock: availableQuantity,
-              selling_price: null, // Amazon inventory API não retorna preço diretamente
-              image_url: null, // Não disponível nesta API
-            };
-          });
-
-        } else {
-          // Success with Listings API
-          const listingsData = await listingsResponse.json();
-          console.log('📋 Dados de listagens recebidos:', JSON.stringify(listingsData, null, 2));
-
-          const listings = listingsData.items || [];
-          
-          if (listings.length === 0) {
-            console.log('⚠️ Nenhum produto nas listagens Amazon');
-            return new Response(
-              JSON.stringify({ message: 'Nenhum produto encontrado nas listagens da Amazon', count: 0 }), 
-              { 
-                status: 200, 
-                headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
-              }
-            );
-          }
-
-          console.log(`✅ ${listings.length} produtos encontrados nas listagens`);
-
-          // Map listings to our format
-          productsToInsert = listings.map((item: any) => {
-            const sku = item.sku || 'UNKNOWN';
-            const productName = item.summaries?.[0]?.itemName || sku;
-            
-            return {
-              user_id: user.id,
-              name: productName,
-              sku: sku,
-              stock: 0, // Listings API não retorna quantidade disponível
-              selling_price: null,
-              image_url: null,
-            };
-          });
-        }
-
-        console.log(`📦 Preparados ${productsToInsert.length} produtos da Amazon para importação`);
-
-      } catch (amazonError) {
-        console.error('💥 Erro fatal na importação Amazon:', amazonError);
-        return new Response(
-          JSON.stringify({ 
-            error: 'Erro interno ao processar produtos da Amazon',
-            details: amazonError.message 
-          }), 
-          { 
-            status: 500, 
-            headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
-          }
-        );
-      }
+      );
     }
 
     if (productsToInsert.length === 0) {

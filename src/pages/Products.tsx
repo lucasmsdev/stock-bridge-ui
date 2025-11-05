@@ -267,6 +267,17 @@ export default function Products() {
       setIsImporting(true);
       const platformName = platformNames[platform] || platform;
       
+      // Special warning for Amazon
+      if (platform === 'amazon') {
+        toast({
+          title: "⚠️ Integração Amazon em desenvolvimento",
+          description: "A Amazon SP-API requer configuração avançada com AWS. Esta funcionalidade está em desenvolvimento. Use importação manual via CSV ou conecte Mercado Livre/Shopify.",
+          variant: "destructive",
+          duration: 8000,
+        });
+        return;
+      }
+      
       // Check if user can import more products
       if (!canImportProducts(products.length, 1)) {
         toast({
