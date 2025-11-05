@@ -59,9 +59,9 @@ serve(async (req) => {
     }
 
     // Count current products for this user
-    const { count: currentProductCount, error: countError } = await supabaseClient
+    const { count, error: countError } = await supabaseClient
       .from('products')
-      .select('*', { count: 'exact', head: true })
+      .select('id', { count: 'exact', head: true })
       .eq('user_id', user.id);
 
     if (countError) {
@@ -74,6 +74,8 @@ serve(async (req) => {
         }
       );
     }
+
+    const currentProductCount = count ?? 0;
 
     // Define SKU limits per plan
     const skuLimits = {
@@ -405,18 +407,30 @@ serve(async (req) => {
 
             if (tokenResponse.ok) {
               const tokenData = await tokenResponse.json();
+              
+              if (!tokenData.access_token) {
+                console.error('❌ Resposta do token não contém access_token:', tokenData);
+                throw new Error('Resposta do token não contém access_token');
+              }
+              
               accessToken = tokenData.access_token;
               
               // Update token in database
-              await supabaseClient
+              const { error: updateError } = await supabaseClient
                 .from('integrations')
                 .update({ access_token: accessToken })
                 .eq('user_id', user.id)
                 .eq('platform', 'amazon');
               
+              if (updateError) {
+                console.warn('⚠️ Erro ao atualizar token no banco:', updateError);
+              }
+              
               console.log('✅ Token renovado com sucesso');
             } else {
-              console.warn('⚠️ Falha ao renovar token:', await tokenResponse.text());
+              const errorText = await tokenResponse.text();
+              console.error('❌ Falha na renovação do token:', tokenResponse.status, errorText);
+              throw new Error(`Falha na renovação do token: ${tokenResponse.status}`);
             }
           } catch (refreshError) {
             console.warn('⚠️ Erro ao renovar token:', refreshError);
@@ -570,19 +584,45 @@ serve(async (req) => {
 
     console.log(`Prepared ${productsToInsert.length} products for insertion`);
 
+    // Validate products before upsert
+    const validProducts = productsToInsert.filter(product => {
+      if (!product.user_id || !product.name || !product.sku) {
+        console.warn('❌ Produto inválido filtrado:', product);
+        return false;
+      }
+      return true;
+    });
+
+    if (validProducts.length === 0) {
+      console.error('Nenhum produto válido após validação');
+      return new Response(
+        JSON.stringify({ error: 'Nenhum produto válido para importar' }), 
+        { 
+          status: 400, 
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
+        }
+      );
+    }
+
+    console.log(`✅ ${validProducts.length} produtos válidos para upsert`);
+
     // Step 5: Upsert products into database
     const { data: insertedProducts, error: insertError } = await supabaseClient
       .from('products')
-      .upsert(productsToInsert, { 
-        onConflict: 'user_id, sku',
+      .upsert(validProducts, { 
+        onConflict: 'user_id,sku',
         ignoreDuplicates: false 
       })
       .select();
 
     if (insertError) {
-      console.error('Error inserting products:', insertError);
+      console.error('❌ Error inserting products:', insertError);
+      console.error('❌ Error details:', JSON.stringify(insertError, null, 2));
       return new Response(
-        JSON.stringify({ error: 'Failed to save products to database' }), 
+        JSON.stringify({ 
+          error: 'Failed to save products to database',
+          details: insertError.message || insertError
+        }), 
         { 
           status: 500, 
           headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
@@ -590,12 +630,13 @@ serve(async (req) => {
       );
     }
 
-    console.log(`Successfully imported ${productsToInsert.length} products`);
+    console.log(`✅ Successfully imported ${validProducts.length} products`);
 
     return new Response(
       JSON.stringify({ 
         message: 'Products imported successfully', 
-        count: productsToInsert.length 
+        count: validProducts.length,
+        imported: insertedProducts?.length || 0
       }), 
       { 
         status: 200, 
