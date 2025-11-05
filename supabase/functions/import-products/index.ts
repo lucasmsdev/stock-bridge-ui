@@ -370,8 +370,144 @@ serve(async (req) => {
             image_url: product.image?.src || null,
           };
 
-          productsToInsert.push(productData);
+      productsToInsert.push(productData);
         }
+      }
+    } else if (platform === 'amazon') {
+      console.log('🛒 Importando produtos da Amazon SP-API...');
+
+      try {
+        // Step 1: Get seller's listings using Inventory API
+        // Using Listings Items API to get seller's products
+        const listingsUrl = 'https://sellingpartnerapi-na.amazon.com/listings/2021-08-01/items';
+        
+        console.log('📦 Buscando listagens da Amazon...');
+        
+        const listingsResponse = await fetch(listingsUrl, {
+          method: 'GET',
+          headers: {
+            'Authorization': `Bearer ${integration.access_token}`,
+            'x-amz-access-token': integration.access_token,
+            'Content-Type': 'application/json',
+          },
+        });
+
+        if (!listingsResponse.ok) {
+          const errorText = await listingsResponse.text();
+          console.error('❌ Erro ao buscar listagens da Amazon:', errorText);
+          
+          // Try alternative: Inventory API
+          console.log('🔄 Tentando API de Inventário...');
+          
+          const inventoryUrl = 'https://sellingpartnerapi-na.amazon.com/fba/inventory/v1/summaries';
+          const inventoryResponse = await fetch(inventoryUrl, {
+            method: 'GET',
+            headers: {
+              'Authorization': `Bearer ${integration.access_token}`,
+              'x-amz-access-token': integration.access_token,
+              'Content-Type': 'application/json',
+            },
+          });
+
+          if (!inventoryResponse.ok) {
+            const invErrorText = await inventoryResponse.text();
+            console.error('❌ Erro no inventário Amazon:', invErrorText);
+            return new Response(
+              JSON.stringify({ 
+                error: 'Falha ao buscar produtos da Amazon. Verifique se tem produtos cadastrados na conta.',
+                details: invErrorText 
+              }), 
+              { 
+                status: 500, 
+                headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
+              }
+            );
+          }
+
+          const inventoryData = await inventoryResponse.json();
+          console.log('📦 Dados de inventário recebidos:', JSON.stringify(inventoryData, null, 2));
+
+          const inventorySummaries = inventoryData.payload?.inventorySummaries || [];
+          
+          if (inventorySummaries.length === 0) {
+            console.log('⚠️ Nenhum produto no inventário Amazon');
+            return new Response(
+              JSON.stringify({ message: 'Nenhum produto encontrado no inventário da Amazon', count: 0 }), 
+              { 
+                status: 200, 
+                headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
+              }
+            );
+          }
+
+          console.log(`✅ ${inventorySummaries.length} produtos encontrados no inventário`);
+
+          // Map inventory items to our format
+          productsToInsert = inventorySummaries.map((item: any) => {
+            const fnSku = item.fnSku || item.sellerSku || 'UNKNOWN';
+            const productName = item.productName || fnSku;
+            const availableQuantity = item.totalQuantity || 0;
+            
+            return {
+              user_id: user.id,
+              name: productName,
+              sku: fnSku,
+              stock: availableQuantity,
+              selling_price: null, // Amazon inventory API não retorna preço diretamente
+              image_url: null, // Não disponível nesta API
+            };
+          });
+
+        } else {
+          // Success with Listings API
+          const listingsData = await listingsResponse.json();
+          console.log('📋 Dados de listagens recebidos:', JSON.stringify(listingsData, null, 2));
+
+          const listings = listingsData.items || [];
+          
+          if (listings.length === 0) {
+            console.log('⚠️ Nenhum produto nas listagens Amazon');
+            return new Response(
+              JSON.stringify({ message: 'Nenhum produto encontrado nas listagens da Amazon', count: 0 }), 
+              { 
+                status: 200, 
+                headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
+              }
+            );
+          }
+
+          console.log(`✅ ${listings.length} produtos encontrados nas listagens`);
+
+          // Map listings to our format
+          productsToInsert = listings.map((item: any) => {
+            const sku = item.sku || 'UNKNOWN';
+            const productName = item.summaries?.[0]?.itemName || sku;
+            
+            return {
+              user_id: user.id,
+              name: productName,
+              sku: sku,
+              stock: 0, // Listings API não retorna quantidade disponível
+              selling_price: null,
+              image_url: null,
+            };
+          });
+        }
+
+        console.log(`📦 Preparados ${productsToInsert.length} produtos da Amazon para importação`);
+
+      } catch (amazonError) {
+        console.error('💥 Erro fatal na importação Amazon:', amazonError);
+        return new Response(
+          JSON.stringify({ 
+            error: 'Erro interno ao processar produtos da Amazon',
+            details: amazonError.message 
+          }), 
+          { 
+            status: 500, 
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
+          }
+        );
       }
     }
 
