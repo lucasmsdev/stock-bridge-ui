@@ -377,6 +377,52 @@ serve(async (req) => {
       console.log('🛒 Importando produtos da Amazon SP-API...');
 
       try {
+        // First, check if token needs refresh
+        let accessToken = integration.access_token;
+        
+        // Try to get refresh token from secrets
+        const amazonClientId = Deno.env.get('AMAZON_CLIENT_ID');
+        const amazonClientSecret = Deno.env.get('AMAZON_CLIENT_SECRET');
+        const amazonRefreshToken = Deno.env.get('AMAZON_REFRESH_TOKEN');
+        
+        // If we have refresh token, try to get a new access token
+        if (amazonClientId && amazonClientSecret && amazonRefreshToken) {
+          console.log('🔄 Renovando token da Amazon...');
+          
+          try {
+            const tokenResponse = await fetch('https://api.amazon.com/auth/o2/token', {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/x-www-form-urlencoded',
+              },
+              body: new URLSearchParams({
+                grant_type: 'refresh_token',
+                refresh_token: amazonRefreshToken,
+                client_id: amazonClientId,
+                client_secret: amazonClientSecret,
+              }),
+            });
+
+            if (tokenResponse.ok) {
+              const tokenData = await tokenResponse.json();
+              accessToken = tokenData.access_token;
+              
+              // Update token in database
+              await supabaseClient
+                .from('integrations')
+                .update({ access_token: accessToken })
+                .eq('user_id', user.id)
+                .eq('platform', 'amazon');
+              
+              console.log('✅ Token renovado com sucesso');
+            } else {
+              console.warn('⚠️ Falha ao renovar token:', await tokenResponse.text());
+            }
+          } catch (refreshError) {
+            console.warn('⚠️ Erro ao renovar token:', refreshError);
+          }
+        }
+
         // Step 1: Get seller's listings using Inventory API
         // Using Listings Items API to get seller's products
         const listingsUrl = 'https://sellingpartnerapi-na.amazon.com/listings/2021-08-01/items';
@@ -386,8 +432,8 @@ serve(async (req) => {
         const listingsResponse = await fetch(listingsUrl, {
           method: 'GET',
           headers: {
-            'Authorization': `Bearer ${integration.access_token}`,
-            'x-amz-access-token': integration.access_token,
+            'Authorization': `Bearer ${accessToken}`,
+            'x-amz-access-token': accessToken,
             'Content-Type': 'application/json',
           },
         });
@@ -403,8 +449,8 @@ serve(async (req) => {
           const inventoryResponse = await fetch(inventoryUrl, {
             method: 'GET',
             headers: {
-              'Authorization': `Bearer ${integration.access_token}`,
-              'x-amz-access-token': integration.access_token,
+              'Authorization': `Bearer ${accessToken}`,
+              'x-amz-access-token': accessToken,
               'Content-Type': 'application/json',
             },
           });
