@@ -359,11 +359,11 @@ const AIAssistant = () => {
       <div>
         <div className="flex items-center gap-2 mb-2">
           <Sparkles className="h-6 w-6 md:h-8 md:w-8 text-primary" />
-          <h1 className="text-2xl md:text-3xl font-bold">Luca - Estrategista de IA</h1>
+          <h1 className="text-2xl md:text-3xl font-bold font-heading">Luca - Estrategista de IA</h1>
           <Badge variant="secondary" className="ml-2">Beta</Badge>
         </div>
-        <p className="text-sm md:text-base text-muted-foreground">
-          Seu estrategista autônomo que identifica oportunidades de crescimento que você ainda não viu
+        <p className="text-sm md:text-base text-muted-foreground font-body">
+          Estratégia e crescimento com IA
         </p>
       </div>
 

@@ -144,25 +144,22 @@ export default function MarketAnalysis() {
     <div className="space-y-4 md:space-y-6 animate-fade-in">
       {/* Page Header */}
       <div>
-        <h1 className="text-2xl md:text-3xl font-bold flex items-center gap-3">
+        <h1 className="text-2xl md:text-3xl font-bold font-heading flex items-center gap-3">
           <Target className="h-6 w-6 md:h-8 md:w-8 text-primary" />
           Análise de Mercado
         </h1>
-        <p className="text-muted-foreground">
-          Analise a concorrência e descubra oportunidades de preços no mercado
+        <p className="text-muted-foreground font-body">
+          Compare preços e concorrência
         </p>
       </div>
 
       {/* Search Section */}
       <Card className="shadow-soft">
         <CardHeader>
-          <CardTitle>Buscar Concorrentes</CardTitle>
-          <CardDescription>
-            Digite o nome de um produto para começar a análise com IA
+          <CardTitle className="font-heading">Buscar Produto</CardTitle>
+          <CardDescription className="font-body">
+            🤖 Análise por IA em tempo real nos principais marketplaces
           </CardDescription>
-          <p className="text-sm text-muted-foreground mt-2 italic">
-            🤖 A análise é realizada por IA que pesquisa em tempo real nos principais marketplaces brasileiros. O processo pode levar alguns segundos.
-          </p>
         </CardHeader>
         <CardContent className="space-y-4">
           <div className="flex gap-3">
@@ -204,11 +201,8 @@ export default function MarketAnalysis() {
             <div className="flex items-center justify-center py-8">
                 <div className="text-center space-y-3">
                   <Loader2 className="h-8 w-8 text-primary animate-spin mx-auto" />
-                  <p className="text-sm text-muted-foreground">
-                    🤖 A IA está pesquisando preços em todas as principais plataformas...
-                  </p>
-                  <p className="text-xs text-muted-foreground">
-                    Isso pode levar alguns segundos. Por favor, aguarde.
+                  <p className="text-sm text-muted-foreground font-body">
+                    🤖 Analisando preços nas plataformas...
                   </p>
                 </div>
             </div>
@@ -377,16 +371,15 @@ export default function MarketAnalysis() {
           <CardContent className="pt-12 pb-12 text-center">
             <div className="max-w-md mx-auto">
               <Target className="mx-auto h-16 w-16 text-muted-foreground mb-6" />
-              <h3 className="text-xl font-semibold text-foreground mb-2">
-                Pronto para Analisar o Mercado
+              <h3 className="text-xl font-semibold font-heading text-foreground mb-2">
+                Análise de Mercado
               </h3>
-              <p className="text-muted-foreground mb-6">
-                Digite um termo de busca acima para descobrir como seus concorrentes estão precificando produtos similares nas principais plataformas de e-commerce.
+              <p className="text-muted-foreground font-body mb-4">
+                Compare preços de produtos nos principais marketplaces
               </p>
-              <div className="text-sm text-muted-foreground space-y-2">
-                <p><strong>Plataformas analisadas:</strong> Mercado Livre, Shopee, Amazon, Shopify, Magazine Luiza e Americanas</p>
-                <p><strong>Dica:</strong> Seja específico na sua busca para obter melhores resultados</p>
-                <p>Exemplos: "iPhone 15 128GB", "notebook Dell inspiron", "tênis Nike air max"</p>
+              <div className="text-sm text-muted-foreground font-body space-y-2">
+                <p><strong>Plataformas:</strong> Mercado Livre, Shopee, Amazon</p>
+                <p>Ex: "iPhone 15 128GB", "notebook Dell", "tênis Nike"</p>
               </div>
             </div>
           </CardContent>

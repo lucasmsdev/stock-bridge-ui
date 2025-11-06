@@ -189,11 +189,11 @@ export default function Dashboard() {
   if (isLoading) {
     return (
       <div className="space-y-6 animate-fade-in">
-        <div>
-          <h1 className="text-3xl font-bold text-foreground">Dashboard</h1>
-          <p className="text-muted-foreground">
-            Acompanhe suas vendas e performance em todos os canais
-          </p>
+      <div>
+        <h1 className="text-3xl font-bold font-heading text-foreground">Dashboard</h1>
+        <p className="text-muted-foreground font-body">
+          Visão geral das vendas
+        </p>
           <div className="mt-2 flex items-center gap-2">
             <Badge variant="outline" className="capitalize">
               Plano {currentPlan}
@@ -215,9 +215,9 @@ export default function Dashboard() {
   return (
     <div className="space-y-4 md:space-y-6 animate-fade-in">
       <div>
-        <h1 className="text-2xl md:text-3xl font-bold">Dashboard</h1>
-        <p className="text-muted-foreground">
-          Acompanhe suas vendas e performance em todos os canais
+        <h1 className="text-2xl md:text-3xl font-bold font-heading">Dashboard</h1>
+        <p className="text-muted-foreground font-body">
+          Visão geral das vendas
         </p>
         <div className="mt-2">
           <Badge variant="outline" className="capitalize">
@@ -284,12 +284,12 @@ export default function Dashboard() {
                 <metric.icon className={`h-4 w-4 ${metric.color} transition-transform hover:scale-110`} />
               </CardHeader>
               <CardContent>
-                <div className="text-2xl font-bold text-foreground break-words">{metric.value}</div>
-                <p className="text-xs text-muted-foreground mt-1">
+                <div className="text-2xl font-bold font-heading text-foreground break-words">{metric.value}</div>
+                <p className="text-xs text-muted-foreground font-body mt-1">
                   <span className={metric.trend.startsWith('+') ? 'text-success' : 'text-destructive'}>
                     {metric.trend}
                   </span>{" "}
-                  em relação à ontem
+                  vs ontem
                 </p>
               </CardContent>
             </Card>
@@ -392,10 +392,10 @@ export default function Dashboard() {
                   </TableBody>
                 </Table>
               ) : (
-                <div className="text-center py-8 text-muted-foreground">
+                <div className="text-center py-8 text-muted-foreground font-body">
                   <ShoppingCart className="h-12 w-12 mx-auto mb-4 opacity-50" />
-                  <p>Nenhum pedido encontrado</p>
-                  <p className="text-sm">Os pedidos aparecerão aqui quando você conectar seus canais de venda</p>
+                  <p>Nenhum pedido</p>
+                  <p className="text-sm">Conecte seus canais de venda</p>
                 </div>
               )}
             </CardContent>
@@ -404,9 +404,9 @@ export default function Dashboard() {
 
         {/* Marketing Metrics Section */}
         <div className="mt-8">
-          <h2 className="text-xl md:text-2xl font-bold mb-4 flex items-center gap-2">
+          <h2 className="text-xl md:text-2xl font-bold font-heading mb-4 flex items-center gap-2">
             <Target className="h-6 w-6 text-primary" />
-            Métricas de Marketing
+            Marketing
           </h2>
           
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 md:gap-4">
