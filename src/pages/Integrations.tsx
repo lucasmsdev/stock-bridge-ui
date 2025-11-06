@@ -28,14 +28,14 @@ const availableIntegrations = [
     name: "Mercado Livre",
     description: "Integração completa com o maior marketplace da América Latina",
     popular: true,
-    logoUrl: "https://vectorseek.com/wp-content/uploads/2023/08/Mercado-Livre-Icon-Logo-Vector.svg-.png"
+    logoUrl: "https://vectorseek.com/wp-content/uploads/2023/08/Mercado-Livre-Icon-Logo-Vector.svg-.png",
   },
   {
     id: "shopee",
     name: "Shopee",
     description: "Conecte-se ao maior marketplace de vendas online do Sudeste Asiático",
     popular: true,
-    logoUrl: "https://upload.wikimedia.org/wikipedia/commons/thumb/0/0e/Shopee_logo.svg/1442px-Shopee_logo.svg.png"
+    logoUrl: "https://upload.wikimedia.org/wikipedia/commons/thumb/0/0e/Shopee_logo.svg/1442px-Shopee_logo.svg.png",
   },
   {
     id: "amazon",
@@ -43,15 +43,15 @@ const availableIntegrations = [
     description: "Venda seus produtos na maior plataforma de e-commerce do mundo",
     popular: true,
     logoUrl: "https://upload.wikimedia.org/wikipedia/commons/d/de/Amazon_icon.png",
-    darkInvert: true
+    darkInvert: true,
   },
   {
     id: "shopify",
     name: "Shopify",
     description: "Conecte sua loja Shopify para sincronização de produtos e pedidos",
     popular: false,
-    logoUrl: "https://cdn.freebiesupply.com/logos/large/2x/shopify-logo-png-transparent.png"
-  }
+    logoUrl: "https://cdn.freebiesupply.com/logos/large/2x/shopify-logo-png-transparent.png",
+  },
 ];
 
 export default function Integrations() {
@@ -67,20 +67,19 @@ export default function Integrations() {
 
   const loadConnectedIntegrations = async () => {
     try {
-      const { data: { user } } = await supabase.auth.getUser();
-      
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
+
       if (!user) {
         setLoading(false);
         return;
       }
 
-      const { data: integrations, error } = await supabase
-        .from('integrations')
-        .select('*')
-        .eq('user_id', user.id);
+      const { data: integrations, error } = await supabase.from("integrations").select("*").eq("user_id", user.id);
 
       if (error) {
-        console.error('Error loading integrations:', error);
+        console.error("Error loading integrations:", error);
         toast({
           title: "Erro ao carregar integrações",
           description: "Não foi possível carregar suas integrações conectadas.",
@@ -91,41 +90,35 @@ export default function Integrations() {
 
       // Only show integrations that have valid access tokens
       const validIntegrations = (integrations || []).filter(
-        integration => integration.access_token && integration.access_token.trim() !== ''
+        (integration) => integration.access_token && integration.access_token.trim() !== "",
       );
-      
+
       // Update account names for integrations that don't have it
       for (const integration of validIntegrations) {
-        if (!integration.account_name || integration.account_name.trim() === '') {
+        if (!integration.account_name || integration.account_name.trim() === "") {
           try {
-            if (integration.platform === 'mercadolivre') {
+            if (integration.platform === "mercadolivre") {
               // Fetch Mercado Livre account name
-              const response = await fetch('https://api.mercadolibre.com/users/me', {
+              const response = await fetch("https://api.mercadolibre.com/users/me", {
                 headers: {
-                  'Authorization': `Bearer ${integration.access_token}`
-                }
+                  Authorization: `Bearer ${integration.access_token}`,
+                },
               });
-              
+
               if (response.ok) {
                 const userData = await response.json();
-                const accountName = userData.nickname || userData.first_name || 'Conta Mercado Livre';
-                
+                const accountName = userData.nickname || userData.first_name || "Conta Mercado Livre";
+
                 // Update in database
-                await supabase
-                  .from('integrations')
-                  .update({ account_name: accountName })
-                  .eq('id', integration.id);
-                
+                await supabase.from("integrations").update({ account_name: accountName }).eq("id", integration.id);
+
                 integration.account_name = accountName;
               }
-            } else if (integration.platform === 'amazon') {
+            } else if (integration.platform === "amazon") {
               // For Amazon, we'll set a default name for now
-              const accountName = 'Conta Amazon';
-              await supabase
-                .from('integrations')
-                .update({ account_name: accountName })
-                .eq('id', integration.id);
-              
+              const accountName = "Conta Amazon";
+              await supabase.from("integrations").update({ account_name: accountName }).eq("id", integration.id);
+
               integration.account_name = accountName;
             }
           } catch (err) {
@@ -133,30 +126,32 @@ export default function Integrations() {
           }
         }
       }
-      
+
       setConnectedIntegrations(validIntegrations);
     } catch (error) {
-      console.error('Unexpected error loading integrations:', error);
+      console.error("Unexpected error loading integrations:", error);
     } finally {
       setLoading(false);
     }
   };
 
   const handleConnect = async (platformId: string) => {
-    console.log('handleConnect called with platformId:', platformId);
+    console.log("handleConnect called with platformId:", platformId);
     // All users can access integrations - no restrictions
 
-    if (platformId === 'mercadolivre') {
-      const appId = '5615590729373432';
+    if (platformId === "mercadolivre") {
+      const appId = "5615590729373432";
       const redirectUri = `${window.location.origin}/callback/mercadolivre`;
       const authUrl = `https://auth.mercadolibre.com/authorization?response_type=code&client_id=${appId}&redirect_uri=${encodeURIComponent(redirectUri)}`;
-      
+
       // Redirect to Mercado Livre authorization page
       window.location.href = authUrl;
-    } else if (platformId === 'amazon') {
+    } else if (platformId === "amazon") {
       // Obter user_id atual
-      const { data: { user } } = await supabase.auth.getUser();
-      
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
+
       if (!user) {
         toast({
           title: "Erro de autenticação",
@@ -166,26 +161,29 @@ export default function Integrations() {
         return;
       }
 
-      console.log('🔐 Iniciando fluxo OAuth Amazon...');
+      console.log("🔐 Iniciando fluxo OAuth Amazon...");
 
       // Configurar URL de autorização OAuth da Amazon
-      const amazonApplicationId = 'amzn1.sp.solution.0c710273-638d-46c9-9060-8448f1ceaeea';
+      const amazonApplicationId = "amzn1.sp.solution.0c710273-638d-46c9-9060-8448f1ceaeea";
       const callbackUrl = `https://fcvwogaqarkuqvumyqqm.supabase.co/functions/v1/amazon-callback`;
-      
-      const authUrl = `https://sellercentral.amazon.com/apps/authorize/consent` +
+
+      const authUrl =
+        `https://sellercentral.amazon.com/apps/authorize/consent` +
         `?application_id=${amazonApplicationId}` +
         `&state=${user.id}` +
         `&redirect_uri=${encodeURIComponent(callbackUrl)}` +
         `&version=beta`;
-      
-      console.log('🔄 Redirecionando para Amazon Seller Central...');
-      
+
+      console.log("🔄 Redirecionando para Amazon Seller Central...");
+
       // Redirecionar para página de autorização da Amazon
       window.location.href = authUrl;
-    } else if (platformId === 'shopify') {
+    } else if (platformId === "shopify") {
       // Get current user
-      const { data: { user } } = await supabase.auth.getUser();
-      
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
+
       if (!user) {
         toast({
           title: "Erro de autenticação",
@@ -197,11 +195,11 @@ export default function Integrations() {
 
       // Prompt for shop domain
       const shopDomain = prompt(
-        'Digite o domínio da sua loja Shopify (ex: minhaloja):\n\n' +
-        'Se sua loja é https://minhaloja.myshopify.com, digite apenas: minhaloja'
+        "Digite o domínio da sua loja Shopify (ex: minhaloja):\n\n" +
+          "Se sua loja é https://minhaloja.myshopify.com, digite apenas: minhaloja",
       );
 
-      if (!shopDomain || shopDomain.trim() === '') {
+      if (!shopDomain || shopDomain.trim() === "") {
         toast({
           title: "Domínio inválido",
           description: "Você precisa informar o domínio da sua loja Shopify.",
@@ -211,25 +209,26 @@ export default function Integrations() {
       }
 
       // Clean domain (remove .myshopify.com if user typed it)
-      const cleanDomain = shopDomain.trim().replace('.myshopify.com', '');
+      const cleanDomain = shopDomain.trim().replace(".myshopify.com", "");
 
-      console.log('🛍️ Iniciando fluxo OAuth Shopify...');
+      console.log("🛍️ Iniciando fluxo OAuth Shopify...");
 
       // Configure Shopify OAuth URL
       // TODO: Substitua 'YOUR_SHOPIFY_CLIENT_ID' pelo seu Client ID real da app Shopify
-      const shopifyClientId = 'YOUR_SHOPIFY_CLIENT_ID';
+      const shopifyClientId = "22904d6037587d5ce1f9432b920b0d30";
       const callbackUrl = `https://fcvwogaqarkuqvumyqqm.supabase.co/functions/v1/shopify-callback`;
-      const scopes = 'read_products,write_products,read_orders,write_orders,read_inventory,write_inventory';
+      const scopes = "read_products,write_products,read_orders,write_orders,read_inventory,write_inventory";
       const nonce = user.id; // Use user_id as state for validation
-      
-      const authUrl = `https://${cleanDomain}.myshopify.com/admin/oauth/authorize` +
+
+      const authUrl =
+        `https://${cleanDomain}.myshopify.com/admin/oauth/authorize` +
         `?client_id=${shopifyClientId}` +
         `&scope=${encodeURIComponent(scopes)}` +
         `&redirect_uri=${encodeURIComponent(callbackUrl)}` +
         `&state=${nonce}`;
-      
-      console.log('🔄 Redirecionando para Shopify Admin...');
-      
+
+      console.log("🔄 Redirecionando para Shopify Admin...");
+
       // Redirect to Shopify authorization page
       window.location.href = authUrl;
     } else {
@@ -248,8 +247,10 @@ export default function Integrations() {
         description: "Isso pode levar alguns segundos.",
       });
 
-      const { data: { session } } = await supabase.auth.getSession();
-      
+      const {
+        data: { session },
+      } = await supabase.auth.getSession();
+
       if (!session) {
         toast({
           title: "Erro de autenticação",
@@ -259,15 +260,15 @@ export default function Integrations() {
         return;
       }
 
-      const { data, error } = await supabase.functions.invoke('import-products', {
+      const { data, error } = await supabase.functions.invoke("import-products", {
         body: { platform },
         headers: {
-          Authorization: `Bearer ${session.access_token}`
-        }
+          Authorization: `Bearer ${session.access_token}`,
+        },
       });
 
       if (error) {
-        console.error('Error importing products:', error);
+        console.error("Error importing products:", error);
         toast({
           title: "Erro ao importar",
           description: error.message || "Não foi possível importar os produtos.",
@@ -281,7 +282,7 @@ export default function Integrations() {
         description: `${data.imported || 0} produtos foram importados com sucesso.`,
       });
     } catch (error) {
-      console.error('Unexpected error importing products:', error);
+      console.error("Unexpected error importing products:", error);
       toast({
         title: "Erro inesperado",
         description: "Ocorreu um erro ao importar os produtos.",
@@ -293,14 +294,11 @@ export default function Integrations() {
   const handleDisconnect = async (integrationId: string) => {
     try {
       setDisconnectingId(integrationId);
-      
-      const { error } = await supabase
-        .from('integrations')
-        .delete()
-        .eq('id', integrationId);
+
+      const { error } = await supabase.from("integrations").delete().eq("id", integrationId);
 
       if (error) {
-        console.error('Error disconnecting integration:', error);
+        console.error("Error disconnecting integration:", error);
         toast({
           title: "Erro ao desconectar",
           description: "Não foi possível desconectar a integração. Tente novamente.",
@@ -317,7 +315,7 @@ export default function Integrations() {
       // Reload integrations
       await loadConnectedIntegrations();
     } catch (error) {
-      console.error('Unexpected error disconnecting integration:', error);
+      console.error("Unexpected error disconnecting integration:", error);
       toast({
         title: "Erro inesperado",
         description: "Ocorreu um erro ao desconectar a integração.",
@@ -333,9 +331,7 @@ export default function Integrations() {
       {/* Page Header */}
       <div>
         <h1 className="text-2xl md:text-3xl font-bold">Integrações de Canais</h1>
-        <p className="text-muted-foreground">
-          Conecte e gerencie seus canais de venda em um só lugar
-        </p>
+        <p className="text-muted-foreground">Conecte e gerencie seus canais de venda em um só lugar</p>
       </div>
 
       {/* Connected Integrations */}
@@ -348,8 +344,8 @@ export default function Integrations() {
         ) : connectedIntegrations.length > 0 ? (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
             {connectedIntegrations.map((integration) => (
-              <Card 
-                key={integration.id} 
+              <Card
+                key={integration.id}
                 className="shadow-soft hover:shadow-medium transition-all duration-200 hover:scale-[1.02] hover:-translate-y-1"
               >
                 <CardHeader className="pb-3">
@@ -357,12 +353,12 @@ export default function Integrations() {
                     <div className="flex items-center gap-3">
                       <div className="hover:scale-110 transition-transform">
                         {(() => {
-                          const platformConfig = availableIntegrations.find(p => p.id === integration.platform);
+                          const platformConfig = availableIntegrations.find((p) => p.id === integration.platform);
                           return platformConfig?.logoUrl ? (
                             <img
                               src={platformConfig.logoUrl}
                               alt={`${integration.platform} logo`}
-                              className={`h-8 w-auto ${platformConfig.darkInvert ? 'dark-invert' : ''}`}
+                              className={`h-8 w-auto ${platformConfig.darkInvert ? "dark-invert" : ""}`}
                             />
                           ) : (
                             <PlatformLogo platform={integration.platform} size="lg" />
@@ -372,38 +368,33 @@ export default function Integrations() {
                       <div>
                         <CardTitle className="text-lg capitalize">{integration.platform}</CardTitle>
                         {integration.account_name && (
-                          <CardDescription className="font-medium">
-                            {integration.account_name}
-                          </CardDescription>
+                          <CardDescription className="font-medium">{integration.account_name}</CardDescription>
                         )}
                         <CardDescription className="text-xs">
-                          Conectado em {new Date(integration.created_at).toLocaleDateString('pt-BR')}
+                          Conectado em {new Date(integration.created_at).toLocaleDateString("pt-BR")}
                         </CardDescription>
                       </div>
                     </div>
-                    <Badge 
-                      variant="secondary" 
-                      className="bg-green-500 text-white hover:opacity-90 transition-opacity"
-                    >
+                    <Badge variant="secondary" className="bg-green-500 text-white hover:opacity-90 transition-opacity">
                       <CheckCircle2 className="w-3 h-3 mr-1" />
                       Ativo
                     </Badge>
                   </div>
                 </CardHeader>
-                
+
                 <CardContent className="space-y-4">
                   <div className="text-xs text-muted-foreground">
-                    Última atualização: {new Date(integration.updated_at).toLocaleDateString('pt-BR')}
+                    Última atualização: {new Date(integration.updated_at).toLocaleDateString("pt-BR")}
                   </div>
-                  
+
                   <Separator />
-                  
+
                   {/* Import Products Button for Shopify */}
-                  {integration.platform === 'shopify' && (
+                  {integration.platform === "shopify" && (
                     <>
-                      <Button 
-                        variant="default" 
-                        size="sm" 
+                      <Button
+                        variant="default"
+                        size="sm"
                         className="w-full bg-gradient-primary"
                         onClick={() => handleImportProducts(integration.id, integration.platform)}
                       >
@@ -413,19 +404,22 @@ export default function Integrations() {
                       <Separator />
                     </>
                   )}
-                  
+
                   <div className="flex gap-2">
                     <Button
-                      variant="outline" 
-                      size="sm" 
+                      variant="outline"
+                      size="sm"
                       className="flex-1"
                       onClick={() => {
-                        const newName = prompt('Digite o nome da sua loja:', integration.account_name || integration.platform);
+                        const newName = prompt(
+                          "Digite o nome da sua loja:",
+                          integration.account_name || integration.platform,
+                        );
                         if (newName && newName.trim()) {
                           supabase
-                            .from('integrations')
+                            .from("integrations")
                             .update({ account_name: newName.trim() })
-                            .eq('id', integration.id)
+                            .eq("id", integration.id)
                             .then(({ error }) => {
                               if (error) {
                                 toast({
@@ -447,12 +441,12 @@ export default function Integrations() {
                       <Settings className="w-4 h-4 mr-2" />
                       Editar Nome
                     </Button>
-                    
+
                     <AlertDialog>
                       <AlertDialogTrigger asChild>
-                        <Button 
-                          variant="outline" 
-                          size="sm" 
+                        <Button
+                          variant="outline"
+                          size="sm"
                           className="text-destructive hover:text-destructive"
                           disabled={disconnectingId === integration.id}
                         >
@@ -467,13 +461,13 @@ export default function Integrations() {
                         <AlertDialogHeader>
                           <AlertDialogTitle>Desconectar Integração</AlertDialogTitle>
                           <AlertDialogDescription>
-                            Tem certeza que deseja desconectar a integração com {integration.platform}? 
-                            Esta ação interromperá a sincronização automática de produtos e pedidos.
+                            Tem certeza que deseja desconectar a integração com {integration.platform}? Esta ação
+                            interromperá a sincronização automática de produtos e pedidos.
                           </AlertDialogDescription>
                         </AlertDialogHeader>
                         <AlertDialogFooter>
                           <AlertDialogCancel>Cancelar</AlertDialogCancel>
-                          <AlertDialogAction 
+                          <AlertDialogAction
                             onClick={() => handleDisconnect(integration.id)}
                             className="bg-destructive hover:bg-destructive/90"
                           >
@@ -492,9 +486,7 @@ export default function Integrations() {
             <CardContent className="pt-12 pb-12 text-center">
               <div className="max-w-md mx-auto">
                 <Plug className="mx-auto h-16 w-16 text-muted-foreground mb-6" />
-                <h3 className="text-xl font-semibold text-foreground mb-2">
-                  Nenhuma integração conectada
-                </h3>
+                <h3 className="text-xl font-semibold text-foreground mb-2">Nenhuma integração conectada</h3>
                 <p className="text-muted-foreground mb-6">
                   Conecte seu primeiro canal de vendas para começar a sincronizar produtos e pedidos automaticamente.
                 </p>
@@ -512,58 +504,54 @@ export default function Integrations() {
       <div className="space-y-4">
         <div className="flex items-center justify-between">
           <h2 className="text-xl font-semibold text-foreground">Conecte um Novo Canal</h2>
-          <Badge variant="outline">
-            {availableIntegrations.length} plataformas disponíveis
-          </Badge>
+          <Badge variant="outline">{availableIntegrations.length} plataformas disponíveis</Badge>
         </div>
-        
+
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
           {availableIntegrations
-            .filter(platform => !connectedIntegrations.some(connected => connected.platform === platform.id))
+            .filter((platform) => !connectedIntegrations.some((connected) => connected.platform === platform.id))
             .map((platform, index) => (
-            <Card 
-              key={platform.id} 
-              className="shadow-soft hover:shadow-medium transition-all duration-200 group hover:scale-[1.02] hover:-translate-y-1"
-              style={{ animationDelay: `${index * 0.1}s` }}
-            >
-              <CardHeader className="pb-3">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-3">
-                    <div className="group-hover:scale-110 transition-transform">
-                      <img
-                        src={platform.logoUrl}
-                        alt={`${platform.name} logo`}
-                        className={`h-8 w-auto ${platform.darkInvert ? 'dark-invert' : ''}`}
-                      />
-                    </div>
-                    <div>
-                      <CardTitle className="text-lg flex items-center gap-2">
-                        {platform.name}
-                        {platform.popular && (
-                          <Badge variant="secondary" className="bg-primary text-primary-foreground animate-glow">
-                            Popular
-                          </Badge>
-                        )}
-                      </CardTitle>
+              <Card
+                key={platform.id}
+                className="shadow-soft hover:shadow-medium transition-all duration-200 group hover:scale-[1.02] hover:-translate-y-1"
+                style={{ animationDelay: `${index * 0.1}s` }}
+              >
+                <CardHeader className="pb-3">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-3">
+                      <div className="group-hover:scale-110 transition-transform">
+                        <img
+                          src={platform.logoUrl}
+                          alt={`${platform.name} logo`}
+                          className={`h-8 w-auto ${platform.darkInvert ? "dark-invert" : ""}`}
+                        />
+                      </div>
+                      <div>
+                        <CardTitle className="text-lg flex items-center gap-2">
+                          {platform.name}
+                          {platform.popular && (
+                            <Badge variant="secondary" className="bg-primary text-primary-foreground animate-glow">
+                              Popular
+                            </Badge>
+                          )}
+                        </CardTitle>
+                      </div>
                     </div>
                   </div>
-                </div>
-                <CardDescription className="text-sm">
-                  {platform.description}
-                </CardDescription>
-              </CardHeader>
-              
-              <CardContent>
-                <Button 
-                  onClick={() => handleConnect(platform.id)}
-                  className="w-full bg-gradient-primary hover:bg-primary-hover group-hover:shadow-primary transition-all duration-200 hover:scale-[1.02]"
-                >
-                  <Plus className="w-4 h-4 mr-2" />
-                  Conectar {platform.name}
-                </Button>
-              </CardContent>
-            </Card>
-          ))}
+                  <CardDescription className="text-sm">{platform.description}</CardDescription>
+                </CardHeader>
+
+                <CardContent>
+                  <Button
+                    onClick={() => handleConnect(platform.id)}
+                    className="w-full bg-gradient-primary hover:bg-primary-hover group-hover:shadow-primary transition-all duration-200 hover:scale-[1.02]"
+                  >
+                    <Plus className="w-4 h-4 mr-2" />
+                    Conectar {platform.name}
+                  </Button>
+                </CardContent>
+              </Card>
+            ))}
         </div>
       </div>
 
@@ -577,16 +565,14 @@ export default function Integrations() {
         </CardHeader>
         <CardContent>
           <p className="text-muted-foreground mb-4">
-            Não encontrou sua plataforma? Entre em contato conosco para solicitar uma nova integração 
-            ou consulte nossa documentação para mais informações.
+            Não encontrou sua plataforma? Entre em contato conosco para solicitar uma nova integração ou consulte nossa
+            documentação para mais informações.
           </p>
           <div className="flex gap-2">
-            <Button variant="outline" onClick={() => window.location.href = '/help'}>
+            <Button variant="outline" onClick={() => (window.location.href = "/help")}>
               Ver Documentação
             </Button>
-            <Button variant="outline">
-              Contatar Suporte
-            </Button>
+            <Button variant="outline">Contatar Suporte</Button>
           </div>
         </CardContent>
       </Card>
