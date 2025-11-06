@@ -1,5 +1,8 @@
 project_id = "fcvwogaqarkuqvumyqqm"
 
+[functions.shopify-callback]
+verify_jwt = false
+
 [functions.amazon-callback]
 verify_jwt = false
 

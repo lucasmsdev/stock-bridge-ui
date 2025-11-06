@@ -322,29 +322,61 @@ serve(async (req) => {
       const shopifyDomain = shopifyIntegration.shop_domain;
       console.log('Fetching products from Shopify shop:', shopifyDomain);
 
-      // Step 1: Get products from Shopify
-      const productsResponse = await fetch(`https://${shopifyDomain}.myshopify.com/admin/api/2023-10/products.json`, {
-        method: 'GET',
-        headers: {
-          'X-Shopify-Access-Token': integration.access_token,
-          'Content-Type': 'application/json',
-        },
-      });
+      // Step 1: Get ALL products from Shopify with pagination
+      let allProducts = [];
+      let nextPageInfo = null;
+      let page = 1;
 
-      if (!productsResponse.ok) {
-        const errorText = await productsResponse.text();
-        console.error('Error fetching Shopify products:', errorText);
-        return new Response(
-          JSON.stringify({ error: 'Failed to fetch products from Shopify' }), 
-          { 
-            status: 500, 
-            headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
+      do {
+        console.log(`📄 Buscando página ${page} de produtos...`);
+        
+        const url = nextPageInfo 
+          ? `https://${shopifyDomain}.myshopify.com/admin/api/2023-10/products.json?page_info=${nextPageInfo}&limit=250`
+          : `https://${shopifyDomain}.myshopify.com/admin/api/2023-10/products.json?limit=250`;
+        
+        const productsResponse = await fetch(url, {
+          method: 'GET',
+          headers: {
+            'X-Shopify-Access-Token': integration.access_token,
+            'Content-Type': 'application/json',
+          },
+        });
+
+        if (!productsResponse.ok) {
+          const errorText = await productsResponse.text();
+          console.error('Error fetching Shopify products:', errorText);
+          return new Response(
+            JSON.stringify({ error: 'Failed to fetch products from Shopify' }), 
+            { 
+              status: 500, 
+              headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
+            }
+          );
+        }
+
+        const productsData = await productsResponse.json();
+        const pageProducts = productsData.products || [];
+        allProducts = allProducts.concat(pageProducts);
+
+        // Shopify uses cursor-based pagination via Link header
+        const linkHeader = productsResponse.headers.get('Link');
+        if (linkHeader && linkHeader.includes('rel="next"')) {
+          const nextMatch = linkHeader.match(/<([^>]+)>;\s*rel="next"/);
+          if (nextMatch) {
+            const nextUrl = new URL(nextMatch[1]);
+            nextPageInfo = nextUrl.searchParams.get('page_info');
+          } else {
+            nextPageInfo = null;
           }
-        );
-      }
+        } else {
+          nextPageInfo = null;
+        }
+        
+        page++;
+      } while (nextPageInfo);
 
-      const productsData = await productsResponse.json();
-      const products = productsData.products || [];
+      const products = allProducts;
+      console.log(`✅ Total de ${products.length} produtos encontrados no Shopify`);
 
       if (products.length === 0) {
         console.log('No products found in Shopify store');

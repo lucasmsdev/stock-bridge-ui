@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { Plus, Settings, Unlink, ExternalLink, CheckCircle2, Plug, Loader2, Lock } from "lucide-react";
+import { Plus, Settings, Unlink, ExternalLink, CheckCircle2, Plug, Loader2, Lock, Download } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -183,16 +183,109 @@ export default function Integrations() {
       // Redirecionar para página de autorização da Amazon
       window.location.href = authUrl;
     } else if (platformId === 'shopify') {
-      // Show as coming soon
-      toast({
-        title: "Em breve",
-        description: "A integração com Shopify estará disponível em breve.",
-      });
+      // Get current user
+      const { data: { user } } = await supabase.auth.getUser();
+      
+      if (!user) {
+        toast({
+          title: "Erro de autenticação",
+          description: "Faça login para conectar integrações.",
+          variant: "destructive",
+        });
+        return;
+      }
+
+      // Prompt for shop domain
+      const shopDomain = prompt(
+        'Digite o domínio da sua loja Shopify (ex: minhaloja):\n\n' +
+        'Se sua loja é https://minhaloja.myshopify.com, digite apenas: minhaloja'
+      );
+
+      if (!shopDomain || shopDomain.trim() === '') {
+        toast({
+          title: "Domínio inválido",
+          description: "Você precisa informar o domínio da sua loja Shopify.",
+          variant: "destructive",
+        });
+        return;
+      }
+
+      // Clean domain (remove .myshopify.com if user typed it)
+      const cleanDomain = shopDomain.trim().replace('.myshopify.com', '');
+
+      console.log('🛍️ Iniciando fluxo OAuth Shopify...');
+
+      // Configure Shopify OAuth URL
+      // TODO: Substitua 'YOUR_SHOPIFY_CLIENT_ID' pelo seu Client ID real da app Shopify
+      const shopifyClientId = 'YOUR_SHOPIFY_CLIENT_ID';
+      const callbackUrl = `https://fcvwogaqarkuqvumyqqm.supabase.co/functions/v1/shopify-callback`;
+      const scopes = 'read_products,write_products,read_orders,write_orders,read_inventory,write_inventory';
+      const nonce = user.id; // Use user_id as state for validation
+      
+      const authUrl = `https://${cleanDomain}.myshopify.com/admin/oauth/authorize` +
+        `?client_id=${shopifyClientId}` +
+        `&scope=${encodeURIComponent(scopes)}` +
+        `&redirect_uri=${encodeURIComponent(callbackUrl)}` +
+        `&state=${nonce}`;
+      
+      console.log('🔄 Redirecionando para Shopify Admin...');
+      
+      // Redirect to Shopify authorization page
+      window.location.href = authUrl;
     } else {
       // Mock connection logic for other platforms
       toast({
         title: "Em desenvolvimento",
         description: `A integração com ${platformId} estará disponível em breve.`,
+      });
+    }
+  };
+
+  const handleImportProducts = async (integrationId: string, platform: string) => {
+    try {
+      toast({
+        title: "Importando produtos...",
+        description: "Isso pode levar alguns segundos.",
+      });
+
+      const { data: { session } } = await supabase.auth.getSession();
+      
+      if (!session) {
+        toast({
+          title: "Erro de autenticação",
+          description: "Faça login para importar produtos.",
+          variant: "destructive",
+        });
+        return;
+      }
+
+      const { data, error } = await supabase.functions.invoke('import-products', {
+        body: { platform },
+        headers: {
+          Authorization: `Bearer ${session.access_token}`
+        }
+      });
+
+      if (error) {
+        console.error('Error importing products:', error);
+        toast({
+          title: "Erro ao importar",
+          description: error.message || "Não foi possível importar os produtos.",
+          variant: "destructive",
+        });
+        return;
+      }
+
+      toast({
+        title: "Produtos importados!",
+        description: `${data.imported || 0} produtos foram importados com sucesso.`,
+      });
+    } catch (error) {
+      console.error('Unexpected error importing products:', error);
+      toast({
+        title: "Erro inesperado",
+        description: "Ocorreu um erro ao importar os produtos.",
+        variant: "destructive",
       });
     }
   };
@@ -305,8 +398,24 @@ export default function Integrations() {
                   
                   <Separator />
                   
+                  {/* Import Products Button for Shopify */}
+                  {integration.platform === 'shopify' && (
+                    <>
+                      <Button 
+                        variant="default" 
+                        size="sm" 
+                        className="w-full bg-gradient-primary"
+                        onClick={() => handleImportProducts(integration.id, integration.platform)}
+                      >
+                        <Download className="w-4 h-4 mr-2" />
+                        Importar Produtos
+                      </Button>
+                      <Separator />
+                    </>
+                  )}
+                  
                   <div className="flex gap-2">
-                    <Button 
+                    <Button
                       variant="outline" 
                       size="sm" 
                       className="flex-1"
