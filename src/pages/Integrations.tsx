@@ -169,11 +169,11 @@ export default function Integrations() {
       console.log('🔐 Iniciando fluxo OAuth Amazon...');
 
       // Configurar URL de autorização OAuth da Amazon
-      const amazonClientId = 'amzn1.application-oa2-client.e129a4af40d6485eb6ac95e4c5924b7b';
+      const amazonApplicationId = 'amzn1.sp.solution.0c710273-638d-46c9-9060-8448f1ceaeea';
       const callbackUrl = `https://fcvwogaqarkuqvumyqqm.supabase.co/functions/v1/amazon-callback`;
       
       const authUrl = `https://sellercentral.amazon.com/apps/authorize/consent` +
-        `?application_id=${amazonClientId}` +
+        `?application_id=${amazonApplicationId}` +
         `&state=${user.id}` +
         `&redirect_uri=${encodeURIComponent(callbackUrl)}` +
         `&version=beta`;
