@@ -148,13 +148,15 @@ serve(async (req) => {
     console.log('✅ Integration saved successfully');
 
     // Redirect to integrations page with success message
-    const appUrl = Deno.env.get('APP_URL') || 'https://fcvwogaqarkuqvumyqqm.supabase.co';
-    const redirectUrl = `${appUrl}/integrations?success=shopify`;
+    const appUrl = Deno.env.get('APP_URL') || 'https://preview--stock-bridge-ui.lovable.app';
+    const redirectUrl = `${appUrl}/app/integrations?status=success`;
     
-    return new Response(
-      `<html><body><h1>Sucesso!</h1><p>Shopify conectado com sucesso. Redirecionando...</p><script>window.location.href="${redirectUrl}"</script></body></html>`,
-      { status: 200, headers: { 'Content-Type': 'text/html' } }
-    );
+    return new Response(null, {
+      status: 302,
+      headers: {
+        'Location': redirectUrl,
+      },
+    });
 
   } catch (error) {
     console.error('Unexpected error in Shopify callback:', error);
