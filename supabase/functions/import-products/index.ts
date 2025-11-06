@@ -377,27 +377,166 @@ serve(async (req) => {
       }
     } else if (platform === 'amazon') {
       console.log('🛒 Importando produtos da Amazon SP-API...');
-      console.log('⚠️ AVISO: A integração da Amazon requer configuração AWS avançada');
-      
-      return new Response(
-        JSON.stringify({ 
-          error: 'Amazon SP-API requer configuração avançada',
-          message: 'A Amazon SP-API requer assinatura AWS Signature V4 para todas as requisições. Isso necessita de:\n\n' +
-                   '1. AWS Access Key ID e Secret Access Key\n' +
-                   '2. Seller ID e Marketplace IDs\n' +
-                   '3. Implementação de assinatura AWS SigV4\n\n' +
-                   'Esta é uma integração complexa que requer desenvolvimento adicional.\n\n' +
-                   'Como alternativa, recomendamos:\n' +
-                   '• Importar manualmente via CSV\n' +
-                   '• Usar integração direta com Mercado Livre ou Shopify\n' +
-                   '• Contactar suporte para setup personalizado da Amazon',
-          documentation: 'https://developer-docs.amazon.com/sp-api/docs/sp-api-authentication'
-        }), 
-        { 
-          status: 501, // Not Implemented
-          headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
+
+      try {
+        // Importar biblioteca Amazon SP-API
+        const { default: SellingPartnerAPI } = await import('npm:amazon-sp-api@latest');
+
+        // Buscar configurações da integração Amazon
+        const { data: amazonConfig, error: configError } = await supabaseClient
+          .from('integrations')
+          .select('refresh_token, selling_partner_id, marketplace_id')
+          .eq('user_id', user.id)
+          .eq('platform', 'amazon')
+          .single();
+
+        if (configError || !amazonConfig?.refresh_token) {
+          console.error('❌ Configuração Amazon não encontrada:', configError);
+          return new Response(
+            JSON.stringify({ 
+              error: 'Conta Amazon não conectada corretamente. Reconecte sua conta Amazon Seller.' 
+            }), 
+            { 
+              status: 400, 
+              headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
+            }
+          );
         }
-      );
+
+        console.log('🔧 Inicializando cliente Amazon SP-API...');
+
+        // Inicializar cliente Amazon SP-API
+        const sellingPartner = new SellingPartnerAPI({
+          region: Deno.env.get('AMAZON_REGION') || 'na', // na, eu, fe
+          refresh_token: amazonConfig.refresh_token,
+          credentials: {
+            SELLING_PARTNER_APP_CLIENT_ID: Deno.env.get('AMAZON_CLIENT_ID'),
+            SELLING_PARTNER_APP_CLIENT_SECRET: Deno.env.get('AMAZON_CLIENT_SECRET'),
+          },
+        });
+
+        const marketplaceId = amazonConfig.marketplace_id || Deno.env.get('AMAZON_MARKETPLACE_ID') || 'ATVPDKIKX0DER';
+
+        console.log('📦 Buscando inventário FBA da Amazon...');
+
+        // Opção 1: Buscar inventário FBA (mais comum)
+        const inventoryResponse = await sellingPartner.callAPI({
+          operation: 'getInventorySummaries',
+          endpoint: 'fbaInventory',
+          query: {
+            granularityType: 'Marketplace',
+            granularityId: marketplaceId,
+            marketplaceIds: [marketplaceId],
+          },
+        });
+
+        if (!inventoryResponse?.inventorySummaries || inventoryResponse.inventorySummaries.length === 0) {
+          console.log('⚠️ Nenhum produto FBA encontrado, tentando buscar listings...');
+          
+          // Opção 2: Buscar listings ativos (produtos não-FBA ou todos)
+          const listingsResponse = await sellingPartner.callAPI({
+            operation: 'getListingsItem',
+            endpoint: 'listingsItems',
+            path: {
+              sellerId: amazonConfig.selling_partner_id,
+            },
+            query: {
+              marketplaceIds: [marketplaceId],
+              includedData: ['summaries', 'offers'],
+            },
+          });
+
+          if (!listingsResponse?.items || listingsResponse.items.length === 0) {
+            console.log('⚠️ Nenhum produto encontrado na conta Amazon');
+            return new Response(
+              JSON.stringify({ 
+                message: 'Nenhum produto encontrado na sua conta Amazon Seller', 
+                count: 0 
+              }), 
+              { 
+                status: 200, 
+                headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
+              }
+            );
+          }
+
+          // Mapear listings para nosso formato
+          productsToInsert = listingsResponse.items.map((item: any) => {
+            const summary = item.summaries?.[0] || {};
+            const offer = item.offers?.[0] || {};
+            
+            return {
+              user_id: user.id,
+              name: summary.itemName || item.sku,
+              sku: item.sku,
+              stock: offer.fulfillmentAvailability?.quantity || 0,
+              selling_price: offer.price?.listingPrice?.amount 
+                ? parseFloat(offer.price.listingPrice.amount) 
+                : null,
+              image_url: summary.mainImage?.link || null,
+            };
+          });
+        } else {
+          // Mapear inventário FBA para nosso formato
+          productsToInsert = inventoryResponse.inventorySummaries.map((item: any) => {
+            const fnSku = item.fnSku || item.sellerSku;
+            const productName = item.productName || fnSku;
+            const availableQuantity = item.totalQuantity || 0;
+            
+            return {
+              user_id: user.id,
+              name: productName,
+              sku: fnSku,
+              stock: availableQuantity,
+              selling_price: null, // Preço requer chamada adicional à API de precificação
+              image_url: null, // Imagem requer chamada adicional à API de catálogo
+            };
+          });
+
+          console.log(`✅ ${productsToInsert.length} produtos FBA encontrados`);
+        }
+
+        console.log(`📦 Preparados ${productsToInsert.length} produtos da Amazon para importação`);
+
+      } catch (amazonError: any) {
+        console.error('💥 Erro na importação Amazon:', amazonError);
+        
+        // Tratamento de erros específicos da Amazon
+        if (amazonError.code === 'InvalidInput') {
+          return new Response(
+            JSON.stringify({ 
+              error: 'Parâmetros inválidos na requisição Amazon. Verifique as configurações da integração.' 
+            }), 
+            { 
+              status: 400, 
+              headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
+            }
+          );
+        }
+        
+        if (amazonError.code === 'Unauthorized' || amazonError.code === 'InvalidToken') {
+          return new Response(
+            JSON.stringify({ 
+              error: 'Token Amazon expirado ou inválido. Reconecte sua conta Amazon Seller.' 
+            }), 
+            { 
+              status: 401, 
+              headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
+            }
+          );
+        }
+
+        return new Response(
+          JSON.stringify({ 
+            error: 'Erro ao buscar produtos da Amazon. Tente novamente ou contate o suporte.',
+            details: amazonError.message 
+          }), 
+          { 
+            status: 500, 
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
+          }
+        );
+      }
     }
 
     if (productsToInsert.length === 0) {

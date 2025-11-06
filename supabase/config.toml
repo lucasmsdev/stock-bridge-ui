@@ -1,5 +1,8 @@
 project_id = "fcvwogaqarkuqvumyqqm"
 
+[functions.amazon-callback]
+verify_jwt = false
+
 [functions.check-competitor-prices]
 verify_jwt = false
 

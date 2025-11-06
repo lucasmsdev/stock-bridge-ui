@@ -154,18 +154,35 @@ export default function Integrations() {
       // Redirect to Mercado Livre authorization page
       window.location.href = authUrl;
     } else if (platformId === 'amazon') {
-      try {
+      // Obter user_id atual
+      const { data: { user } } = await supabase.auth.getUser();
+      
+      if (!user) {
         toast({
-          title: "Conectando com Amazon",
-          description: "Aguarde enquanto autenticamos sua conta...",
+          title: "Erro de autenticação",
+          description: "Faça login para conectar integrações.",
+          variant: "destructive",
         });
+        return;
+      }
 
-        // Call the amazon-auth edge function
-        const { data, error } = await supabase.functions.invoke('amazon-auth', {
-          method: 'POST'
-        });
+      console.log('🔐 Iniciando fluxo OAuth Amazon...');
 
-        if (error) {
+      // Configurar URL de autorização OAuth da Amazon
+      const amazonClientId = 'amzn1.application-oa2-client.5615590729373432';
+      const callbackUrl = `https://fcvwogaqarkuqvumyqqm.supabase.co/functions/v1/amazon-callback`;
+      
+      const authUrl = `https://sellercentral.amazon.com/apps/authorize/consent` +
+        `?application_id=${amazonClientId}` +
+        `&state=${user.id}` +
+        `&redirect_uri=${encodeURIComponent(callbackUrl)}` +
+        `&version=beta`;
+      
+      console.log('🔄 Redirecionando para Amazon Seller Central...');
+      
+      // Redirecionar para página de autorização da Amazon
+      window.location.href = authUrl;
+    } else if (platformId === 'shopify') {
           console.error('Error connecting to Amazon:', error);
           toast({
             title: "Erro ao conectar",
@@ -226,16 +243,6 @@ export default function Integrations() {
         });
 
         // Reload integrations
-        await loadConnectedIntegrations();
-      } catch (error) {
-        console.error('Unexpected error connecting to Amazon:', error);
-        toast({
-          title: "Erro inesperado",
-          description: "Ocorreu um erro ao conectar com a Amazon.",
-          variant: "destructive",
-        });
-      }
-    } else if (platformId === 'shopify') {
       // Show as coming soon
       toast({
         title: "Em breve",

@@ -44,8 +44,10 @@ export type Database = {
           account_name: string | null
           created_at: string
           id: string
+          marketplace_id: string | null
           platform: string
           refresh_token: string | null
+          selling_partner_id: string | null
           shop_domain: string | null
           updated_at: string
           user_id: string
@@ -55,8 +57,10 @@ export type Database = {
           account_name?: string | null
           created_at?: string
           id?: string
+          marketplace_id?: string | null
           platform: string
           refresh_token?: string | null
+          selling_partner_id?: string | null
           shop_domain?: string | null
           updated_at?: string
           user_id: string
@@ -66,8 +70,10 @@ export type Database = {
           account_name?: string | null
           created_at?: string
           id?: string
+          marketplace_id?: string | null
           platform?: string
           refresh_token?: string | null
+          selling_partner_id?: string | null
           shop_domain?: string | null
           updated_at?: string
           user_id?: string
