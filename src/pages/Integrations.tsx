@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { useSearchParams } from "react-router-dom";
 import { Plus, Settings, Unlink, ExternalLink, CheckCircle2, Plug, Loader2, Lock, Download } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -55,6 +56,7 @@ const availableIntegrations = [
 ];
 
 export default function Integrations() {
+  const [searchParams, setSearchParams] = useSearchParams();
   const [disconnectingId, setDisconnectingId] = useState<string | null>(null);
   const [connectedIntegrations, setConnectedIntegrations] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -63,6 +65,24 @@ export default function Integrations() {
 
   useEffect(() => {
     loadConnectedIntegrations();
+    
+    // Check for success/error status from OAuth callback
+    const status = searchParams.get('status');
+    if (status === 'success') {
+      toast({
+        title: "Integração conectada!",
+        description: "Sua loja foi conectada com sucesso.",
+      });
+      // Remove status param from URL
+      setSearchParams({});
+    } else if (status === 'error') {
+      toast({
+        title: "Erro na integração",
+        description: "Não foi possível conectar. Tente novamente.",
+        variant: "destructive",
+      });
+      setSearchParams({});
+    }
   }, []);
 
   const loadConnectedIntegrations = async () => {
