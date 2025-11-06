@@ -215,7 +215,7 @@ export default function Integrations() {
 
       // Configure Shopify OAuth URL
       // TODO: Substitua 'YOUR_SHOPIFY_CLIENT_ID' pelo seu Client ID real da app Shopify
-      const shopifyClientId = "45d6183ea04b6560f7369ade0d35cbea";
+      const shopifyClientId = "517f48d78655be55a0308aa81730221f";
       const callbackUrl = `https://fcvwogaqarkuqvumyqqm.supabase.co/functions/v1/shopify-callback`;
       const scopes = "read_products,write_products,read_orders,write_orders,read_inventory,write_inventory";
       const nonce = user.id; // Use user_id as state for validation
