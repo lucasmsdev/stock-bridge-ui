@@ -20,8 +20,17 @@ import {
   Sparkles,
   Star,
   Users,
-  Activity
+  Activity,
+  Instagram,
+  MessageCircle
 } from "lucide-react";
+import {
+  Carousel,
+  CarouselContent,
+  CarouselItem,
+  CarouselNext,
+  CarouselPrevious,
+} from "@/components/ui/carousel";
 
 const Landing = () => {
   const plans = [
@@ -143,6 +152,36 @@ const Landing = () => {
       name: "Roberto Santos",
       role: "E-commerce Owner",
       text: "A análise de lucro em tempo real é incrível. Finalmente sei quais produtos realmente dão lucro."
+    },
+    {
+      name: "Mariana Costa",
+      role: "Vendedora Shopify",
+      text: "O UniStock facilitou muito minha vida. Consigo ver tudo de forma clara e tomar decisões mais rápidas."
+    },
+    {
+      name: "João Pedro",
+      role: "Vendedor Amazon",
+      text: "Sincronização perfeita entre todas as plataformas. Nunca mais tive problema de estoque duplicado!"
+    },
+    {
+      name: "Fernanda Lima",
+      role: "Multi-marketplace",
+      text: "Dashboard intuitivo e análises precisas. Meu faturamento aumentou 40% desde que comecei a usar."
+    },
+    {
+      name: "Rafael Oliveira",
+      role: "E-commerce",
+      text: "Suporte via WhatsApp é excelente. Qualquer dúvida é resolvida rapidamente. Recomendo demais!"
+    },
+    {
+      name: "Juliana Souza",
+      role: "Vendedora Shopee",
+      text: "Relatórios completos me ajudam a identificar produtos com melhor margem. Ferramenta indispensável!"
+    },
+    {
+      name: "Diego Martins",
+      role: "Multi-plataforma",
+      text: "Interface simples e poderosa. Consigo gerenciar todos os meus canais em minutos por dia."
     }
   ];
 
@@ -402,16 +441,32 @@ const Landing = () => {
           
           <div className="grid grid-cols-2 md:grid-cols-4 gap-8 max-w-5xl mx-auto">
             <div className="flex items-center justify-center p-8 rounded-xl bg-card border-2 border-border hover:border-primary/40 hover:shadow-xl transition-all duration-300 group">
-              <PlatformLogo platform="mercadolivre" size="lg" className="w-full h-16 object-contain group-hover:scale-110 transition-transform" />
+              <img 
+                src="https://vectorseek.com/wp-content/uploads/2023/08/Mercado-Livre-Icon-Logo-Vector.svg-.png"
+                alt="Mercado Livre"
+                className="w-full h-16 object-contain group-hover:scale-110 transition-transform"
+              />
             </div>
             <div className="flex items-center justify-center p-8 rounded-xl bg-card border-2 border-border hover:border-primary/40 hover:shadow-xl transition-all duration-300 group">
-              <PlatformLogo platform="shopee" size="lg" className="w-full h-16 object-contain group-hover:scale-110 transition-transform" />
+              <img 
+                src="https://www.freepnglogos.com/uploads/shopee-logo/shopee-bag-logo-free-transparent-icon-17.png"
+                alt="Shopee"
+                className="w-full h-16 object-contain group-hover:scale-110 transition-transform"
+              />
             </div>
             <div className="flex items-center justify-center p-8 rounded-xl bg-card border-2 border-border hover:border-primary/40 hover:shadow-xl transition-all duration-300 group">
-              <PlatformLogo platform="amazon" size="lg" className="w-full h-16 object-contain group-hover:scale-110 transition-transform" />
+              <img 
+                src="https://upload.wikimedia.org/wikipedia/commons/d/de/Amazon_icon.png"
+                alt="Amazon"
+                className="w-full h-16 object-contain group-hover:scale-110 transition-transform"
+              />
             </div>
             <div className="flex items-center justify-center p-8 rounded-xl bg-card border-2 border-border hover:border-primary/40 hover:shadow-xl transition-all duration-300 group">
-              <PlatformLogo platform="shopify" size="lg" className="w-full h-16 object-contain group-hover:scale-110 transition-transform" />
+              <img 
+                src="https://cdn3.iconfinder.com/data/icons/social-media-2068/64/_shopping-512.png"
+                alt="Shopify"
+                className="w-full h-16 object-contain group-hover:scale-110 transition-transform"
+              />
             </div>
           </div>
 
@@ -458,18 +513,18 @@ const Landing = () => {
                   </div>
                 )}
                 
-                <CardContent className="p-6 space-y-6">
+                <CardContent className="p-6 flex flex-col h-full">
                   <div className="text-center space-y-2 pt-2">
                     <h3 className="font-heading text-2xl font-bold text-foreground">{plan.name}</h3>
                     <p className="text-sm text-muted-foreground min-h-[40px]">{plan.description}</p>
                   </div>
 
-                  <div className="text-center">
+                  <div className="text-center my-6">
                     <span className="text-4xl font-bold text-foreground">{plan.price}</span>
                     <span className="text-muted-foreground">{plan.period}</span>
                   </div>
 
-                  <div className="space-y-3">
+                  <div className="space-y-3 flex-grow mb-8">
                     {plan.features.map((feature, idx) => (
                       <div key={idx} className="flex items-start gap-3">
                         <CheckCircle className="h-5 w-5 text-accent flex-shrink-0 mt-0.5" />
@@ -478,25 +533,27 @@ const Landing = () => {
                     ))}
                   </div>
 
-                  <Link to={`/signup?plan=${plan.id}`}>
-                    <Button
-                      className={`w-full ${
-                        plan.popular 
-                          ? 'bg-accent hover:bg-accent/90 text-accent-foreground' 
-                          : ''
-                      }`}
-                      variant={plan.popular ? "default" : "outline"}
-                    >
-                      Testar grátis por 7 dias
-                      <ArrowRight className="ml-2 h-4 w-4" />
-                    </Button>
-                  </Link>
+                  <div className="mt-auto space-y-3">
+                    <Link to={`/signup?plan=${plan.id}`}>
+                      <Button
+                        className={`w-full ${
+                          plan.popular 
+                            ? 'bg-accent hover:bg-accent/90 text-accent-foreground' 
+                            : ''
+                        }`}
+                        variant={plan.popular ? "default" : "outline"}
+                      >
+                        Testar grátis por 7 dias
+                        <ArrowRight className="ml-2 h-4 w-4" />
+                      </Button>
+                    </Link>
 
-                  {plan.popular && (
-                    <p className="text-xs text-center text-muted-foreground">
-                      ⚡ Escolha de 73% dos nossos clientes
-                    </p>
-                  )}
+                    {plan.popular && (
+                      <p className="text-xs text-center text-muted-foreground">
+                        ⚡ Escolha de 73% dos nossos clientes
+                      </p>
+                    )}
+                  </div>
                 </CardContent>
               </Card>
             ))}
@@ -513,24 +570,38 @@ const Landing = () => {
             </h2>
           </div>
 
-          <div className="grid md:grid-cols-3 gap-8">
-            {testimonials.map((testimonial, index) => (
-              <Card key={index} className="border-border hover:border-primary/30 transition-all">
-                <CardContent className="p-6 space-y-4">
-                  <div className="flex gap-1">
-                    {[...Array(5)].map((_, i) => (
-                      <Star key={i} className="w-5 h-5 fill-accent text-accent" />
-                    ))}
+          <Carousel
+            opts={{
+              align: "start",
+              loop: true,
+            }}
+            className="w-full max-w-6xl mx-auto"
+          >
+            <CarouselContent>
+              {testimonials.map((testimonial, index) => (
+                <CarouselItem key={index} className="md:basis-1/2 lg:basis-1/3">
+                  <div className="p-1">
+                    <Card className="border-border hover:border-primary/30 transition-all h-full">
+                      <CardContent className="p-6 space-y-4">
+                        <div className="flex gap-1">
+                          {[...Array(5)].map((_, i) => (
+                            <Star key={i} className="w-5 h-5 fill-accent text-accent" />
+                          ))}
+                        </div>
+                        <p className="text-muted-foreground italic">"{testimonial.text}"</p>
+                        <div>
+                          <p className="font-heading font-semibold text-foreground">{testimonial.name}</p>
+                          <p className="text-sm text-muted-foreground">{testimonial.role}</p>
+                        </div>
+                      </CardContent>
+                    </Card>
                   </div>
-                  <p className="text-muted-foreground italic">"{testimonial.text}"</p>
-                  <div>
-                    <p className="font-heading font-semibold text-foreground">{testimonial.name}</p>
-                    <p className="text-sm text-muted-foreground">{testimonial.role}</p>
-                  </div>
-                </CardContent>
-              </Card>
-            ))}
-          </div>
+                </CarouselItem>
+              ))}
+            </CarouselContent>
+            <CarouselPrevious />
+            <CarouselNext />
+          </Carousel>
         </div>
       </section>
 
@@ -547,7 +618,7 @@ const Landing = () => {
                 Pronto para transformar sua gestão?
               </h2>
               
-              <p className="text-lg text-muted-foreground max-w-2xl mx-auto">
+              <p className="text-lg text-muted-foreground max-w-2xl mx-auto mb-8">
                 Junte-se a centenas de vendedores que já economizam tempo e aumentam seus lucros com o UniStock.
               </p>
               
@@ -579,33 +650,30 @@ const Landing = () => {
       </section>
 
       {/* Footer */}
-      <footer className="border-t border-border py-12 bg-muted/20">
+      <footer className="border-t border-border py-8 bg-muted/20">
         <div className="container mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
-          <div className="grid md:grid-cols-3 gap-8 mb-8">
-            <div>
-              <h3 className="font-heading font-bold text-lg text-primary mb-4">UniStock</h3>
-              <p className="text-sm text-muted-foreground">
-                Gestão unificada para vendedores de múltiplas plataformas
-              </p>
+          <div className="flex flex-col items-center justify-center space-y-4">
+            <div className="flex items-center gap-6">
+              <a 
+                href="https://instagram.com/unistock" 
+                target="_blank" 
+                rel="noopener noreferrer"
+                className="text-muted-foreground hover:text-primary transition-colors"
+                aria-label="Instagram"
+              >
+                <Instagram className="w-6 h-6" />
+              </a>
+              <a 
+                href="https://wa.me/5511999999999" 
+                target="_blank" 
+                rel="noopener noreferrer"
+                className="text-muted-foreground hover:text-primary transition-colors"
+                aria-label="WhatsApp"
+              >
+                <MessageCircle className="w-6 h-6" />
+              </a>
             </div>
-            <div>
-              <h4 className="font-semibold text-foreground mb-4">Links</h4>
-              <div className="space-y-2">
-                <a href="#inicio" className="block text-sm text-muted-foreground hover:text-primary transition-colors">Início</a>
-                <a href="#funcoes" className="block text-sm text-muted-foreground hover:text-primary transition-colors">Funções</a>
-                <a href="#planos" className="block text-sm text-muted-foreground hover:text-primary transition-colors">Planos</a>
-                <Link to="/login" className="block text-sm text-muted-foreground hover:text-primary transition-colors">Login</Link>
-              </div>
-            </div>
-            <div>
-              <h4 className="font-semibold text-foreground mb-4">Suporte</h4>
-              <p className="text-sm text-muted-foreground">
-                WhatsApp: Disponível para clientes
-              </p>
-            </div>
-          </div>
-          <div className="pt-8 border-t border-border text-center">
-            <p className="text-sm text-muted-foreground">
+            <p className="text-sm text-muted-foreground text-center">
               &copy; 2025 UniStock. Todos os direitos reservados.
             </p>
           </div>
