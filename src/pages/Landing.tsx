@@ -365,7 +365,7 @@ const Landing = () => {
               >
                 {plan.popular && (
                   <div className="absolute -top-4 left-1/2 transform -translate-x-1/2 z-10">
-                    <Badge className="bg-accent text-accent-foreground shadow-lg px-4 py-1 text-sm font-semibold">
+                    <Badge className="bg-accent text-accent-foreground shadow-lg px-4 py-1 text-sm font-semibold whitespace-nowrap">
                       <Sparkles className="w-3 h-3 mr-1" />
                       Mais Vendido
                     </Badge>
@@ -460,6 +460,61 @@ const Landing = () => {
                 <p className="text-muted-foreground text-xs sm:text-sm">{feature.description}</p>
               </div>
             ))}
+          </div>
+        </div>
+      </section>
+
+      {/* Partners Section */}
+      <section className="py-16 bg-gradient-to-b from-background to-muted/20">
+        <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
+          <div className="text-center mb-12">
+            <Badge variant="outline" className="mb-4 px-4 py-2 text-sm border-primary/30 text-primary bg-primary/5">
+              <Globe className="w-4 h-4 mr-2" />
+              Integrações nativas
+            </Badge>
+            <h2 className="text-3xl font-bold text-foreground sm:text-4xl mb-4">
+              Conecte todos os seus canais de venda
+            </h2>
+            <p className="text-base sm:text-lg text-muted-foreground max-w-2xl mx-auto">
+              Sincronize automaticamente com as maiores plataformas do Brasil
+            </p>
+          </div>
+          
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-8 items-center justify-items-center max-w-4xl mx-auto">
+            <div className="flex items-center justify-center p-6 rounded-xl bg-card border border-border hover:border-primary/30 hover:shadow-lg transition-all duration-300 w-full h-32">
+              <img 
+                src="/logos/mercadolivre.svg" 
+                alt="Mercado Livre" 
+                className="w-full h-auto max-w-[140px] object-contain"
+              />
+            </div>
+            <div className="flex items-center justify-center p-6 rounded-xl bg-card border border-border hover:border-primary/30 hover:shadow-lg transition-all duration-300 w-full h-32">
+              <img 
+                src="/logos/shopee.svg" 
+                alt="Shopee" 
+                className="w-full h-auto max-w-[140px] object-contain"
+              />
+            </div>
+            <div className="flex items-center justify-center p-6 rounded-xl bg-card border border-border hover:border-primary/30 hover:shadow-lg transition-all duration-300 w-full h-32">
+              <img 
+                src="/logos/amazon.svg" 
+                alt="Amazon" 
+                className="w-full h-auto max-w-[140px] object-contain"
+              />
+            </div>
+            <div className="flex items-center justify-center p-6 rounded-xl bg-card border border-border hover:border-primary/30 hover:shadow-lg transition-all duration-300 w-full h-32">
+              <img 
+                src="/logos/shopify.svg" 
+                alt="Shopify" 
+                className="w-full h-auto max-w-[140px] object-contain"
+              />
+            </div>
+          </div>
+
+          <div className="mt-12 text-center">
+            <p className="text-sm text-muted-foreground">
+              Mais integrações em breve • Sugestões? Fale com a gente no WhatsApp
+            </p>
           </div>
         </div>
       </section>
