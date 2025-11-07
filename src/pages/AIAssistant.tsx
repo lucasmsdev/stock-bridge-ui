@@ -392,18 +392,16 @@ const AIAssistant = () => {
                 {conversations.map((conv) => (
                   <div
                     key={conv.id}
-                    className={`group flex items-center gap-2 p-3 rounded-lg transition-colors ${
+                    className={`group flex items-center gap-2 p-3 rounded-lg transition-all duration-200 cursor-pointer ${
                       conversationId === conv.id
                         ? 'bg-primary/10 border border-primary/20'
                         : 'hover:bg-muted'
                     }`}
+                    onClick={() => loadConversationById(conv.id)}
                   >
-                    <button
-                      onClick={() => loadConversationById(conv.id)}
-                      className="flex-1 text-left text-sm truncate cursor-pointer"
-                    >
+                    <span className="flex-1 text-left text-sm truncate">
                       {conv.title}
-                    </button>
+                    </span>
                     <Button
                       size="sm"
                       variant="ghost"
@@ -412,7 +410,7 @@ const AIAssistant = () => {
                         e.stopPropagation();
                         deleteConversation(conv.id);
                       }}
-                      className="h-7 w-7 p-0 flex-shrink-0 hover:bg-destructive/10"
+                      className="h-7 w-7 p-0 flex-shrink-0 opacity-0 group-hover:opacity-100 hover:bg-destructive/10 transition-opacity duration-200"
                     >
                       <Trash2 className="h-3.5 w-3.5 text-destructive" />
                     </Button>
