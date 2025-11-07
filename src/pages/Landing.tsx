@@ -131,9 +131,9 @@ const Landing = () => {
       description: "Acompanhe seu lucro diário, semanal e mensal em segundos"
     },
     {
-      icon: FileText,
-      title: "Relatórios Completos",
-      description: "Informações que ajudam a melhorar sua lucratividade"
+      icon: Sparkles,
+      title: "IA Inteligente",
+      description: "Assistente de IA para criar anúncios, descobrir concorrentes e melhorar sua lucratividade"
     }
   ];
 
