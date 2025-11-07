@@ -219,12 +219,15 @@ const Landing = () => {
       </header>
 
       {/* Hero Section */}
-      <section id="inicio" className="pt-32 pb-20 px-4 sm:px-6 lg:px-8 scroll-mt-16">
-        <div className="container mx-auto max-w-7xl">
+      <section id="inicio" className="relative pt-32 pb-20 px-4 sm:px-6 lg:px-8 scroll-mt-16 overflow-hidden">
+        {/* Animated background gradient */}
+        <div className="absolute inset-0 bg-gradient-to-br from-primary/5 via-transparent to-accent/5 animate-pulse" style={{ animationDuration: '8s' }} />
+        
+        <div className="container mx-auto max-w-7xl relative z-10">
           <div className="grid lg:grid-cols-2 gap-12 items-center">
             <div className="space-y-8 animate-fade-in">
-              <Badge className="bg-accent/10 text-accent border-accent/30 px-4 py-2">
-                <Activity className="w-4 h-4 mr-2" />
+              <Badge className="bg-accent/10 text-accent border-accent/30 px-4 py-2 hover:bg-accent/20 transition-all hover:scale-105">
+                <Activity className="w-4 h-4 mr-2 animate-pulse" style={{ animationDuration: '3s' }} />
                 347 vendedores já confiam no UniStock
               </Badge>
               
@@ -240,13 +243,13 @@ const Landing = () => {
               
               <div className="flex flex-col sm:flex-row gap-4">
                 <a href="#planos">
-                  <Button size="lg" className="w-full sm:w-auto bg-accent hover:bg-accent/90 text-accent-foreground group">
+                  <Button size="lg" className="w-full sm:w-auto bg-accent hover:bg-accent/90 text-accent-foreground group hover:shadow-lg hover:shadow-accent/50 transition-all hover:scale-105">
                     Começar agora
                     <ArrowRight className="ml-2 h-5 w-5 group-hover:translate-x-1 transition-transform" />
                   </Button>
                 </a>
                 <Link to="/login">
-                  <Button size="lg" variant="outline" className="w-full sm:w-auto">
+                  <Button size="lg" variant="outline" className="w-full sm:w-auto hover:bg-accent/10 hover:border-accent transition-all">
                     Já tenho conta
                   </Button>
                 </Link>
@@ -268,12 +271,12 @@ const Landing = () => {
               </div>
             </div>
 
-            <div className="relative animate-fade-in" style={{ animationDelay: '0.2s' }}>
-              <div className="absolute inset-0 bg-gradient-to-br from-primary/20 to-accent/20 rounded-2xl blur-3xl" />
+            <div className="relative animate-fade-in group" style={{ animationDelay: '0.2s' }}>
+              <div className="absolute inset-0 bg-gradient-to-br from-primary/20 to-accent/20 rounded-2xl blur-3xl group-hover:blur-2xl transition-all" />
               <img
                 src="/images/dashboard-hover-preview.png"
                 alt="Dashboard UniStock"
-                className="relative rounded-2xl shadow-2xl border border-border"
+                className="relative rounded-2xl shadow-2xl border border-border group-hover:shadow-primary/20 group-hover:scale-[1.02] transition-all duration-300"
               />
             </div>
           </div>
@@ -311,17 +314,17 @@ const Landing = () => {
           </div>
 
           <div className="grid md:grid-cols-2 gap-12 items-center mb-20">
-            <div>
+            <div className="group">
               <img
                 src="/images/dashboard-real-preview.png"
                 alt="Visão geral do sistema"
-                className="rounded-xl shadow-lg border border-border"
+                className="rounded-xl shadow-lg border border-border group-hover:shadow-2xl group-hover:shadow-primary/10 group-hover:scale-[1.02] transition-all duration-300"
               />
             </div>
             <div className="space-y-6">
-              <div className="flex gap-4">
+              <div className="flex gap-4 group hover:translate-x-2 transition-transform duration-300">
                 <div className="flex-shrink-0">
-                  <div className="w-12 h-12 rounded-lg bg-accent/10 flex items-center justify-center">
+                  <div className="w-12 h-12 rounded-lg bg-accent/10 flex items-center justify-center group-hover:bg-accent/20 group-hover:scale-110 transition-all duration-300">
                     <Zap className="w-6 h-6 text-accent" />
                   </div>
                 </div>
@@ -331,9 +334,9 @@ const Landing = () => {
                 </div>
               </div>
 
-              <div className="flex gap-4">
+              <div className="flex gap-4 group hover:translate-x-2 transition-transform duration-300">
                 <div className="flex-shrink-0">
-                  <div className="w-12 h-12 rounded-lg bg-primary/10 flex items-center justify-center">
+                  <div className="w-12 h-12 rounded-lg bg-primary/10 flex items-center justify-center group-hover:bg-primary/20 group-hover:scale-110 transition-all duration-300">
                     <BarChart3 className="w-6 h-6 text-primary" />
                   </div>
                 </div>
@@ -343,9 +346,9 @@ const Landing = () => {
                 </div>
               </div>
 
-              <div className="flex gap-4">
+              <div className="flex gap-4 group hover:translate-x-2 transition-transform duration-300">
                 <div className="flex-shrink-0">
-                  <div className="w-12 h-12 rounded-lg bg-accent/10 flex items-center justify-center">
+                  <div className="w-12 h-12 rounded-lg bg-accent/10 flex items-center justify-center group-hover:bg-accent/20 group-hover:scale-110 transition-all duration-300">
                     <Clock className="w-6 h-6 text-accent" />
                   </div>
                 </div>
@@ -373,12 +376,12 @@ const Landing = () => {
 
           <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-8">
             {features.map((feature, index) => (
-              <Card key={index} className="border-border hover:border-primary/30 transition-all hover:shadow-lg">
+              <Card key={index} className="border-border hover:border-primary/30 transition-all hover:shadow-xl hover:shadow-primary/10 hover:-translate-y-2 duration-300 group">
                 <CardContent className="p-6 space-y-4">
-                  <div className="w-12 h-12 rounded-lg bg-primary/10 flex items-center justify-center">
+                  <div className="w-12 h-12 rounded-lg bg-primary/10 flex items-center justify-center group-hover:bg-primary/20 group-hover:scale-110 transition-all duration-300">
                     <feature.icon className="w-6 h-6 text-primary" />
                   </div>
-                  <h3 className="font-heading font-semibold text-foreground text-lg">
+                  <h3 className="font-heading font-semibold text-foreground text-lg group-hover:text-primary transition-colors">
                     {feature.title}
                   </h3>
                   <p className="text-muted-foreground">
@@ -401,21 +404,21 @@ const Landing = () => {
           </div>
 
           <div className="grid md:grid-cols-3 gap-8">
-            <Card className="border-accent/30 text-center">
+            <Card className="border-accent/30 text-center hover:border-accent hover:shadow-xl hover:shadow-accent/20 hover:-translate-y-2 transition-all duration-300 group">
               <CardContent className="p-8 space-y-4">
-                <div className="text-5xl font-bold text-accent">347+</div>
+                <div className="text-5xl font-bold text-accent group-hover:scale-110 transition-transform inline-block">347+</div>
                 <p className="text-muted-foreground">Clientes ativos</p>
               </CardContent>
             </Card>
-            <Card className="border-primary/30 text-center">
+            <Card className="border-primary/30 text-center hover:border-primary hover:shadow-xl hover:shadow-primary/20 hover:-translate-y-2 transition-all duration-300 group">
               <CardContent className="p-8 space-y-4">
-                <div className="text-5xl font-bold text-primary">90h</div>
+                <div className="text-5xl font-bold text-primary group-hover:scale-110 transition-transform inline-block">90h</div>
                 <p className="text-muted-foreground">Economizadas por mês</p>
               </CardContent>
             </Card>
-            <Card className="border-accent/30 text-center">
+            <Card className="border-accent/30 text-center hover:border-accent hover:shadow-xl hover:shadow-accent/20 hover:-translate-y-2 transition-all duration-300 group">
               <CardContent className="p-8 space-y-4">
-                <div className="text-5xl font-bold text-accent">4</div>
+                <div className="text-5xl font-bold text-accent group-hover:scale-110 transition-transform inline-block">4</div>
                 <p className="text-muted-foreground">Plataformas integradas</p>
               </CardContent>
             </Card>
@@ -498,10 +501,10 @@ const Landing = () => {
             {plans.map((plan, index) => (
               <Card 
                 key={index} 
-                className={`relative border transition-all duration-300 hover:shadow-xl ${
+                className={`relative border transition-all duration-300 hover:shadow-2xl hover:-translate-y-2 ${
                   plan.popular 
-                    ? 'border-primary ring-2 ring-primary/30 shadow-lg scale-105 bg-gradient-to-b from-primary/5 to-background' 
-                    : 'border-border hover:border-primary/30'
+                    ? 'border-primary ring-2 ring-primary/30 shadow-xl hover:shadow-primary/30 scale-105 bg-gradient-to-b from-primary/5 to-background' 
+                    : 'border-border hover:border-primary/40 hover:shadow-primary/20'
                 }`}
               >
                 {plan.popular && (
@@ -536,15 +539,15 @@ const Landing = () => {
                   <div className="mt-auto space-y-3">
                     <Link to={`/signup?plan=${plan.id}`}>
                       <Button
-                        className={`w-full ${
+                        className={`w-full transition-all group ${
                           plan.popular 
-                            ? 'bg-accent hover:bg-accent/90 text-accent-foreground' 
-                            : ''
+                            ? 'bg-accent hover:bg-accent/90 text-accent-foreground hover:shadow-lg hover:shadow-accent/50 hover:scale-105' 
+                            : 'hover:bg-accent/10 hover:border-accent'
                         }`}
                         variant={plan.popular ? "default" : "outline"}
                       >
                         Testar grátis por 7 dias
-                        <ArrowRight className="ml-2 h-4 w-4" />
+                        <ArrowRight className="ml-2 h-4 w-4 group-hover:translate-x-1 transition-transform" />
                       </Button>
                     </Link>
 
@@ -581,16 +584,16 @@ const Landing = () => {
               {testimonials.map((testimonial, index) => (
                 <CarouselItem key={index} className="md:basis-1/2 lg:basis-1/3">
                   <div className="p-1">
-                    <Card className="border-border hover:border-primary/30 transition-all h-full">
+                    <Card className="border-border hover:border-primary/30 hover:shadow-xl hover:shadow-primary/10 hover:-translate-y-2 transition-all duration-300 h-full group">
                       <CardContent className="p-6 space-y-4">
                         <div className="flex gap-1">
                           {[...Array(5)].map((_, i) => (
-                            <Star key={i} className="w-5 h-5 fill-accent text-accent" />
+                            <Star key={i} className="w-5 h-5 fill-accent text-accent group-hover:scale-110 transition-transform" />
                           ))}
                         </div>
                         <p className="text-muted-foreground italic">"{testimonial.text}"</p>
                         <div>
-                          <p className="font-heading font-semibold text-foreground">{testimonial.name}</p>
+                          <p className="font-heading font-semibold text-foreground group-hover:text-primary transition-colors">{testimonial.name}</p>
                           <p className="text-sm text-muted-foreground">{testimonial.role}</p>
                         </div>
                       </CardContent>
@@ -606,11 +609,14 @@ const Landing = () => {
       </section>
 
       {/* Final CTA */}
-      <section className="py-20 px-4 sm:px-6 lg:px-8">
-        <div className="container mx-auto max-w-4xl">
-          <Card className="border-primary/30 bg-gradient-to-br from-primary/5 to-accent/5">
+      <section className="py-20 px-4 sm:px-6 lg:px-8 relative overflow-hidden">
+        {/* Animated background */}
+        <div className="absolute inset-0 bg-gradient-to-br from-primary/5 via-transparent to-accent/5 animate-pulse" style={{ animationDuration: '8s' }} />
+        
+        <div className="container mx-auto max-w-4xl relative z-10">
+          <Card className="border-primary/30 bg-gradient-to-br from-primary/5 to-accent/5 hover:border-primary/50 hover:shadow-2xl hover:shadow-primary/20 hover:scale-[1.02] transition-all duration-300">
             <CardContent className="p-12 text-center space-y-6">
-              <div className="inline-block p-3 bg-accent/10 rounded-full mb-4">
+              <div className="inline-block p-3 bg-accent/10 rounded-full mb-4 animate-pulse" style={{ animationDuration: '3s' }}>
                 <Users className="w-8 h-8 text-accent" />
               </div>
               
@@ -623,7 +629,7 @@ const Landing = () => {
               </p>
               
               <a href="#planos">
-                <Button size="lg" className="bg-accent hover:bg-accent/90 text-accent-foreground font-semibold group">
+                <Button size="lg" className="bg-accent hover:bg-accent/90 text-accent-foreground font-semibold group hover:shadow-2xl hover:shadow-accent/50 hover:scale-110 transition-all">
                   <Sparkles className="mr-2 h-5 w-5" />
                   Começar teste grátis agora
                   <ArrowRight className="ml-2 h-5 w-5 group-hover:translate-x-1 transition-transform" />
