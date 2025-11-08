@@ -392,31 +392,31 @@ const AIAssistant = () => {
                 {conversations.map((conv) => (
                   <div
                     key={conv.id}
-                    className={`flex items-center gap-2 p-2 rounded-lg transition-all duration-200 ${
+                    className={`flex items-center justify-between gap-2 p-2 rounded-lg transition-all duration-200 ${
                       conversationId === conv.id
                         ? 'bg-primary/10 border border-primary/20'
                         : 'hover:bg-muted'
                     }`}
-                    style={{ maxWidth: '100%' }}
                   >
                     <button
                       onClick={() => loadConversationById(conv.id)}
-                      className="flex-1 text-left text-sm truncate overflow-hidden"
-                      style={{ minWidth: 0 }}
+                      className="flex-1 text-left text-sm truncate min-w-0"
                     >
                       {conv.title}
                     </button>
-                    <button
+                    <Button
+                      size="icon"
+                      variant="ghost"
                       onClick={(e) => {
                         e.preventDefault();
                         e.stopPropagation();
                         deleteConversation(conv.id);
                       }}
-                      className="flex-shrink-0 w-8 h-8 flex items-center justify-center rounded hover:bg-destructive/20 text-muted-foreground hover:text-destructive transition-all"
+                      className="flex-shrink-0 h-8 w-8 text-muted-foreground hover:text-destructive hover:bg-destructive/10"
                       title="Excluir conversa"
                     >
                       <Trash2 className="h-4 w-4" />
-                    </button>
+                    </Button>
                   </div>
                 ))}
               </div>

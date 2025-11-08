@@ -19,6 +19,13 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   useEffect(() => {
     console.log('🔐 useAuth: Inicializando autenticação...');
     
+    // IMPORTANTE: A sessão já persiste automaticamente por várias horas
+    // O Supabase está configurado com:
+    // - localStorage para armazenar o token
+    // - persistSession: true para manter a sessão
+    // - autoRefreshToken: true para renovar automaticamente (token válido por 1h, renova antes de expirar)
+    // Isso significa que o usuário ficará logado por várias horas automaticamente
+    
     // Set up auth state listener FIRST
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       (event, session) => {

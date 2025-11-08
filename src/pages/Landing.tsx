@@ -24,13 +24,6 @@ import {
   Instagram,
   MessageCircle
 } from "lucide-react";
-import {
-  Carousel,
-  CarouselContent,
-  CarouselItem,
-  CarouselNext,
-  CarouselPrevious,
-} from "@/components/ui/carousel";
 
 const Landing = () => {
   const plans = [
@@ -137,53 +130,6 @@ const Landing = () => {
     }
   ];
 
-  const testimonials = [
-    {
-      name: "Carlos Mendes",
-      role: "Vendedor Mercado Livre",
-      text: "Antes eu ficava perdido em planilhas. Agora tenho tudo em um só lugar e sei exatamente quanto estou lucrando."
-    },
-    {
-      name: "Ana Paula Silva",
-      role: "Vendedora Multi-plataforma",
-      text: "Economizo mais de 3 horas por dia. O estoque sincroniza automaticamente em todos os canais. Mudou minha operação!"
-    },
-    {
-      name: "Roberto Santos",
-      role: "E-commerce Owner",
-      text: "A análise de lucro em tempo real é incrível. Finalmente sei quais produtos realmente dão lucro."
-    },
-    {
-      name: "Mariana Costa",
-      role: "Vendedora Shopify",
-      text: "O UniStock facilitou muito minha vida. Consigo ver tudo de forma clara e tomar decisões mais rápidas."
-    },
-    {
-      name: "João Pedro",
-      role: "Vendedor Amazon",
-      text: "Sincronização perfeita entre todas as plataformas. Nunca mais tive problema de estoque duplicado!"
-    },
-    {
-      name: "Fernanda Lima",
-      role: "Multi-marketplace",
-      text: "Dashboard intuitivo e análises precisas. Meu faturamento aumentou 40% desde que comecei a usar."
-    },
-    {
-      name: "Rafael Oliveira",
-      role: "E-commerce",
-      text: "Suporte via WhatsApp é excelente. Qualquer dúvida é resolvida rapidamente. Recomendo demais!"
-    },
-    {
-      name: "Juliana Souza",
-      role: "Vendedora Shopee",
-      text: "Relatórios completos me ajudam a identificar produtos com melhor margem. Ferramenta indispensável!"
-    },
-    {
-      name: "Diego Martins",
-      role: "Multi-plataforma",
-      text: "Interface simples e poderosa. Consigo gerenciar todos os meus canais em minutos por dia."
-    }
-  ];
 
   return (
     <div className="min-h-screen bg-background font-body">
@@ -564,49 +510,6 @@ const Landing = () => {
         </div>
       </section>
 
-      {/* Testimonials */}
-      <section className="py-20 bg-muted/30">
-        <div className="container mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
-          <div className="text-center mb-16">
-            <h2 className="font-heading text-3xl sm:text-4xl font-bold text-foreground mb-4">
-              O que nossos clientes dizem
-            </h2>
-          </div>
-
-          <Carousel
-            opts={{
-              align: "start",
-              loop: true,
-            }}
-            className="w-full max-w-6xl mx-auto"
-          >
-            <CarouselContent>
-              {testimonials.map((testimonial, index) => (
-                <CarouselItem key={index} className="md:basis-1/2 lg:basis-1/3">
-                  <div className="p-1">
-                    <Card className="border-border hover:border-primary/30 hover:shadow-xl hover:shadow-primary/10 hover:-translate-y-2 transition-all duration-300 h-full group">
-                      <CardContent className="p-6 space-y-4">
-                        <div className="flex gap-1">
-                          {[...Array(5)].map((_, i) => (
-                            <Star key={i} className="w-5 h-5 fill-accent text-accent group-hover:scale-110 transition-transform" />
-                          ))}
-                        </div>
-                        <p className="text-muted-foreground italic">"{testimonial.text}"</p>
-                        <div>
-                          <p className="font-heading font-semibold text-foreground group-hover:text-primary transition-colors">{testimonial.name}</p>
-                          <p className="text-sm text-muted-foreground">{testimonial.role}</p>
-                        </div>
-                      </CardContent>
-                    </Card>
-                  </div>
-                </CarouselItem>
-              ))}
-            </CarouselContent>
-            <CarouselPrevious />
-            <CarouselNext />
-          </Carousel>
-        </div>
-      </section>
 
       {/* Final CTA */}
       <section className="py-20 px-4 sm:px-6 lg:px-8 relative overflow-hidden">
