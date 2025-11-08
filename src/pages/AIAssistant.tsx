@@ -367,9 +367,9 @@ const AIAssistant = () => {
         </p>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-4 gap-4">
+      <div className="grid grid-cols-1 lg:grid-cols-[minmax(280px,1fr)_2fr] gap-4">
         {/* Sidebar with conversations */}
-        <Card className="lg:col-span-1 shadow-lg">
+        <Card className="shadow-lg">
           <CardHeader className="border-b bg-muted/30">
             <CardTitle className="flex items-center justify-between text-base">
               <span className="flex items-center gap-2">
@@ -425,7 +425,7 @@ const AIAssistant = () => {
         </Card>
 
         {/* Chat area */}
-        <Card className="lg:col-span-3 shadow-lg">
+        <Card className="shadow-lg">
         <CardHeader className="border-b bg-muted/30">
           <CardTitle className="flex items-center gap-2">
             <Bot className="h-5 w-5 text-primary" />
