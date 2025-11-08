@@ -387,12 +387,12 @@ const AIAssistant = () => {
             </CardTitle>
           </CardHeader>
           <CardContent className="p-0">
-            <ScrollArea className="h-[500px] md:h-[600px]">
-              <div className="space-y-1 p-2">
+            <ScrollArea className="h-[500px] md:h-[600px] w-full">
+              <div className="space-y-1 p-2 w-full">
                 {conversations.map((conv) => (
                   <div
                     key={conv.id}
-                    className={`flex items-center gap-2 p-2 rounded-lg transition-all duration-200 ${
+                    className={`flex items-center gap-2 p-2 rounded-lg transition-all duration-200 w-full max-w-full ${
                       conversationId === conv.id
                         ? 'bg-primary/10 border border-primary/20'
                         : 'hover:bg-muted'
@@ -400,8 +400,7 @@ const AIAssistant = () => {
                   >
                     <button
                       onClick={() => loadConversationById(conv.id)}
-                      className="text-left text-sm truncate overflow-hidden"
-                      style={{ flex: '1 1 0', minWidth: '0' }}
+                      className="text-left text-sm truncate overflow-hidden flex-1 min-w-0"
                     >
                       {conv.title}
                     </button>
@@ -413,7 +412,7 @@ const AIAssistant = () => {
                         e.stopPropagation();
                         deleteConversation(conv.id);
                       }}
-                      className="h-8 w-8 flex-shrink-0 text-muted-foreground hover:text-destructive hover:bg-destructive/10"
+                      className="h-8 w-8 shrink-0 text-muted-foreground hover:text-destructive hover:bg-destructive/10"
                       title="Excluir conversa"
                     >
                       <Trash2 className="h-4 w-4" />
