@@ -143,7 +143,7 @@ const Landing = () => {
               key={isDark ? 'dark-logo' : 'light-logo'}
               src={isDark ? '/logos/unistock-dark.png' : '/logos/unistock-light.png'}
               alt="UniStock Logo"
-              className="h-48 w-auto"
+              className="h-16 md:h-24 lg:h-32 w-auto"
             />
             <nav className="hidden md:flex items-center space-x-8">
               <a href="#inicio" className="text-sm font-medium text-muted-foreground hover:text-primary transition-colors">
