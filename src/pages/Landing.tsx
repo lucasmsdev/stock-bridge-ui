@@ -140,6 +140,7 @@ const Landing = () => {
         <div className="container mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex items-center justify-between h-16">
             <img 
+              key={isDark ? 'dark-logo' : 'light-logo'}
               src={isDark ? '/logos/unistock-dark.png' : '/logos/unistock-light.png'}
               alt="UniStock Logo"
               className="h-48 w-auto"
