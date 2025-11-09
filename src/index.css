@@ -25,23 +25,23 @@ All colors MUST be HSL.
     --popover-foreground: 0 0% 7%;
 
     /* UniStock Brand Colors - Light Mode */
-    --primary: 210 32% 30%; /* #344966 - Azul petróleo */
+    --primary: 210 32% 30%; /* #344966 - Azul petróleo (Harvest gold) */
     --primary-foreground: 0 0% 100%;
     --primary-hover: 210 32% 24%;
     --primary-glow: 210 32% 45%;
 
-    --secondary: 38 95% 45%; /* #df8f06 - Laranja dourado */
+    --secondary: 38 95% 45%; /* #DF8F06 - Laranja dourado (Indigo days) */
     --secondary-foreground: 0 0% 100%;
 
-    --accent: 156 70% 56%; /* #3DDC97 - Verde menta suave */
+    --accent: 154 69% 55%; /* #3DDC97 - Verde menta */
     --accent-foreground: 0 0% 7%;
 
-    --success: 156 70% 56%; /* #3DDC97 - Verde menta */
+    --success: 154 69% 55%; /* #3DDC97 - Verde menta */
     --success-foreground: 0 0% 7%;
-    --success-muted: 156 60% 90%;
+    --success-muted: 154 60% 90%;
 
-    --muted: 217 15% 96%;
-    --muted-foreground: 217 10% 45%;
+    --muted: 210 15% 96%;
+    --muted-foreground: 210 10% 45%;
 
     /* Status colors */
     --destructive: 0 84% 60%; /* #EF4444 - Vermelho */
@@ -51,15 +51,15 @@ All colors MUST be HSL.
     --warning-foreground: 0 0% 7%;
 
     /* UI elements */
-    --border: 217 20% 90%;
-    --input: 217 20% 90%;
-    --ring: 217 85% 31%;
+    --border: 210 20% 90%;
+    --input: 210 20% 90%;
+    --ring: 210 32% 30%;
 
     /* Gradients */
     --gradient-primary: linear-gradient(135deg, hsl(210 32% 30%), hsl(210 32% 45%));
     --gradient-secondary: linear-gradient(135deg, hsl(38 95% 45%), hsl(38 95% 55%));
-    --gradient-accent: linear-gradient(135deg, hsl(156 70% 56%), hsl(156 70% 65%));
-    --gradient-success: linear-gradient(135deg, hsl(156 70% 56%), hsl(156 70% 65%));
+    --gradient-accent: linear-gradient(135deg, hsl(154 69% 55%), hsl(154 69% 65%));
+    --gradient-success: linear-gradient(135deg, hsl(154 69% 55%), hsl(154 69% 65%));
     --gradient-subtle: linear-gradient(180deg, hsl(0 0% 100%), hsl(210 20% 98%));
 
     /* Shadows */
@@ -88,23 +88,23 @@ All colors MUST be HSL.
     --popover-foreground: 0 0% 100%;
 
     /* UniStock Brand Colors - Dark Mode */
-    --primary: 210 32% 30%; /* #344966 - Azul petróleo */
+    --primary: 210 32% 30%; /* #344966 - Azul petróleo (Harvest gold) */
     --primary-foreground: 0 0% 100%;
     --primary-hover: 210 32% 38%;
     --primary-glow: 210 32% 50%;
 
-    --secondary: 38 95% 45%; /* #df8f06 - Laranja dourado */
+    --secondary: 38 95% 45%; /* #DF8F06 - Laranja dourado (Indigo days) */
     --secondary-foreground: 0 0% 100%;
 
-    --accent: 156 70% 56%; /* #3DDC97 - Verde menta suave */
+    --accent: 154 69% 55%; /* #3DDC97 - Verde menta */
     --accent-foreground: 0 0% 7%;
 
-    --success: 156 70% 56%; /* #3DDC97 - Verde menta */
+    --success: 154 69% 55%; /* #3DDC97 - Verde menta */
     --success-foreground: 0 0% 7%;
-    --success-muted: 156 30% 25%;
+    --success-muted: 154 30% 25%;
 
-    --muted: 217 10% 18%;
-    --muted-foreground: 217 10% 65%;
+    --muted: 210 10% 18%;
+    --muted-foreground: 210 10% 65%;
 
     /* Status colors (dark mode) */
     --destructive: 0 84% 60%; /* #EF4444 - Vermelho */
@@ -114,21 +114,21 @@ All colors MUST be HSL.
     --warning-foreground: 0 0% 7%;
 
     /* UI elements (dark mode) */
-    --border: 217 15% 20%;
-    --input: 217 15% 20%;
-    --ring: 156 70% 56%;
+    --border: 210 15% 20%;
+    --input: 210 15% 20%;
+    --ring: 154 69% 55%;
 
     /* Gradients (dark mode) */
     --gradient-primary: linear-gradient(135deg, hsl(210 32% 30%), hsl(210 32% 50%));
     --gradient-secondary: linear-gradient(135deg, hsl(38 95% 45%), hsl(38 95% 55%));
-    --gradient-accent: linear-gradient(135deg, hsl(156 70% 56%), hsl(156 70% 65%));
-    --gradient-success: linear-gradient(135deg, hsl(156 70% 56%), hsl(156 70% 65%));
+    --gradient-accent: linear-gradient(135deg, hsl(154 69% 55%), hsl(154 69% 65%));
+    --gradient-success: linear-gradient(135deg, hsl(154 69% 55%), hsl(154 69% 65%));
     --gradient-subtle: linear-gradient(180deg, hsl(0 0% 7%), hsl(210 15% 12%));
 
     /* Shadows (dark mode) */
     --shadow-soft: 0 2px 8px hsl(0 0% 0% / 0.4);
     --shadow-medium: 0 4px 16px hsl(0 0% 0% / 0.5);
-    --shadow-primary: 0 8px 24px hsl(156 70% 56% / 0.15);
+    --shadow-primary: 0 8px 24px hsl(154 69% 55% / 0.15);
   }
 }
 
