@@ -13,7 +13,7 @@ All colors MUST be HSL.
   
   :root {
     /* Light Mode - UNISTOCK Design System */
-    --background: 0 0% 100%; /* #FFFFFF */
+    --background: 0 0% 95%; /* #F1F1F1 */
     --foreground: 0 0% 7%; /* #121212 */
 
     /* Card components */
