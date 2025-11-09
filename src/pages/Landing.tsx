@@ -5,6 +5,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { ThemeToggle } from "@/components/ui/theme-toggle";
 import { PlatformLogo } from "@/components/ui/platform-logo";
+import { useTheme } from "@/hooks/useTheme";
 import { 
   ArrowRight, 
   CheckCircle, 
@@ -26,6 +27,7 @@ import {
 } from "lucide-react";
 
 const Landing = () => {
+  const { isDark } = useTheme();
   const plans = [
     {
       id: "estrategista",
@@ -137,7 +139,11 @@ const Landing = () => {
       <header className="fixed top-0 left-0 right-0 z-50 bg-background/95 backdrop-blur-sm border-b border-border">
         <div className="container mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex items-center justify-between h-16">
-            <div className="font-heading font-bold text-xl text-primary">UniStock</div>
+            <img 
+              src={isDark ? '/logos/unistock-dark.png' : '/logos/unistock-light.png'}
+              alt="UniStock Logo"
+              className="h-8 w-auto"
+            />
             <nav className="hidden md:flex items-center space-x-8">
               <a href="#inicio" className="text-sm font-medium text-muted-foreground hover:text-primary transition-colors">
                 Início
