@@ -4,7 +4,6 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { PlatformLogo } from "@/components/ui/platform-logo";
 import {
   Select,
   SelectContent,
@@ -49,6 +48,13 @@ interface FormattedOrder {
 
 const channels = ["Todos os Canais", "Mercado Livre", "Shopify"];
 const statuses = ["Todos os Status", "Processando", "Enviado", "Entregue", "Cancelado", "Aguardando Pagamento"];
+
+const platformLogos: Record<string, { url: string; darkInvert?: boolean }> = {
+  mercadolivre: { url: "https://vectorseek.com/wp-content/uploads/2023/08/Mercado-Livre-Icon-Logo-Vector.svg-.png" },
+  shopify: { url: "https://cdn3.iconfinder.com/data/icons/social-media-2068/64/_shopping-512.png" },
+  amazon: { url: "https://upload.wikimedia.org/wikipedia/commons/d/de/Amazon_icon.png", darkInvert: true },
+  shopee: { url: "https://www.freepnglogos.com/uploads/shopee-logo/shopee-bag-logo-free-transparent-icon-17.png" },
+};
 
 const getRandomStatus = () => {
   const statusOptions = [
@@ -311,9 +317,20 @@ export default function Orders() {
                     </code>
                   </TableCell>
                   <TableCell>
-                    <div className="flex items-center gap-2">
-                      <PlatformLogo platform={order.channel} size="sm" />
-                      <span className="font-medium">{order.channel}</span>
+                    <div className="flex items-center gap-1">
+                      {(() => {
+                        const platformKey = order.channel.toLowerCase().replace(/\s+/g, '');
+                        const logoConfig = platformLogos[platformKey];
+                        return logoConfig ? (
+                          <img
+                            src={logoConfig.url}
+                            alt={`${order.channel} logo`}
+                            className={`h-6 w-auto object-contain ${logoConfig.darkInvert ? 'dark:invert' : ''}`}
+                          />
+                        ) : (
+                          <span className="text-lg">🛍️</span>
+                        );
+                      })()}
                     </div>
                   </TableCell>
                   <TableCell>
