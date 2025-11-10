@@ -14,7 +14,7 @@ export const AppLayout = () => {
   const { user, isLoading } = useAuth();
   const { theme, toggleTheme } = useThemeProvider();
   const { currentPlan, isLoading: planLoading } = usePlan();
-  const [sidebarOpen, setSidebarOpen] = useState(true);
+  const [sidebarOpen, setSidebarOpen] = useState(false);
   const [isCheckingSubscription, setIsCheckingSubscription] = useState(true);
   const [hasActiveSubscription, setHasActiveSubscription] = useState(false);
   const location = useLocation();
