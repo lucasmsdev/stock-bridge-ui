@@ -59,11 +59,11 @@ const platformLogos: Record<string, { url: string; darkInvert?: boolean }> = {
 
 const getRandomStatus = () => {
   const statusOptions = [
-    { status: "Processando", color: "bg-primary" },
-    { status: "Enviado", color: "bg-success" },
-    { status: "Entregue", color: "bg-success" },
-    { status: "Cancelado", color: "bg-destructive" },
-    { status: "Aguardando Pagamento", color: "bg-warning" }
+    { status: "Processando", color: "bg-warning text-warning-foreground" },
+    { status: "Enviado", color: "bg-primary text-primary-foreground" },
+    { status: "Entregue", color: "bg-success text-success-foreground" },
+    { status: "Cancelado", color: "bg-destructive text-destructive-foreground" },
+    { status: "Aguardando Pagamento", color: "bg-[#DF8F06] text-white" }
   ];
   return statusOptions[Math.floor(Math.random() * statusOptions.length)];
 };
@@ -298,7 +298,7 @@ export default function Orders() {
             <TableHeader>
               <TableRow>
                 <TableHead>ID do Pedido</TableHead>
-                <TableHead>Canal</TableHead>
+                <TableHead className="text-center">Canal</TableHead>
                 <TableHead>Data</TableHead>
                 <TableHead>Cliente</TableHead>
                 <TableHead>Itens</TableHead>
@@ -352,8 +352,7 @@ export default function Orders() {
                   </TableCell>
                   <TableCell>
                     <Badge 
-                      variant="secondary" 
-                      className={`${order.statusColor} text-white`}
+                      className={`${order.statusColor} border-0`}
                     >
                       {order.status}
                     </Badge>
