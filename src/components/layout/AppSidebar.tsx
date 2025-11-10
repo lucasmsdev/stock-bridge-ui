@@ -127,22 +127,24 @@ export const AppSidebar = ({ isCollapsed }: AppSidebarProps) => {
       <div className="p-6 border-b border-border">
         {!isCollapsed ? (
           <div className="flex items-center justify-between">
-            <img 
-              src="/logos/unistock-light.png" 
-              alt="UniStock" 
-              className="h-8 dark:hidden"
-            />
-            <img 
-              src="/logos/unistock-dark.png" 
-              alt="UniStock" 
-              className="h-8 hidden dark:block"
-            />
+            <div className="flex items-center">
+              <img 
+                src="/logos/unistock-light.png" 
+                alt="UniStock" 
+                className="h-10 dark:hidden"
+              />
+              <img 
+                src="/logos/unistock-dark.png" 
+                alt="UniStock" 
+                className="h-10 hidden dark:block"
+              />
+            </div>
             <Badge variant="outline" className="text-xs capitalize">
               {isAdmin ? "Unlimited" : currentPlan}
             </Badge>
           </div>
         ) : (
-          <div className="mx-auto w-10">
+          <div className="mx-auto">
             <img 
               src="/logos/unistock-light.png" 
               alt="UniStock" 
