@@ -1,6 +1,5 @@
 import { TrendingUp, Package, ShoppingCart, Plug2, DollarSign, Loader2, TrendingDown, Users, Receipt, Target, Percent } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import dashboardIcon from "@/assets/dashboard-icon.png";
 import { Badge } from "@/components/ui/badge";
 import { 
   Table, 
@@ -190,17 +189,11 @@ export default function Dashboard() {
   if (isLoading) {
     return (
       <div className="space-y-6 animate-fade-in">
-      <div className="flex items-center gap-4">
-        <img 
-          src={dashboardIcon} 
-          alt="Dashboard" 
-          className="h-10 w-10 md:h-12 md:w-12"
-        />
-        <div>
-          <h1 className="text-3xl font-bold font-heading text-foreground">Dashboard</h1>
-          <p className="text-muted-foreground font-body">
-            Visão geral das vendas
-          </p>
+      <div>
+        <h1 className="text-3xl font-bold font-heading text-foreground">Dashboard</h1>
+        <p className="text-muted-foreground font-body">
+          Visão geral das vendas
+        </p>
           <div className="mt-2 flex items-center gap-2">
             <Badge variant="outline" className="capitalize">
               Plano {currentPlan}
@@ -211,7 +204,6 @@ export default function Dashboard() {
             </div>
           </div>
         </div>
-      </div>
         
         {/* Renderiza dados demo mesmo durante carregamento */}
         {renderDashboardContent()}
@@ -222,27 +214,20 @@ export default function Dashboard() {
   // Renderiza dados normalmente (demo ou reais)
   return (
     <div className="space-y-4 md:space-y-6 animate-fade-in">
-      <div className="flex items-center gap-4">
-        <img 
-          src={dashboardIcon} 
-          alt="Dashboard" 
-          className="h-10 w-10 md:h-12 md:w-12"
-        />
-        <div>
-          <h1 className="text-2xl md:text-3xl font-bold font-heading">Dashboard</h1>
-          <p className="text-muted-foreground font-body">
-            Visão geral das vendas
-          </p>
-          <div className="mt-2">
-            <Badge variant="outline" className="capitalize">
-              Plano {currentPlan}
+      <div>
+        <h1 className="text-2xl md:text-3xl font-bold font-heading">Dashboard</h1>
+        <p className="text-muted-foreground font-body">
+          Visão geral das vendas
+        </p>
+        <div className="mt-2">
+          <Badge variant="outline" className="capitalize">
+            Plano {currentPlan}
+          </Badge>
+          {!hasRealData && (
+            <Badge variant="secondary" className="ml-2 text-xs">
+              Modo Demonstração
             </Badge>
-            {!hasRealData && (
-              <Badge variant="secondary" className="ml-2 text-xs">
-                Modo Demonstração
-              </Badge>
-            )}
-          </div>
+          )}
         </div>
       </div>
 
