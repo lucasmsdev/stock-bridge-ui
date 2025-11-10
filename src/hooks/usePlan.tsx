@@ -1,6 +1,7 @@
-import { useState, useEffect, useCallback } from "react";
+import { useQuery } from "@tanstack/react-query";
 import { useAuth } from "./useAuth";
 import { supabase } from "@/integrations/supabase/client";
+import { queryKeys } from "@/lib/queryClient";
 
 export type PlanType = 'estrategista' | 'competidor' | 'dominador' | 'unlimited';
 
@@ -108,27 +109,22 @@ const convertToLegacyFeatures = (plan: PlanFeatures): LegacyPlanFeatures => {
   };
 };
 
+interface UserProfileData {
+  plan: PlanType;
+  role: string;
+}
+
 export const usePlan = () => {
   const { user, isLoading: authLoading } = useAuth();
-  // CRÍTICO: Não definir valor inicial para evitar "flash" de dados antigos
-  const [currentPlan, setCurrentPlan] = useState<PlanType | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
 
-  const [userProfile, setUserProfile] = useState<{ plan: PlanType; role: string } | null>(null);
+  // React Query para buscar o plano do usuário com cache otimista
+  const { data: userProfile, isLoading: profileLoading, error } = useQuery({
+    queryKey: queryKeys.profile.plan(user?.id || ''),
+    queryFn: async (): Promise<UserProfileData> => {
+      if (!user?.id) {
+        throw new Error('User not authenticated');
+      }
 
-  const fetchUserPlan = useCallback(async () => {
-    // Aguarda a autenticação completar antes de buscar o plano
-    if (authLoading) {
-      return;
-    }
-
-    if (!user?.id) {
-      setIsLoading(false);
-      return;
-    }
-
-    try {
       // Buscar o plano do usuário
       const { data: profileData, error: profileError } = await supabase
         .from('profiles')
@@ -138,10 +134,7 @@ export const usePlan = () => {
 
       if (profileError) {
         console.error('Error fetching user plan:', profileError);
-        setError('Erro ao carregar plano do usuário');
-        setCurrentPlan('estrategista');
-        setUserProfile({ plan: 'estrategista', role: 'user' });
-        return;
+        throw profileError;
       }
 
       // Buscar o role do usuário da tabela user_roles (SEGURO)
@@ -158,33 +151,27 @@ export const usePlan = () => {
       const plan = (profileData?.plan as PlanType) || 'estrategista';
       const role = roleData?.role || 'user';
       
-      setCurrentPlan(plan);
-      setUserProfile({ plan, role });
-      console.log('User profile loaded:', { plan, role, isAdmin: role === 'admin' });
+      console.log('User profile loaded (React Query):', { plan, role, isAdmin: role === 'admin' });
 
-    } catch (err) {
-      console.error('Unexpected error fetching plan:', err);
-      setError('Erro inesperado ao carregar plano');
-      setCurrentPlan('estrategista');
-      setUserProfile({ plan: 'estrategista', role: 'user' });
-    } finally {
-      setIsLoading(false);
-    }
-  }, [user?.id, authLoading]);
+      return { plan, role };
+    },
+    enabled: !!user?.id && !authLoading, // Só executa quando tiver user e auth terminar
+    staleTime: 5 * 60 * 1000, // Cache por 5 minutos
+    gcTime: 10 * 60 * 1000, // Manter em memória por 10 minutos
+  });
 
-  useEffect(() => {
-    if (!authLoading) {
-      fetchUserPlan();
-    }
-  }, [fetchUserPlan, authLoading]);
+  const isLoading = authLoading || profileLoading;
+  const currentPlan = userProfile?.plan || 'estrategista';
+  const isAdmin = userProfile?.role === 'admin';
+  const userRole = userProfile?.role || 'user';
 
   // Nova função para verificar acesso usando o sistema de features
   const hasFeature = (feature: FeatureName): boolean => {
     // CRÍTICO: Enquanto carrega, retorna false para evitar flash de conteúdo
-    if (!user || isLoading || !currentPlan) return false;
+    if (!user || isLoading || !userProfile) return false;
     
-    // **NOVA LÓGICA DE ADMIN** - Se o usuário é admin, tem acesso a tudo
-    if (userProfile?.role === 'admin') {
+    // **LÓGICA DE ADMIN** - Se o usuário é admin, tem acesso a tudo
+    if (isAdmin) {
       return true;
     }
     
@@ -194,10 +181,10 @@ export const usePlan = () => {
   // Função legada para compatibilidade - aceita tanto propriedades legadas quanto features
   const canAccess = (feature: keyof LegacyPlanFeatures | FeatureName): boolean => {
     // CRÍTICO: Enquanto carrega, retorna false para evitar flash de conteúdo
-    if (!user || isLoading || !currentPlan) return false;
+    if (!user || isLoading || !userProfile) return false;
     
-    // **NOVA LÓGICA DE ADMIN** - Se o usuário é admin, tem acesso a tudo
-    if (userProfile?.role === 'admin') {
+    // **LÓGICA DE ADMIN** - Se o usuário é admin, tem acesso a tudo
+    if (isAdmin) {
       return true;
     }
     
@@ -217,10 +204,10 @@ export const usePlan = () => {
 
   const canImportProducts = (currentProductCount: number, newProductsCount: number): boolean => {
     // CRÍTICO: Enquanto carrega, retorna false
-    if (!currentPlan) return false;
+    if (!userProfile) return false;
     
-    // **NOVA LÓGICA DE ADMIN** - Se o usuário é admin, pode importar produtos ilimitadamente
-    if (userProfile?.role === 'admin') {
+    // **LÓGICA DE ADMIN** - Se o usuário é admin, pode importar produtos ilimitadamente
+    if (isAdmin) {
       return true;
     }
     
@@ -229,13 +216,13 @@ export const usePlan = () => {
   };
 
   const getMaxSkus = (): number => {
-    // **NOVA LÓGICA DE ADMIN** - Se o usuário é admin, tem SKUs ilimitados
-    if (userProfile?.role === 'admin') {
+    // **LÓGICA DE ADMIN** - Se o usuário é admin, tem SKUs ilimitados
+    if (isAdmin) {
       return Infinity;
     }
     
     // Fallback seguro enquanto carrega
-    if (!currentPlan) return 0;
+    if (!userProfile) return 0;
     
     return planFeatures[currentPlan].maxSkus;
   };
@@ -243,13 +230,13 @@ export const usePlan = () => {
   // Retorna as features no formato novo
   const getPlanFeatures = (): PlanFeatures => {
     // Fallback seguro enquanto carrega
-    return currentPlan ? planFeatures[currentPlan] : planFeatures['estrategista'];
+    return planFeatures[currentPlan];
   };
 
   // Retorna as features no formato legado para compatibilidade
   const getLegacyPlanFeatures = (): LegacyPlanFeatures => {
     // Fallback seguro enquanto carrega
-    return convertToLegacyFeatures(currentPlan ? planFeatures[currentPlan] : planFeatures['estrategista']);
+    return convertToLegacyFeatures(planFeatures[currentPlan]);
   };
 
   const getUpgradeRequiredMessage = (feature: keyof LegacyPlanFeatures | FeatureName): string => {
@@ -279,7 +266,7 @@ export const usePlan = () => {
   // Função para obter o próximo plano recomendado
   const getRecommendedUpgrade = (): { plan: PlanType; features: PlanFeatures } | null => {
     // Fallback seguro enquanto carrega
-    if (!currentPlan) return null;
+    if (!userProfile) return null;
     
     const currentFeatures = planFeatures[currentPlan];
     const allPlans = Object.entries(planFeatures) as [PlanType, PlanFeatures][];
@@ -306,9 +293,9 @@ export const usePlan = () => {
   };
 
   return {
-    currentPlan: currentPlan || 'estrategista', // Fallback apenas para exibição
+    currentPlan,
     isLoading,
-    error,
+    error: error ? 'Erro ao carregar plano do usuário' : null,
     // Funções para o sistema novo
     hasFeature,
     needsUpgradeFor,
@@ -322,7 +309,7 @@ export const usePlan = () => {
     getLegacyPlanFeatures,
     getUpgradeRequiredMessage,
     // Nova funcionalidade de admin
-    isAdmin: userProfile?.role === 'admin',
-    userRole: userProfile?.role || 'user',
+    isAdmin,
+    userRole,
   };
 };
