@@ -270,7 +270,7 @@ const Landing = () => {
           <div className="grid md:grid-cols-2 gap-12 items-center mb-20">
             <div className="group">
               <img
-                src="/images/dashboard-real-preview.png"
+                src="/images/dashboard-products.png"
                 alt="Visão geral do sistema"
                 className="rounded-xl shadow-lg border border-border group-hover:shadow-2xl group-hover:shadow-primary/10 group-hover:scale-[1.02] transition-all duration-300"
               />
