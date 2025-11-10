@@ -36,18 +36,21 @@ All colors MUST be HSL.
     --accent: 38 95% 45%; /* #DF8F06 - Harvest gold (laranja) */
     --accent-foreground: 0 0% 100%;
 
-    --success: 38 95% 45%; /* #DF8F06 - Harvest gold (laranja) */
+    --success: 142 71% 45%; /* #22C55E - Verde */
     --success-foreground: 0 0% 100%;
-    --success-muted: 38 40% 90%;
+    --success-muted: 142 40% 90%;
+    
+    --info: 210 80% 50%; /* Azul para "Enviado" */
+    --info-foreground: 0 0% 100%;
 
     --muted: 210 15% 96%;
     --muted-foreground: 210 10% 45%;
 
     /* Status colors */
-    --destructive: 0 84% 60%; /* #EF4444 - Vermelho */
+    --destructive: 0 72% 51%; /* #DC2626 - Vermelho */
     --destructive-foreground: 0 0% 100%;
 
-    --warning: 38 92% 50%; /* #FFA500 - Laranja */
+    --warning: 45 93% 47%; /* #EAB308 - Amarelo */
     --warning-foreground: 0 0% 7%;
 
     /* UI elements */
@@ -99,19 +102,22 @@ All colors MUST be HSL.
     --accent: 38 95% 45%; /* #DF8F06 - Harvest gold */
     --accent-foreground: 0 0% 100%;
 
-    --success: 38 95% 45%; /* #DF8F06 - Harvest gold */
+    --success: 142 71% 45%; /* #22C55E - Verde */
     --success-foreground: 0 0% 100%;
-    --success-muted: 38 40% 25%;
+    --success-muted: 142 40% 25%;
+    
+    --info: 210 80% 50%; /* Azul para "Enviado" */
+    --info-foreground: 0 0% 100%;
 
     --muted: 210 10% 18%;
     --muted-foreground: 210 10% 65%;
 
     /* Status colors (dark mode) */
-    --destructive: 0 84% 60%; /* #EF4444 - Vermelho */
+    --destructive: 0 72% 51%; /* #DC2626 - Vermelho */
     --destructive-foreground: 0 0% 100%;
 
-    --warning: 38 92% 50%; /* #FFA500 - Laranja */
-    --warning-foreground: 0 0% 7%;
+    --warning: 45 93% 47%; /* #EAB308 - Amarelo */
+    --warning-foreground: 0 0% 0%;
 
     /* UI elements (dark mode) */
     --border: 210 15% 20%;

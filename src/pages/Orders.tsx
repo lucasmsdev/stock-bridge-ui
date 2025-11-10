@@ -60,10 +60,10 @@ const platformLogos: Record<string, { url: string; darkInvert?: boolean }> = {
 const getRandomStatus = () => {
   const statusOptions = [
     { status: "Processando", color: "bg-warning text-warning-foreground" },
-    { status: "Enviado", color: "bg-primary text-primary-foreground" },
+    { status: "Enviado", color: "bg-info text-info-foreground" },
     { status: "Entregue", color: "bg-success text-success-foreground" },
     { status: "Cancelado", color: "bg-destructive text-destructive-foreground" },
-    { status: "Aguardando Pagamento", color: "bg-[#DF8F06] text-white" }
+    { status: "Aguardando Pagamento", color: "bg-primary text-primary-foreground" }
   ];
   return statusOptions[Math.floor(Math.random() * statusOptions.length)];
 };
