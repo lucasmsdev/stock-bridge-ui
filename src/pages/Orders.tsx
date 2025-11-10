@@ -50,10 +50,11 @@ const channels = ["Todos os Canais", "Mercado Livre", "Shopify"];
 const statuses = ["Todos os Status", "Processando", "Enviado", "Entregue", "Cancelado", "Aguardando Pagamento"];
 
 const platformLogos: Record<string, { url: string; darkInvert?: boolean }> = {
-  mercadolivre: { url: "https://vectorseek.com/wp-content/uploads/2023/08/Mercado-Livre-Icon-Logo-Vector.svg-.png" },
-  shopify: { url: "https://cdn3.iconfinder.com/data/icons/social-media-2068/64/_shopping-512.png" },
-  amazon: { url: "https://upload.wikimedia.org/wikipedia/commons/d/de/Amazon_icon.png", darkInvert: true },
-  shopee: { url: "https://www.freepnglogos.com/uploads/shopee-logo/shopee-bag-logo-free-transparent-icon-17.png" },
+  'mercadolivre': { url: "https://vectorseek.com/wp-content/uploads/2023/08/Mercado-Livre-Icon-Logo-Vector.svg-.png" },
+  'mercado livre': { url: "https://vectorseek.com/wp-content/uploads/2023/08/Mercado-Livre-Icon-Logo-Vector.svg-.png" },
+  'shopify': { url: "https://cdn3.iconfinder.com/data/icons/social-media-2068/64/_shopping-512.png" },
+  'amazon': { url: "https://upload.wikimedia.org/wikipedia/commons/d/de/Amazon_icon.png", darkInvert: true },
+  'shopee': { url: "https://www.freepnglogos.com/uploads/shopee-logo/shopee-bag-logo-free-transparent-icon-17.png" },
 };
 
 const getRandomStatus = () => {
@@ -317,9 +318,9 @@ export default function Orders() {
                     </code>
                   </TableCell>
                   <TableCell>
-                    <div className="flex items-center gap-1">
+                    <div className="flex items-center justify-center">
                       {(() => {
-                        const platformKey = order.channel.toLowerCase().replace(/\s+/g, '');
+                        const platformKey = order.channel.toLowerCase();
                         const logoConfig = platformLogos[platformKey];
                         return logoConfig ? (
                           <img
