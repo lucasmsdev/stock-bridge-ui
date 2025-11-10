@@ -144,7 +144,7 @@ const Landing = () => {
               key={`logo-${theme}`}
               src={`/logos/unistock-${theme}.png?v=${Date.now()}`}
               alt="UniStock Logo"
-              className="h-20 md:h-24 lg:h-32 w-auto transition-opacity duration-200"
+              className="h-24 md:h-28 lg:h-36 w-auto transition-opacity duration-200"
             />
             <nav className="hidden md:flex items-center space-x-8">
               <a href="#inicio" className="text-sm font-medium text-muted-foreground hover:text-primary transition-colors">
