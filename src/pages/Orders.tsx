@@ -59,11 +59,11 @@ const platformLogos: Record<string, { url: string; darkInvert?: boolean }> = {
 
 const getRandomStatus = () => {
   const statusOptions = [
-    { status: "Processando", color: "bg-warning text-warning-foreground" },
-    { status: "Enviado", color: "bg-info text-info-foreground" },
-    { status: "Entregue", color: "bg-success text-success-foreground" },
-    { status: "Cancelado", color: "bg-destructive text-destructive-foreground" },
-    { status: "Aguardando Pagamento", color: "bg-primary text-primary-foreground" }
+    { status: "Processando", color: "bg-[#F59E0B] text-white" }, // Amarelo suave
+    { status: "Enviado", color: "bg-[#3B82F6] text-white" }, // Azul suave
+    { status: "Entregue", color: "bg-[#10B981] text-white" }, // Verde suave
+    { status: "Cancelado", color: "bg-[#EF4444] text-white" }, // Vermelho suave
+    { status: "Aguardando Pagamento", color: "bg-primary text-primary-foreground" } // Laranja (cor primária)
   ];
   return statusOptions[Math.floor(Math.random() * statusOptions.length)];
 };
@@ -348,7 +348,7 @@ export default function Orders() {
                     </Badge>
                   </TableCell>
                   <TableCell>
-                    <span className="font-medium text-success">{order.total}</span>
+                    <span className="font-medium text-primary">{order.total}</span>
                   </TableCell>
                   <TableCell>
                     <Badge 
