@@ -2,8 +2,8 @@ import { useState, useEffect } from "react";
 import { Outlet, Navigate, useLocation, useNavigate } from "react-router-dom";
 import { AppSidebar } from "./AppSidebar";
 import { Button } from "@/components/ui/button";
-import { Sheet, SheetContent, SheetHeader } from "@/components/ui/sheet";
-import { Menu, Loader2, Moon, Sun, X } from "lucide-react";
+import { Sheet, SheetContent } from "@/components/ui/sheet";
+import { Menu, Loader2, Moon, Sun } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import { useThemeProvider } from "@/components/layout/ThemeProvider";
 import { usePlan } from "@/hooks/usePlan";
@@ -102,17 +102,6 @@ export const AppLayout = () => {
       {/* Mobile Sidebar (Sheet) */}
       <Sheet open={sidebarOpen} onOpenChange={setSidebarOpen}>
         <SheetContent side="left" className="p-0 w-64 md:hidden">
-          <SheetHeader className="px-6 py-4 border-b border-border flex flex-row items-center justify-between">
-            <span className="text-xl font-bold font-sans text-foreground">UNISTOCK</span>
-            <Button
-              variant="ghost"
-              size="icon"
-              onClick={() => setSidebarOpen(false)}
-              className="h-8 w-8"
-            >
-              <X className="h-5 w-5" />
-            </Button>
-          </SheetHeader>
           <AppSidebar isCollapsed={false} />
         </SheetContent>
       </Sheet>
