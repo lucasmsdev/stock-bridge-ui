@@ -72,7 +72,7 @@ const navItems = [
 
 export const AppSidebar = ({ isCollapsed }: AppSidebarProps) => {
   const { user, signOut } = useAuth();
-  const { hasFeature, currentPlan } = usePlan();
+  const { hasFeature, currentPlan, isAdmin } = usePlan();
 
   const handleLogout = async () => {
     await signOut();
@@ -126,20 +126,33 @@ export const AppSidebar = ({ isCollapsed }: AppSidebarProps) => {
       {/* Logo */}
       <div className="p-6 border-b border-border">
         {!isCollapsed ? (
-          <div className="flex items-center space-x-3">
-            <div className="w-8 h-8 bg-gradient-primary rounded-lg flex items-center justify-center">
-              <span className="text-primary-foreground font-bold text-lg">U</span>
-            </div>
-            <div className="flex items-center justify-between flex-1">
-              <span className="text-xl font-bold text-foreground">UniStock</span>
-              <Badge variant="outline" className="text-xs capitalize">
-                {currentPlan}
-              </Badge>
-            </div>
+          <div className="flex items-center justify-between">
+            <img 
+              src="/logos/unistock-light.png" 
+              alt="UniStock" 
+              className="h-8 dark:hidden"
+            />
+            <img 
+              src="/logos/unistock-dark.png" 
+              alt="UniStock" 
+              className="h-8 hidden dark:block"
+            />
+            <Badge variant="outline" className="text-xs capitalize">
+              {isAdmin ? "Unlimited" : currentPlan}
+            </Badge>
           </div>
         ) : (
-          <div className="w-8 h-8 bg-gradient-primary rounded-lg flex items-center justify-center mx-auto">
-            <span className="text-primary-foreground font-bold text-lg">U</span>
+          <div className="mx-auto w-10">
+            <img 
+              src="/logos/unistock-light.png" 
+              alt="UniStock" 
+              className="h-8 dark:hidden"
+            />
+            <img 
+              src="/logos/unistock-dark.png" 
+              alt="UniStock" 
+              className="h-8 hidden dark:block"
+            />
           </div>
         )}
       </div>
