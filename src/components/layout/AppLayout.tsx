@@ -2,18 +2,22 @@ import { useState, useEffect } from "react";
 import { Outlet, Navigate, useLocation, useNavigate } from "react-router-dom";
 import { AppSidebar } from "./AppSidebar";
 import { Button } from "@/components/ui/button";
+import { Sheet, SheetContent } from "@/components/ui/sheet";
 import { Menu, Loader2, Moon, Sun } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import { useThemeProvider } from "@/components/layout/ThemeProvider";
 import { usePlan } from "@/hooks/usePlan";
 import { NotificationsPopover } from "@/components/notifications/NotificationsPopover";
 import { supabase } from "@/integrations/supabase/client";
+import { useIsMobile } from "@/hooks/use-mobile";
 
 export const AppLayout = () => {
   const { user, isLoading } = useAuth();
   const { theme, toggleTheme } = useThemeProvider();
   const { currentPlan, isLoading: planLoading } = usePlan();
+  const isMobile = useIsMobile();
   const [sidebarOpen, setSidebarOpen] = useState(true);
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [isCheckingSubscription, setIsCheckingSubscription] = useState(true);
   const [hasActiveSubscription, setHasActiveSubscription] = useState(false);
   const location = useLocation();
@@ -93,10 +97,17 @@ export const AppLayout = () => {
 
   return (
     <div className="min-h-screen bg-gradient-subtle flex w-full">
-      {/* Sidebar */}
+      {/* Sidebar Desktop */}
       <div className={`hidden md:block transition-all duration-300 ${sidebarOpen ? 'w-64' : 'w-16'} sticky top-0 h-screen`}>
         <AppSidebar isCollapsed={!sidebarOpen} />
       </div>
+
+      {/* Mobile Menu Sheet */}
+      <Sheet open={mobileMenuOpen} onOpenChange={setMobileMenuOpen}>
+        <SheetContent side="left" className="p-0 w-64">
+          <AppSidebar isCollapsed={false} />
+        </SheetContent>
+      </Sheet>
 
       {/* Main Content */}
       <div className="flex-1 flex flex-col w-full min-w-0">
@@ -105,7 +116,7 @@ export const AppLayout = () => {
           <Button
             variant="ghost"
             size="icon"
-            onClick={() => setSidebarOpen(!sidebarOpen)}
+            onClick={() => isMobile ? setMobileMenuOpen(true) : setSidebarOpen(!sidebarOpen)}
             className="hover:bg-muted"
           >
             <Menu className="h-4 w-4 md:h-5 md:w-5" />
