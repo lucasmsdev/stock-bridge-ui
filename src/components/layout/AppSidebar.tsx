@@ -72,7 +72,7 @@ const navItems = [
 
 export const AppSidebar = ({ isCollapsed }: AppSidebarProps) => {
   const { user, signOut } = useAuth();
-  const { hasFeature, currentPlan, isAdmin } = usePlan();
+  const { hasFeature, currentPlan, isAdmin, isLoading } = usePlan();
 
   const handleLogout = async () => {
     await signOut();
@@ -87,7 +87,9 @@ export const AppSidebar = ({ isCollapsed }: AppSidebarProps) => {
   };
 
   const renderNavItem = (item: typeof navItems[0]) => {
-    const hasAccess = !item.requiresFeature || hasFeature(item.requiresFeature);
+    // CRÍTICO: Enquanto carrega, trata todas as features como restritas
+    // Isso evita o "flash" de conteúdo premium para usuários básicos
+    const hasAccess = !isLoading && (!item.requiresFeature || hasFeature(item.requiresFeature));
     const targetHref = hasAccess ? item.href : "/app/billing";
 
     return (
@@ -128,9 +130,12 @@ export const AppSidebar = ({ isCollapsed }: AppSidebarProps) => {
         {!isCollapsed ? (
           <div className="flex items-center justify-between">
             <span className="text-2xl font-bold font-sans text-foreground">UNISTOCK</span>
-            <Badge variant="outline" className="text-xs capitalize">
-              {isAdmin ? "Unlimited" : currentPlan}
-            </Badge>
+            {/* CRÍTICO: Só mostra badge do plano após carregar */}
+            {!isLoading && (
+              <Badge variant="outline" className="text-xs capitalize">
+                {isAdmin ? "Unlimited" : currentPlan}
+              </Badge>
+            )}
           </div>
         ) : (
           <div className="mx-auto text-center">

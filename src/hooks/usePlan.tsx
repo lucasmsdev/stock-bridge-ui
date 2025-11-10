@@ -109,14 +109,20 @@ const convertToLegacyFeatures = (plan: PlanFeatures): LegacyPlanFeatures => {
 };
 
 export const usePlan = () => {
-  const { user } = useAuth();
-  const [currentPlan, setCurrentPlan] = useState<PlanType>('estrategista');
+  const { user, isLoading: authLoading } = useAuth();
+  // CRÍTICO: Não definir valor inicial para evitar "flash" de dados antigos
+  const [currentPlan, setCurrentPlan] = useState<PlanType | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
   const [userProfile, setUserProfile] = useState<{ plan: PlanType; role: string } | null>(null);
 
   const fetchUserPlan = useCallback(async () => {
+    // Aguarda a autenticação completar antes de buscar o plano
+    if (authLoading) {
+      return;
+    }
+
     if (!user?.id) {
       setIsLoading(false);
       return;
@@ -164,15 +170,18 @@ export const usePlan = () => {
     } finally {
       setIsLoading(false);
     }
-  }, [user?.id]);
+  }, [user?.id, authLoading]);
 
   useEffect(() => {
-    fetchUserPlan();
-  }, [fetchUserPlan]);
+    if (!authLoading) {
+      fetchUserPlan();
+    }
+  }, [fetchUserPlan, authLoading]);
 
   // Nova função para verificar acesso usando o sistema de features
   const hasFeature = (feature: FeatureName): boolean => {
-    if (!user || isLoading) return false;
+    // CRÍTICO: Enquanto carrega, retorna false para evitar flash de conteúdo
+    if (!user || isLoading || !currentPlan) return false;
     
     // **NOVA LÓGICA DE ADMIN** - Se o usuário é admin, tem acesso a tudo
     if (userProfile?.role === 'admin') {
@@ -184,7 +193,8 @@ export const usePlan = () => {
 
   // Função legada para compatibilidade - aceita tanto propriedades legadas quanto features
   const canAccess = (feature: keyof LegacyPlanFeatures | FeatureName): boolean => {
-    if (!user || isLoading) return false;
+    // CRÍTICO: Enquanto carrega, retorna false para evitar flash de conteúdo
+    if (!user || isLoading || !currentPlan) return false;
     
     // **NOVA LÓGICA DE ADMIN** - Se o usuário é admin, tem acesso a tudo
     if (userProfile?.role === 'admin') {
@@ -206,6 +216,9 @@ export const usePlan = () => {
   };
 
   const canImportProducts = (currentProductCount: number, newProductsCount: number): boolean => {
+    // CRÍTICO: Enquanto carrega, retorna false
+    if (!currentPlan) return false;
+    
     // **NOVA LÓGICA DE ADMIN** - Se o usuário é admin, pode importar produtos ilimitadamente
     if (userProfile?.role === 'admin') {
       return true;
@@ -221,17 +234,22 @@ export const usePlan = () => {
       return Infinity;
     }
     
+    // Fallback seguro enquanto carrega
+    if (!currentPlan) return 0;
+    
     return planFeatures[currentPlan].maxSkus;
   };
 
   // Retorna as features no formato novo
   const getPlanFeatures = (): PlanFeatures => {
-    return planFeatures[currentPlan];
+    // Fallback seguro enquanto carrega
+    return currentPlan ? planFeatures[currentPlan] : planFeatures['estrategista'];
   };
 
   // Retorna as features no formato legado para compatibilidade
   const getLegacyPlanFeatures = (): LegacyPlanFeatures => {
-    return convertToLegacyFeatures(planFeatures[currentPlan]);
+    // Fallback seguro enquanto carrega
+    return convertToLegacyFeatures(currentPlan ? planFeatures[currentPlan] : planFeatures['estrategista']);
   };
 
   const getUpgradeRequiredMessage = (feature: keyof LegacyPlanFeatures | FeatureName): string => {
@@ -260,6 +278,9 @@ export const usePlan = () => {
 
   // Função para obter o próximo plano recomendado
   const getRecommendedUpgrade = (): { plan: PlanType; features: PlanFeatures } | null => {
+    // Fallback seguro enquanto carrega
+    if (!currentPlan) return null;
+    
     const currentFeatures = planFeatures[currentPlan];
     const allPlans = Object.entries(planFeatures) as [PlanType, PlanFeatures][];
     
@@ -285,7 +306,7 @@ export const usePlan = () => {
   };
 
   return {
-    currentPlan,
+    currentPlan: currentPlan || 'estrategista', // Fallback apenas para exibição
     isLoading,
     error,
     // Funções para o sistema novo
