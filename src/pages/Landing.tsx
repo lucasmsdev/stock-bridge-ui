@@ -228,7 +228,7 @@ const Landing = () => {
             <div className="relative animate-fade-in group" style={{ animationDelay: '0.2s' }}>
               <div className="absolute inset-0 bg-gradient-to-br from-primary/20 to-accent/20 rounded-2xl blur-3xl group-hover:blur-2xl transition-all" />
               <img
-                src="/images/dashboard-hover-preview.png"
+                src="/images/dashboard-hero.png"
                 alt="Dashboard UniStock"
                 className="relative rounded-2xl shadow-2xl border border-border group-hover:shadow-primary/20 group-hover:scale-[1.02] transition-all duration-300"
               />
