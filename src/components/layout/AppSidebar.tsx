@@ -131,12 +131,12 @@ export const AppSidebar = ({ isCollapsed }: AppSidebarProps) => {
               <img 
                 src="/logos/unistock-light.png" 
                 alt="UniStock" 
-                className="h-10 dark:hidden"
+                className="h-16 dark:hidden"
               />
               <img 
                 src="/logos/unistock-dark.png" 
                 alt="UniStock" 
-                className="h-10 hidden dark:block"
+                className="h-16 hidden dark:block"
               />
             </div>
             <Badge variant="outline" className="text-xs capitalize">
@@ -148,12 +148,12 @@ export const AppSidebar = ({ isCollapsed }: AppSidebarProps) => {
             <img 
               src="/logos/unistock-light.png" 
               alt="UniStock" 
-              className="h-8 dark:hidden"
+              className="h-12 dark:hidden"
             />
             <img 
               src="/logos/unistock-dark.png" 
               alt="UniStock" 
-              className="h-8 hidden dark:block"
+              className="h-12 hidden dark:block"
             />
           </div>
         )}
