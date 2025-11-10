@@ -547,16 +547,16 @@ const Landing = () => {
                 </Button>
               </a>
 
-              <div className="flex justify-center gap-6 text-sm text-muted-foreground pt-4">
-                <div className="flex items-center gap-2">
+              <div className="flex flex-col sm:flex-row justify-center gap-4 sm:gap-6 text-sm text-muted-foreground pt-4">
+                <div className="flex items-center gap-2 justify-center">
                   <CheckCircle className="w-4 h-4 text-accent" />
                   <span>Sem cartão de crédito</span>
                 </div>
-                <div className="flex items-center gap-2">
+                <div className="flex items-center gap-2 justify-center">
                   <CheckCircle className="w-4 h-4 text-accent" />
                   <span>7 dias grátis</span>
                 </div>
-                <div className="flex items-center gap-2">
+                <div className="flex items-center gap-2 justify-center">
                   <CheckCircle className="w-4 h-4 text-accent" />
                   <span>Cancele quando quiser</span>
                 </div>
