@@ -25,20 +25,20 @@ All colors MUST be HSL.
     --popover-foreground: 0 0% 7%;
 
     /* UniStock Brand Colors - Light Mode */
-    --primary: 282 42% 48%; /* #8C47AE - Roxo (Purple) */
+    --primary: 38 95% 45%; /* #DF8F06 - Harvest gold (laranja) */
     --primary-foreground: 0 0% 100%;
-    --primary-hover: 282 42% 42%;
-    --primary-glow: 282 42% 60%;
+    --primary-hover: 38 95% 40%;
+    --primary-glow: 38 95% 60%;
 
     --secondary: 210 32% 30%; /* #344966 - Indigo (azul petróleo) */
     --secondary-foreground: 0 0% 100%;
 
-    --accent: 282 42% 48%; /* #8C47AE - Roxo (Purple) */
+    --accent: 38 95% 45%; /* #DF8F06 - Harvest gold (laranja) */
     --accent-foreground: 0 0% 100%;
 
-    --success: 282 42% 48%; /* #8C47AE - Roxo (Purple) */
+    --success: 38 95% 45%; /* #DF8F06 - Harvest gold (laranja) */
     --success-foreground: 0 0% 100%;
-    --success-muted: 282 30% 90%;
+    --success-muted: 38 40% 90%;
 
     --muted: 210 15% 96%;
     --muted-foreground: 210 10% 45%;
@@ -53,19 +53,19 @@ All colors MUST be HSL.
     /* UI elements */
     --border: 210 20% 90%;
     --input: 210 20% 90%;
-    --ring: 282 42% 48%;
+    --ring: 38 95% 45%;
 
     /* Gradients */
-    --gradient-primary: linear-gradient(135deg, hsl(282 42% 48%), hsl(282 42% 60%));
+    --gradient-primary: linear-gradient(135deg, hsl(38 95% 45%), hsl(38 95% 55%));
     --gradient-secondary: linear-gradient(135deg, hsl(210 32% 30%), hsl(210 32% 40%));
-    --gradient-accent: linear-gradient(135deg, hsl(282 42% 48%), hsl(282 42% 60%));
-    --gradient-success: linear-gradient(135deg, hsl(282 42% 48%), hsl(282 42% 60%));
+    --gradient-accent: linear-gradient(135deg, hsl(38 95% 45%), hsl(38 95% 55%));
+    --gradient-success: linear-gradient(135deg, hsl(38 95% 45%), hsl(38 95% 55%));
     --gradient-subtle: linear-gradient(180deg, hsl(0 0% 100%), hsl(210 20% 98%));
 
     /* Shadows */
-    --shadow-soft: 0 2px 8px hsl(282 42% 48% / 0.08);
-    --shadow-medium: 0 4px 16px hsl(282 42% 48% / 0.12);
-    --shadow-primary: 0 8px 24px hsl(282 42% 48% / 0.16);
+    --shadow-soft: 0 2px 8px hsl(38 95% 45% / 0.08);
+    --shadow-medium: 0 4px 16px hsl(38 95% 45% / 0.12);
+    --shadow-primary: 0 8px 24px hsl(38 95% 45% / 0.16);
 
     /* Animations */
     --transition-smooth: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
