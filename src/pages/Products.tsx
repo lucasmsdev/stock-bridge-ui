@@ -80,9 +80,9 @@ const platformNames: Record<string, string> = {
 
 const platformLogos: Record<string, { url: string; darkInvert?: boolean }> = {
   mercadolivre: { url: "https://vectorseek.com/wp-content/uploads/2023/08/Mercado-Livre-Icon-Logo-Vector.svg-.png" },
-  shopify: { url: "https://cdn.worldvectorlogo.com/logos/shopify.svg" },
+  shopify: { url: "https://cdn3.iconfinder.com/data/icons/social-media-2068/64/_shopping-512.png" },
   amazon: { url: "https://upload.wikimedia.org/wikipedia/commons/d/de/Amazon_icon.png", darkInvert: true },
-  shopee: { url: "https://upload.wikimedia.org/wikipedia/commons/thumb/0/0e/Shopee_logo.svg/1442px-Shopee_logo.svg.png" },
+  shopee: { url: "https://www.freepnglogos.com/uploads/shopee-logo/shopee-bag-logo-free-transparent-icon-17.png" },
 };
 
 export default function Products() {
