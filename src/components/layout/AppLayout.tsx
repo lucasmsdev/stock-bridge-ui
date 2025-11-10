@@ -2,7 +2,6 @@ import { useState, useEffect } from "react";
 import { Outlet, Navigate, useLocation, useNavigate } from "react-router-dom";
 import { AppSidebar } from "./AppSidebar";
 import { Button } from "@/components/ui/button";
-import { Sheet, SheetContent } from "@/components/ui/sheet";
 import { Menu, Loader2, Moon, Sun } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import { useThemeProvider } from "@/components/layout/ThemeProvider";
@@ -14,10 +13,7 @@ export const AppLayout = () => {
   const { user, isLoading } = useAuth();
   const { theme, toggleTheme } = useThemeProvider();
   const { currentPlan, isLoading: planLoading } = usePlan();
-  const [sidebarOpen, setSidebarOpen] = useState(() => {
-    // Inicia aberto no desktop, fechado no mobile
-    return window.innerWidth >= 768;
-  });
+  const [sidebarOpen, setSidebarOpen] = useState(true);
   const [isCheckingSubscription, setIsCheckingSubscription] = useState(true);
   const [hasActiveSubscription, setHasActiveSubscription] = useState(false);
   const location = useLocation();
@@ -97,17 +93,10 @@ export const AppLayout = () => {
 
   return (
     <div className="min-h-screen bg-gradient-subtle flex w-full">
-      {/* Desktop Sidebar */}
+      {/* Sidebar */}
       <div className={`hidden md:block transition-all duration-300 ${sidebarOpen ? 'w-64' : 'w-16'} sticky top-0 h-screen`}>
         <AppSidebar isCollapsed={!sidebarOpen} />
       </div>
-
-      {/* Mobile Sidebar (Sheet) */}
-      <Sheet open={sidebarOpen} onOpenChange={setSidebarOpen}>
-        <SheetContent side="left" className="p-0 w-64 md:hidden">
-          <AppSidebar isCollapsed={false} />
-        </SheetContent>
-      </Sheet>
 
       {/* Main Content */}
       <div className="flex-1 flex flex-col w-full min-w-0">
