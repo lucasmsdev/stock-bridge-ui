@@ -229,7 +229,7 @@ export default function Orders() {
         </Card>
         <Card className="shadow-soft">
           <CardContent className="pt-6">
-            <div className="text-2xl font-bold text-success">
+            <div className="text-2xl font-bold text-primary">
               R$ {totalValue.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}
             </div>
             <p className="text-sm text-muted-foreground">Valor Total</p>
