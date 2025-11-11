@@ -9,7 +9,6 @@ All colors MUST be HSL.
 @layer base {
   html {
     scroll-behavior: smooth;
-    scroll-padding-top: 6rem; /* Compensa o header fixo */
   }
   
   :root {
