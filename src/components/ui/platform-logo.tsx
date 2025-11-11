@@ -7,11 +7,11 @@ interface PlatformLogoProps {
 }
 
 const platformLogos = {
-  mercadolivre: '/logos/mercadolivre.svg',
-  'mercado livre': '/logos/mercadolivre.svg',
-  shopify: '/logos/shopify.png',
-  shopee: '/logos/shopee.svg',
-  amazon: '/logos/amazon.svg',
+  mercadolivre: 'https://vectorseek.com/wp-content/uploads/2023/08/Mercado-Livre-Icon-Logo-Vector.svg-.png',
+  'mercado livre': 'https://vectorseek.com/wp-content/uploads/2023/08/Mercado-Livre-Icon-Logo-Vector.svg-.png',
+  shopify: 'https://cdn.freebiesupply.com/logos/large/2x/shopify-logo-png-transparent.png',
+  shopee: 'https://upload.wikimedia.org/wikipedia/commons/thumb/0/0e/Shopee_logo.svg/1442px-Shopee_logo.svg.png',
+  amazon: 'https://upload.wikimedia.org/wikipedia/commons/d/de/Amazon_icon.png',
   magento: '/logos/magento.svg',
   woocommerce: '/logos/woocommerce.svg',
   vtex: '/logos/vtex.svg',
