@@ -251,8 +251,8 @@ const Landing = () => {
       <section className="py-20 bg-muted/30">
         <div 
           ref={aboutSection.elementRef}
-          className={`container mx-auto max-w-5xl px-4 sm:px-6 lg:px-8 transition-all duration-700 ${
-            aboutSection.isVisible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-10'
+          className={`container mx-auto max-w-5xl px-4 sm:px-6 lg:px-8 transition-all duration-500 ease-out ${
+            aboutSection.isVisible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-5'
           }`}
         >
           <div className="text-center space-y-6">
@@ -273,8 +273,8 @@ const Landing = () => {
       <section className="py-20 px-4 sm:px-6 lg:px-8">
         <div 
           ref={benefitsSection.elementRef}
-          className={`container mx-auto max-w-7xl transition-all duration-700 ${
-            benefitsSection.isVisible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-10'
+          className={`container mx-auto max-w-7xl transition-all duration-500 ease-out ${
+            benefitsSection.isVisible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-5'
           }`}
         >
           <div className="text-center mb-16">
@@ -340,8 +340,8 @@ const Landing = () => {
       <section id="funcoes" className="py-20 bg-muted/30 scroll-mt-16">
         <div 
           ref={featuresSection.elementRef}
-          className={`container mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 transition-all duration-700 ${
-            featuresSection.isVisible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-10'
+          className={`container mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 transition-all duration-500 ease-out ${
+            featuresSection.isVisible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-5'
           }`}
         >
           <div className="text-center mb-16">
@@ -358,12 +358,6 @@ const Landing = () => {
               <Card 
                 key={index} 
                 className="border-border hover:border-primary/30 transition-all hover:shadow-xl hover:shadow-primary/10 hover:-translate-y-2 duration-300 group"
-                style={{
-                  animationDelay: `${index * 100}ms`,
-                  opacity: featuresSection.isVisible ? 1 : 0,
-                  transform: featuresSection.isVisible ? 'translateY(0)' : 'translateY(20px)',
-                  transition: 'all 0.6s ease-out'
-                }}
               >
                 <CardContent className="p-6 space-y-4">
                   <div className="w-12 h-12 rounded-lg bg-primary/10 flex items-center justify-center group-hover:bg-primary/20 group-hover:scale-110 transition-all duration-300">
@@ -386,8 +380,8 @@ const Landing = () => {
       <section className="py-20 px-4 sm:px-6 lg:px-8">
         <div 
           ref={statsSection.elementRef}
-          className={`container mx-auto max-w-7xl transition-all duration-700 ${
-            statsSection.isVisible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-10'
+          className={`container mx-auto max-w-7xl transition-all duration-500 ease-out ${
+            statsSection.isVisible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-5'
           }`}
         >
           <div className="text-center mb-12">
@@ -423,8 +417,8 @@ const Landing = () => {
       <section className="py-20 bg-gradient-to-b from-muted/30 to-background">
         <div 
           ref={partnersSection.elementRef}
-          className={`container mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 transition-all duration-700 ${
-            partnersSection.isVisible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-10'
+          className={`container mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 transition-all duration-500 ease-out ${
+            partnersSection.isVisible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-5'
           }`}
         >
           <div className="text-center mb-16">
@@ -483,8 +477,8 @@ const Landing = () => {
       <section id="planos" className="py-20 scroll-mt-16 px-4 sm:px-6 lg:px-8">
         <div 
           ref={pricingSection.elementRef}
-          className={`container mx-auto max-w-7xl transition-all duration-700 ${
-            pricingSection.isVisible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-10'
+          className={`container mx-auto max-w-7xl transition-all duration-500 ease-out ${
+            pricingSection.isVisible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-5'
           }`}
         >
           <div className="text-center mb-16">
@@ -509,12 +503,6 @@ const Landing = () => {
                     ? 'border-primary ring-2 ring-primary/30 shadow-xl hover:shadow-primary/30 scale-105 bg-gradient-to-b from-primary/5 to-background' 
                     : 'border-border hover:border-primary/40 hover:shadow-primary/20'
                 }`}
-                style={{
-                  animationDelay: `${index * 100}ms`,
-                  opacity: pricingSection.isVisible ? 1 : 0,
-                  transform: pricingSection.isVisible ? 'translateY(0)' : 'translateY(20px)',
-                  transition: 'all 0.6s ease-out'
-                }}
               >
                 {plan.popular && (
                   <div className="absolute -top-4 left-1/2 transform -translate-x-1/2 z-10">
@@ -581,8 +569,8 @@ const Landing = () => {
         
         <div 
           ref={ctaSection.elementRef}
-          className={`container mx-auto max-w-4xl relative z-10 transition-all duration-700 ${
-            ctaSection.isVisible ? 'opacity-100 translate-y-0 scale-100' : 'opacity-0 translate-y-10 scale-95'
+          className={`container mx-auto max-w-4xl relative z-10 transition-all duration-500 ease-out ${
+            ctaSection.isVisible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-5'
           }`}
         >
           <Card className="border-primary/30 bg-gradient-to-br from-primary/5 to-accent/5 hover:border-primary/50 hover:shadow-2xl hover:shadow-primary/20 hover:scale-[1.02] transition-all duration-300">
