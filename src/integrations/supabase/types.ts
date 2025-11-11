@@ -201,45 +201,139 @@ export type Database = {
           },
         ]
       }
+      product_listings: {
+        Row: {
+          created_at: string | null
+          id: string
+          integration_id: string
+          last_sync_at: string | null
+          platform: string
+          platform_metadata: Json | null
+          platform_product_id: string
+          platform_url: string | null
+          platform_variant_id: string | null
+          product_id: string
+          sync_error: string | null
+          sync_status: string
+          updated_at: string | null
+          user_id: string
+        }
+        Insert: {
+          created_at?: string | null
+          id?: string
+          integration_id: string
+          last_sync_at?: string | null
+          platform: string
+          platform_metadata?: Json | null
+          platform_product_id: string
+          platform_url?: string | null
+          platform_variant_id?: string | null
+          product_id: string
+          sync_error?: string | null
+          sync_status?: string
+          updated_at?: string | null
+          user_id: string
+        }
+        Update: {
+          created_at?: string | null
+          id?: string
+          integration_id?: string
+          last_sync_at?: string | null
+          platform?: string
+          platform_metadata?: Json | null
+          platform_product_id?: string
+          platform_url?: string | null
+          platform_variant_id?: string | null
+          product_id?: string
+          sync_error?: string | null
+          sync_status?: string
+          updated_at?: string | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "product_listings_integration_id_fkey"
+            columns: ["integration_id"]
+            isOneToOne: false
+            referencedRelation: "integrations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "product_listings_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "products"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "product_listings_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       products: {
         Row: {
           ad_spend: number | null
+          brand: string | null
+          category: string | null
+          condition: string | null
           cost_price: number | null
           created_at: string
+          description: string | null
+          dimensions: Json | null
           id: string
           image_url: string | null
+          images: Json | null
           name: string
           selling_price: number | null
           sku: string
           stock: number
           updated_at: string
           user_id: string
+          weight: number | null
         }
         Insert: {
           ad_spend?: number | null
+          brand?: string | null
+          category?: string | null
+          condition?: string | null
           cost_price?: number | null
           created_at?: string
+          description?: string | null
+          dimensions?: Json | null
           id?: string
           image_url?: string | null
+          images?: Json | null
           name: string
           selling_price?: number | null
           sku: string
           stock?: number
           updated_at?: string
           user_id: string
+          weight?: number | null
         }
         Update: {
           ad_spend?: number | null
+          brand?: string | null
+          category?: string | null
+          condition?: string | null
           cost_price?: number | null
           created_at?: string
+          description?: string | null
+          dimensions?: Json | null
           id?: string
           image_url?: string | null
+          images?: Json | null
           name?: string
           selling_price?: number | null
           sku?: string
           stock?: number
           updated_at?: string
           user_id?: string
+          weight?: number | null
         }
         Relationships: [
           {

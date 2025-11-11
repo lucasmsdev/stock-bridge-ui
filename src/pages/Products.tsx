@@ -64,6 +64,13 @@ interface Product {
   updated_at: string;
 }
 
+interface ProductListing {
+  id: string;
+  platform: string;
+  platform_url: string | null;
+  sync_status: string;
+}
+
 interface Integration {
   id: string;
   platform: string;
@@ -96,6 +103,7 @@ export default function Products() {
   const [integrations, setIntegrations] = useState<Integration[]>([]);
   const [selectedChannel, setSelectedChannel] = useState<string>("all");
   const [isLoading, setIsLoading] = useState(true);
+  const [productListings, setProductListings] = useState<Record<string, ProductListing[]>>({});
   const [isImporting, setIsImporting] = useState(false);
   const [editingProduct, setEditingProduct] = useState<Product | null>(null);
   const [deletingProduct, setDeletingProduct] = useState<Product | null>(null);
@@ -112,6 +120,7 @@ export default function Products() {
     if (user) {
       loadProducts();
       loadIntegrations();
+      loadProductListings();
     }
   }, [user]);
 
@@ -259,6 +268,38 @@ export default function Products() {
       setIntegrations(activeIntegrations);
     } catch (error) {
       console.error('Unexpected error loading integrations:', error);
+    }
+  };
+
+  const loadProductListings = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('product_listings')
+        .select('id, product_id, platform, platform_url, sync_status')
+        .eq('user_id', user?.id);
+
+      if (error) {
+        console.error('Error loading product listings:', error);
+        return;
+      }
+
+      // Group listings by product_id
+      const listingsByProduct: Record<string, ProductListing[]> = {};
+      (data || []).forEach(listing => {
+        if (!listingsByProduct[listing.product_id]) {
+          listingsByProduct[listing.product_id] = [];
+        }
+        listingsByProduct[listing.product_id].push({
+          id: listing.id,
+          platform: listing.platform,
+          platform_url: listing.platform_url,
+          sync_status: listing.sync_status
+        });
+      });
+
+      setProductListings(listingsByProduct);
+    } catch (error) {
+      console.error('Unexpected error loading product listings:', error);
     }
   };
 
@@ -436,40 +477,45 @@ export default function Products() {
             Gerencie seu catálogo centralizado de produtos
           </p>
         </div>
-        {integrations.length > 0 ? (
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button 
-                className="bg-gradient-primary hover:bg-primary-hover hover:shadow-primary transition-all duration-200"
-                disabled={isImporting}
-              >
-                {isImporting ? (
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                ) : (
-                  <Download className="mr-2 h-4 w-4" />
-                )}
-                {isImporting ? "Importando..." : "Importar Produtos"}
-                <ChevronDown className="ml-2 h-4 w-4" />
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end" className="bg-popover border border-border shadow-medium z-50">
-              {integrations.map((integration) => (
-                <DropdownMenuItem 
-                  key={integration.id}
-                  className="hover:bg-muted cursor-pointer"
-                  onClick={() => importProducts(integration.platform)}
-                >
-                  <Download className="mr-2 h-4 w-4" />
-                  Do {platformNames[integration.platform] || integration.platform}
-                </DropdownMenuItem>
-              ))}
-            </DropdownMenuContent>
-          </DropdownMenu>
-        ) : (
-          <Button variant="outline" disabled>
-            Nenhum canal conectado
+        <div className="flex gap-2">
+          <Button
+            onClick={() => navigate('/app/products/new')}
+            className="bg-gradient-primary hover:bg-primary-hover"
+          >
+            <Plus className="mr-2 h-4 w-4" />
+            Criar Produto
           </Button>
-        )}
+          {integrations.length > 0 ? (
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button 
+                  variant="outline"
+                  disabled={isImporting}
+                >
+                  {isImporting ? (
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  ) : (
+                    <Download className="mr-2 h-4 w-4" />
+                  )}
+                  {isImporting ? "Importando..." : "Importar"}
+                  <ChevronDown className="ml-2 h-4 w-4" />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="bg-popover border border-border shadow-medium z-50">
+                {integrations.map((integration) => (
+                  <DropdownMenuItem 
+                    key={integration.id}
+                    className="hover:bg-muted cursor-pointer"
+                    onClick={() => importProducts(integration.platform)}
+                  >
+                    <Download className="mr-2 h-4 w-4" />
+                    Do {platformNames[integration.platform] || integration.platform}
+                  </DropdownMenuItem>
+                ))}
+              </DropdownMenuContent>
+            </DropdownMenu>
+          ) : null}
+        </div>
       </div>
 
       {/* Inventory Summary */}
@@ -684,22 +730,26 @@ export default function Products() {
                       </TableCell>
                       <TableCell>
                         <div className="flex items-center gap-1">
-                          {integrations.length > 0 ? (
-                            integrations.map((integration) => {
-                              const logoConfig = platformLogos[integration.platform];
+                          {productListings[product.id] && productListings[product.id].length > 0 ? (
+                            productListings[product.id].map((listing) => {
+                              const logoConfig = platformLogos[listing.platform];
                               return logoConfig ? (
-                                <img
-                                  key={integration.platform}
-                                  src={logoConfig.url}
-                                  alt={`${integration.platform} logo`}
-                                  className={`h-5 w-auto ${logoConfig.darkInvert ? 'dark-invert' : ''}`}
-                                />
+                                <div key={listing.id} className="relative group">
+                                  <img
+                                    src={logoConfig.url}
+                                    alt={`${listing.platform} logo`}
+                                    className={`h-5 w-auto ${logoConfig.darkInvert ? 'dark-invert' : ''} ${listing.sync_status === 'error' ? 'opacity-50' : ''}`}
+                                  />
+                                  {listing.sync_status === 'error' && (
+                                    <div className="absolute -top-1 -right-1 w-2 h-2 bg-destructive rounded-full" />
+                                  )}
+                                </div>
                               ) : (
-                                <span key={integration.platform} className="text-lg">🛍️</span>
+                                <span key={listing.id} className="text-lg">🛍️</span>
                               );
                             })
                           ) : (
-                            <span className="text-lg">🛍️</span>
+                            <span className="text-muted-foreground text-sm">-</span>
                           )}
                         </div>
                       </TableCell>

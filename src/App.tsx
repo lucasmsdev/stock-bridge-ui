@@ -12,6 +12,7 @@ import Signup from "./pages/auth/Signup";
 import PendingPayment from "./pages/auth/PendingPayment";
 import Dashboard from "./pages/Dashboard";
 import Products from "./pages/Products";
+import CreateProduct from "./pages/CreateProduct";
 import ProductDetails from "./pages/ProductDetails";
 import Orders from "./pages/Orders";
 import Finance from "./pages/Finance";
@@ -48,6 +49,7 @@ const App = () => (
                 <Route index element={<Navigate to="/app/dashboard" replace />} />
                 <Route path="dashboard" element={<Dashboard />} />
                 <Route path="products" element={<Products />} />
+                <Route path="products/new" element={<CreateProduct />} />
                 <Route path="products/:id" element={<ProductDetails />} />
                 <Route path="orders" element={<Orders />} />
                 <Route path="finance" element={<Finance />} />

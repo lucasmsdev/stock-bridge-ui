@@ -68,3 +68,12 @@ verify_jwt = true
 
 [functions.amazon-auth]
 verify_jwt = true
+
+[functions.create-product-listing]
+verify_jwt = true
+
+[functions.create-mercadolivre-product]
+verify_jwt = true
+
+[functions.create-shopify-product]
+verify_jwt = true
