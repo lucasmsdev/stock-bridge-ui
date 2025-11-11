@@ -1,4 +1,5 @@
 import React from 'react';
+import { useTheme } from '@/hooks/useTheme';
 
 interface PlatformLogoProps {
   platform: string;
@@ -15,6 +16,10 @@ const platformLogos = {
   magento: '/logos/magento.svg',
   woocommerce: '/logos/woocommerce.svg',
   vtex: '/logos/vtex.svg',
+};
+
+const platformLogosDark = {
+  amazon: 'https://www.pngmart.com/files/23/Amazon-Logo-White-PNG-Photos.png',
 };
 
 const platformDarkInvert = {
@@ -46,6 +51,8 @@ export const PlatformLogo: React.FC<PlatformLogoProps> = ({
   size = 'md',
   className = '',
 }) => {
+  const { isDark } = useTheme();
+  
   const sizeClasses = {
     sm: 'w-4 h-4',
     md: 'w-6 h-6',
@@ -53,10 +60,15 @@ export const PlatformLogo: React.FC<PlatformLogoProps> = ({
   };
 
   const normalizedPlatform = platform.toLowerCase().replace(/\s+/g, '');
-  const logoUrl = platformLogos[normalizedPlatform as keyof typeof platformLogos] || platformLogos[platform as keyof typeof platformLogos];
+  
+  // Check if there's a dark mode specific logo
+  const darkLogo = isDark ? (platformLogosDark[normalizedPlatform as keyof typeof platformLogosDark] || platformLogosDark[platform as keyof typeof platformLogosDark]) : null;
+  const logoUrl = darkLogo || platformLogos[normalizedPlatform as keyof typeof platformLogos] || platformLogos[platform as keyof typeof platformLogos];
+  
   const fallback = platformFallbacks[normalizedPlatform as keyof typeof platformFallbacks] || platformFallbacks[platform as keyof typeof platformFallbacks] || '🔌';
   const colorClass = platformColors[normalizedPlatform as keyof typeof platformColors] || platformColors[platform as keyof typeof platformColors] || 'bg-gray-500';
-  const shouldInvert = platformDarkInvert[normalizedPlatform as keyof typeof platformDarkInvert] || platformDarkInvert[platform as keyof typeof platformDarkInvert] || false;
+  // Don't apply dark-invert if we're using a dark-specific logo
+  const shouldInvert = !darkLogo && (platformDarkInvert[normalizedPlatform as keyof typeof platformDarkInvert] || platformDarkInvert[platform as keyof typeof platformDarkInvert] || false);
 
   if (logoUrl) {
     return (
