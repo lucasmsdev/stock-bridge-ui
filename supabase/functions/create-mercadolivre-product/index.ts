@@ -42,6 +42,17 @@ serve(async (req) => {
       )
     }
 
+    // Validate required Mercado Livre fields
+    if (!productData.mercadolivre_category_id) {
+      return new Response(
+        JSON.stringify({ 
+          error: 'category_id é obrigatório para Mercado Livre',
+          details: 'Selecione uma categoria válida do Mercado Livre antes de publicar.'
+        }),
+        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      )
+    }
+
     // Get integration details
     const { data: integration, error: integrationError } = await supabaseClient
       .from('integrations')
@@ -61,17 +72,13 @@ serve(async (req) => {
     // Prepare Mercado Livre payload
     const mlPayload: any = {
       title: productData.name.substring(0, 60), // ML max title length
+      category_id: productData.mercadolivre_category_id, // Required field
       price: productData.selling_price,
       currency_id: 'BRL',
       available_quantity: productData.stock || 0,
       buying_mode: 'buy_it_now',
       condition: productData.condition || 'new',
       listing_type_id: productData.listing_type_id || 'gold_special',
-    }
-
-    // Add category if provided
-    if (productData.category_id) {
-      mlPayload.category_id = productData.category_id
     }
 
     // Add description
@@ -113,10 +120,16 @@ serve(async (req) => {
 
     if (!mlResponse.ok) {
       console.error('Mercado Livre API error:', mlData)
+      
+      // Extract detailed error message
+      const errorMessage = mlData.message || 
+        (mlData.cause && mlData.cause.length > 0 ? mlData.cause[0].message : 'Unknown error')
+      
       return new Response(
         JSON.stringify({ 
           error: 'Failed to create product on Mercado Livre', 
-          details: mlData.message || mlData.error 
+          details: errorMessage,
+          mlResponse: mlData // Include full response for debugging
         }),
         { status: mlResponse.status, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       )

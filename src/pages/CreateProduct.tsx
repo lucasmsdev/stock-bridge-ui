@@ -11,6 +11,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { useToast } from "@/hooks/use-toast";
 import { Loader2, Package, ShoppingCart } from "lucide-react";
 import { PlatformLogo } from "@/components/ui/platform-logo";
+import { MercadoLivreCategorySelector } from "@/components/products/MercadoLivreCategorySelector";
 
 interface Integration {
   id: string;
@@ -43,6 +44,10 @@ export default function CreateProduct() {
   // Amazon-specific fields
   const [amazonProductType, setAmazonProductType] = useState("");
   const [bulletPoints, setBulletPoints] = useState("");
+
+  // Mercado Livre-specific fields
+  const [mercadoLivreCategory, setMercadoLivreCategory] = useState("");
+  const [mercadoLivreCategoryPath, setMercadoLivreCategoryPath] = useState("");
 
   // Platform selection
   const [selectedPlatforms, setSelectedPlatforms] = useState<Record<string, boolean>>({});
@@ -117,6 +122,16 @@ export default function CreateProduct() {
       }
     }
 
+    // Validate Mercado Livre category
+    if (selectedPlatforms['mercadolivre'] && !mercadoLivreCategory) {
+      toast({
+        title: "Categoria obrigatória",
+        description: "Selecione uma categoria do Mercado Livre para continuar.",
+        variant: "destructive",
+      });
+      return;
+    }
+
     setLoading(true);
 
     try {
@@ -143,6 +158,7 @@ export default function CreateProduct() {
         images: imageUrls ? imageUrls.split('\n').filter(url => url.trim()) : [],
         condition: 'new',
         amazon_product_type: amazonProductType || null, // Amazon-specific
+        mercadolivre_category_id: mercadoLivreCategory || null, // Mercado Livre-specific
       };
 
       const platforms = selectedPlatformsList.map(platform => ({
@@ -373,6 +389,38 @@ export default function CreateProduct() {
                 <p className="text-xs text-muted-foreground mt-1">
                   Máximo 5 pontos, 500 caracteres cada. Usado no lugar da descrição.
                 </p>
+              </div>
+            </CardContent>
+          </Card>
+        )}
+
+        {/* Mercado Livre-Specific Fields */}
+        {selectedPlatforms['mercadolivre'] && (
+          <Card className="border-yellow-200 dark:border-yellow-900">
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <PlatformLogo platform="mercadolivre" size="sm" />
+                Configurações Mercado Livre
+              </CardTitle>
+              <CardDescription>
+                A categoria é obrigatória para publicar no Mercado Livre
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div>
+                <Label>Categoria Obrigatória *</Label>
+                <MercadoLivreCategorySelector 
+                  onCategorySelect={(categoryId, categoryPath) => {
+                    setMercadoLivreCategory(categoryId);
+                    setMercadoLivreCategoryPath(categoryPath);
+                  }}
+                  selectedCategoryId={mercadoLivreCategory}
+                />
+                {mercadoLivreCategoryPath && (
+                  <p className="text-sm text-muted-foreground mt-2 flex items-center gap-1">
+                    <span>📂</span> {mercadoLivreCategoryPath}
+                  </p>
+                )}
               </div>
             </CardContent>
           </Card>
