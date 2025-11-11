@@ -107,11 +107,11 @@ serve(async (req) => {
 
     console.log(`SKU check passed. Current: ${currentProductCount}, Limit: ${limit}, Plan: ${userPlan}`);
 
-    const { platform } = await req.json();
+    const { integration_id } = await req.json();
 
-    if (!platform) {
+    if (!integration_id) {
       return new Response(
-        JSON.stringify({ error: 'Platform is required' }), 
+        JSON.stringify({ error: 'integration_id is required' }), 
         { 
           status: 400, 
           headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
@@ -119,12 +119,12 @@ serve(async (req) => {
       );
     }
 
-    // Get the integration for this user and platform
+    // Get the specific integration by ID and verify it belongs to the user
     const { data: integration, error: integrationError } = await supabaseClient
       .from('integrations')
-      .select('access_token')
+      .select('id, platform, access_token, shop_domain, refresh_token, selling_partner_id, marketplace_id, account_name')
+      .eq('id', integration_id)
       .eq('user_id', user.id)
-      .eq('platform', platform)
       .single();
 
     if (integrationError || !integration || !integration.access_token) {
@@ -138,7 +138,8 @@ serve(async (req) => {
       );
     }
 
-    console.log('Found integration for platform:', platform);
+    console.log('Found integration:', integration.id, 'for platform:', integration.platform, 'account:', integration.account_name);
+    const platform = integration.platform;
 
     let productsToInsert = [];
 
@@ -300,16 +301,9 @@ serve(async (req) => {
       }
 
     } else if (platform === 'shopify') {
-      // Get shop domain from integration
-      const { data: shopifyIntegration, error: shopifyError } = await supabaseClient
-        .from('integrations')
-        .select('shop_domain')
-        .eq('user_id', user.id)
-        .eq('platform', 'shopify')
-        .single();
-
-      if (shopifyError || !shopifyIntegration?.shop_domain) {
-        console.error('Shopify shop domain not found:', shopifyError);
+      // Shop domain is already in the integration object
+      if (!integration.shop_domain) {
+        console.error('Shopify shop domain not found in integration');
         return new Response(
           JSON.stringify({ error: 'Shopify shop domain not configured' }), 
           { 
@@ -319,7 +313,7 @@ serve(async (req) => {
         );
       }
 
-      const shopifyDomain = shopifyIntegration.shop_domain;
+      const shopifyDomain = integration.shop_domain;
       console.log('Fetching products from Shopify shop:', shopifyDomain);
 
       // Step 1: Get ALL products from Shopify with pagination
@@ -414,16 +408,9 @@ serve(async (req) => {
         // Importar biblioteca Amazon SP-API
         const { default: SellingPartnerAPI } = await import('npm:amazon-sp-api@latest');
 
-        // Buscar configurações da integração Amazon
-        const { data: amazonConfig, error: configError } = await supabaseClient
-          .from('integrations')
-          .select('refresh_token, selling_partner_id, marketplace_id')
-          .eq('user_id', user.id)
-          .eq('platform', 'amazon')
-          .single();
-
-        if (configError || !amazonConfig?.refresh_token) {
-          console.error('❌ Configuração Amazon não encontrada:', configError);
+        // Amazon config is already in the integration object
+        if (!integration.refresh_token) {
+          console.error('❌ Refresh token Amazon não encontrado na integração');
           return new Response(
             JSON.stringify({ 
               error: 'Conta Amazon não conectada corretamente. Reconecte sua conta Amazon Seller.' 
@@ -440,14 +427,14 @@ serve(async (req) => {
         // Inicializar cliente Amazon SP-API
         const sellingPartner = new SellingPartnerAPI({
           region: Deno.env.get('AMAZON_REGION') || 'na', // na, eu, fe
-          refresh_token: amazonConfig.refresh_token,
+          refresh_token: integration.refresh_token,
           credentials: {
             SELLING_PARTNER_APP_CLIENT_ID: Deno.env.get('AMAZON_CLIENT_ID'),
             SELLING_PARTNER_APP_CLIENT_SECRET: Deno.env.get('AMAZON_CLIENT_SECRET'),
           },
         });
 
-        const marketplaceId = amazonConfig.marketplace_id || Deno.env.get('AMAZON_MARKETPLACE_ID') || 'ATVPDKIKX0DER';
+        const marketplaceId = integration.marketplace_id || Deno.env.get('AMAZON_MARKETPLACE_ID') || 'ATVPDKIKX0DER';
 
         console.log('📦 Buscando inventário FBA da Amazon...');
 
@@ -470,7 +457,7 @@ serve(async (req) => {
             operation: 'getListingsItem',
             endpoint: 'listingsItems',
             path: {
-              sellerId: amazonConfig.selling_partner_id,
+              sellerId: integration.selling_partner_id,
             },
             query: {
               marketplaceIds: [marketplaceId],

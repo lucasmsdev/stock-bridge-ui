@@ -281,7 +281,7 @@ export default function Integrations() {
       }
 
       const { data, error } = await supabase.functions.invoke("import-products", {
-        body: { platform },
+        body: { integration_id: integrationId },
         headers: {
           Authorization: `Bearer ${session.access_token}`,
         },
@@ -299,7 +299,7 @@ export default function Integrations() {
 
       toast({
         title: "Produtos importados!",
-        description: `${data.imported || 0} produtos foram importados com sucesso.`,
+        description: `${data.imported || 0} produtos foram importados com sucesso de ${platform}.`,
       });
     } catch (error) {
       console.error("Unexpected error importing products:", error);
@@ -436,21 +436,18 @@ export default function Integrations() {
 
                         <Separator />
 
-                        {/* Import Products Button for Shopify */}
-                        {integration.platform === "shopify" && (
-                          <>
-                            <Button
-                              variant="default"
-                              size="sm"
-                              className="w-full bg-gradient-primary"
-                              onClick={() => handleImportProducts(integration.id, integration.platform)}
-                            >
-                              <Download className="w-4 h-4 mr-2" />
-                              Importar Produtos
-                            </Button>
-                            <Separator />
-                          </>
-                        )}
+                        {/* Import Products Button for all platforms */}
+                        <Button
+                          variant="default"
+                          size="sm"
+                          className="w-full bg-gradient-primary"
+                          onClick={() => handleImportProducts(integration.id, integration.platform)}
+                        >
+                          <Download className="w-4 h-4 mr-2" />
+                          Importar Produtos
+                        </Button>
+                        
+                        <Separator />
 
                         <div className="flex gap-2">
                           <Button
