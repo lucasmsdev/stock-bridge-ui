@@ -58,6 +58,7 @@ const availableIntegrations = [
 export default function Integrations() {
   const [searchParams, setSearchParams] = useSearchParams();
   const [disconnectingId, setDisconnectingId] = useState<string | null>(null);
+  const [importingId, setImportingId] = useState<string | null>(null);
   const [connectedIntegrations, setConnectedIntegrations] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const { toast } = useToast();
@@ -260,11 +261,15 @@ export default function Integrations() {
     }
   };
 
-  const handleImportProducts = async (integrationId: string, platform: string) => {
+  const handleImportProducts = async (integrationId: string, platform: string, accountName?: string) => {
     try {
+      setImportingId(integrationId);
+      
+      const accountDisplay = accountName || platform;
+      
       toast({
-        title: "Importando produtos...",
-        description: "Isso pode levar alguns segundos.",
+        title: "Iniciando importação...",
+        description: `Buscando produtos de ${accountDisplay}`,
       });
 
       const {
@@ -277,6 +282,7 @@ export default function Integrations() {
           description: "Faça login para importar produtos.",
           variant: "destructive",
         });
+        setImportingId(null);
         return;
       }
 
@@ -294,13 +300,17 @@ export default function Integrations() {
           description: error.message || "Não foi possível importar os produtos.",
           variant: "destructive",
         });
+        setImportingId(null);
         return;
       }
 
       toast({
-        title: "Produtos importados!",
-        description: `${data.imported || 0} produtos foram importados com sucesso de ${platform}.`,
+        title: "Importação concluída!",
+        description: `${data.imported || 0} produtos importados de ${accountDisplay}.`,
       });
+      
+      // Reload products or update UI as needed
+      await loadConnectedIntegrations();
     } catch (error) {
       console.error("Unexpected error importing products:", error);
       toast({
@@ -308,6 +318,8 @@ export default function Integrations() {
         description: "Ocorreu um erro ao importar os produtos.",
         variant: "destructive",
       });
+    } finally {
+      setImportingId(null);
     }
   };
 
@@ -386,7 +398,11 @@ export default function Integrations() {
                   {platformIntegrations.map((integration, idx) => (
                     <Card
                       key={integration.id}
-                      className="shadow-soft hover:shadow-medium transition-all duration-200 hover:scale-[1.02] hover:-translate-y-1"
+                      className={`shadow-soft hover:shadow-medium transition-all duration-200 ${
+                        importingId === integration.id 
+                          ? 'ring-2 ring-primary animate-pulse' 
+                          : 'hover:scale-[1.02] hover:-translate-y-1'
+                      }`}
                     >
                       <CardHeader className="pb-3">
                         <div className="flex items-center justify-between">
@@ -422,10 +438,17 @@ export default function Integrations() {
                               </CardDescription>
                             </div>
                           </div>
-                          <Badge variant="secondary" className="bg-green-500 text-white hover:opacity-90 transition-opacity">
-                            <CheckCircle2 className="w-3 h-3 mr-1" />
-                            Ativo
-                          </Badge>
+                          {importingId === integration.id ? (
+                            <Badge variant="secondary" className="bg-primary text-primary-foreground animate-pulse">
+                              <Loader2 className="w-3 h-3 mr-1 animate-spin" />
+                              Importando
+                            </Badge>
+                          ) : (
+                            <Badge variant="secondary" className="bg-green-500 text-white hover:opacity-90 transition-opacity">
+                              <CheckCircle2 className="w-3 h-3 mr-1" />
+                              Ativo
+                            </Badge>
+                          )}
                         </div>
                       </CardHeader>
 
@@ -440,11 +463,25 @@ export default function Integrations() {
                         <Button
                           variant="default"
                           size="sm"
-                          className="w-full bg-gradient-primary"
-                          onClick={() => handleImportProducts(integration.id, integration.platform)}
+                          className="w-full bg-gradient-primary relative overflow-hidden"
+                          onClick={() => handleImportProducts(
+                            integration.id, 
+                            integration.platform,
+                            integration.account_nickname || integration.account_name
+                          )}
+                          disabled={importingId === integration.id}
                         >
-                          <Download className="w-4 h-4 mr-2" />
-                          Importar Produtos
+                          {importingId === integration.id ? (
+                            <>
+                              <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                              <span className="animate-pulse">Importando...</span>
+                            </>
+                          ) : (
+                            <>
+                              <Download className="w-4 h-4 mr-2" />
+                              Importar Produtos
+                            </>
+                          )}
                         </Button>
                         
                         <Separator />
@@ -454,6 +491,7 @@ export default function Integrations() {
                             variant="outline"
                             size="sm"
                             className="flex-1"
+                            disabled={importingId === integration.id}
                             onClick={() => {
                               const newNickname = prompt(
                                 "Digite um apelido para identificar esta conta:",
@@ -492,7 +530,7 @@ export default function Integrations() {
                                 variant="outline"
                                 size="sm"
                                 className="text-destructive hover:text-destructive"
-                                disabled={disconnectingId === integration.id}
+                                disabled={disconnectingId === integration.id || importingId === integration.id}
                               >
                                 {disconnectingId === integration.id ? (
                                   <Loader2 className="w-4 h-4 animate-spin" />
