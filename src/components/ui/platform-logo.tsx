@@ -12,14 +12,14 @@ const platformLogos = {
   'mercado livre': 'https://vectorseek.com/wp-content/uploads/2023/08/Mercado-Livre-Icon-Logo-Vector.svg-.png',
   shopify: 'https://cdn.freebiesupply.com/logos/large/2x/shopify-logo-png-transparent.png',
   shopee: 'https://upload.wikimedia.org/wikipedia/commons/thumb/0/0e/Shopee_logo.svg/1442px-Shopee_logo.svg.png',
-  amazon: 'https://pngimg.com/d/amazon_PNG4.png',
+  amazon: 'https://upload.wikimedia.org/wikipedia/commons/d/de/Amazon_icon.png',
   magento: '/logos/magento.svg',
   woocommerce: '/logos/woocommerce.svg',
   vtex: '/logos/vtex.svg',
 };
 
 const platformLogosDark = {
-  amazon: 'https://www.pngmart.com/files/23/Amazon-Logo-White-PNG-Photos.png',
+  amazon: 'https://bluejuicecomics.com/wp-content/uploads/2017/02/Amazon-icon-white.png',
 };
 
 const platformDarkInvert = {
