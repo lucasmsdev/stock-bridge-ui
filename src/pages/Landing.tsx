@@ -251,8 +251,8 @@ const Landing = () => {
       <section className="py-20 bg-muted/30">
         <div 
           ref={aboutSection.elementRef}
-          className={`container mx-auto max-w-5xl px-4 sm:px-6 lg:px-8 transition-all duration-500 ease-out ${
-            aboutSection.isVisible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-5'
+          className={`container mx-auto max-w-5xl px-4 sm:px-6 lg:px-8 transition-all duration-300 ease-out ${
+            aboutSection.isVisible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-3'
           }`}
         >
           <div className="text-center space-y-6">
@@ -273,8 +273,8 @@ const Landing = () => {
       <section className="py-20 px-4 sm:px-6 lg:px-8">
         <div 
           ref={benefitsSection.elementRef}
-          className={`container mx-auto max-w-7xl transition-all duration-500 ease-out ${
-            benefitsSection.isVisible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-5'
+          className={`container mx-auto max-w-7xl transition-all duration-300 ease-out ${
+            benefitsSection.isVisible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-3'
           }`}
         >
           <div className="text-center mb-16">
@@ -340,8 +340,8 @@ const Landing = () => {
       <section id="funcoes" className="py-20 bg-muted/30 scroll-mt-16">
         <div 
           ref={featuresSection.elementRef}
-          className={`container mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 transition-all duration-500 ease-out ${
-            featuresSection.isVisible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-5'
+          className={`container mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 transition-all duration-300 ease-out ${
+            featuresSection.isVisible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-3'
           }`}
         >
           <div className="text-center mb-16">
@@ -380,8 +380,8 @@ const Landing = () => {
       <section className="py-20 px-4 sm:px-6 lg:px-8">
         <div 
           ref={statsSection.elementRef}
-          className={`container mx-auto max-w-7xl transition-all duration-500 ease-out ${
-            statsSection.isVisible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-5'
+          className={`container mx-auto max-w-7xl transition-all duration-300 ease-out ${
+            statsSection.isVisible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-3'
           }`}
         >
           <div className="text-center mb-12">
@@ -417,8 +417,8 @@ const Landing = () => {
       <section className="py-20 bg-gradient-to-b from-muted/30 to-background">
         <div 
           ref={partnersSection.elementRef}
-          className={`container mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 transition-all duration-500 ease-out ${
-            partnersSection.isVisible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-5'
+          className={`container mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 transition-all duration-300 ease-out ${
+            partnersSection.isVisible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-3'
           }`}
         >
           <div className="text-center mb-16">
@@ -477,8 +477,8 @@ const Landing = () => {
       <section id="planos" className="py-20 scroll-mt-16 px-4 sm:px-6 lg:px-8">
         <div 
           ref={pricingSection.elementRef}
-          className={`container mx-auto max-w-7xl transition-all duration-500 ease-out ${
-            pricingSection.isVisible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-5'
+          className={`container mx-auto max-w-7xl transition-all duration-300 ease-out ${
+            pricingSection.isVisible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-3'
           }`}
         >
           <div className="text-center mb-16">
@@ -569,8 +569,8 @@ const Landing = () => {
         
         <div 
           ref={ctaSection.elementRef}
-          className={`container mx-auto max-w-4xl relative z-10 transition-all duration-500 ease-out ${
-            ctaSection.isVisible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-5'
+          className={`container mx-auto max-w-4xl relative z-10 transition-all duration-300 ease-out ${
+            ctaSection.isVisible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-3'
           }`}
         >
           <Card className="border-primary/30 bg-gradient-to-br from-primary/5 to-accent/5 hover:border-primary/50 hover:shadow-2xl hover:shadow-primary/20 hover:scale-[1.02] transition-all duration-300">
