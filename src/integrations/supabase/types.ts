@@ -42,6 +42,7 @@ export type Database = {
         Row: {
           access_token: string
           account_name: string | null
+          account_nickname: string | null
           created_at: string
           id: string
           marketplace_id: string | null
@@ -55,6 +56,7 @@ export type Database = {
         Insert: {
           access_token: string
           account_name?: string | null
+          account_nickname?: string | null
           created_at?: string
           id?: string
           marketplace_id?: string | null
@@ -68,6 +70,7 @@ export type Database = {
         Update: {
           access_token?: string
           account_name?: string | null
+          account_nickname?: string | null
           created_at?: string
           id?: string
           marketplace_id?: string | null

@@ -91,9 +91,10 @@ serve(async (req) => {
 
     console.log('💾 Salvando integração no banco de dados...');
 
+    // Sempre insere uma nova integração (suporta múltiplas contas)
     const { data: integration, error: insertError } = await supabaseClient
       .from('integrations')
-      .upsert({
+      .insert({
         user_id: state,
         platform: 'amazon',
         access_token: tokenData.access_token,
@@ -101,9 +102,6 @@ serve(async (req) => {
         selling_partner_id: sellingPartnerId,
         marketplace_id: 'ATVPDKIKX0DER', // US marketplace por padrão
         account_name: sellingPartnerId || 'Amazon Seller',
-        updated_at: new Date().toISOString(),
-      }, {
-        onConflict: 'user_id,platform'
       })
       .select()
       .single();

@@ -154,18 +154,21 @@ serve(async (req) => {
       console.error('Error fetching user info from Mercado Livre:', userInfoError);
     }
 
-    // Save or update integration in database
-    const { data: existingIntegration, error: selectError } = await supabase
+    // Sempre insere uma nova integração (suporta múltiplas contas)
+    const { error: insertError } = await supabase
       .from('integrations')
-      .select('id')
-      .eq('user_id', user.id)
-      .eq('platform', 'mercadolivre')
-      .single();
+      .insert({
+        user_id: user.id,
+        platform: 'mercadolivre',
+        access_token: tokenData.access_token,
+        refresh_token: tokenData.refresh_token,
+        account_name: accountName,
+      });
 
-    if (selectError && selectError.code !== 'PGRST116') {
-      console.error('Error checking existing integration:', selectError);
+    if (insertError) {
+      console.error('Error creating integration:', insertError);
       return new Response(
-        JSON.stringify({ error: 'Database error' }), 
+        JSON.stringify({ error: 'Failed to save integration' }), 
         { 
           status: 500, 
           headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
@@ -173,55 +176,7 @@ serve(async (req) => {
       );
     }
 
-    if (existingIntegration) {
-      // Update existing integration
-      const { error: updateError } = await supabase
-        .from('integrations')
-        .update({
-          access_token: tokenData.access_token,
-          refresh_token: tokenData.refresh_token,
-          account_name: accountName,
-          updated_at: new Date().toISOString(),
-        })
-        .eq('id', existingIntegration.id);
-
-      if (updateError) {
-        console.error('Error updating integration:', updateError);
-        return new Response(
-          JSON.stringify({ error: 'Failed to update integration' }), 
-          { 
-            status: 500, 
-            headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
-          }
-        );
-      }
-
-      console.log('Integration updated successfully');
-    } else {
-      // Create new integration
-      const { error: insertError } = await supabase
-        .from('integrations')
-        .insert({
-          user_id: user.id,
-          platform: 'mercadolivre',
-          access_token: tokenData.access_token,
-          refresh_token: tokenData.refresh_token,
-          account_name: accountName,
-        });
-
-      if (insertError) {
-        console.error('Error creating integration:', insertError);
-        return new Response(
-          JSON.stringify({ error: 'Failed to save integration' }), 
-          { 
-            status: 500, 
-            headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
-          }
-        );
-      }
-
-      console.log('Integration created successfully');
-    }
+    console.log('Integration created successfully');
 
     return new Response(
       JSON.stringify({ 

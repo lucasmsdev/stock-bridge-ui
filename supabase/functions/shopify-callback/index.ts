@@ -101,44 +101,21 @@ serve(async (req) => {
       console.log('Shop name:', accountName);
     }
 
-    // Save or update integration in database
+    // Sempre insere uma nova integração (suporta múltiplas contas)
     console.log('Saving integration to database...');
     
-    // Check if integration already exists
-    const { data: existingIntegration } = await supabase
+    const { error: insertError } = await supabase
       .from('integrations')
-      .select('id')
-      .eq('user_id', userId)
-      .eq('platform', 'shopify')
-      .single();
+      .insert({
+        user_id: userId,
+        platform: 'shopify',
+        access_token: accessToken,
+        shop_domain: shopDomain,
+        account_name: accountName,
+      });
 
-    let result;
-    if (existingIntegration) {
-      // Update existing integration
-      result = await supabase
-        .from('integrations')
-        .update({
-          access_token: accessToken,
-          shop_domain: shopDomain,
-          account_name: accountName,
-          updated_at: new Date().toISOString(),
-        })
-        .eq('id', existingIntegration.id);
-    } else {
-      // Insert new integration
-      result = await supabase
-        .from('integrations')
-        .insert({
-          user_id: userId,
-          platform: 'shopify',
-          access_token: accessToken,
-          shop_domain: shopDomain,
-          account_name: accountName,
-        });
-    }
-
-    if (result.error) {
-      console.error('Database error:', result.error);
+    if (insertError) {
+      console.error('Database error:', insertError);
       return new Response(
         `<html><body><h1>Erro ao Salvar</h1><p>Não foi possível salvar a integração no banco de dados.</p><a href="${Deno.env.get('APP_URL') || 'https://fcvwogaqarkuqvumyqqm.supabase.co'}/integrations">Voltar</a></body></html>`,
         { status: 500, headers: { 'Content-Type': 'text/html' } }

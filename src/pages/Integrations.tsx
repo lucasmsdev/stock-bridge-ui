@@ -58,7 +58,7 @@ const availableIntegrations = [
 export default function Integrations() {
   const [searchParams, setSearchParams] = useSearchParams();
   const [disconnectingId, setDisconnectingId] = useState<string | null>(null);
-  const [connectedIntegrations, setConnectedIntegrations] = useState([]);
+  const [connectedIntegrations, setConnectedIntegrations] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const { toast } = useToast();
   const { canAccess, getUpgradeRequiredMessage } = usePlan();
@@ -362,143 +362,174 @@ export default function Integrations() {
             <Loader2 className="h-8 w-8 text-primary animate-spin" />
           </div>
         ) : connectedIntegrations.length > 0 ? (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-            {connectedIntegrations.map((integration) => (
-              <Card
-                key={integration.id}
-                className="shadow-soft hover:shadow-medium transition-all duration-200 hover:scale-[1.02] hover:-translate-y-1"
-              >
-                <CardHeader className="pb-3">
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-3">
-                      <div className="hover:scale-110 transition-transform">
-                        {(() => {
-                          const platformConfig = availableIntegrations.find((p) => p.id === integration.platform);
-                          return platformConfig?.logoUrl ? (
-                            <img
-                              src={platformConfig.logoUrl}
-                              alt={`${integration.platform} logo`}
-                              className={`h-8 w-auto ${platformConfig.darkInvert ? "dark-invert" : ""}`}
-                            />
-                          ) : (
-                            <PlatformLogo platform={integration.platform} size="lg" />
-                          );
-                        })()}
-                      </div>
-                      <div>
-                        <CardTitle className="text-lg capitalize">{integration.platform}</CardTitle>
-                        {integration.account_name && (
-                          <CardDescription className="font-medium">{integration.account_name}</CardDescription>
-                        )}
-                        <CardDescription className="text-xs">
-                          Conectado em {new Date(integration.created_at).toLocaleDateString("pt-BR")}
-                        </CardDescription>
-                      </div>
-                    </div>
-                    <Badge variant="secondary" className="bg-green-500 text-white hover:opacity-90 transition-opacity">
-                      <CheckCircle2 className="w-3 h-3 mr-1" />
-                      Ativo
+          <div className="space-y-6">
+            {/* Agrupar por plataforma */}
+            {Object.entries(
+              connectedIntegrations.reduce((acc: Record<string, any[]>, integration: any) => {
+                if (!acc[integration.platform]) {
+                  acc[integration.platform] = [];
+                }
+                acc[integration.platform].push(integration);
+                return acc;
+              }, {})
+            ).map(([platform, platformIntegrations]: [string, any[]]) => (
+              <div key={platform} className="space-y-3">
+                {platformIntegrations.length > 1 && (
+                  <div className="flex items-center gap-2">
+                    <h3 className="text-lg font-semibold capitalize">{platform}</h3>
+                    <Badge variant="secondary" className="bg-primary/10 text-primary">
+                      {platformIntegrations.length} {platformIntegrations.length === 1 ? 'conta' : 'contas'}
                     </Badge>
                   </div>
-                </CardHeader>
-
-                <CardContent className="space-y-4">
-                  <div className="text-xs text-muted-foreground">
-                    Última atualização: {new Date(integration.updated_at).toLocaleDateString("pt-BR")}
-                  </div>
-
-                  <Separator />
-
-                  {/* Import Products Button for Shopify */}
-                  {integration.platform === "shopify" && (
-                    <>
-                      <Button
-                        variant="default"
-                        size="sm"
-                        className="w-full bg-gradient-primary"
-                        onClick={() => handleImportProducts(integration.id, integration.platform)}
-                      >
-                        <Download className="w-4 h-4 mr-2" />
-                        Importar Produtos
-                      </Button>
-                      <Separator />
-                    </>
-                  )}
-
-                  <div className="flex gap-2">
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      className="flex-1"
-                      onClick={() => {
-                        const newName = prompt(
-                          "Digite o nome da sua loja:",
-                          integration.account_name || integration.platform,
-                        );
-                        if (newName && newName.trim()) {
-                          supabase
-                            .from("integrations")
-                            .update({ account_name: newName.trim() })
-                            .eq("id", integration.id)
-                            .then(({ error }) => {
-                              if (error) {
-                                toast({
-                                  title: "Erro ao atualizar nome",
-                                  description: "Não foi possível atualizar o nome da conta.",
-                                  variant: "destructive",
-                                });
-                              } else {
-                                toast({
-                                  title: "Nome atualizado",
-                                  description: "O nome da conta foi atualizado com sucesso.",
-                                });
-                                loadConnectedIntegrations();
-                              }
-                            });
-                        }
-                      }}
+                )}
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                  {platformIntegrations.map((integration, idx) => (
+                    <Card
+                      key={integration.id}
+                      className="shadow-soft hover:shadow-medium transition-all duration-200 hover:scale-[1.02] hover:-translate-y-1"
                     >
-                      <Settings className="w-4 h-4 mr-2" />
-                      Editar Nome
-                    </Button>
+                      <CardHeader className="pb-3">
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center gap-3">
+                            {platformIntegrations.length > 1 && (
+                              <div className="flex-shrink-0 w-8 h-8 rounded-full bg-primary/10 text-primary flex items-center justify-center font-semibold text-sm">
+                                {idx + 1}
+                              </div>
+                            )}
+                            <div className="hover:scale-110 transition-transform">
+                              {(() => {
+                                const platformConfig = availableIntegrations.find((p) => p.id === integration.platform);
+                                return platformConfig?.logoUrl ? (
+                                  <img
+                                    src={platformConfig.logoUrl}
+                                    alt={`${integration.platform} logo`}
+                                    className={`h-8 w-auto ${platformConfig.darkInvert ? "dark-invert" : ""}`}
+                                  />
+                                ) : (
+                                  <PlatformLogo platform={integration.platform} size="lg" />
+                                );
+                              })()}
+                            </div>
+                            <div>
+                              <CardTitle className="text-lg capitalize">{integration.platform}</CardTitle>
+                              {integration.account_name && (
+                                <CardDescription className="font-medium">
+                                  {integration.account_nickname || integration.account_name}
+                                </CardDescription>
+                              )}
+                              <CardDescription className="text-xs">
+                                Conectado em {new Date(integration.created_at).toLocaleDateString("pt-BR")}
+                              </CardDescription>
+                            </div>
+                          </div>
+                          <Badge variant="secondary" className="bg-green-500 text-white hover:opacity-90 transition-opacity">
+                            <CheckCircle2 className="w-3 h-3 mr-1" />
+                            Ativo
+                          </Badge>
+                        </div>
+                      </CardHeader>
 
-                    <AlertDialog>
-                      <AlertDialogTrigger asChild>
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          className="text-destructive hover:text-destructive"
-                          disabled={disconnectingId === integration.id}
-                        >
-                          {disconnectingId === integration.id ? (
-                            <Loader2 className="w-4 h-4 animate-spin" />
-                          ) : (
-                            <Unlink className="w-4 h-4" />
-                          )}
-                        </Button>
-                      </AlertDialogTrigger>
-                      <AlertDialogContent>
-                        <AlertDialogHeader>
-                          <AlertDialogTitle>Desconectar Integração</AlertDialogTitle>
-                          <AlertDialogDescription>
-                            Tem certeza que deseja desconectar a integração com {integration.platform}? Esta ação
-                            interromperá a sincronização automática de produtos e pedidos.
-                          </AlertDialogDescription>
-                        </AlertDialogHeader>
-                        <AlertDialogFooter>
-                          <AlertDialogCancel>Cancelar</AlertDialogCancel>
-                          <AlertDialogAction
-                            onClick={() => handleDisconnect(integration.id)}
-                            className="bg-destructive hover:bg-destructive/90"
+                      <CardContent className="space-y-4">
+                        <div className="text-xs text-muted-foreground">
+                          Última atualização: {new Date(integration.updated_at).toLocaleDateString("pt-BR")}
+                        </div>
+
+                        <Separator />
+
+                        {/* Import Products Button for Shopify */}
+                        {integration.platform === "shopify" && (
+                          <>
+                            <Button
+                              variant="default"
+                              size="sm"
+                              className="w-full bg-gradient-primary"
+                              onClick={() => handleImportProducts(integration.id, integration.platform)}
+                            >
+                              <Download className="w-4 h-4 mr-2" />
+                              Importar Produtos
+                            </Button>
+                            <Separator />
+                          </>
+                        )}
+
+                        <div className="flex gap-2">
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            className="flex-1"
+                            onClick={() => {
+                              const newNickname = prompt(
+                                "Digite um apelido para identificar esta conta:",
+                                integration.account_nickname || integration.account_name || integration.platform,
+                              );
+                              if (newNickname && newNickname.trim()) {
+                                supabase
+                                  .from("integrations")
+                                  .update({ account_nickname: newNickname.trim() })
+                                  .eq("id", integration.id)
+                                  .then(({ error }) => {
+                                    if (error) {
+                                      toast({
+                                        title: "Erro ao atualizar apelido",
+                                        description: "Não foi possível atualizar o apelido da conta.",
+                                        variant: "destructive",
+                                      });
+                                    } else {
+                                      toast({
+                                        title: "Apelido atualizado",
+                                        description: "O apelido da conta foi atualizado com sucesso.",
+                                      });
+                                      loadConnectedIntegrations();
+                                    }
+                                  });
+                              }
+                            }}
                           >
-                            Desconectar
-                          </AlertDialogAction>
-                        </AlertDialogFooter>
-                      </AlertDialogContent>
-                    </AlertDialog>
-                  </div>
-                </CardContent>
-              </Card>
+                            <Settings className="w-4 h-4 mr-2" />
+                            Editar Apelido
+                          </Button>
+
+                          <AlertDialog>
+                            <AlertDialogTrigger asChild>
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                className="text-destructive hover:text-destructive"
+                                disabled={disconnectingId === integration.id}
+                              >
+                                {disconnectingId === integration.id ? (
+                                  <Loader2 className="w-4 h-4 animate-spin" />
+                                ) : (
+                                  <Unlink className="w-4 h-4" />
+                                )}
+                              </Button>
+                            </AlertDialogTrigger>
+                            <AlertDialogContent>
+                              <AlertDialogHeader>
+                                <AlertDialogTitle>Desconectar Integração</AlertDialogTitle>
+                                <AlertDialogDescription>
+                                  Tem certeza que deseja desconectar esta conta de {integration.platform}
+                                  {integration.account_nickname && ` (${integration.account_nickname})`}? Esta ação
+                                  interromperá a sincronização automática de produtos e pedidos desta conta específica.
+                                </AlertDialogDescription>
+                              </AlertDialogHeader>
+                              <AlertDialogFooter>
+                                <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                                <AlertDialogAction
+                                  onClick={() => handleDisconnect(integration.id)}
+                                  className="bg-destructive hover:bg-destructive/90"
+                                >
+                                  Desconectar
+                                </AlertDialogAction>
+                              </AlertDialogFooter>
+                            </AlertDialogContent>
+                          </AlertDialog>
+                        </div>
+                      </CardContent>
+                    </Card>
+                  ))}
+                </div>
+              </div>
             ))}
           </div>
         ) : (
@@ -528,50 +559,58 @@ export default function Integrations() {
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-          {availableIntegrations
-            .filter((platform) => !connectedIntegrations.some((connected) => connected.platform === platform.id))
-            .map((platform, index) => (
-              <Card
-                key={platform.id}
-                className="shadow-soft hover:shadow-medium transition-all duration-200 group hover:scale-[1.02] hover:-translate-y-1"
-                style={{ animationDelay: `${index * 0.1}s` }}
-              >
-                <CardHeader className="pb-3">
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-3">
-                      <div className="group-hover:scale-110 transition-transform">
-                        <img
-                          src={platform.logoUrl}
-                          alt={`${platform.name} logo`}
-                          className={`h-8 w-auto ${platform.darkInvert ? "dark-invert" : ""}`}
-                        />
-                      </div>
-                      <div>
-                        <CardTitle className="text-lg flex items-center gap-2">
-                          {platform.name}
-                          {platform.popular && (
-                            <Badge variant="secondary" className="bg-primary text-primary-foreground animate-glow">
-                              Popular
-                            </Badge>
-                          )}
-                        </CardTitle>
+          {availableIntegrations.map((platform, index) => {
+            const connectedCount = connectedIntegrations.filter((c) => c.platform === platform.id).length;
+            const isConnected = connectedCount > 0;
+            
+            return (
+                <Card
+                  key={platform.id}
+                  className="shadow-soft hover:shadow-medium transition-all duration-200 group hover:scale-[1.02] hover:-translate-y-1"
+                  style={{ animationDelay: `${index * 0.1}s` }}
+                >
+                  <CardHeader className="pb-3">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-3">
+                        <div className="group-hover:scale-110 transition-transform">
+                          <img
+                            src={platform.logoUrl}
+                            alt={`${platform.name} logo`}
+                            className={`h-8 w-auto ${platform.darkInvert ? "dark-invert" : ""}`}
+                          />
+                        </div>
+                        <div>
+                          <CardTitle className="text-lg flex items-center gap-2">
+                            {platform.name}
+                            {platform.popular && (
+                              <Badge variant="secondary" className="bg-primary text-primary-foreground animate-glow">
+                                Popular
+                              </Badge>
+                            )}
+                            {isConnected && (
+                              <Badge variant="outline" className="bg-green-500/10 text-green-600 border-green-500/20">
+                                {connectedCount} {connectedCount === 1 ? 'conectada' : 'conectadas'}
+                              </Badge>
+                            )}
+                          </CardTitle>
+                        </div>
                       </div>
                     </div>
-                  </div>
-                  <CardDescription className="text-sm">{platform.description}</CardDescription>
-                </CardHeader>
+                    <CardDescription className="text-sm">{platform.description}</CardDescription>
+                  </CardHeader>
 
-                <CardContent>
-                  <Button
-                    onClick={() => handleConnect(platform.id)}
-                    className="w-full bg-gradient-primary hover:bg-primary-hover group-hover:shadow-primary transition-all duration-200 hover:scale-[1.02]"
-                  >
-                    <Plus className="w-4 h-4 mr-2" />
-                    Conectar {platform.name}
-                  </Button>
-                </CardContent>
-              </Card>
-            ))}
+                  <CardContent>
+                    <Button
+                      onClick={() => handleConnect(platform.id)}
+                      className="w-full bg-gradient-primary hover:bg-primary-hover group-hover:shadow-primary transition-all duration-200 hover:scale-[1.02]"
+                    >
+                      <Plus className="w-4 h-4 mr-2" />
+                      {isConnected ? `Conectar Outra Conta ${platform.name}` : `Conectar ${platform.name}`}
+                    </Button>
+                  </CardContent>
+                </Card>
+              );
+            })}
         </div>
       </div>
 
