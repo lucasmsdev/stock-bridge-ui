@@ -1,0 +1,271 @@
+import { serve } from "https://deno.land/std@0.168.0/http/server.ts"
+import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
+
+const corsHeaders = {
+  'Access-Control-Allow-Origin': '*',
+  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+}
+
+// Amazon SP-API endpoint
+const AMAZON_API_ENDPOINT = 'https://sellingpartnerapi-na.amazon.com'
+
+serve(async (req) => {
+  if (req.method === 'OPTIONS') {
+    return new Response(null, { headers: corsHeaders });
+  }
+
+  try {
+    const supabaseClient = createClient(
+      Deno.env.get('SUPABASE_URL') ?? '',
+      Deno.env.get('SUPABASE_ANON_KEY') ?? '',
+      {
+        global: {
+          headers: { Authorization: req.headers.get('Authorization')! },
+        },
+      }
+    )
+
+    const {
+      data: { user },
+    } = await supabaseClient.auth.getUser()
+
+    if (!user) {
+      return new Response(
+        JSON.stringify({ error: 'Unauthorized' }),
+        { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      )
+    }
+
+    const { product_id, integration_id, productData } = await req.json()
+
+    if (!product_id || !integration_id || !productData) {
+      return new Response(
+        JSON.stringify({ error: 'Missing required fields' }),
+        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      )
+    }
+
+    // Get integration details
+    const { data: integration, error: integrationError } = await supabaseClient
+      .from('integrations')
+      .select('*')
+      .eq('id', integration_id)
+      .eq('user_id', user.id)
+      .eq('platform', 'amazon')
+      .single()
+
+    if (integrationError || !integration) {
+      return new Response(
+        JSON.stringify({ error: 'Integration not found' }),
+        { status: 404, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      )
+    }
+
+    // Get Amazon credentials
+    const clientId = Deno.env.get('AMAZON_CLIENT_ID')
+    const clientSecret = Deno.env.get('AMAZON_CLIENT_SECRET')
+    const refreshToken = integration.refresh_token
+
+    if (!clientId || !clientSecret || !refreshToken) {
+      return new Response(
+        JSON.stringify({ error: 'Amazon credentials not configured' }),
+        { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      )
+    }
+
+    // Get marketplace ID
+    const marketplaceId = integration.marketplace_id || 'ATVPDKIKX0DER' // US marketplace
+
+    // First, we need to get a fresh access token
+    const tokenResponse = await fetch('https://api.amazon.com/auth/o2/token', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/x-www-form-urlencoded',
+      },
+      body: new URLSearchParams({
+        grant_type: 'refresh_token',
+        refresh_token: refreshToken,
+        client_id: clientId,
+        client_secret: clientSecret,
+      })
+    })
+
+    const tokenData = await tokenResponse.json()
+
+    if (!tokenResponse.ok || !tokenData.access_token) {
+      console.error('Error refreshing Amazon token:', tokenData)
+      return new Response(
+        JSON.stringify({ error: 'Failed to refresh Amazon access token' }),
+        { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      )
+    }
+
+    const accessToken = tokenData.access_token
+
+    // Prepare Amazon SP-API payload
+    // Note: Product type and schema vary by category - using generic PRODUCT for now
+    const sellerSku = productData.sku
+    const productType = productData.product_type || 'PRODUCT' // Should be specified by user
+
+    const amazonPayload = {
+      productType: productType,
+      requirements: 'LISTING',
+      attributes: {
+        condition_type: [
+          {
+            value: productData.condition === 'new' ? 'new_new' : 'used_like_new',
+            marketplace_id: marketplaceId
+          }
+        ],
+        item_name: [
+          {
+            value: productData.name,
+            language_tag: 'pt_BR',
+            marketplace_id: marketplaceId
+          }
+        ]
+      }
+    }
+
+    // Add optional attributes
+    if (productData.brand) {
+      amazonPayload.attributes.brand = [
+        {
+          value: productData.brand,
+          marketplace_id: marketplaceId
+        }
+      ]
+    }
+
+    if (productData.description) {
+      amazonPayload.attributes.bullet_point = [
+        {
+          value: productData.description.substring(0, 500),
+          language_tag: 'pt_BR',
+          marketplace_id: marketplaceId
+        }
+      ]
+    }
+
+    if (productData.selling_price) {
+      amazonPayload.attributes.purchasable_offer = [
+        {
+          marketplace_id: marketplaceId,
+          currency: 'BRL',
+          our_price: [
+            {
+              schedule: [
+                {
+                  value_with_tax: productData.selling_price
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    }
+
+    if (productData.images && productData.images.length > 0) {
+      amazonPayload.attributes.main_product_image_locator = [
+        {
+          media_location: productData.images[0],
+          marketplace_id: marketplaceId
+        }
+      ]
+
+      if (productData.images.length > 1) {
+        amazonPayload.attributes.other_product_image_locator_1 = productData.images.slice(1, 8).map((url: string) => ({
+          media_location: url,
+          marketplace_id: marketplaceId
+        }))
+      }
+    }
+
+    if (productData.stock) {
+      amazonPayload.attributes.fulfillment_availability = [
+        {
+          fulfillment_channel_code: 'DEFAULT',
+          quantity: productData.stock,
+          marketplace_id: marketplaceId
+        }
+      ]
+    }
+
+    console.log('Creating Amazon product with SKU:', sellerSku)
+
+    // Create product on Amazon using SP-API
+    const amazonResponse = await fetch(
+      `${AMAZON_API_ENDPOINT}/listings/2021-08-01/items/${integration.selling_partner_id}/${sellerSku}`,
+      {
+        method: 'PUT',
+        headers: {
+          'x-amz-access-token': accessToken,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(amazonPayload)
+      }
+    )
+
+    const amazonData = await amazonResponse.json()
+
+    if (!amazonResponse.ok) {
+      console.error('Amazon API error:', amazonData)
+      return new Response(
+        JSON.stringify({ 
+          error: 'Failed to create product on Amazon', 
+          details: amazonData.errors || amazonData.error,
+          note: 'Amazon SP-API requires specific product type schemas. This is a complex integration that may require category-specific configuration.'
+        }),
+        { status: amazonResponse.status, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      )
+    }
+
+    // Amazon doesn't return ASIN immediately, we need to check the submission status
+    const asin = amazonData.asin || sellerSku // Use SKU as fallback
+
+    // Construct product URL
+    const productUrl = asin.startsWith('B0') 
+      ? `https://www.amazon.com.br/dp/${asin}` 
+      : `https://sellercentral.amazon.com.br/inventory?q=${sellerSku}`
+
+    // Save listing in database
+    const { data: listing, error: listingError } = await supabaseClient
+      .from('product_listings')
+      .insert({
+        user_id: user.id,
+        product_id,
+        platform: 'amazon',
+        integration_id,
+        platform_product_id: asin,
+        platform_variant_id: sellerSku,
+        platform_url: productUrl,
+        sync_status: 'active',
+        last_sync_at: new Date().toISOString(),
+        platform_metadata: amazonData
+      })
+      .select()
+      .single()
+
+    if (listingError) {
+      console.error('Error saving listing:', listingError)
+    }
+
+    return new Response(
+      JSON.stringify({
+        success: true,
+        platform_product_id: asin,
+        platform_url: productUrl,
+        listing_id: listing?.id,
+        note: 'Product submitted to Amazon. It may take a few minutes for the listing to be processed.'
+      }),
+      { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+    )
+
+  } catch (error) {
+    console.error('Unexpected error:', error)
+    return new Response(
+      JSON.stringify({ error: 'Internal server error', details: error.message }),
+      { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+    )
+  }
+})

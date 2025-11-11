@@ -106,6 +106,26 @@ serve(async (req) => {
             })
             break
 
+          case 'shopee':
+            response = await supabaseClient.functions.invoke('create-shopee-product', {
+              body: {
+                product_id: product.id,
+                integration_id,
+                productData: { ...productData, ...platformData },
+              }
+            })
+            break
+
+          case 'amazon':
+            response = await supabaseClient.functions.invoke('create-amazon-product', {
+              body: {
+                product_id: product.id,
+                integration_id,
+                productData: { ...productData, ...platformData },
+              }
+            })
+            break
+
           default:
             results[platform] = {
               success: false,

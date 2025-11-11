@@ -77,3 +77,9 @@ verify_jwt = true
 
 [functions.create-shopify-product]
 verify_jwt = true
+
+[functions.create-shopee-product]
+verify_jwt = true
+
+[functions.create-amazon-product]
+verify_jwt = true
