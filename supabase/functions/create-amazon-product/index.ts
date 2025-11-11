@@ -102,11 +102,44 @@ serve(async (req) => {
 
     const accessToken = tokenData.access_token
 
-    // Prepare Amazon SP-API payload
-    // Note: Product type and schema vary by category - using generic PRODUCT for now
+    // Prepare Amazon SP-API payload using Listings Items API 2021-08-01
     const sellerSku = productData.sku
-    const productType = productData.product_type || 'PRODUCT' // Should be specified by user
+    
+    // Map generic category to Amazon product_type
+    const productTypeMapping: Record<string, string> = {
+      'electronics': 'ELECTRONIC_DEVICE',
+      'eletronicos': 'ELECTRONIC_DEVICE',
+      'clothing': 'SHIRT',
+      'roupas': 'SHIRT',
+      'home': 'HOME',
+      'casa': 'HOME',
+      'toys': 'TOY',
+      'brinquedos': 'TOY',
+      'sports': 'SPORTING_GOODS',
+      'esportes': 'SPORTING_GOODS',
+      'books': 'BOOK',
+      'livros': 'BOOK',
+      'beauty': 'BEAUTY',
+      'beleza': 'BEAUTY',
+      'default': 'PRODUCT'
+    }
 
+    const categoryKey = productData.category?.toLowerCase() || 'default'
+    const productType = productData.amazon_product_type || 
+                        productTypeMapping[categoryKey] || 
+                        productTypeMapping['default']
+
+    // Build bullet points from description
+    const bulletPoints = []
+    if (productData.description) {
+      const lines = productData.description.split('\n').filter((line: string) => line.trim())
+      bulletPoints.push(...lines.slice(0, 5).map((line: string) => line.substring(0, 500)))
+    }
+    if (bulletPoints.length === 0) {
+      bulletPoints.push(productData.name)
+    }
+
+    // Prepare basic attributes that work for most product types
     const amazonPayload = {
       productType: productType,
       requirements: 'LISTING',
@@ -119,15 +152,27 @@ serve(async (req) => {
         ],
         item_name: [
           {
-            value: productData.name,
+            value: productData.name.substring(0, 200), // Amazon limit
             language_tag: 'pt_BR',
             marketplace_id: marketplaceId
+          }
+        ],
+        bullet_point: bulletPoints.map((point: string) => ({
+          value: point,
+          language_tag: 'pt_BR',
+          marketplace_id: marketplaceId
+        })),
+        externally_assigned_product_identifier: [
+          {
+            marketplace_id: marketplaceId,
+            type: 'sku',
+            value: sellerSku
           }
         ]
       }
     }
 
-    // Add optional attributes
+    // Add brand (required for most categories)
     if (productData.brand) {
       amazonPayload.attributes.brand = [
         {
@@ -137,16 +182,17 @@ serve(async (req) => {
       ]
     }
 
-    if (productData.description) {
-      amazonPayload.attributes.bullet_point = [
+    // Add manufacturer info (optional but recommended)
+    if (productData.brand) {
+      amazonPayload.attributes.manufacturer = [
         {
-          value: productData.description.substring(0, 500),
-          language_tag: 'pt_BR',
+          value: productData.brand,
           marketplace_id: marketplaceId
         }
       ]
     }
 
+    // Add pricing
     if (productData.selling_price) {
       amazonPayload.attributes.purchasable_offer = [
         {
@@ -156,7 +202,7 @@ serve(async (req) => {
             {
               schedule: [
                 {
-                  value_with_tax: productData.selling_price
+                  value_with_tax: parseFloat(productData.selling_price.toString())
                 }
               ]
             }
@@ -165,6 +211,7 @@ serve(async (req) => {
       ]
     }
 
+    // Add images
     if (productData.images && productData.images.length > 0) {
       amazonPayload.attributes.main_product_image_locator = [
         {
@@ -173,19 +220,73 @@ serve(async (req) => {
         }
       ]
 
+      // Add up to 8 additional images
       if (productData.images.length > 1) {
-        amazonPayload.attributes.other_product_image_locator_1 = productData.images.slice(1, 8).map((url: string) => ({
-          media_location: url,
-          marketplace_id: marketplaceId
-        }))
+        const additionalImages = productData.images.slice(1, 9)
+        additionalImages.forEach((url: string, index: number) => {
+          const key = `other_product_image_locator_${index + 1}`
+          amazonPayload.attributes[key] = [
+            {
+              media_location: url,
+              marketplace_id: marketplaceId
+            }
+          ]
+        })
       }
     }
 
-    if (productData.stock) {
+    // Add fulfillment and inventory
+    if (productData.stock !== undefined) {
       amazonPayload.attributes.fulfillment_availability = [
         {
           fulfillment_channel_code: 'DEFAULT',
-          quantity: productData.stock,
+          quantity: parseInt(productData.stock.toString()),
+          marketplace_id: marketplaceId
+        }
+      ]
+    }
+
+    // Add product description (optional)
+    if (productData.description) {
+      amazonPayload.attributes.product_description = [
+        {
+          value: productData.description.substring(0, 2000),
+          language_tag: 'pt_BR',
+          marketplace_id: marketplaceId
+        }
+      ]
+    }
+
+    // Add package dimensions if available
+    if (productData.dimensions) {
+      const dims = productData.dimensions
+      if (dims.length && dims.width && dims.height) {
+        amazonPayload.attributes.item_package_dimensions = [
+          {
+            length: {
+              unit: 'centimeters',
+              value: parseFloat(dims.length.toString())
+            },
+            width: {
+              unit: 'centimeters',
+              value: parseFloat(dims.width.toString())
+            },
+            height: {
+              unit: 'centimeters',
+              value: parseFloat(dims.height.toString())
+            },
+            marketplace_id: marketplaceId
+          }
+        ]
+      }
+    }
+
+    // Add weight if available
+    if (productData.weight) {
+      amazonPayload.attributes.item_package_weight = [
+        {
+          unit: 'grams',
+          value: parseFloat(productData.weight.toString()),
           marketplace_id: marketplaceId
         }
       ]

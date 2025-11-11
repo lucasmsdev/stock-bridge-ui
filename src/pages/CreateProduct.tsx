@@ -40,6 +40,10 @@ export default function CreateProduct() {
   const [height, setHeight] = useState("");
   const [imageUrls, setImageUrls] = useState("");
 
+  // Amazon-specific fields
+  const [amazonProductType, setAmazonProductType] = useState("");
+  const [bulletPoints, setBulletPoints] = useState("");
+
   // Platform selection
   const [selectedPlatforms, setSelectedPlatforms] = useState<Record<string, boolean>>({});
   const [platformIntegrations, setPlatformIntegrations] = useState<Record<string, string>>({});
@@ -116,13 +120,18 @@ export default function CreateProduct() {
     setLoading(true);
 
     try {
+      // Prepare description - use bullet points if Amazon is selected, otherwise use regular description
+      const finalDescription = selectedPlatforms['amazon'] && bulletPoints 
+        ? bulletPoints 
+        : description;
+
       const productData = {
         name,
         sku,
         cost_price: costPrice ? parseFloat(costPrice) : null,
         selling_price: parseFloat(sellingPrice),
         stock: stock ? parseInt(stock) : 0,
-        description: description || null,
+        description: finalDescription || null,
         category: category || null,
         brand: brand || null,
         weight: weight ? parseFloat(weight) : null,
@@ -133,6 +142,7 @@ export default function CreateProduct() {
         },
         images: imageUrls ? imageUrls.split('\n').filter(url => url.trim()) : [],
         condition: 'new',
+        amazon_product_type: amazonProductType || null, // Amazon-specific
       };
 
       const platforms = selectedPlatformsList.map(platform => ({
@@ -316,6 +326,57 @@ export default function CreateProduct() {
             </div>
           </CardContent>
         </Card>
+
+        {/* Amazon-Specific Fields */}
+        {selectedPlatforms['amazon'] && (
+          <Card className="border-orange-200 dark:border-orange-900">
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                📦 Configurações Amazon
+              </CardTitle>
+              <CardDescription>
+                Campos específicos para Amazon SP-API
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div>
+                <Label htmlFor="amazonProductType">Tipo de Produto Amazon</Label>
+                <Select value={amazonProductType} onValueChange={setAmazonProductType}>
+                  <SelectTrigger id="amazonProductType">
+                    <SelectValue placeholder="Selecione o tipo de produto" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="ELECTRONIC_DEVICE">Eletrônicos</SelectItem>
+                    <SelectItem value="SHIRT">Roupas</SelectItem>
+                    <SelectItem value="HOME">Casa e Cozinha</SelectItem>
+                    <SelectItem value="TOY">Brinquedos</SelectItem>
+                    <SelectItem value="SPORTING_GOODS">Esportes</SelectItem>
+                    <SelectItem value="BOOK">Livros</SelectItem>
+                    <SelectItem value="BEAUTY">Beleza</SelectItem>
+                    <SelectItem value="PRODUCT">Produto Genérico</SelectItem>
+                  </SelectContent>
+                </Select>
+                <p className="text-xs text-muted-foreground mt-1">
+                  Deixe em branco para detectar automaticamente pela categoria
+                </p>
+              </div>
+
+              <div>
+                <Label htmlFor="bulletPoints">Bullet Points (uma por linha)</Label>
+                <Textarea
+                  id="bulletPoints"
+                  value={bulletPoints}
+                  onChange={(e) => setBulletPoints(e.target.value)}
+                  placeholder="Característica 1&#10;Característica 2&#10;Característica 3"
+                  rows={5}
+                />
+                <p className="text-xs text-muted-foreground mt-1">
+                  Máximo 5 pontos, 500 caracteres cada. Usado no lugar da descrição.
+                </p>
+              </div>
+            </CardContent>
+          </Card>
+        )}
 
         {/* Shipping Information */}
         <Card>
