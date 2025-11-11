@@ -91,6 +91,23 @@ serve(async (req) => {
 
     console.log('💾 Salvando integração no banco de dados...');
 
+    // Verificar se já existe integração com o mesmo selling_partner_id
+    const { data: existingIntegrations, error: checkError } = await supabaseClient
+      .from('integrations')
+      .select('id, account_name')
+      .eq('user_id', state)
+      .eq('platform', 'amazon')
+      .eq('selling_partner_id', sellingPartnerId);
+
+    if (checkError) {
+      console.error('❌ Erro ao verificar integrações existentes:', checkError);
+    } else if (existingIntegrations && existingIntegrations.length > 0) {
+      console.log('⚠️ Integração Amazon já existe para este seller:', sellingPartnerId);
+      const appUrl = Deno.env.get('APP_URL') || 'https://fcvwogaqarkuqvumyqqm.supabase.co';
+      const redirectUrl = `${appUrl}/app/integrations?status=duplicate`;
+      return Response.redirect(redirectUrl, 302);
+    }
+
     // Sempre insere uma nova integração (suporta múltiplas contas)
     const { data: integration, error: insertError } = await supabaseClient
       .from('integrations')
@@ -124,7 +141,7 @@ serve(async (req) => {
 
     // Redirecionar de volta para o app com sucesso
     const appUrl = Deno.env.get('APP_URL') || 'https://fcvwogaqarkuqvumyqqm.supabase.co';
-    const redirectUrl = `${appUrl}/integrations?success=amazon`;
+    const redirectUrl = `${appUrl}/app/integrations?status=success`;
     
     console.log('🔄 Redirecionando para:', redirectUrl);
 

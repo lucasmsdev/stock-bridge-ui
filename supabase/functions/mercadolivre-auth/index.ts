@@ -155,6 +155,31 @@ serve(async (req) => {
     }
 
     // Sempre insere uma nova integração (suporta múltiplas contas)
+    // Mas verifica se já não existe a mesma conta
+    const { data: existingIntegrations, error: checkError } = await supabase
+      .from('integrations')
+      .select('id, account_name')
+      .eq('user_id', user.id)
+      .eq('platform', 'mercadolivre');
+
+    if (!checkError && existingIntegrations && existingIntegrations.length > 0) {
+      // Verificar se o account_name já existe (mesmo vendedor)
+      const sameAccount = existingIntegrations.find(int => int.account_name === accountName);
+      if (sameAccount) {
+        console.log('⚠️ Conta Mercado Livre já conectada:', accountName);
+        return new Response(
+          JSON.stringify({ 
+            error: 'Conta já conectada',
+            message: 'Esta conta do Mercado Livre já está conectada ao seu UniStock.' 
+          }), 
+          { 
+            status: 409, 
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
+          }
+        );
+      }
+    }
+
     const { error: insertError } = await supabase
       .from('integrations')
       .insert({

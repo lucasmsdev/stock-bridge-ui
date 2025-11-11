@@ -27,7 +27,7 @@ serve(async (req) => {
     if (!code || !shop || !state) {
       console.error('Missing required parameters');
       return new Response(
-        `<html><body><h1>Erro de Autenticação</h1><p>Parâmetros inválidos recebidos do Shopify.</p><a href="${Deno.env.get('APP_URL') || 'https://fcvwogaqarkuqvumyqqm.supabase.co'}/integrations">Voltar</a></body></html>`,
+        `<html><body><h1>Erro de Autenticação</h1><p>Parâmetros inválidos recebidos do Shopify.</p><a href="${Deno.env.get('APP_URL') || 'https://fcvwogaqarkuqvumyqqm.supabase.co'}/app/integrations">Voltar</a></body></html>`,
         { status: 400, headers: { 'Content-Type': 'text/html' } }
       );
     }
@@ -47,7 +47,7 @@ serve(async (req) => {
     if (userError || !userData.user) {
       console.error('Invalid state/user_id:', userError);
       return new Response(
-        `<html><body><h1>Erro de Autenticação</h1><p>Sessão inválida. Por favor, tente conectar novamente.</p><a href="${Deno.env.get('APP_URL') || 'https://fcvwogaqarkuqvumyqqm.supabase.co'}/integrations">Voltar</a></body></html>`,
+        `<html><body><h1>Erro de Autenticação</h1><p>Sessão inválida. Por favor, tente conectar novamente.</p><a href="${Deno.env.get('APP_URL') || 'https://fcvwogaqarkuqvumyqqm.supabase.co'}/app/integrations">Voltar</a></body></html>`,
         { status: 401, headers: { 'Content-Type': 'text/html' } }
       );
     }
@@ -77,7 +77,7 @@ serve(async (req) => {
       const errorText = await tokenResponse.text();
       console.error('Token exchange failed:', errorText);
       return new Response(
-        `<html><body><h1>Erro de Autenticação</h1><p>Não foi possível obter token de acesso do Shopify.</p><a href="${Deno.env.get('APP_URL') || 'https://fcvwogaqarkuqvumyqqm.supabase.co'}/integrations">Voltar</a></body></html>`,
+        `<html><body><h1>Erro de Autenticação</h1><p>Não foi possível obter token de acesso do Shopify.</p><a href="${Deno.env.get('APP_URL') || 'https://fcvwogaqarkuqvumyqqm.supabase.co'}/app/integrations">Voltar</a></body></html>`,
         { status: 500, headers: { 'Content-Type': 'text/html' } }
       );
     }
@@ -102,7 +102,22 @@ serve(async (req) => {
     }
 
     // Sempre insere uma nova integração (suporta múltiplas contas)
+    // Mas verifica se já não existe o mesmo shop_domain
     console.log('Saving integration to database...');
+    
+    const { data: existingIntegrations, error: checkError } = await supabase
+      .from('integrations')
+      .select('id, shop_domain')
+      .eq('user_id', userId)
+      .eq('platform', 'shopify')
+      .eq('shop_domain', shopDomain);
+
+    if (!checkError && existingIntegrations && existingIntegrations.length > 0) {
+      console.log('⚠️ Loja Shopify já conectada:', shopDomain);
+      const appUrl = Deno.env.get('APP_URL') || 'https://fcvwogaqarkuqvumyqqm.supabase.co';
+      const redirectUrl = `${appUrl}/app/integrations?status=duplicate`;
+      return Response.redirect(redirectUrl, 302);
+    }
     
     const { error: insertError } = await supabase
       .from('integrations')
@@ -117,7 +132,7 @@ serve(async (req) => {
     if (insertError) {
       console.error('Database error:', insertError);
       return new Response(
-        `<html><body><h1>Erro ao Salvar</h1><p>Não foi possível salvar a integração no banco de dados.</p><a href="${Deno.env.get('APP_URL') || 'https://fcvwogaqarkuqvumyqqm.supabase.co'}/integrations">Voltar</a></body></html>`,
+        `<html><body><h1>Erro ao Salvar</h1><p>Não foi possível salvar a integração no banco de dados.</p><a href="${Deno.env.get('APP_URL') || 'https://fcvwogaqarkuqvumyqqm.supabase.co'}/app/integrations">Voltar</a></body></html>`,
         { status: 500, headers: { 'Content-Type': 'text/html' } }
       );
     }
@@ -138,7 +153,7 @@ serve(async (req) => {
   } catch (error) {
     console.error('Unexpected error in Shopify callback:', error);
     return new Response(
-      `<html><body><h1>Erro Inesperado</h1><p>Ocorreu um erro ao processar o callback do Shopify.</p><a href="${Deno.env.get('APP_URL') || 'https://fcvwogaqarkuqvumyqqm.supabase.co'}/integrations">Voltar</a></body></html>`,
+      `<html><body><h1>Erro Inesperado</h1><p>Ocorreu um erro ao processar o callback do Shopify.</p><a href="${Deno.env.get('APP_URL') || 'https://fcvwogaqarkuqvumyqqm.supabase.co'}/app/integrations">Voltar</a></body></html>`,
       { status: 500, headers: { 'Content-Type': 'text/html' } }
     );
   }

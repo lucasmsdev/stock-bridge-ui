@@ -26,7 +26,7 @@ interface Conversation {
 const AIAssistant = () => {
   const initialMessage: Message = {
     role: 'assistant',
-    content: 'Olá! 👋 Sou o Luca, seu Estrategista de Crescimento Autônomo.\n\nComo seu consultor estratégico, posso ajudar você a:\n\n✓ Expandir para Novos Mercados: Identificar oportunidades de produtos em outras plataformas\n✓ Criar Kits e Bundles: Aumentar ticket médio com combinações inteligentes\n✓ Análise de Concorrência: Monitorar tendências e ações dos concorrentes\n✓ Otimização Avançada: Precificação dinâmica e gestão de estoque estratégica\n✓ Insights Proativos: Identificar oportunidades que você ainda não viu\n\nQual área do seu negócio você gostaria de crescer hoje?',
+    content: 'Olá! 👋 Sou a Uni, sua Estrategista de Crescimento Autônomo.\n\nComo sua consultora estratégica, posso ajudar você a:\n\n✓ Expandir para Novos Mercados: Identificar oportunidades de produtos em outras plataformas\n✓ Criar Kits e Bundles: Aumentar ticket médio com combinações inteligentes\n✓ Análise de Concorrência: Monitorar tendências e ações dos concorrentes\n✓ Otimização Avançada: Precificação dinâmica e gestão de estoque estratégica\n✓ Insights Proativos: Identificar oportunidades que você ainda não viu\n\nQual área do seu negócio você gostaria de crescer hoje?',
     timestamp: new Date()
   };
 
@@ -359,7 +359,7 @@ const AIAssistant = () => {
       <div>
         <div className="flex items-center gap-2 mb-2">
           <Sparkles className="h-6 w-6 md:h-8 md:w-8 text-primary" />
-          <h1 className="text-2xl md:text-3xl font-bold font-heading">Luca - Estrategista de IA</h1>
+          <h1 className="text-2xl md:text-3xl font-bold font-heading">Uni - Estrategista de IA</h1>
           <Badge variant="secondary" className="ml-2">Beta</Badge>
         </div>
         <p className="text-sm md:text-base text-muted-foreground font-body">
@@ -429,7 +429,7 @@ const AIAssistant = () => {
         <CardHeader className="border-b bg-muted/30">
           <CardTitle className="flex items-center gap-2">
             <Bot className="h-5 w-5 text-primary" />
-            Chat com Luca
+            Chat com Uni
           </CardTitle>
         </CardHeader>
         <CardContent className="p-0">

@@ -83,6 +83,13 @@ export default function Integrations() {
         variant: "destructive",
       });
       setSearchParams({});
+    } else if (status === 'duplicate') {
+      toast({
+        title: "Conta já conectada",
+        description: "Esta conta já está conectada ao seu UniStock. Você pode renomeá-la para diferenciá-la de outras contas.",
+        variant: "default",
+      });
+      setSearchParams({});
     }
   }, []);
 
