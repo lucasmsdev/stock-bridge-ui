@@ -526,41 +526,26 @@ const Landing = () => {
         
         <div className="container mx-auto max-w-4xl relative z-10">
           <Card className="border-primary/30 bg-gradient-to-br from-primary/5 to-accent/5 hover:border-primary/50 hover:shadow-2xl hover:shadow-primary/20 hover:scale-[1.02] transition-all duration-300">
-            <CardContent className="p-12 text-center space-y-6">
-              <div className="inline-block p-3 bg-accent/10 rounded-full mb-4 animate-pulse" style={{ animationDuration: '3s' }}>
-                <Users className="w-8 h-8 text-accent" />
+            <CardContent className="p-6 sm:p-8 md:p-12 text-center space-y-6">
+              <div className="inline-block p-3 bg-accent/10 rounded-full mb-2 animate-pulse" style={{ animationDuration: '3s' }}>
+                <Users className="w-6 h-6 sm:w-8 sm:h-8 text-accent" />
               </div>
               
-              <h2 className="font-heading text-3xl sm:text-4xl font-bold text-foreground">
+              <h2 className="font-heading text-2xl sm:text-3xl md:text-4xl font-bold text-foreground px-2">
                 Pronto para transformar sua gestão?
               </h2>
               
-              <p className="text-lg text-muted-foreground max-w-2xl mx-auto mb-8">
+              <p className="text-base sm:text-lg text-muted-foreground max-w-2xl mx-auto mb-8 px-2">
                 Junte-se a centenas de vendedores que já economizam tempo e aumentam seus lucros com o UniStock.
               </p>
               
-              <a href="#planos">
-                <Button size="lg" className="bg-accent hover:bg-accent/90 text-accent-foreground font-semibold group hover:shadow-2xl hover:shadow-accent/50 hover:scale-110 transition-all">
-                  <Sparkles className="mr-2 h-5 w-5" />
+              <a href="#planos" className="inline-block w-full sm:w-auto">
+                <Button size="lg" className="w-full sm:w-auto bg-accent hover:bg-accent/90 text-accent-foreground font-semibold group hover:shadow-2xl hover:shadow-accent/50 hover:scale-105 transition-all text-sm sm:text-base">
+                  <Sparkles className="mr-2 h-4 w-4 sm:h-5 sm:w-5" />
                   Começar teste grátis agora
-                  <ArrowRight className="ml-2 h-5 w-5 group-hover:translate-x-1 transition-transform" />
+                  <ArrowRight className="ml-2 h-4 w-4 sm:h-5 sm:w-5 group-hover:translate-x-1 transition-transform" />
                 </Button>
               </a>
-
-              <div className="flex justify-center gap-6 text-sm text-muted-foreground pt-4">
-                <div className="flex items-center gap-2">
-                  <CheckCircle className="w-4 h-4 text-accent" />
-                  <span>Sem cartão de crédito</span>
-                </div>
-                <div className="flex items-center gap-2">
-                  <CheckCircle className="w-4 h-4 text-accent" />
-                  <span>7 dias grátis</span>
-                </div>
-                <div className="flex items-center gap-2">
-                  <CheckCircle className="w-4 h-4 text-accent" />
-                  <span>Cancele quando quiser</span>
-                </div>
-              </div>
             </CardContent>
           </Card>
         </div>
