@@ -71,18 +71,26 @@ export const PlatformLogo: React.FC<PlatformLogoProps> = ({
   // Don't apply dark-invert if we're using a dark-specific logo
   const shouldInvert = !darkLogo && (platformDarkInvert[normalizedPlatform as keyof typeof platformDarkInvert] || platformDarkInvert[platform as keyof typeof platformDarkInvert] || false);
 
+  // Amazon logo size adjustment: larger in light mode
+  const isAmazon = normalizedPlatform === 'amazon';
+  const adjustedSizeClasses = isAmazon && !isDark ? {
+    sm: 'w-5 h-5',
+    md: 'w-7 h-7',
+    lg: 'w-10 h-10',
+  } : sizeClasses;
+
   if (logoUrl) {
     return (
       <img
         src={logoUrl}
         alt={`${platform} logo`}
-        className={`${sizeClasses[size]} ${className} object-contain transition-all duration-200 ${shouldInvert ? 'dark-invert' : ''}`}
+        className={`${adjustedSizeClasses[size]} ${className} object-contain transition-all duration-200 ${shouldInvert ? 'dark-invert' : ''}`}
         onError={(e) => {
           // Fallback to emoji/color background if image fails to load
           const target = e.target as HTMLImageElement;
           const parent = target.parentElement;
           if (parent) {
-            parent.innerHTML = `<div class="${sizeClasses[size]} ${colorClass} rounded flex items-center justify-center text-white text-xs font-bold ${className}">${fallback}</div>`;
+            parent.innerHTML = `<div class="${adjustedSizeClasses[size]} ${colorClass} rounded flex items-center justify-center text-white text-xs font-bold ${className}">${fallback}</div>`;
           }
         }}
       />
@@ -91,7 +99,7 @@ export const PlatformLogo: React.FC<PlatformLogoProps> = ({
 
   // Fallback to colored div with emoji
   return (
-    <div className={`${sizeClasses[size]} ${colorClass} rounded flex items-center justify-center text-white text-xs font-bold ${className}`}>
+    <div className={`${adjustedSizeClasses[size]} ${colorClass} rounded flex items-center justify-center text-white text-xs font-bold ${className}`}>
       {fallback}
     </div>
   );
