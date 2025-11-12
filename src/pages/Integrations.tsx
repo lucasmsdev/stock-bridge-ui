@@ -66,27 +66,28 @@ export default function Integrations() {
 
   useEffect(() => {
     loadConnectedIntegrations();
-    
+
     // Check for success/error status from OAuth callback
-    const status = searchParams.get('status');
-    if (status === 'success') {
+    const status = searchParams.get("status");
+    if (status === "success") {
       toast({
         title: "Integração conectada!",
         description: "Sua loja foi conectada com sucesso.",
       });
       // Remove status param from URL
       setSearchParams({});
-    } else if (status === 'error') {
+    } else if (status === "error") {
       toast({
         title: "Erro na integração",
         description: "Não foi possível conectar. Tente novamente.",
         variant: "destructive",
       });
       setSearchParams({});
-    } else if (status === 'duplicate') {
+    } else if (status === "duplicate") {
       toast({
         title: "Conta já conectada",
-        description: "Esta conta já está conectada ao seu UniStock. Você pode renomeá-la para diferenciá-la de outras contas.",
+        description:
+          "Esta conta já está conectada ao seu UniStock. Você pode renomeá-la para diferenciá-la de outras contas.",
         variant: "default",
       });
       setSearchParams({});
@@ -271,9 +272,9 @@ export default function Integrations() {
   const handleImportProducts = async (integrationId: string, platform: string, accountName?: string) => {
     try {
       setImportingId(integrationId);
-      
+
       const accountDisplay = accountName || platform;
-      
+
       toast({
         title: "Iniciando importação...",
         description: `Buscando produtos de ${accountDisplay}`,
@@ -315,7 +316,7 @@ export default function Integrations() {
         title: "Importação concluída!",
         description: `${data.imported || 0} produtos importados de ${accountDisplay}.`,
       });
-      
+
       // Reload products or update UI as needed
       await loadConnectedIntegrations();
     } catch (error) {
@@ -390,14 +391,14 @@ export default function Integrations() {
                 }
                 acc[integration.platform].push(integration);
                 return acc;
-              }, {})
+              }, {}),
             ).map(([platform, platformIntegrations]: [string, any[]]) => (
               <div key={platform} className="space-y-3">
                 {platformIntegrations.length > 1 && (
                   <div className="flex items-center gap-2">
                     <h3 className="text-lg font-semibold capitalize">{platform}</h3>
                     <Badge variant="secondary" className="bg-primary/10 text-primary">
-                      {platformIntegrations.length} {platformIntegrations.length === 1 ? 'conta' : 'contas'}
+                      {platformIntegrations.length} {platformIntegrations.length === 1 ? "conta" : "contas"}
                     </Badge>
                   </div>
                 )}
@@ -406,9 +407,9 @@ export default function Integrations() {
                     <Card
                       key={integration.id}
                       className={`shadow-soft hover:shadow-medium transition-all duration-200 ${
-                        importingId === integration.id 
-                          ? 'ring-2 ring-primary animate-pulse' 
-                          : 'hover:scale-[1.02] hover:-translate-y-1'
+                        importingId === integration.id
+                          ? "ring-2 ring-primary animate-pulse"
+                          : "hover:scale-[1.02] hover:-translate-y-1"
                       }`}
                     >
                       <CardHeader className="pb-3">
@@ -426,7 +427,7 @@ export default function Integrations() {
                                   <img
                                     src={platformConfig.logoUrl}
                                     alt={`${integration.platform} logo`}
-                                    className={`h-8 w-auto ${platformConfig.darkInvert ? "dark-invert" : ""}`}
+                                    className={`h-8 w-auto ${platformConfig.darkInvert ? "https://www.pngmart.com/files/23/Amazon-Logo-White-PNG-Photos.png" : ""}`}
                                   />
                                 ) : (
                                   <PlatformLogo platform={integration.platform} size="lg" />
@@ -451,7 +452,10 @@ export default function Integrations() {
                               Importando
                             </Badge>
                           ) : (
-                            <Badge variant="secondary" className="bg-green-500 text-white hover:opacity-90 transition-opacity">
+                            <Badge
+                              variant="secondary"
+                              className="bg-green-500 text-white hover:opacity-90 transition-opacity"
+                            >
                               <CheckCircle2 className="w-3 h-3 mr-1" />
                               Ativo
                             </Badge>
@@ -471,11 +475,13 @@ export default function Integrations() {
                           variant="default"
                           size="sm"
                           className="w-full bg-gradient-primary relative overflow-hidden"
-                          onClick={() => handleImportProducts(
-                            integration.id, 
-                            integration.platform,
-                            integration.account_nickname || integration.account_name
-                          )}
+                          onClick={() =>
+                            handleImportProducts(
+                              integration.id,
+                              integration.platform,
+                              integration.account_nickname || integration.account_name,
+                            )
+                          }
                           disabled={importingId === integration.id}
                         >
                           {importingId === integration.id ? (
@@ -490,7 +496,7 @@ export default function Integrations() {
                             </>
                           )}
                         </Button>
-                        
+
                         <Separator />
 
                         <div className="flex gap-2">
@@ -604,55 +610,55 @@ export default function Integrations() {
           {availableIntegrations.map((platform, index) => {
             const connectedCount = connectedIntegrations.filter((c) => c.platform === platform.id).length;
             const isConnected = connectedCount > 0;
-            
+
             return (
-                <Card
-                  key={platform.id}
-                  className="shadow-soft hover:shadow-medium transition-all duration-200 group hover:scale-[1.02] hover:-translate-y-1"
-                  style={{ animationDelay: `${index * 0.1}s` }}
-                >
-                  <CardHeader className="pb-3">
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-3">
-                        <div className="group-hover:scale-110 transition-transform">
-                          <img
-                            src={platform.logoUrl}
-                            alt={`${platform.name} logo`}
-                            className={`h-8 w-auto ${platform.darkInvert ? "dark-invert" : ""}`}
-                          />
-                        </div>
-                        <div>
-                          <CardTitle className="text-lg flex items-center gap-2">
-                            {platform.name}
-                            {platform.popular && (
-                              <Badge variant="secondary" className="bg-primary text-primary-foreground animate-glow">
-                                Popular
-                              </Badge>
-                            )}
-                            {isConnected && (
-                              <Badge variant="outline" className="bg-green-500/10 text-green-600 border-green-500/20">
-                                {connectedCount} {connectedCount === 1 ? 'conectada' : 'conectadas'}
-                              </Badge>
-                            )}
-                          </CardTitle>
-                        </div>
+              <Card
+                key={platform.id}
+                className="shadow-soft hover:shadow-medium transition-all duration-200 group hover:scale-[1.02] hover:-translate-y-1"
+                style={{ animationDelay: `${index * 0.1}s` }}
+              >
+                <CardHeader className="pb-3">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-3">
+                      <div className="group-hover:scale-110 transition-transform">
+                        <img
+                          src={platform.logoUrl}
+                          alt={`${platform.name} logo`}
+                          className={`h-8 w-auto ${platform.darkInvert ? "dark-invert" : ""}`}
+                        />
+                      </div>
+                      <div>
+                        <CardTitle className="text-lg flex items-center gap-2">
+                          {platform.name}
+                          {platform.popular && (
+                            <Badge variant="secondary" className="bg-primary text-primary-foreground animate-glow">
+                              Popular
+                            </Badge>
+                          )}
+                          {isConnected && (
+                            <Badge variant="outline" className="bg-green-500/10 text-green-600 border-green-500/20">
+                              {connectedCount} {connectedCount === 1 ? "conectada" : "conectadas"}
+                            </Badge>
+                          )}
+                        </CardTitle>
                       </div>
                     </div>
-                    <CardDescription className="text-sm">{platform.description}</CardDescription>
-                  </CardHeader>
+                  </div>
+                  <CardDescription className="text-sm">{platform.description}</CardDescription>
+                </CardHeader>
 
-                  <CardContent>
-                    <Button
-                      onClick={() => handleConnect(platform.id)}
-                      className="w-full bg-gradient-primary hover:bg-primary-hover group-hover:shadow-primary transition-all duration-200 hover:scale-[1.02]"
-                    >
-                      <Plus className="w-4 h-4 mr-2" />
-                      {isConnected ? `Conectar Outra Conta ${platform.name}` : `Conectar ${platform.name}`}
-                    </Button>
-                  </CardContent>
-                </Card>
-              );
-            })}
+                <CardContent>
+                  <Button
+                    onClick={() => handleConnect(platform.id)}
+                    className="w-full bg-gradient-primary hover:bg-primary-hover group-hover:shadow-primary transition-all duration-200 hover:scale-[1.02]"
+                  >
+                    <Plus className="w-4 h-4 mr-2" />
+                    {isConnected ? `Conectar Outra Conta ${platform.name}` : `Conectar ${platform.name}`}
+                  </Button>
+                </CardContent>
+              </Card>
+            );
+          })}
         </div>
       </div>
 
