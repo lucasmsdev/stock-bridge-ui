@@ -429,14 +429,11 @@ export default function Integrations() {
                                   const logoUrl = theme === 'dark' && platformConfig.darkLogoUrl 
                                     ? platformConfig.darkLogoUrl 
                                     : platformConfig.logoUrl;
-                                  const heightClass = integration.platform === 'amazon' 
-                                    ? (theme === 'dark' ? 'h-8' : 'h-10')
-                                    : 'h-8';
                                   return (
                                     <img
                                       src={logoUrl}
                                       alt={`${integration.platform} logo`}
-                                      className={`w-auto ${heightClass}`}
+                                      className="h-8 w-auto"
                                     />
                                   );
                                 }
@@ -630,19 +627,11 @@ export default function Integrations() {
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-3">
                       <div className="group-hover:scale-110 transition-transform">
-                        {(() => {
-                          const logoUrl = theme === 'dark' && platform.darkLogoUrl ? platform.darkLogoUrl : platform.logoUrl;
-                          const heightClass = platform.id === 'amazon' 
-                            ? (theme === 'dark' ? 'h-8' : 'h-10')
-                            : 'h-8';
-                          return (
-                            <img
-                              src={logoUrl}
-                              alt={`${platform.name} logo`}
-                              className={`w-auto ${heightClass}`}
-                            />
-                          );
-                        })()}
+                        <img
+                          src={theme === 'dark' && platform.darkLogoUrl ? platform.darkLogoUrl : platform.logoUrl}
+                          alt={`${platform.name} logo`}
+                          className="h-8 w-auto"
+                        />
                       </div>
                       <div>
                         <CardTitle className="text-lg flex items-center gap-2">
