@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { useSearchParams } from "react-router-dom";
 import { Plus, Settings, Unlink, ExternalLink, CheckCircle2, Plug, Loader2, Lock, Download } from "lucide-react";
+import { useThemeProvider } from "@/components/layout/ThemeProvider";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -44,7 +45,7 @@ const availableIntegrations = [
     description: "Venda seus produtos na maior plataforma de e-commerce do mundo",
     popular: true,
     logoUrl: "https://upload.wikimedia.org/wikipedia/commons/d/de/Amazon_icon.png",
-    darkInvert: true,
+    darkLogoUrl: "https://www.pngmart.com/files/23/Amazon-Logo-White-PNG-Photos.png",
   },
   {
     id: "shopify",
@@ -63,6 +64,7 @@ export default function Integrations() {
   const [loading, setLoading] = useState(true);
   const { toast } = useToast();
   const { canAccess, getUpgradeRequiredMessage } = usePlan();
+  const { theme } = useThemeProvider();
 
   useEffect(() => {
     loadConnectedIntegrations();
@@ -423,15 +425,19 @@ export default function Integrations() {
                             <div className="hover:scale-110 transition-transform">
                               {(() => {
                                 const platformConfig = availableIntegrations.find((p) => p.id === integration.platform);
-                                return platformConfig?.logoUrl ? (
-                                  <img
-                                    src={platformConfig.logoUrl}
-                                    alt={`${integration.platform} logo`}
-                                    className={`h-8 w-auto ${platformConfig.darkInvert ? "dark-invert" : ""}`}
-                                  />
-                                ) : (
-                                  <PlatformLogo platform={integration.platform} size="lg" />
-                                );
+                                if (platformConfig?.logoUrl) {
+                                  const logoUrl = theme === 'dark' && platformConfig.darkLogoUrl 
+                                    ? platformConfig.darkLogoUrl 
+                                    : platformConfig.logoUrl;
+                                  return (
+                                    <img
+                                      src={logoUrl}
+                                      alt={`${integration.platform} logo`}
+                                      className="h-8 w-auto"
+                                    />
+                                  );
+                                }
+                                return <PlatformLogo platform={integration.platform} size="lg" />;
                               })()}
                             </div>
                             <div>
@@ -622,9 +628,9 @@ export default function Integrations() {
                     <div className="flex items-center gap-3">
                       <div className="group-hover:scale-110 transition-transform">
                         <img
-                          src={platform.logoUrl}
+                          src={theme === 'dark' && platform.darkLogoUrl ? platform.darkLogoUrl : platform.logoUrl}
                           alt={`${platform.name} logo`}
-                          className={`h-8 w-auto ${platform.darkInvert ? "dark-invert" : ""}`}
+                          className="h-8 w-auto"
                         />
                       </div>
                       <div>
