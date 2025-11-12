@@ -1,5 +1,5 @@
 import React from 'react';
-import { useTheme } from '@/hooks/useTheme';
+import { useThemeProvider } from '@/components/layout/ThemeProvider';
 
 interface PlatformLogoProps {
   platform: string;
@@ -51,7 +51,8 @@ export const PlatformLogo: React.FC<PlatformLogoProps> = ({
   size = 'md',
   className = '',
 }) => {
-  const { isDark } = useTheme();
+  const { theme } = useThemeProvider();
+  const isDark = theme === 'dark';
   
   const sizeClasses = {
     sm: 'w-4 h-4',
