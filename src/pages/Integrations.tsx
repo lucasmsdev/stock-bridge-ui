@@ -427,7 +427,7 @@ export default function Integrations() {
                                   <img
                                     src={platformConfig.logoUrl}
                                     alt={`${integration.platform} logo`}
-                                    className={`h-8 w-auto ${platformConfig.darkInvert ? "https://www.pngmart.com/files/23/Amazon-Logo-White-PNG-Photos.png" : ""}`}
+                                    className={`h-8 w-auto ${platformConfig.darkInvert ? "dark-invert" : ""}`}
                                   />
                                 ) : (
                                   <PlatformLogo platform={integration.platform} size="lg" />
