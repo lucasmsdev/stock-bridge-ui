@@ -413,7 +413,7 @@ const Landing = () => {
             </div>
             <div className="flex items-center justify-center p-8 rounded-xl bg-card border-2 border-border hover:border-primary/40 hover:shadow-xl transition-all duration-300 group">
               <img 
-                src="https://upload.wikimedia.org/wikipedia/commons/d/de/Amazon_icon.png"
+                src={isDark ? "https://www.pngmart.com/files/23/Amazon-Logo-White-PNG-Photos.png" : "https://upload.wikimedia.org/wikipedia/commons/d/de/Amazon_icon.png"}
                 alt="Amazon"
                 className="w-full h-16 object-contain group-hover:scale-110 transition-transform"
               />
