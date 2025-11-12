@@ -19,7 +19,7 @@ const platformLogos = {
 };
 
 const platformLogosDark = {
-  amazon: 'https://bluejuicecomics.com/wp-content/uploads/2017/02/Amazon-icon-white.png',
+  amazon: 'https://www.pngmart.com/files/23/Amazon-Logo-White-PNG-Photos.png',
 };
 
 const platformDarkInvert = {
