@@ -180,11 +180,6 @@ const Landing = () => {
         <div className="container mx-auto max-w-7xl relative z-10">
           <div className="grid lg:grid-cols-2 gap-12 items-center">
             <div className="space-y-8 animate-fade-in">
-              <Badge className="bg-accent/10 text-accent border-accent/30 px-4 py-2 hover:bg-accent/20 transition-all hover:scale-105">
-                <Activity className="w-4 h-4 mr-2 animate-pulse" style={{ animationDuration: '3s' }} />
-                347 vendedores já confiam no UniStock
-              </Badge>
-              
               <h1 className="font-heading text-4xl sm:text-5xl lg:text-6xl font-bold text-foreground leading-tight">
                 Você sabe quanto está lucrando{" "}
                 <span className="text-primary">em tempo real?</span>
@@ -357,13 +352,7 @@ const Landing = () => {
             </h2>
           </div>
 
-          <div className="grid md:grid-cols-3 gap-8">
-            <Card className="border-accent/30 text-center hover:border-accent hover:shadow-xl hover:shadow-accent/20 hover:-translate-y-2 transition-all duration-300 group">
-              <CardContent className="p-8 space-y-4">
-                <div className="text-5xl font-bold text-accent group-hover:scale-110 transition-transform inline-block">347+</div>
-                <p className="text-muted-foreground">Clientes ativos</p>
-              </CardContent>
-            </Card>
+          <div className="grid md:grid-cols-2 gap-8 max-w-2xl mx-auto">
             <Card className="border-primary/30 text-center hover:border-primary hover:shadow-xl hover:shadow-primary/20 hover:-translate-y-2 transition-all duration-300 group">
               <CardContent className="p-8 space-y-4">
                 <div className="text-5xl font-bold text-primary group-hover:scale-110 transition-transform inline-block">90h</div>
