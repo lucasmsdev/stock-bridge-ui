@@ -1,6 +1,7 @@
-import { TrendingUp, Package, ShoppingCart, Plug2, DollarSign, Loader2, TrendingDown, Users, Receipt, Target, Percent } from "lucide-react";
+import { TrendingUp, Package, ShoppingCart, Plug2, DollarSign, Loader2, TrendingDown, Users, Receipt, Target, Percent, Store, Calendar } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import DashboardFilters, { DashboardFiltersState } from "@/components/dashboard/DashboardFilters";
 import { 
   Table, 
   TableBody, 
@@ -133,22 +134,35 @@ export default function Dashboard() {
   const [dashboardData, setDashboardData] = useState<DashboardMetrics>(demoMetrics);
   const [isLoading, setIsLoading] = useState(true);
   const [hasRealData, setHasRealData] = useState(false);
+  const [activeFilters, setActiveFilters] = useState<DashboardFiltersState>({
+    marketplace: "all",
+    period: "7days",
+  });
   
   const { user } = useAuth();
   const { toast } = useToast();
   const { currentPlan } = usePlan();
 
-  const loadDashboardMetrics = useCallback(async () => {
+  const loadDashboardMetrics = useCallback(async (filters?: DashboardFiltersState) => {
     if (!user?.id) {
       setIsLoading(false);
       return;
     }
 
     try {
+      const filtersToUse = filters || activeFilters;
       console.log('=== Buscando dados reais em segundo plano ===');
+      console.log('Calling edge function to get dashboard metrics with filters:', filtersToUse);
       
       // Try edge function first
-      const { data, error: functionError } = await supabase.functions.invoke('get-dashboard-metrics');
+      const { data, error: functionError } = await supabase.functions.invoke('get-dashboard-metrics', {
+        body: {
+          marketplace: filtersToUse.marketplace,
+          period: filtersToUse.period,
+          startDate: filtersToUse.startDate?.toISOString(),
+          endDate: filtersToUse.endDate?.toISOString(),
+        }
+      });
 
       if (!functionError && data && !data.error) {
         console.log('Dados recebidos da edge function:', data);
@@ -174,7 +188,46 @@ export default function Dashboard() {
     } finally {
       setIsLoading(false);
     }
-  }, [user?.id]);
+  }, [user, toast, activeFilters]);
+
+  const handleApplyFilters = (filters: DashboardFiltersState) => {
+    setActiveFilters(filters);
+    setIsLoading(true);
+    loadDashboardMetrics(filters);
+  };
+
+  const handleClearFilters = () => {
+    const defaultFilters: DashboardFiltersState = {
+      marketplace: "all",
+      period: "7days",
+    };
+    setActiveFilters(defaultFilters);
+    setIsLoading(true);
+    loadDashboardMetrics(defaultFilters);
+  };
+
+  const getPeriodLabel = () => {
+    const labels: Record<string, string> = {
+      today: "Hoje",
+      "7days": "Últimos 7 dias",
+      "30days": "Últimos 30 dias",
+      this_month: "Este mês",
+      last_month: "Mês passado",
+      custom: "Período personalizado",
+    };
+    return labels[activeFilters.period] || "Últimos 7 dias";
+  };
+
+  const getMarketplaceLabel = () => {
+    const labels: Record<string, string> = {
+      all: "Todos os Marketplaces",
+      mercadolivre: "Mercado Livre",
+      shopee: "Shopee",
+      amazon: "Amazon",
+      shopify: "Shopify",
+    };
+    return labels[activeFilters.marketplace] || "Todos os Marketplaces";
+  };
 
   useEffect(() => {
     // Simula um pequeno delay para mostrar que está carregando, mas não bloqueia a UI
@@ -215,21 +268,49 @@ export default function Dashboard() {
   return (
     <div className="space-y-4 md:space-y-6 animate-fade-in">
       <div>
-        <h1 className="text-2xl md:text-3xl font-bold font-heading">Dashboard</h1>
-        <p className="text-muted-foreground font-body">
-          Visão geral das vendas
-        </p>
-        <div className="mt-2">
+        <div className="flex items-center justify-between mb-2">
+          <h1 className="text-2xl md:text-3xl font-bold font-heading">Dashboard</h1>
           <Badge variant="outline" className="capitalize">
             Plano {currentPlan}
           </Badge>
-          {!hasRealData && (
-            <Badge variant="secondary" className="ml-2 text-xs">
-              Modo Demonstração
+        </div>
+        <div className="flex items-center gap-2">
+          <p className="text-muted-foreground font-body">
+            Visão geral das suas vendas e métricas
+          </p>
+        </div>
+      </div>
+
+      {/* Filtros */}
+      <DashboardFilters
+        onApply={handleApplyFilters}
+        onClear={handleClearFilters}
+        isLoading={isLoading}
+      />
+
+      {/* Badges informativos dos filtros ativos */}
+      {(activeFilters.marketplace !== "all" || activeFilters.period !== "7days") && (
+        <div className="flex flex-wrap gap-2">
+          {activeFilters.marketplace !== "all" && (
+            <Badge variant="secondary" className="gap-1">
+              <Store className="h-3 w-3" />
+              {getMarketplaceLabel()}
+            </Badge>
+          )}
+          {activeFilters.period !== "7days" && (
+            <Badge variant="secondary" className="gap-1">
+              <Calendar className="h-3 w-3" />
+              {getPeriodLabel()}
             </Badge>
           )}
         </div>
-      </div>
+      )}
+
+      {!hasRealData && (
+        <Badge variant="secondary" className="text-xs">
+          Modo Demonstração
+        </Badge>
+      )}
 
       {renderDashboardContent()}
     </div>
@@ -302,7 +383,7 @@ export default function Dashboard() {
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
                 <TrendingUp className="h-5 w-5 text-primary" />
-                Vendas (Últimos 7 dias)
+                Vendas - {getPeriodLabel()}
               </CardTitle>
             </CardHeader>
             <CardContent className="pb-8">
