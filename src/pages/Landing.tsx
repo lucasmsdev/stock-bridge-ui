@@ -3,6 +3,7 @@ import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 import { ThemeToggle } from "@/components/ui/theme-toggle";
 import { PlatformLogo } from "@/components/ui/platform-logo";
 import { useThemeProvider } from "@/components/layout/ThemeProvider";
@@ -23,7 +24,8 @@ import {
   Users,
   Activity,
   Instagram,
-  MessageCircle
+  MessageCircle,
+  HelpCircle
 } from "lucide-react";
 
 const Landing = () => {
@@ -155,6 +157,9 @@ const Landing = () => {
               </a>
               <a href="#planos" className="text-sm font-medium text-muted-foreground hover:text-primary transition-colors">
                 Planos
+              </a>
+              <a href="#faq" className="text-sm font-medium text-muted-foreground hover:text-primary transition-colors">
+                FAQ
               </a>
               <Link to="/login" className="text-sm font-medium text-muted-foreground hover:text-primary transition-colors">
                 Login
@@ -511,6 +516,108 @@ const Landing = () => {
               </a>
             </CardContent>
           </Card>
+        </div>
+      </section>
+
+      {/* FAQ Section */}
+      <section id="faq" className="py-20 px-4 sm:px-6 lg:px-8 bg-muted/30">
+        <div className="container mx-auto max-w-4xl">
+          <div className="text-center mb-12">
+            <Badge variant="outline" className="mb-4 px-4 py-2 border-primary/30 text-primary bg-primary/5">
+              <HelpCircle className="w-4 h-4 mr-2" />
+              FAQ
+            </Badge>
+            <h2 className="font-heading text-3xl sm:text-4xl font-bold text-foreground mb-4">
+              Perguntas Frequentes
+            </h2>
+            <p className="text-lg text-muted-foreground">
+              Tire suas dúvidas sobre o UniStock
+            </p>
+          </div>
+
+          <Accordion type="single" collapsible className="w-full space-y-4">
+            <AccordionItem value="item-1" className="border border-border rounded-lg px-6 bg-card">
+              <AccordionTrigger className="text-left hover:no-underline">
+                <span className="font-semibold text-foreground">Como funciona a integração com os marketplaces?</span>
+              </AccordionTrigger>
+              <AccordionContent className="text-muted-foreground">
+                É simples! Você conecta suas contas do Mercado Livre, Shopee, Amazon e Shopify direto no UniStock. 
+                A sincronização é automática e em tempo real - qualquer alteração de estoque, preço ou nova venda 
+                aparece instantaneamente no painel.
+              </AccordionContent>
+            </AccordionItem>
+
+            <AccordionItem value="item-2" className="border border-border rounded-lg px-6 bg-card">
+              <AccordionTrigger className="text-left hover:no-underline">
+                <span className="font-semibold text-foreground">Posso testar antes de assinar?</span>
+              </AccordionTrigger>
+              <AccordionContent className="text-muted-foreground">
+                Sim! Todos os planos têm 7 dias de teste grátis. Você pode explorar todas as funcionalidades 
+                sem precisar informar cartão de crédito. Se não gostar, é só cancelar.
+              </AccordionContent>
+            </AccordionItem>
+
+            <AccordionItem value="item-3" className="border border-border rounded-lg px-6 bg-card">
+              <AccordionTrigger className="text-left hover:no-underline">
+                <span className="font-semibold text-foreground">Posso mudar de plano depois?</span>
+              </AccordionTrigger>
+              <AccordionContent className="text-muted-foreground">
+                Com certeza! Você pode fazer upgrade ou downgrade do seu plano a qualquer momento. 
+                A mudança é imediata e o valor é ajustado proporcionalmente.
+              </AccordionContent>
+            </AccordionItem>
+
+            <AccordionItem value="item-4" className="border border-border rounded-lg px-6 bg-card">
+              <AccordionTrigger className="text-left hover:no-underline">
+                <span className="font-semibold text-foreground">Meus dados estão seguros?</span>
+              </AccordionTrigger>
+              <AccordionContent className="text-muted-foreground">
+                Totalmente! Usamos criptografia de ponta e seguimos todas as normas de segurança dos marketplaces. 
+                Seus tokens de acesso são armazenados com segurança e nunca compartilhamos seus dados com terceiros.
+              </AccordionContent>
+            </AccordionItem>
+
+            <AccordionItem value="item-5" className="border border-border rounded-lg px-6 bg-card">
+              <AccordionTrigger className="text-left hover:no-underline">
+                <span className="font-semibold text-foreground">Como funciona o cálculo de lucro?</span>
+              </AccordionTrigger>
+              <AccordionContent className="text-muted-foreground">
+                Você informa o custo de cada produto, e o UniStock calcula automaticamente seu lucro real 
+                considerando o preço de venda, comissões dos marketplaces e frete. Tudo em tempo real, 
+                a cada venda realizada.
+              </AccordionContent>
+            </AccordionItem>
+
+            <AccordionItem value="item-6" className="border border-border rounded-lg px-6 bg-card">
+              <AccordionTrigger className="text-left hover:no-underline">
+                <span className="font-semibold text-foreground">Preciso instalar algo no meu computador?</span>
+              </AccordionTrigger>
+              <AccordionContent className="text-muted-foreground">
+                Não! O UniStock funciona 100% na nuvem. Você acessa pelo navegador de qualquer computador, 
+                tablet ou celular. Basta ter internet.
+              </AccordionContent>
+            </AccordionItem>
+
+            <AccordionItem value="item-7" className="border border-border rounded-lg px-6 bg-card">
+              <AccordionTrigger className="text-left hover:no-underline">
+                <span className="font-semibold text-foreground">Como funciona o suporte?</span>
+              </AccordionTrigger>
+              <AccordionContent className="text-muted-foreground">
+                Nosso suporte é direto pelo WhatsApp. Nos planos Profissional e superiores, você tem atendimento 
+                prioritário. Estamos aqui pra te ajudar a vender mais!
+              </AccordionContent>
+            </AccordionItem>
+
+            <AccordionItem value="item-8" className="border border-border rounded-lg px-6 bg-card">
+              <AccordionTrigger className="text-left hover:no-underline">
+                <span className="font-semibold text-foreground">O que acontece se eu cancelar?</span>
+              </AccordionTrigger>
+              <AccordionContent className="text-muted-foreground">
+                Você pode cancelar a qualquer momento, sem multas ou taxas. Seu acesso continua até o fim do período 
+                pago. Se voltar depois, todos os seus dados estarão lá te esperando.
+              </AccordionContent>
+            </AccordionItem>
+          </Accordion>
         </div>
       </section>
 
