@@ -29,6 +29,49 @@ interface DashboardMetrics {
   };
 }
 
+function calculateDateRange(period: string, customStart?: string, customEnd?: string) {
+  const today = new Date();
+  const todayStart = new Date(today.getFullYear(), today.getMonth(), today.getDate());
+  
+  let startDate: Date;
+  let endDate: Date = new Date(todayStart);
+  endDate.setDate(endDate.getDate() + 1);
+  
+  switch(period) {
+    case 'today':
+      startDate = todayStart;
+      break;
+    case '7days':
+      startDate = new Date(todayStart);
+      startDate.setDate(startDate.getDate() - 7);
+      break;
+    case '30days':
+      startDate = new Date(todayStart);
+      startDate.setDate(startDate.getDate() - 30);
+      break;
+    case 'this_month':
+      startDate = new Date(today.getFullYear(), today.getMonth(), 1);
+      break;
+    case 'last_month':
+      startDate = new Date(today.getFullYear(), today.getMonth() - 1, 1);
+      endDate = new Date(today.getFullYear(), today.getMonth(), 1);
+      break;
+    case 'custom':
+      if (!customStart || !customEnd) {
+        throw new Error('Custom period requires start and end dates');
+      }
+      startDate = new Date(customStart);
+      endDate = new Date(customEnd);
+      endDate.setDate(endDate.getDate() + 1); // Include the end date
+      break;
+    default:
+      startDate = new Date(todayStart);
+      startDate.setDate(startDate.getDate() - 7);
+  }
+  
+  return { startDate, endDate };
+}
+
 export default async function handler(req: Request): Promise<Response> {
   // Handle CORS preflight requests
   if (req.method === 'OPTIONS') {
@@ -37,6 +80,23 @@ export default async function handler(req: Request): Promise<Response> {
 
   try {
     console.log('=== Starting get-dashboard-metrics function ===');
+    
+    // Parse request body for filters
+    let marketplace = 'all';
+    let period = '7days';
+    let customStartDate: string | undefined;
+    let customEndDate: string | undefined;
+    
+    try {
+      const body = await req.json();
+      marketplace = body.marketplace || 'all';
+      period = body.period || '7days';
+      customStartDate = body.startDate;
+      customEndDate = body.endDate;
+      console.log('Filters received:', { marketplace, period, customStartDate, customEndDate });
+    } catch (e) {
+      console.log('No filters provided, using defaults');
+    }
     
     // Get JWT from the Authorization header
     const authHeader = req.headers.get('authorization');
@@ -79,31 +139,38 @@ export default async function handler(req: Request): Promise<Response> {
 
     console.log('Getting dashboard metrics for user:', user.id);
 
+    // Calculate date range based on filters
+    const { startDate, endDate } = calculateDateRange(period, customStartDate, customEndDate);
+    console.log('Date range:', { startDate: startDate.toISOString(), endDate: endDate.toISOString() });
+
     // Initialize default metrics
     let todayRevenue = 0;
     let todayOrders = 0;
     let totalProducts = 0;
-    let salesLast7Days = [];
+    let salesData = [];
 
-    // Get today's start and end in user's timezone
+    // Get today's dates for "today" metrics
     const today = new Date();
     const todayStart = new Date(today.getFullYear(), today.getMonth(), today.getDate());
     const todayEnd = new Date(todayStart);
     todayEnd.setDate(todayEnd.getDate() + 1);
 
-    // Get 7 days ago
-    const sevenDaysAgo = new Date(todayStart);
-    sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
-
     try {
       console.log('Fetching today orders...');
       // Get today's revenue and orders count
-      const { data: todayData, error: todayError } = await supabase
+      let todayQuery = supabase
         .from('orders')
         .select('total_value')
         .eq('user_id', user.id)
         .gte('order_date', todayStart.toISOString())
         .lt('order_date', todayEnd.toISOString());
+      
+      // Apply marketplace filter if not "all"
+      if (marketplace && marketplace !== 'all') {
+        todayQuery = todayQuery.eq('platform', marketplace);
+      }
+      
+      const { data: todayData, error: todayError } = await todayQuery;
 
       if (todayError) {
         console.error('Error fetching today orders:', todayError);
@@ -137,58 +204,57 @@ export default async function handler(req: Request): Promise<Response> {
     }
 
     try {
-      console.log('Fetching sales data for last 7 days...');
-      // Get sales for last 7 days
-      const { data: salesData, error: salesError } = await supabase
+      console.log('Fetching sales data for selected period...');
+      // Get sales data for the selected period
+      let salesQuery = supabase
         .from('orders')
         .select('order_date, total_value')
         .eq('user_id', user.id)
-        .gte('order_date', sevenDaysAgo.toISOString())
+        .gte('order_date', startDate.toISOString())
+        .lt('order_date', endDate.toISOString())
         .order('order_date', { ascending: true });
+      
+      // Apply marketplace filter if not "all"
+      if (marketplace && marketplace !== 'all') {
+        salesQuery = salesQuery.eq('platform', marketplace);
+      }
+      
+      const { data: salesDataResult, error: salesError } = await salesQuery;
 
       if (salesError) {
         console.error('Error fetching sales data:', salesError);
-        // Don't throw, continue with default empty array
-      } else {
+      } else if (salesDataResult && salesDataResult.length > 0) {
         // Group sales by date
-        const salesByDate: { [key: string]: number } = {};
+        const salesByDate = new Map<string, number>();
         
-        // Initialize all 7 days with 0
-        for (let i = 6; i >= 0; i--) {
-          const date = new Date(todayStart);
-          date.setDate(date.getDate() - i);
+        // Calculate number of days in the period
+        const daysDiff = Math.ceil((endDate.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24));
+        
+        // Initialize all days in the range with 0
+        for (let i = 0; i < daysDiff; i++) {
+          const date = new Date(startDate);
+          date.setDate(date.getDate() + i);
           const dateStr = date.toISOString().split('T')[0];
-          salesByDate[dateStr] = 0;
+          salesByDate.set(dateStr, 0);
         }
-
+        
         // Add actual sales data
-        salesData?.forEach(order => {
+        salesDataResult.forEach(order => {
           const dateStr = order.order_date.split('T')[0];
-          if (salesByDate.hasOwnProperty(dateStr)) {
-            salesByDate[dateStr] += Number(order.total_value);
-          }
+          const currentValue = salesByDate.get(dateStr) || 0;
+          salesByDate.set(dateStr, currentValue + Number(order.total_value));
         });
-
-        salesLast7Days = Object.entries(salesByDate).map(([date, revenue]) => ({
+        
+        // Convert to array format
+        salesLast7Days = Array.from(salesByDate.entries()).map(([date, revenue]) => ({
           date,
-          revenue: Math.round(revenue * 100) / 100 // Round to 2 decimal places
+          revenue: Math.round(revenue * 100) / 100
         }));
-
-        console.log('Sales last 7 days:', salesLast7Days);
+        
+        console.log(`Generated ${salesLast7Days.length} days of sales data`);
       }
     } catch (salesError) {
       console.error('Failed to fetch sales data, using defaults:', salesError);
-      // Initialize default 7 days with 0 revenue
-      salesLast7Days = [];
-      for (let i = 6; i >= 0; i--) {
-        const date = new Date(todayStart);
-        date.setDate(date.getDate() - i);
-        const dateStr = date.toISOString().split('T')[0];
-        salesLast7Days.push({
-          date: dateStr,
-          revenue: 0
-        });
-      }
     }
 
     // Calculate marketing metrics
@@ -208,22 +274,25 @@ export default async function handler(req: Request): Promise<Response> {
     };
 
     try {
-      console.log('Calculating marketing metrics...');
+      console.log('Fetching comprehensive marketing metrics...');
       
-      // Get all orders for the period (last 30 days for better metrics)
-      const thirtyDaysAgo = new Date(todayStart);
-      thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
-      
-      const { data: ordersData, error: ordersError } = await supabase
+      // Get all orders for the selected period for comprehensive metrics
+      let ordersQuery = supabase
         .from('orders')
-        .select('total_value, items')
+        .select('total_value, items, platform')
         .eq('user_id', user.id)
-        .gte('order_date', thirtyDaysAgo.toISOString());
+        .gte('order_date', startDate.toISOString())
+        .lt('order_date', endDate.toISOString());
+      
+      // Apply marketplace filter if not "all"
+      if (marketplace && marketplace !== 'all') {
+        ordersQuery = ordersQuery.eq('platform', marketplace);
+      }
+      
+      const { data: ordersData, error: ordersError } = await ordersQuery;
 
       if (!ordersError && ordersData && ordersData.length > 0) {
-        // Calculate billing (total revenue)
-        marketingMetrics.billing = ordersData.reduce((sum, order) => sum + Number(order.total_value), 0);
-        marketingMetrics.salesCount = ordersData.length;
+        console.log(`Found ${ordersData.length} orders for marketing metrics`);
         
         // Calculate units sold
         marketingMetrics.unitsSold = ordersData.reduce((sum, order) => {
