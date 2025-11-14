@@ -343,32 +343,6 @@ const Landing = () => {
         </div>
       </section>
 
-      {/* Stats */}
-      <section className="py-20 px-4 sm:px-6 lg:px-8">
-        <div className="container mx-auto max-w-7xl">
-          <div className="text-center mb-12">
-            <h2 className="font-heading text-3xl sm:text-4xl font-bold text-foreground mb-4">
-              Leve seu negócio para outro nível!
-            </h2>
-          </div>
-
-          <div className="grid md:grid-cols-2 gap-8 max-w-2xl mx-auto">
-            <Card className="border-primary/30 text-center hover:border-primary hover:shadow-xl hover:shadow-primary/20 hover:-translate-y-2 transition-all duration-300 group">
-              <CardContent className="p-8 space-y-4">
-                <div className="text-5xl font-bold text-primary group-hover:scale-110 transition-transform inline-block">90h</div>
-                <p className="text-muted-foreground">Economizadas por mês</p>
-              </CardContent>
-            </Card>
-            <Card className="border-accent/30 text-center hover:border-accent hover:shadow-xl hover:shadow-accent/20 hover:-translate-y-2 transition-all duration-300 group">
-              <CardContent className="p-8 space-y-4">
-                <div className="text-5xl font-bold text-accent group-hover:scale-110 transition-transform inline-block">4</div>
-                <p className="text-muted-foreground">Plataformas integradas</p>
-              </CardContent>
-            </Card>
-          </div>
-        </div>
-      </section>
-
       {/* Partners */}
       <section className="py-20 bg-gradient-to-b from-muted/30 to-background">
         <div className="container mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
