@@ -72,7 +72,7 @@ export default function Billing() {
     }
 
     // Check if user has no plan (first time)
-    if (!currentPlan || currentPlan === 'estrategista') {
+    if (!currentPlan || currentPlan === PlanType.INICIANTE) {
       setIsFirstTime(true);
     }
   }, [location.search, currentPlan, navigate, toast]);
@@ -80,7 +80,7 @@ export default function Billing() {
   const handlePlanSelection = async (planKey: PlanType) => {
     if (planKey === currentPlan) return;
     
-    if (planKey === 'estrategista' && currentPlan !== 'estrategista') {
+    if (planKey === PlanType.INICIANTE && currentPlan !== PlanType.INICIANTE) {
       toast({
         title: "⚠️ Downgrade não disponível",
         description: "Entre em contato com o suporte para fazer downgrade do seu plano.",
@@ -158,7 +158,7 @@ export default function Billing() {
         <UpgradeBanner
           title={`Desbloqueie: ${targetFeature.replace(/([A-Z])/g, ' $1').trim()}`}
           description="Esta funcionalidade está disponível nos planos superiores"
-          requiredPlan={targetPlan || 'competidor'}
+          requiredPlan={targetPlan || PlanType.PROFISSIONAL}
           feature={targetFeature}
           className="mb-6"
         />
@@ -201,7 +201,7 @@ export default function Billing() {
                 </div>
                 <div className="space-y-2">
                   <div className="text-3xl font-bold">
-                    R$ {plan.price.toFixed(2).replace('.', ',')}
+                    R$ {features.pricing.monthly}
                   </div>
                   <p className="text-sm text-muted-foreground">/mês</p>
                 </div>
@@ -212,7 +212,7 @@ export default function Billing() {
                   <div className="flex items-center text-sm">
                     <Check className="h-4 w-4 text-green-600 mr-2" />
                     <span>
-                      {plan.maxSkus === Infinity ? 'SKUs Ilimitados' : `Até ${plan.maxSkus} SKUs`}
+                      {features.maxProducts === Infinity ? 'Produtos Ilimitados' : `Até ${features.maxProducts} produtos`}
                     </span>
                   </div>
                   
