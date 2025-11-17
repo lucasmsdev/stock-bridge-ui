@@ -33,52 +33,53 @@ const Landing = () => {
   const isDark = theme === 'dark';
   const plans = [
     {
-      id: "estrategista",
+      id: "iniciante",
       name: "Iniciante",
       price: "R$ 97",
       period: "/mês",
-      description: "Pra quem tá começando a vender em múltiplas plataformas",
+      description: "Ideal para começar a centralizar suas vendas",
       popular: false,
       features: [
         "Até 100 produtos",
-        "2 integrações (ML, Shopee, Amazon ou Shopify)",
-        "Sincronização de estoque em tempo real",
+        "1 conta por marketplace",
+        "Sincronização de produtos e estoque",
+        "Gestão de pedidos",
         "Dashboard básico",
         "Suporte por WhatsApp"
       ]
     },
     {
-      id: "competidor",
+      id: "profissional",
       name: "Profissional",
       price: "R$ 197",
       period: "/mês",
-      description: "Mais vendido. Pra quem quer escalar sem perder o controle",
+      description: "Mais vendido! Para quem quer escalar com inteligência",
       popular: true,
       features: [
         "Até 500 produtos",
-        "Todas as integrações (ML, Shopee, Amazon, Shopify)",
-        "Sincronização em tempo real",
-        "Dashboard completo + análise de lucro",
-        "Alertas de estoque baixo",
-        "Relatórios semanais",
-        "Suporte prioritário no WhatsApp"
+        "2 contas por marketplace",
+        "Tudo do plano Iniciante",
+        "Agente de IA 'Uni' para assistência",
+        "Relatórios básicos de vendas",
+        "Cálculo financeiro e de lucro",
+        "Suporte prioritário"
       ]
     },
     {
-      id: "dominador",
+      id: "enterprise",
       name: "Enterprise",
       price: "R$ 297",
       period: "/mês",
-      description: "Pra quem vende muito e precisa de análise avançada",
+      description: "Para operações avançadas com análise de mercado",
       popular: false,
       features: [
-        "Até 1000 produtos",
-        "Todas as integrações",
-        "Sincronização em tempo real",
-        "Dashboard avançado + IA",
-        "Análise de concorrência",
+        "Até 2.000 produtos",
+        "5 contas por marketplace",
+        "Tudo do plano Profissional",
+        "Análise de mercado com IA",
+        "Monitoramento de concorrência",
         "Relatórios personalizados",
-        "Suporte prioritário"
+        "Suporte prioritário dedicado"
       ]
     },
     {
@@ -86,17 +87,15 @@ const Landing = () => {
       name: "Unlimited",
       price: "R$ 397",
       period: "/mês",
-      description: "Produtos ilimitados + API e automação completa",
+      description: "Sem limites! Para grandes operações multi-canal",
       popular: false,
       features: [
         "Produtos ilimitados",
-        "Todas as integrações",
-        "Sincronização em tempo real",
-        "Dashboard avançado + IA",
-        "Análise de concorrência",
-        "Relatórios personalizados",
-        "Acesso à API",
-        "Automação completa",
+        "Contas ilimitadas por marketplace",
+        "Tudo do plano Enterprise",
+        "Análise de mercado ilimitada",
+        "Automação avançada",
+        "API de integração",
         "Gerente de conta dedicado"
       ]
     }
