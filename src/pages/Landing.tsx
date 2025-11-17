@@ -33,7 +33,7 @@ const Landing = () => {
   const isDark = theme === 'dark';
   const plans = [
     {
-      id: "iniciante",
+      id: "estrategista",
       name: "Iniciante",
       price: "R$ 97",
       period: "/mês",
@@ -49,7 +49,7 @@ const Landing = () => {
       ]
     },
     {
-      id: "profissional",
+      id: "competidor",
       name: "Profissional",
       price: "R$ 197",
       period: "/mês",
@@ -66,7 +66,7 @@ const Landing = () => {
       ]
     },
     {
-      id: "enterprise",
+      id: "dominador",
       name: "Enterprise",
       price: "R$ 297",
       period: "/mês",
