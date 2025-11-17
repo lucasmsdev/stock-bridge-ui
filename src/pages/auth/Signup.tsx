@@ -129,13 +129,11 @@ export default function Signup() {
               <CardDescription className="text-muted-foreground">
                 Crie sua conta gratuitamente
               </CardDescription>
-              {selectedPlan !== 'estrategista' && (
-                <div className="flex justify-center mt-4">
-                  <Badge variant="secondary" className="text-sm">
-                    Plano selecionado: {planNames[selectedPlan as keyof typeof planNames]}
-                  </Badge>
-                </div>
-              )}
+              <div className="flex justify-center mt-4">
+                <Badge variant="secondary" className="text-sm">
+                  Plano selecionado: {planNames[selectedPlan as keyof typeof planNames]}
+                </Badge>
+              </div>
             </div>
           </CardHeader>
 
