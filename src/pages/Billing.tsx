@@ -169,7 +169,7 @@ export default function Billing() {
           const PlanIcon = planIcons[planKey as PlanType];
           const isCurrent = isCurrentPlan(planKey as PlanType);
           const isUpgrade = isPlanUpgrade(planKey as PlanType);
-          const isRecommended = planKey === 'competidor';
+          const isRecommended = planKey === 'profissional';
           
           return (
             <Card 
@@ -197,6 +197,12 @@ export default function Billing() {
                 </div>
                 <div>
                   <CardTitle className="text-2xl">{plan.name}</CardTitle>
+                  <p className="text-sm text-muted-foreground mt-2">
+                    {planKey === 'iniciante' && 'Ideal para começar a centralizar suas vendas'}
+                    {planKey === 'profissional' && 'Mais vendido! Para escalar com inteligência'}
+                    {planKey === 'enterprise' && 'Operações avançadas com análise de mercado'}
+                    {planKey === 'unlimited' && 'Sem limites para grandes operações'}
+                  </p>
                 </div>
                 <div className="space-y-2">
                   <div className="text-3xl font-bold">
@@ -215,14 +221,59 @@ export default function Billing() {
                     </span>
                   </div>
                   
-                  {plan.features.map((feature, index) => (
-                    <div key={index} className="flex items-center text-sm">
+                  <div className="flex items-center text-sm">
+                    <Check className="h-4 w-4 text-green-600 mr-2" />
+                    <span>
+                      {plan.maxIntegrationsPerMarketplace === Infinity 
+                        ? 'Contas ilimitadas por marketplace' 
+                        : `${plan.maxIntegrationsPerMarketplace} conta${plan.maxIntegrationsPerMarketplace > 1 ? 's' : ''} por marketplace`}
+                    </span>
+                  </div>
+                  
+                  <div className="flex items-center text-sm">
+                    <Check className="h-4 w-4 text-green-600 mr-2" />
+                    <span>Sincronização de produtos e estoque</span>
+                  </div>
+                  
+                  <div className="flex items-center text-sm">
+                    <Check className="h-4 w-4 text-green-600 mr-2" />
+                    <span>Gestão de pedidos</span>
+                  </div>
+                  
+                  {plan.features.includes(FeatureName.AI_ASSISTANT) && (
+                    <div className="flex items-center text-sm">
                       <Check className="h-4 w-4 text-green-600 mr-2 flex-shrink-0" />
-                      <span>
-                        {feature.replace(/([A-Z])/g, ' $1').trim()}
-                      </span>
+                      <span>Agente de IA "Uni"</span>
                     </div>
-                  ))}
+                  )}
+                  
+                  {plan.features.includes(FeatureName.REPORTS) && (
+                    <div className="flex items-center text-sm">
+                      <Check className="h-4 w-4 text-green-600 mr-2 flex-shrink-0" />
+                      <span>Relatórios de vendas</span>
+                    </div>
+                  )}
+                  
+                  {plan.features.includes(FeatureName.FINANCIAL_CALCULATOR) && (
+                    <div className="flex items-center text-sm">
+                      <Check className="h-4 w-4 text-green-600 mr-2 flex-shrink-0" />
+                      <span>Cálculo financeiro e lucro</span>
+                    </div>
+                  )}
+                  
+                  {plan.features.includes(FeatureName.MARKET_ANALYSIS) && (
+                    <div className="flex items-center text-sm">
+                      <Check className="h-4 w-4 text-green-600 mr-2 flex-shrink-0" />
+                      <span>Análise de mercado com IA</span>
+                    </div>
+                  )}
+                  
+                  {plan.features.includes(FeatureName.PRIORITY_SUPPORT) && (
+                    <div className="flex items-center text-sm">
+                      <Check className="h-4 w-4 text-green-600 mr-2 flex-shrink-0" />
+                      <span>Suporte prioritário</span>
+                    </div>
+                  )}
                 </div>
 
                 <Button
