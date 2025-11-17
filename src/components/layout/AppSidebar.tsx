@@ -27,7 +27,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { useAuth } from "@/hooks/useAuth";
-import { usePlan } from "@/hooks/usePlan";
+import { usePlan, FeatureName } from "@/hooks/usePlan";
 
 interface AppSidebarProps {
   isCollapsed: boolean;
@@ -41,31 +41,31 @@ const navItems = [
     title: "Financeiro", 
     href: "/app/finance", 
     icon: Calculator, 
-    requiresFeature: 'RelatoriosAvancados' as const 
+    requiresFeature: FeatureName.FINANCIAL_CALCULATOR
   },
   { 
     title: "Integrações", 
     href: "/app/integrations", 
     icon: Plug, 
-    requiresFeature: 'IntegracoesCompletas' as const 
+    requiresFeature: FeatureName.MULTI_MARKETPLACE
   },
   { 
     title: "Análise de Mercado", 
     href: "/app/market-analysis", 
     icon: Target, 
-    requiresFeature: 'AnaliseDeConcorrencia' as const 
+    requiresFeature: FeatureName.MARKET_ANALYSIS
   },
   { 
     title: "Relatórios", 
     href: "/app/reports", 
     icon: FileText, 
-    requiresFeature: 'RelatoriosAvancados' as const 
+    requiresFeature: FeatureName.REPORTS
   },
   { 
     title: "Assistente de IA", 
     href: "/app/ai-assistant", 
     icon: Sparkles, 
-    requiresFeature: 'AnaliseDeConcorrencia' as const 
+    requiresFeature: FeatureName.AI_ASSISTANT
   },
   { title: "Ajuda", href: "/app/help", icon: HelpCircle },
 ];

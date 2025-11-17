@@ -197,11 +197,10 @@ export default function Billing() {
                 </div>
                 <div>
                   <CardTitle className="text-2xl">{plan.name}</CardTitle>
-                  <p className="text-sm text-muted-foreground">{plan.description}</p>
                 </div>
                 <div className="space-y-2">
                   <div className="text-3xl font-bold">
-                    R$ {features.pricing.monthly}
+                    R$ {plan.pricing.monthly}
                   </div>
                   <p className="text-sm text-muted-foreground">/mês</p>
                 </div>
@@ -212,7 +211,7 @@ export default function Billing() {
                   <div className="flex items-center text-sm">
                     <Check className="h-4 w-4 text-green-600 mr-2" />
                     <span>
-                      {features.maxProducts === Infinity ? 'Produtos Ilimitados' : `Até ${features.maxProducts} produtos`}
+                      {plan.maxProducts === Infinity ? 'Produtos Ilimitados' : `Até ${plan.maxProducts} produtos`}
                     </span>
                   </div>
                   
