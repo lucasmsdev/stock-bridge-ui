@@ -18,7 +18,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { useToast } from "@/hooks/use-toast";
 import { useNavigate } from "react-router-dom";
-import { usePlan } from "@/hooks/usePlan";
+import { usePlan, PlanType, FeatureName } from "@/hooks/usePlan";
 import { UpgradeBanner } from "@/components/ui/upgrade-banner";
 
 interface Product {
@@ -148,7 +148,7 @@ export default function Finance() {
       <Tabs defaultValue="calculator" className="space-y-6">
         <TabsList className="grid w-full grid-cols-2">
           <TabsTrigger value="calculator">Calculadora de Precificação</TabsTrigger>
-          <TabsTrigger value="advanced" disabled={!canAccess('RelatoriosAvancados')}>
+          <TabsTrigger value="advanced" disabled={!canAccess(FeatureName.REPORTS)}>
             Relatórios Avançados
           </TabsTrigger>
         </TabsList>
@@ -365,7 +365,7 @@ export default function Finance() {
 
         {/* Advanced Reports Tab */}
         <TabsContent value="advanced" className="space-y-6">
-          {canAccess('RelatoriosAvancados') ? (
+          {canAccess(FeatureName.REPORTS) ? (
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
               <Card>
                 <CardHeader>
@@ -403,8 +403,8 @@ export default function Finance() {
             <UpgradeBanner
               title="Relatórios Avançados"
               description="Acesse análises detalhadas de ROI, projeções de lucro e relatórios personalizados"
-              requiredPlan="competidor"
-              feature="RelatoriosAvancados"
+              requiredPlan={PlanType.PROFISSIONAL}
+              feature={FeatureName.REPORTS}
             />
           )}
         </TabsContent>

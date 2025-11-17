@@ -3,17 +3,23 @@ import { useAuth } from "./useAuth";
 import { supabase } from "@/integrations/supabase/client";
 import { queryKeys } from "@/lib/queryClient";
 
-export type PlanType = 'estrategista' | 'competidor' | 'dominador' | 'unlimited';
+export enum PlanType {
+  INICIANTE = 'iniciante',
+  PROFISSIONAL = 'profissional',
+  ENTERPRISE = 'enterprise',
+  UNLIMITED = 'unlimited',
+}
 
-// Definição clara de features disponíveis
-export type FeatureName = 
-  | 'IntegracoesCompletas'
-  | 'AnaliseDeConcorrencia'
-  | 'AnaliseDePrecoIdeal'
-  | 'DashboardDePerformance'
-  | 'ReprecificacaoPorAlerta'
-  | 'RelatoriosAvancados'
-  | 'SuportePrioritario';
+export enum FeatureName {
+  PRODUCT_MANAGEMENT = 'product_management',
+  MULTI_MARKETPLACE = 'multi_marketplace',
+  AI_ASSISTANT = 'ai_assistant',
+  REPORTS = 'reports',
+  FINANCIAL_CALCULATOR = 'financial_calculator',
+  MARKET_ANALYSIS = 'market_analysis',
+  PRIORITY_SUPPORT = 'priority_support',
+  UNLIMITED_INTEGRATIONS = 'unlimited_integrations',
+}
 
 // Interface para compatibilidade com código existente (LEGACY)
 export interface LegacyPlanFeatures {
@@ -25,87 +31,85 @@ export interface LegacyPlanFeatures {
 
 // Nova interface para o sistema de planos
 export interface PlanFeatures {
-  maxSkus: number;
-  features: FeatureName[];
-  price: number;
-  description: string;
   name: string;
+  features: FeatureName[];
+  maxIntegrationsPerMarketplace: number;
+  maxProducts: number;
+  pricing: { monthly: number; currency: string };
 }
 
 // Mapa claro de permissões por plano
-const planFeatures: Record<PlanType, PlanFeatures> = {
-  estrategista: {
-    maxSkus: 100,
+export const planFeatures: Record<PlanType, PlanFeatures> = {
+  [PlanType.INICIANTE]: {
+    name: 'Iniciante',
     features: [
-      'IntegracoesCompletas',
-      'AnaliseDeConcorrencia', 
-      'AnaliseDePrecoIdeal',
-      'DashboardDePerformance'
+      FeatureName.PRODUCT_MANAGEMENT,
+      FeatureName.MULTI_MARKETPLACE,
     ],
-    price: 97.00,
-    description: 'Essencial para gerenciar vendas em múltiplas plataformas',
-    name: 'Iniciante'
+    maxIntegrationsPerMarketplace: 1,
+    maxProducts: 100,
+    pricing: { monthly: 97, currency: 'BRL' }
   },
-  competidor: {
-    maxSkus: 500,
+  [PlanType.PROFISSIONAL]: {
+    name: 'Profissional',
     features: [
-      'IntegracoesCompletas',
-      'AnaliseDeConcorrencia', 
-      'AnaliseDePrecoIdeal',
-      'DashboardDePerformance', 
-      'ReprecificacaoPorAlerta',
-      'SuportePrioritario'
+      FeatureName.PRODUCT_MANAGEMENT,
+      FeatureName.MULTI_MARKETPLACE,
+      FeatureName.AI_ASSISTANT,
+      FeatureName.REPORTS,
+      FeatureName.FINANCIAL_CALCULATOR,
     ],
-    price: 197.00,
-    description: 'Para escalar operações e aumentar eficiência',
-    name: 'Profissional'
+    maxIntegrationsPerMarketplace: 2,
+    maxProducts: 500,
+    pricing: { monthly: 197, currency: 'BRL' }
   },
-  dominador: {
-    maxSkus: 1000,
+  [PlanType.ENTERPRISE]: {
+    name: 'Enterprise',
     features: [
-      'IntegracoesCompletas',
-      'AnaliseDeConcorrencia',
-      'AnaliseDePrecoIdeal',
-      'DashboardDePerformance', 
-      'ReprecificacaoPorAlerta',
-      'RelatoriosAvancados',
-      'SuportePrioritario'
+      FeatureName.PRODUCT_MANAGEMENT,
+      FeatureName.MULTI_MARKETPLACE,
+      FeatureName.AI_ASSISTANT,
+      FeatureName.REPORTS,
+      FeatureName.FINANCIAL_CALCULATOR,
+      FeatureName.MARKET_ANALYSIS,
+      FeatureName.PRIORITY_SUPPORT,
     ],
-    price: 297.00,
-    description: 'Solução completa com análise avançada e IA',
-    name: 'Enterprise'
+    maxIntegrationsPerMarketplace: 5,
+    maxProducts: 2000,
+    pricing: { monthly: 297, currency: 'BRL' }
   },
-  unlimited: {
-    maxSkus: Infinity,
+  [PlanType.UNLIMITED]: {
+    name: 'Unlimited',
     features: [
-      'IntegracoesCompletas',
-      'AnaliseDeConcorrencia',
-      'AnaliseDePrecoIdeal',
-      'DashboardDePerformance', 
-      'ReprecificacaoPorAlerta',
-      'RelatoriosAvancados',
-      'SuportePrioritario'
+      FeatureName.PRODUCT_MANAGEMENT,
+      FeatureName.MULTI_MARKETPLACE,
+      FeatureName.AI_ASSISTANT,
+      FeatureName.REPORTS,
+      FeatureName.FINANCIAL_CALCULATOR,
+      FeatureName.MARKET_ANALYSIS,
+      FeatureName.PRIORITY_SUPPORT,
+      FeatureName.UNLIMITED_INTEGRATIONS,
     ],
-    price: 397.00,
-    description: 'SKUs ilimitados, todas features + API e automação completa',
-    name: 'Unlimited'
+    maxIntegrationsPerMarketplace: Infinity,
+    maxProducts: Infinity,
+    pricing: { monthly: 397, currency: 'BRL' }
   },
 };
 
 // Mapeamento de features legadas para o novo sistema
 const legacyFeatureMap: Record<string, FeatureName> = {
-  'hasReprecificacaoPorAlerta': 'ReprecificacaoPorAlerta',
-  'hasSuportePrioritario': 'SuportePrioritario',
-  'hasRelatoriosAvancados': 'RelatoriosAvancados',
+  'hasReprecificacaoPorAlerta': FeatureName.MARKET_ANALYSIS,
+  'hasSuportePrioritario': FeatureName.PRIORITY_SUPPORT,
+  'hasRelatoriosAvancados': FeatureName.REPORTS,
 };
 
 // Função para converter nova estrutura em formato legado
 const convertToLegacyFeatures = (plan: PlanFeatures): LegacyPlanFeatures => {
   return {
-    maxSkus: plan.maxSkus,
-    hasReprecificacaoPorAlerta: plan.features.includes('ReprecificacaoPorAlerta'),
-    hasSuportePrioritario: plan.features.includes('SuportePrioritario'),
-    hasRelatoriosAvancados: plan.features.includes('RelatoriosAvancados'),
+    maxSkus: plan.maxProducts,
+    hasReprecificacaoPorAlerta: plan.features.includes(FeatureName.MARKET_ANALYSIS),
+    hasSuportePrioritario: plan.features.includes(FeatureName.PRIORITY_SUPPORT),
+    hasRelatoriosAvancados: plan.features.includes(FeatureName.REPORTS),
   };
 };
 
@@ -148,7 +152,7 @@ export const usePlan = () => {
         console.error('Error fetching user role:', roleError);
       }
 
-      const plan = (profileData?.plan as PlanType) || 'estrategista';
+      const plan = (profileData?.plan as PlanType) || PlanType.INICIANTE;
       const role = roleData?.role || 'user';
       
       console.log('User profile loaded (React Query):', { plan, role, isAdmin: role === 'admin' });
@@ -161,7 +165,7 @@ export const usePlan = () => {
   });
 
   const isLoading = authLoading || profileLoading;
-  const currentPlan = userProfile?.plan || 'estrategista';
+  const currentPlan = userProfile?.plan || PlanType.INICIANTE;
   const isAdmin = userProfile?.role === 'admin';
   const userRole = userProfile?.role || 'user';
 
@@ -212,7 +216,7 @@ export const usePlan = () => {
     }
     
     const totalProducts = currentProductCount + newProductsCount;
-    return totalProducts <= planFeatures[currentPlan].maxSkus;
+    return totalProducts <= planFeatures[currentPlan].maxProducts;
   };
 
   const getMaxSkus = (): number => {
@@ -224,7 +228,7 @@ export const usePlan = () => {
     // Fallback seguro enquanto carrega
     if (!userProfile) return 0;
     
-    return planFeatures[currentPlan].maxSkus;
+    return planFeatures[currentPlan].maxProducts;
   };
 
   // Retorna as features no formato novo
@@ -253,7 +257,7 @@ export const usePlan = () => {
     const plansWithFeature = Object.entries(planFeatures)
       .filter(([_, plan]) => plan.features.includes(requiredFeature))
       .map(([planKey, plan]) => ({ key: planKey as PlanType, ...plan }))
-      .sort((a, b) => a.price - b.price);
+      .sort((a, b) => a.pricing.monthly - b.pricing.monthly);
 
     if (plansWithFeature.length === 0) {
       return `Esta funcionalidade não está disponível em nenhum plano.`;
@@ -273,8 +277,8 @@ export const usePlan = () => {
     
     // Find plans with more features and higher price
     const upgradePlans = allPlans
-      .filter(([_, plan]) => plan.price > currentFeatures.price)
-      .sort((a, b) => a[1].price - b[1].price);
+      .filter(([_, plan]) => plan.pricing.monthly > currentFeatures.pricing.monthly)
+      .sort((a, b) => a[1].pricing.monthly - b[1].pricing.monthly);
     
     if (upgradePlans.length === 0) return null;
     

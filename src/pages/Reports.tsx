@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { FileText, Download, Calendar } from "lucide-react";
-import { usePlan } from "@/hooks/usePlan";
+import { usePlan, FeatureName } from "@/hooks/usePlan";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { Navigate } from "react-router-dom";
@@ -26,8 +26,8 @@ export default function Reports() {
     );
   }
 
-  if (!hasFeature('RelatoriosAvancados')) {
-    return <Navigate to="/app/billing" state={{ targetFeature: 'RelatoriosAvancados' }} replace />;
+  if (!hasFeature(FeatureName.REPORTS)) {
+    return <Navigate to="/app/billing" state={{ targetFeature: FeatureName.REPORTS }} replace />;
   }
 
   const generateReport = async () => {
