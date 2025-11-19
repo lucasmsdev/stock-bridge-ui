@@ -176,21 +176,19 @@ const Landing = () => {
 
       {/* Hero Section */}
       <section id="inicio" className="relative pt-24 pb-16 lg:pt-32 lg:pb-24 px-4 sm:px-6 lg:px-8 scroll-mt-16 overflow-hidden">
-        {/* Enhanced Animated background gradient */}
-        <div className="absolute inset-0 bg-gradient-to-br from-primary/10 via-accent/5 to-transparent animate-pulse" style={{ animationDuration: '8s' }} />
-        <div className="absolute inset-0 bg-[radial-gradient(circle_at_30%_50%,hsl(var(--primary)/0.15),transparent_50%)]" />
-        <div className="absolute inset-0 bg-[radial-gradient(circle_at_70%_50%,hsl(var(--accent)/0.15),transparent_50%)]" />
+        {/* Background gradient */}
+        <div className="absolute inset-0 bg-gradient-to-br from-primary/5 via-background to-accent/5" />
         
         <div className="container mx-auto max-w-7xl relative z-10">
-          <div className="grid lg:grid-cols-[1fr,1.1fr] gap-8 lg:gap-16 items-center min-h-[calc(100vh-200px)] lg:min-h-[600px]">
+          <div className="grid lg:grid-cols-2 gap-12 lg:gap-16 items-center min-h-[calc(100vh-200px)] lg:min-h-[600px]">
             {/* Left Column - Text Content */}
             <div className="space-y-8 animate-fade-in flex flex-col justify-center">
               <div className="space-y-6">
-                <h1 className="font-heading text-4xl sm:text-5xl lg:text-6xl xl:text-7xl font-bold text-foreground leading-[1.1]">
-                  UniStock: <span className="text-primary bg-gradient-to-r from-primary to-accent bg-clip-text text-transparent">Controle para vendedores de múltiplos marketplaces</span>
+                <h1 className="font-heading text-3xl sm:text-4xl lg:text-5xl xl:text-6xl font-bold text-foreground leading-tight">
+                  UniStock: <span className="text-primary">Controle para vendedores de múltiplos marketplaces</span>
                 </h1>
                 
-                <p className="text-lg sm:text-xl lg:text-2xl text-muted-foreground leading-relaxed max-w-2xl">
+                <p className="text-lg sm:text-xl text-muted-foreground leading-relaxed">
                   Descubra o Lucro Real em Tempo Recorde. Sincronize Estoque, Vendas e Finanças de Mercado Livre, Shopee, Amazon e mais, tudo em um só lugar.
                 </p>
               </div>
@@ -219,40 +217,26 @@ const Landing = () => {
                   <span className="font-medium">Suporte via WhatsApp</span>
                 </div>
               </div>
-
-              {/* Connecting Line Element */}
-              <div className="hidden lg:block absolute left-[48%] top-1/2 w-12 h-[2px] bg-gradient-to-r from-primary/50 to-transparent" />
-              <div className="hidden lg:block absolute left-[48%] top-1/2 w-3 h-3 rounded-full bg-primary/60 animate-pulse" />
             </div>
 
             {/* Right Column - Dashboard Image */}
-            <div className="relative animate-fade-in group flex items-center justify-center lg:justify-end" style={{ animationDelay: '0.2s' }}>
-              {/* Enhanced Glow Effect Behind Image */}
-              <div className="absolute inset-0 bg-gradient-to-br from-primary/30 via-accent/30 to-primary/20 rounded-3xl blur-3xl group-hover:blur-2xl transition-all scale-105" />
-              <div className="absolute -inset-4 bg-gradient-to-r from-primary/20 to-accent/20 rounded-3xl blur-2xl opacity-50 group-hover:opacity-70 transition-opacity" />
+            <div className="relative animate-fade-in flex items-center justify-center lg:justify-end" style={{ animationDelay: '0.2s' }}>
+              {/* Subtle glow effect */}
+              <div className="absolute inset-0 bg-gradient-to-br from-primary/10 to-accent/10 rounded-2xl blur-3xl opacity-60" />
               
-              {/* Image Container with Frame */}
-              <div className="relative w-full max-w-3xl">
-                {/* Decorative Frame */}
-                <div className="absolute -inset-1 bg-gradient-to-br from-primary via-accent to-primary rounded-3xl opacity-50 group-hover:opacity-70 transition-opacity" />
-                
-                {/* Main Image */}
-                <div className="relative bg-background/10 backdrop-blur-sm rounded-3xl p-1 shadow-2xl">
-                  <img
-                    src="/images/dashboard-hero.png"
-                    alt="Dashboard UniStock - Controle Total de Marketplaces"
-                    className="relative rounded-2xl shadow-[0_20px_60px_-15px_rgba(0,0,0,0.3)] border-2 border-border/50 group-hover:border-primary/30 group-hover:shadow-[0_25px_70px_-15px_rgba(0,0,0,0.4)] group-hover:scale-[1.02] transition-all duration-500 w-full h-auto"
-                  />
-                </div>
+              {/* Image Container */}
+              <div className="relative w-full">
+                <img
+                  src="/images/dashboard-hero.png"
+                  alt="Dashboard UniStock - Controle Total de Marketplaces"
+                  className="relative rounded-xl shadow-2xl border border-border/50 w-full h-auto"
+                />
 
                 {/* Floating Badge */}
-                <div className="absolute -bottom-4 -left-4 lg:-left-6 bg-accent text-accent-foreground px-4 py-2 rounded-xl shadow-lg flex items-center gap-2 animate-pulse">
+                <div className="absolute -bottom-4 -left-4 bg-accent text-accent-foreground px-4 py-2 rounded-lg shadow-xl flex items-center gap-2">
                   <Activity className="w-4 h-4" />
                   <span className="font-semibold text-sm">Sincronização em Tempo Real</span>
                 </div>
-
-                {/* Corner Accent */}
-                <div className="hidden lg:block absolute -top-6 -right-6 w-24 h-24 bg-gradient-to-br from-primary/20 to-accent/20 rounded-full blur-xl" />
               </div>
             </div>
           </div>
