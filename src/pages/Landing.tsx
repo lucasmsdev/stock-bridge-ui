@@ -183,8 +183,7 @@ const Landing = () => {
           <div className="grid lg:grid-cols-2 gap-12 items-center">
             <div className="space-y-8 animate-fade-in">
               <h1 className="font-heading text-4xl sm:text-5xl lg:text-6xl font-bold text-foreground leading-tight">
-                UniStock: O Painel de Controle Definitivo para o Seu{" "}
-                <span className="text-primary">E-commerce Multi-Marketplace.</span>
+                UniStock: <span className="text-primary">Controle definitivo para seu E-commerce</span>
               </h1>
               
               <p className="text-lg text-muted-foreground leading-relaxed">
