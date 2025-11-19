@@ -186,7 +186,7 @@ const Landing = () => {
                 UniStock: <span className="text-primary">Controle para vendedores de múltiplos marketplaces</span>
               </h1>
               
-              <p className="text-lg text-muted-foreground leading-relaxed">
+              <p className="text-xl sm:text-2xl text-muted-foreground leading-relaxed">
                 Descubra o Lucro Real em Tempo Recorde. Sincronize Estoque, Vendas e Finanças de Mercado Livre, Shopee, Amazon e mais, tudo em um só lugar.
               </p>
               
