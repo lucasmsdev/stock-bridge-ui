@@ -59,7 +59,7 @@ const Landing = () => {
         "Até 500 produtos",
         "2 contas por marketplace",
         "Tudo do plano Iniciante",
-        "Agente de IA 'Uni' para assistência",
+        "Acesso ao Agente Uni (IA) para Otimização de Anúncios",
         "Relatórios básicos de vendas",
         "Cálculo financeiro e de lucro",
         "Suporte prioritário"
@@ -76,8 +76,7 @@ const Landing = () => {
         "Até 2.000 produtos",
         "5 contas por marketplace",
         "Tudo do plano Profissional",
-        "Análise de mercado com IA",
-        "Monitoramento de concorrência",
+        "Análise de Mercado com IA e Monitoramento de Concorrência em Tempo Real",
         "Relatórios personalizados",
         "Suporte prioritário dedicado"
       ]
@@ -95,32 +94,31 @@ const Landing = () => {
         "Tudo do plano Enterprise",
         "Análise de mercado ilimitada",
         "Automação avançada",
-        "API de integração",
-        "Gerente de conta dedicado"
+        "API de Integração Completa e Gerente de Sucesso Dedicado"
       ]
     }
   ];
 
   const features = [
     {
-      icon: ShoppingBag,
-      title: "Análise de Vendas",
-      description: "Veja todos os pedidos com detalhes: itens, comissões, frete e mais"
-    },
-    {
       icon: Package,
-      title: "Gestão de Produtos",
-      description: "Visualize e gerencie seus anúncios em todas as plataformas"
+      title: "Sincronização Automática",
+      description: "Nunca mais perca uma venda por estoque desatualizado. Sincronização automática e instantânea em todos os seus marketplaces."
     },
     {
       icon: TrendingUp,
-      title: "Lucro em Tempo Real",
-      description: "Descubra quanto está lucrando em cada produto após cada venda"
+      title: "Análise de Lucro Real",
+      description: "Saiba o Lucro Líquido de Cada Venda, na Hora. O UniStock calcula taxas, fretes e custos para você."
     },
     {
-      icon: LineChart,
-      title: "Mais Vendidos",
-      description: "Saiba quais produtos estão vendendo mais em poucos cliques"
+      icon: Sparkles,
+      title: "IA Inteligente",
+      description: "Inteligência Artificial que Vende Mais por Você. Use o Agente Uni para otimizar anúncios, identificar preços da concorrência e maximizar sua margem."
+    },
+    {
+      icon: ShoppingBag,
+      title: "Análise de Vendas",
+      description: "Veja todos os pedidos com detalhes: itens, comissões, frete e mais"
     },
     {
       icon: BarChart3,
@@ -128,9 +126,9 @@ const Landing = () => {
       description: "Acompanhe seu lucro diário, semanal e mensal em segundos"
     },
     {
-      icon: Sparkles,
-      title: "IA Inteligente",
-      description: "Assistente de IA para criar anúncios, descobrir concorrentes e melhorar sua lucratividade"
+      icon: LineChart,
+      title: "Mais Vendidos",
+      description: "Saiba quais produtos estão vendendo mais em poucos cliques"
     }
   ];
 
@@ -167,7 +165,7 @@ const Landing = () => {
             <div className="flex items-center space-x-4">
               <a href="#planos">
                 <Button className="bg-accent hover:bg-accent/90 text-accent-foreground font-semibold">
-                  Testar 7 dias GRÁTIS
+                  Testar 14 dias GRÁTIS
                 </Button>
               </a>
               <ThemeToggle />
@@ -185,19 +183,18 @@ const Landing = () => {
           <div className="grid lg:grid-cols-2 gap-12 items-center">
             <div className="space-y-8 animate-fade-in">
               <h1 className="font-heading text-4xl sm:text-5xl lg:text-6xl font-bold text-foreground leading-tight">
-                Você sabe quanto está lucrando{" "}
-                <span className="text-primary">em tempo real?</span>
+                UniStock: O Painel de Controle Definitivo para o Seu{" "}
+                <span className="text-primary">E-commerce Multi-Marketplace.</span>
               </h1>
               
               <p className="text-lg text-muted-foreground leading-relaxed">
-                Pare de perder tempo pulando entre 4 plataformas diferentes. 
-                Gerencie Mercado Livre, Shopee, Amazon e Shopify em um único painel.
+                Descubra o Lucro Real em Tempo Recorde. Sincronize Estoque, Vendas e Finanças de Mercado Livre, Shopee, Amazon e mais, tudo em um só lugar.
               </p>
               
               <div className="flex flex-col sm:flex-row gap-4">
                 <a href="#planos">
                   <Button size="lg" className="w-full sm:w-auto bg-accent hover:bg-accent/90 text-accent-foreground group hover:shadow-lg hover:shadow-accent/50 transition-all hover:scale-105">
-                    Começar agora
+                    Começar meu Teste Grátis de 14 Dias
                     <ArrowRight className="ml-2 h-5 w-5 group-hover:translate-x-1 transition-transform" />
                   </Button>
                 </a>
@@ -211,11 +208,7 @@ const Landing = () => {
               <div className="flex flex-wrap gap-6 text-sm text-muted-foreground">
                 <div className="flex items-center gap-2">
                   <CheckCircle className="w-5 h-5 text-accent" />
-                  <span>7 dias grátis</span>
-                </div>
-                <div className="flex items-center gap-2">
-                  <CheckCircle className="w-5 h-5 text-accent" />
-                  <span>Cancela quando quiser</span>
+                  <span>14 dias grátis</span>
                 </div>
                 <div className="flex items-center gap-2">
                   <CheckCircle className="w-5 h-5 text-accent" />
@@ -408,13 +401,13 @@ const Landing = () => {
           <div className="text-center mb-16">
             <Badge variant="outline" className="mb-4 px-4 py-2 border-accent/30 text-accent bg-accent/5">
               <Zap className="w-4 h-4 mr-2" />
-              Experimente grátis por 7 dias
+              Experimente grátis por 14 dias
             </Badge>
             <h2 className="font-heading text-3xl sm:text-4xl font-bold text-foreground mb-4">
               Conheça nossos planos
             </h2>
             <p className="text-lg text-muted-foreground max-w-3xl mx-auto">
-              Escolha o plano ideal para sua operação. Cancele quando quiser, sem burocracia.
+              Escolha o plano ideal para sua operação.
             </p>
           </div>
           
@@ -467,7 +460,7 @@ const Landing = () => {
                         }`}
                         variant={plan.popular ? "default" : "outline"}
                       >
-                        Testar grátis por 7 dias
+                        Testar grátis por 14 dias
                         <ArrowRight className="ml-2 h-4 w-4 group-hover:translate-x-1 transition-transform" />
                       </Button>
                     </Link>
@@ -509,10 +502,22 @@ const Landing = () => {
               <a href="#planos" className="inline-block w-full sm:w-auto">
                 <Button size="lg" className="w-full sm:w-auto bg-accent hover:bg-accent/90 text-accent-foreground font-semibold group hover:shadow-2xl hover:shadow-accent/50 hover:scale-105 transition-all text-sm sm:text-base">
                   <Sparkles className="mr-2 h-4 w-4 sm:h-5 sm:w-5" />
-                  Começar teste grátis agora
+                  Começar teste grátis de 14 dias
                   <ArrowRight className="ml-2 h-4 w-4 sm:h-5 sm:w-5 group-hover:translate-x-1 transition-transform" />
                 </Button>
               </a>
+              
+              {/* Security Badges */}
+              <div className="flex flex-wrap justify-center items-center gap-4 mt-8 text-sm text-muted-foreground">
+                <div className="flex items-center gap-2 bg-background/50 px-4 py-2 rounded-full border border-border/50">
+                  <CheckCircle className="w-4 h-4 text-green-500" />
+                  <span>Dados Protegidos</span>
+                </div>
+                <div className="flex items-center gap-2 bg-background/50 px-4 py-2 rounded-full border border-border/50">
+                  <CheckCircle className="w-4 h-4 text-green-500" />
+                  <span>Criptografia SSL</span>
+                </div>
+              </div>
             </CardContent>
           </Card>
         </div>
@@ -551,8 +556,8 @@ const Landing = () => {
                 <span className="font-semibold text-foreground">Posso testar antes de assinar?</span>
               </AccordionTrigger>
               <AccordionContent className="text-muted-foreground">
-                Sim! Todos os planos têm 7 dias de teste grátis. Você pode explorar todas as funcionalidades 
-                sem precisar informar cartão de crédito. Se não gostar, é só cancelar.
+                Sim! Todos os planos têm 14 dias de teste grátis. Você pode explorar todas as funcionalidades 
+                durante o período de teste. Comece agora mesmo!
               </AccordionContent>
             </AccordionItem>
 
