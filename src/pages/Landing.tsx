@@ -185,7 +185,7 @@ const Landing = () => {
             <div className="space-y-8 animate-fade-in flex flex-col justify-center">
               <div className="space-y-6">
                 <h1 className="font-heading text-3xl sm:text-4xl lg:text-5xl xl:text-6xl font-bold text-foreground leading-tight">
-                  <span className="text-4xl sm:text-5xl lg:text-6xl xl:text-7xl">UniStock</span>: <span className="text-primary">Controle para vendedores de múltiplos marketplaces</span>
+                  <span className="text-4xl sm:text-5xl lg:text-6xl xl:text-7xl text-primary">UniStock</span>: Controle para vendedores de <span className="text-primary">múltiplos marketplaces</span>
                 </h1>
                 
                 <p className="text-lg sm:text-xl text-muted-foreground leading-relaxed">
@@ -225,18 +225,12 @@ const Landing = () => {
               <div className="absolute inset-0 bg-gradient-to-br from-primary/10 to-accent/10 rounded-2xl blur-3xl opacity-60" />
               
               {/* Image Container */}
-              <div className="relative w-full max-w-4xl group">
+              <div className="relative w-full max-w-6xl group">
                 <img
                   src="/images/dashboard-hero.png"
                   alt="Dashboard UniStock - Controle Total de Marketplaces"
                   className="relative rounded-xl shadow-[0_20px_60px_-15px_rgba(0,0,0,0.5)] hover:shadow-[0_30px_80px_-15px_rgba(0,0,0,0.6)] border border-border/50 hover:border-primary/30 w-full h-auto transition-all duration-500 hover:scale-[1.02] cursor-pointer"
                 />
-
-                {/* Floating Badge */}
-                <div className="absolute -bottom-4 -left-4 bg-accent text-accent-foreground px-4 py-2 rounded-lg shadow-xl flex items-center gap-2">
-                  <Activity className="w-4 h-4" />
-                  <span className="font-semibold text-sm">Sincronização em Tempo Real</span>
-                </div>
               </div>
             </div>
           </div>
