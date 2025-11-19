@@ -80,7 +80,7 @@ serve(async (req) => {
       ],
       mode: "subscription",
       subscription_data: {
-        trial_period_days: 7, // Período de teste de 7 dias
+        trial_period_days: 14, // Período de teste de 14 dias
       },
       allow_promotion_codes: true, // Habilita campo de cupons
       success_url: `${origin}/billing?success=true&plan=${planType}`,
