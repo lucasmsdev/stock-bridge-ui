@@ -179,53 +179,53 @@ const Landing = () => {
         {/* Background gradient */}
         <div className="absolute inset-0 bg-gradient-to-br from-primary/5 via-background to-accent/5" />
         
-        <div className="container mx-auto max-w-7xl relative z-10">
-          <div className="grid lg:grid-cols-2 gap-12 lg:gap-16 items-center min-h-[calc(100vh-200px)] lg:min-h-[600px]">
-            {/* Left Column - Text Content */}
-            <div className="space-y-8 animate-fade-in flex flex-col justify-center">
-              <div className="space-y-6">
-                <h1 className="font-heading text-3xl sm:text-4xl lg:text-5xl xl:text-6xl font-bold text-foreground leading-tight">
-                  <span className="text-4xl sm:text-5xl lg:text-6xl xl:text-7xl text-primary">UniStock</span>: Controle para vendedores de <span className="text-primary">múltiplos marketplaces</span>
-                </h1>
-                
-                <p className="text-lg sm:text-xl text-muted-foreground leading-relaxed">
-                  Descubra o Lucro Real em Tempo Recorde. Sincronize Estoque, Vendas e Finanças de Mercado Livre, Shopee, Amazon e mais, tudo em um só lugar.
-                </p>
-              </div>
+        <div className="container mx-auto max-w-6xl relative z-10 px-4 sm:px-6 lg:px-8">
+          <div className="flex flex-col items-center justify-center text-center min-h-[calc(100vh-200px)] py-12 space-y-12">
+            {/* Headline */}
+            <div className="space-y-6 animate-fade-in max-w-4xl">
+              <h1 className="font-heading text-4xl sm:text-5xl lg:text-6xl xl:text-7xl font-bold text-foreground leading-tight">
+                <span className="text-primary">UniStock</span>: Controle para vendedores de <span className="text-primary">múltiplos marketplaces</span>
+              </h1>
               
-              <div className="flex flex-col sm:flex-row gap-4 pt-2">
-                <a href="#planos">
-                  <Button size="lg" className="w-full sm:w-auto bg-accent hover:bg-accent/90 text-accent-foreground group hover:shadow-xl hover:shadow-accent/50 transition-all hover:scale-105">
-                    Começar meu Teste Grátis de 14 Dias
-                    <ArrowRight className="ml-2 h-5 w-5 group-hover:translate-x-1 transition-transform" />
-                  </Button>
-                </a>
-                <Link to="/login">
-                  <Button size="lg" variant="outline" className="w-full sm:w-auto hover:bg-accent/10 hover:border-accent transition-all">
-                    Já tenho conta
-                  </Button>
-                </Link>
-              </div>
+              <p className="text-lg sm:text-xl lg:text-2xl text-muted-foreground leading-relaxed max-w-3xl mx-auto">
+                Descubra o Lucro Real em Tempo Recorde. Sincronize Estoque, Vendas e Finanças de Mercado Livre, Shopee, Amazon e mais, tudo em um só lugar.
+              </p>
+            </div>
+            
+            {/* CTA Buttons */}
+            <div className="flex flex-col sm:flex-row gap-4 animate-fade-in" style={{ animationDelay: '0.1s' }}>
+              <a href="#planos">
+                <Button size="lg" className="w-full sm:w-auto px-8 py-6 text-lg bg-accent hover:bg-accent/90 text-accent-foreground group hover:shadow-xl hover:shadow-accent/50 transition-all hover:scale-105">
+                  Começar meu Teste Grátis de 14 Dias
+                  <ArrowRight className="ml-2 h-5 w-5 group-hover:translate-x-1 transition-transform" />
+                </Button>
+              </a>
+              <Link to="/login">
+                <Button size="lg" variant="outline" className="w-full sm:w-auto px-8 py-6 text-lg hover:bg-accent/10 hover:border-accent transition-all">
+                  Já tenho conta
+                </Button>
+              </Link>
+            </div>
 
-              <div className="flex flex-wrap gap-6 text-sm text-muted-foreground pt-2">
-                <div className="flex items-center gap-2">
-                  <CheckCircle className="w-5 h-5 text-accent" />
-                  <span className="font-medium">14 dias grátis</span>
-                </div>
-                <div className="flex items-center gap-2">
-                  <CheckCircle className="w-5 h-5 text-accent" />
-                  <span className="font-medium">Suporte via WhatsApp</span>
-                </div>
+            {/* Trust Badges */}
+            <div className="flex flex-wrap justify-center gap-6 text-sm text-muted-foreground animate-fade-in" style={{ animationDelay: '0.2s' }}>
+              <div className="flex items-center gap-2">
+                <CheckCircle className="w-5 h-5 text-accent" />
+                <span className="font-medium">14 dias grátis</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <CheckCircle className="w-5 h-5 text-accent" />
+                <span className="font-medium">Suporte via WhatsApp</span>
               </div>
             </div>
 
-            {/* Right Column - Dashboard Image */}
-            <div className="relative animate-fade-in flex items-center justify-center lg:justify-end" style={{ animationDelay: '0.2s' }}>
-              {/* Subtle glow effect */}
-              <div className="absolute inset-0 bg-gradient-to-br from-primary/10 to-accent/10 rounded-2xl blur-3xl opacity-60" />
+            {/* Dashboard Image */}
+            <div className="relative w-full max-w-5xl animate-fade-in" style={{ animationDelay: '0.3s' }}>
+              {/* Subtle glow effect behind image */}
+              <div className="absolute inset-0 bg-gradient-to-br from-primary/20 to-accent/20 rounded-2xl blur-3xl opacity-50" />
               
               {/* Image Container */}
-              <div className="relative w-full max-w-6xl group">
+              <div className="relative w-full group">
                 <img
                   src="/images/dashboard-hero.png"
                   alt="Dashboard UniStock - Controle Total de Marketplaces"
