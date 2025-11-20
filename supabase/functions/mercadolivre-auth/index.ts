@@ -180,13 +180,18 @@ serve(async (req) => {
       }
     }
 
+    // Encrypt tokens before saving
+    const { data: encryptedAccessToken } = await supabase.rpc('encrypt_token', { token: tokenData.access_token });
+    const { data: encryptedRefreshToken } = await supabase.rpc('encrypt_token', { token: tokenData.refresh_token });
+
     const { error: insertError } = await supabase
       .from('integrations')
       .insert({
         user_id: user.id,
         platform: 'mercadolivre',
-        access_token: tokenData.access_token,
-        refresh_token: tokenData.refresh_token,
+        encrypted_access_token: encryptedAccessToken,
+        encrypted_refresh_token: encryptedRefreshToken,
+        encryption_migrated: true,
         account_name: accountName,
       });
 

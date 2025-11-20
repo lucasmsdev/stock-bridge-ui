@@ -119,15 +119,15 @@ serve(async (req) => {
       );
     }
 
-    // Get the specific integration by ID and verify it belongs to the user
+    // Get the specific integration by ID with encrypted tokens
     const { data: integration, error: integrationError } = await supabaseClient
       .from('integrations')
-      .select('id, platform, access_token, shop_domain, refresh_token, selling_partner_id, marketplace_id, account_name')
+      .select('id, platform, encrypted_access_token, encrypted_refresh_token, shop_domain, selling_partner_id, marketplace_id, account_name')
       .eq('id', integration_id)
       .eq('user_id', user.id)
       .single();
 
-    if (integrationError || !integration || !integration.access_token) {
+    if (integrationError || !integration || !integration.encrypted_access_token) {
       console.error('Integration not found or no access token:', integrationError);
       return new Response(
         JSON.stringify({ error: 'Integration not found or not properly configured' }), 
@@ -136,6 +136,28 @@ serve(async (req) => {
           headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
         }
       );
+    }
+
+    // Decrypt access token
+    const { data: accessToken, error: decryptAccessError } = await supabaseClient.rpc('decrypt_token', {
+      encrypted_token: integration.encrypted_access_token
+    });
+
+    if (decryptAccessError || !accessToken) {
+      console.error('Failed to decrypt access token:', decryptAccessError);
+      return new Response(
+        JSON.stringify({ error: 'Erro ao descriptografar token de acesso' }),
+        { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    // Decrypt refresh token if exists (needed for Amazon)
+    let refreshToken = null;
+    if (integration.encrypted_refresh_token) {
+      const { data: decryptedRefreshToken } = await supabaseClient.rpc('decrypt_token', {
+        encrypted_token: integration.encrypted_refresh_token
+      });
+      refreshToken = decryptedRefreshToken;
     }
 
     console.log('Found integration:', integration.id, 'for platform:', integration.platform, 'account:', integration.account_name);
@@ -149,7 +171,7 @@ serve(async (req) => {
         const userInfoResponse = await fetch(`https://api.mercadolibre.com/users/me`, {
           method: 'GET',
           headers: {
-            'Authorization': `Bearer ${integration.access_token}`,
+            'Authorization': `Bearer ${accessToken}`,
           },
         });
 
@@ -172,7 +194,7 @@ serve(async (req) => {
         // Step 2: Get list of product IDs first
         const listResponse = await fetch(`https://api.mercadolibre.com/users/${mlUserId}/items/search?limit=100`, {
           headers: {
-            'Authorization': `Bearer ${integration.access_token}`,
+            'Authorization': `Bearer ${accessToken}`,
           },
         });
 
@@ -211,7 +233,7 @@ serve(async (req) => {
         const detailsResponse = await fetch(detailsUrl, {
           method: 'GET',
           headers: {
-            'Authorization': `Bearer ${integration.access_token}`,
+            'Authorization': `Bearer ${accessToken}`,
             'Content-Type': 'application/json',
           },
         });
@@ -331,7 +353,7 @@ serve(async (req) => {
         const productsResponse = await fetch(url, {
           method: 'GET',
           headers: {
-            'X-Shopify-Access-Token': integration.access_token,
+            'X-Shopify-Access-Token': accessToken,
             'Content-Type': 'application/json',
           },
         });
@@ -408,8 +430,8 @@ serve(async (req) => {
         // Importar biblioteca Amazon SP-API
         const { default: SellingPartnerAPI } = await import('npm:amazon-sp-api@latest');
 
-        // Amazon config is already in the integration object
-        if (!integration.refresh_token) {
+        // Amazon config - use decrypted refresh token
+        if (!refreshToken) {
           console.error('❌ Refresh token Amazon não encontrado na integração');
           return new Response(
             JSON.stringify({ 
@@ -427,7 +449,7 @@ serve(async (req) => {
         // Inicializar cliente Amazon SP-API
         const sellingPartner = new SellingPartnerAPI({
           region: Deno.env.get('AMAZON_REGION') || 'na', // na, eu, fe
-          refresh_token: integration.refresh_token,
+          refresh_token: refreshToken,
           credentials: {
             SELLING_PARTNER_APP_CLIENT_ID: Deno.env.get('AMAZON_CLIENT_ID'),
             SELLING_PARTNER_APP_CLIENT_SECRET: Deno.env.get('AMAZON_CLIENT_SECRET'),

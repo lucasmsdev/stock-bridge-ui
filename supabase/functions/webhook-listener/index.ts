@@ -165,12 +165,11 @@ async function processMercadoLivreWebhook(supabase: any, notification: any) {
     });
   }
 
-  // Find the user who owns this Mercado Livre integration
+  // Find the user who owns this Mercado Livre integration (encrypted tokens not needed for webhooks)
   const { data: integration, error: integrationError } = await supabase
     .from('integrations')
-    .select('user_id, access_token')
+    .select('user_id')
     .eq('platform', 'mercadolivre')
-    .not('access_token', 'is', null)
     .single();
 
   if (integrationError || !integration) {
@@ -293,12 +292,11 @@ async function processShopifyWebhook(supabase: any, notification: any) {
     });
   }
 
-  // Find the user who owns this Shopify integration
+  // Find the user who owns this Shopify integration (encrypted tokens not needed for webhooks)
   const { data: integration, error: integrationError } = await supabase
     .from('integrations')
-    .select('user_id, access_token')
+    .select('user_id')
     .eq('platform', 'shopify')
-    .not('access_token', 'is', null)
     .single();
 
   if (integrationError || !integration) {
@@ -421,13 +419,13 @@ async function propagateStockUpdate(
   try {
     console.log(`Propagating stock update for SKU ${sku} to other channels`);
 
-    // Get all other active integrations for this user (excluding Mercado Livre)
+    // Get all other active integrations for this user with encrypted tokens
     const { data: integrations, error } = await supabase
       .from('integrations')
-      .select('platform, access_token')
+      .select('platform, encrypted_access_token')
       .eq('user_id', userId)
       .neq('platform', 'mercadolivre')
-      .not('access_token', 'is', null);
+      .not('encrypted_access_token', 'is', null);
 
     if (error) {
       console.error('Error fetching integrations:', error);
