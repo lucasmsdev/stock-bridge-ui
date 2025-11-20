@@ -108,14 +108,19 @@ serve(async (req) => {
       return Response.redirect(redirectUrl, 302);
     }
 
+    // Encrypt tokens before saving
+    const { data: encryptedAccessToken } = await supabaseClient.rpc('encrypt_token', { token: tokenData.access_token });
+    const { data: encryptedRefreshToken } = await supabaseClient.rpc('encrypt_token', { token: tokenData.refresh_token });
+
     // Sempre insere uma nova integração (suporta múltiplas contas)
     const { data: integration, error: insertError } = await supabaseClient
       .from('integrations')
       .insert({
         user_id: state,
         platform: 'amazon',
-        access_token: tokenData.access_token,
-        refresh_token: tokenData.refresh_token,
+        encrypted_access_token: encryptedAccessToken,
+        encrypted_refresh_token: encryptedRefreshToken,
+        encryption_migrated: true,
         selling_partner_id: sellingPartnerId,
         marketplace_id: 'ATVPDKIKX0DER', // US marketplace por padrão
         account_name: sellingPartnerId || 'Amazon Seller',

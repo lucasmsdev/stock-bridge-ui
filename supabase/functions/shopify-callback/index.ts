@@ -118,13 +118,17 @@ serve(async (req) => {
       const redirectUrl = `${appUrl}/app/integrations?status=duplicate`;
       return Response.redirect(redirectUrl, 302);
     }
+
+    // Encrypt token before saving
+    const { data: encryptedAccessToken } = await supabase.rpc('encrypt_token', { token: accessToken });
     
     const { error: insertError } = await supabase
       .from('integrations')
       .insert({
         user_id: userId,
         platform: 'shopify',
-        access_token: accessToken,
+        encrypted_access_token: encryptedAccessToken,
+        encryption_migrated: true,
         shop_domain: shopDomain,
         account_name: accountName,
       });

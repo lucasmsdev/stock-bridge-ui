@@ -45,10 +45,10 @@ serve(async (req) => {
       )
     }
 
-    // Get integration details
+    // Get integration details with encrypted token
     const { data: integration, error: integrationError } = await supabaseClient
       .from('integrations')
-      .select('*')
+      .select('encrypted_refresh_token, selling_partner_id, marketplace_id')
       .eq('id', integration_id)
       .eq('user_id', user.id)
       .eq('platform', 'amazon')
@@ -61,12 +61,24 @@ serve(async (req) => {
       )
     }
 
+    // Decrypt refresh token
+    const { data: refreshToken, error: decryptError } = await supabaseClient.rpc('decrypt_token', {
+      encrypted_token: integration.encrypted_refresh_token
+    });
+
+    if (decryptError || !refreshToken) {
+      console.error('Failed to decrypt refresh token:', decryptError);
+      return new Response(
+        JSON.stringify({ error: 'Erro ao descriptografar refresh token' }),
+        { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      )
+    }
+
     // Get Amazon credentials
     const clientId = Deno.env.get('AMAZON_CLIENT_ID')
     const clientSecret = Deno.env.get('AMAZON_CLIENT_SECRET')
-    const refreshToken = integration.refresh_token
 
-    if (!clientId || !clientSecret || !refreshToken) {
+    if (!clientId || !clientSecret) {
       return new Response(
         JSON.stringify({ error: 'Amazon credentials not configured' }),
         { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }

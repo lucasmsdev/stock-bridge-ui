@@ -66,10 +66,10 @@ serve(async (req) => {
       )
     }
 
-    // Get integration details
+    // Get integration details with encrypted token
     const { data: integration, error: integrationError } = await supabaseClient
       .from('integrations')
-      .select('*')
+      .select('encrypted_access_token, platform_metadata, selling_partner_id')
       .eq('id', integration_id)
       .eq('user_id', user.id)
       .eq('platform', 'shopee')
@@ -79,6 +79,19 @@ serve(async (req) => {
       return new Response(
         JSON.stringify({ error: 'Integration not found' }),
         { status: 404, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      )
+    }
+
+    // Decrypt access token
+    const { data: accessToken, error: decryptError } = await supabaseClient.rpc('decrypt_token', {
+      encrypted_token: integration.encrypted_access_token
+    });
+
+    if (decryptError || !accessToken) {
+      console.error('Failed to decrypt token:', decryptError);
+      return new Response(
+        JSON.stringify({ error: 'Erro ao descriptografar token de acesso' }),
+        { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       )
     }
 
@@ -106,7 +119,7 @@ serve(async (req) => {
     // Prepare Shopee API call
     const path = '/api/v2/product/add_item'
     const timestamp = Math.floor(Date.now() / 1000)
-    const sign = await generateShopeeSign(path, timestamp, integration.access_token, shopId, partnerKey)
+    const sign = await generateShopeeSign(path, timestamp, accessToken, shopId, partnerKey)
 
     // Prepare Shopee payload
     const shopeePayload: any = {
@@ -159,7 +172,7 @@ serve(async (req) => {
     console.log('Creating Shopee product:', shopeePayload)
 
     // Create product on Shopee
-    const shopeeUrl = `https://partner.shopeemobile.com${path}?partner_id=${partnerId}&timestamp=${timestamp}&access_token=${integration.access_token}&shop_id=${shopId}&sign=${sign}`
+    const shopeeUrl = `https://partner.shopeemobile.com${path}?partner_id=${partnerId}&timestamp=${timestamp}&access_token=${accessToken}&shop_id=${shopId}&sign=${sign}`
     
     const shopeeResponse = await fetch(shopeeUrl, {
       method: 'POST',

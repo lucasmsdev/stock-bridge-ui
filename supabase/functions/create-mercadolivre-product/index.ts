@@ -53,10 +53,10 @@ serve(async (req) => {
       )
     }
 
-    // Get integration details
+    // Get integration details with encrypted token
     const { data: integration, error: integrationError } = await supabaseClient
       .from('integrations')
-      .select('*')
+      .select('encrypted_access_token')
       .eq('id', integration_id)
       .eq('user_id', user.id)
       .eq('platform', 'mercadolivre')
@@ -66,6 +66,19 @@ serve(async (req) => {
       return new Response(
         JSON.stringify({ error: 'Integration not found' }),
         { status: 404, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      )
+    }
+
+    // Decrypt access token
+    const { data: accessToken, error: decryptError } = await supabaseClient.rpc('decrypt_token', {
+      encrypted_token: integration.encrypted_access_token
+    });
+
+    if (decryptError || !accessToken) {
+      console.error('Failed to decrypt token:', decryptError);
+      return new Response(
+        JSON.stringify({ error: 'Erro ao descriptografar token de acesso' }),
+        { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       )
     }
 
@@ -110,7 +123,7 @@ serve(async (req) => {
     const mlResponse = await fetch('https://api.mercadolibre.com/items', {
       method: 'POST',
       headers: {
-        'Authorization': `Bearer ${integration.access_token}`,
+        'Authorization': `Bearer ${accessToken}`,
         'Content-Type': 'application/json',
       },
       body: JSON.stringify(mlPayload)
