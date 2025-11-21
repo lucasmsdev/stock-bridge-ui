@@ -83,3 +83,6 @@ verify_jwt = true
 
 [functions.create-amazon-product]
 verify_jwt = true
+
+[functions.refresh-integration-tokens]
+verify_jwt = false
