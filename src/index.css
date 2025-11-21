@@ -25,15 +25,15 @@ All colors MUST be HSL.
     --popover-foreground: 0 0% 7%;
 
     /* UniStock Brand Colors - Light Mode */
-    --primary: 25 100% 50%; /* #FF6900 - Laranja vibrante */
+    --primary: 38 95% 45%; /* #DF8F06 - Harvest gold (laranja) */
     --primary-foreground: 0 0% 100%;
-    --primary-hover: 25 100% 45%;
-    --primary-glow: 25 100% 65%;
+    --primary-hover: 38 95% 40%;
+    --primary-glow: 38 95% 60%;
 
     --secondary: 210 32% 30%; /* #344966 - Indigo (azul petróleo) */
     --secondary-foreground: 0 0% 100%;
 
-    --accent: 25 100% 50%; /* #FF6900 - Laranja vibrante */
+    --accent: 38 95% 45%; /* #DF8F06 - Harvest gold (laranja) */
     --accent-foreground: 0 0% 100%;
 
     --success: 142 71% 45%; /* #22C55E - Verde */
@@ -56,19 +56,19 @@ All colors MUST be HSL.
     /* UI elements */
     --border: 210 20% 90%;
     --input: 210 20% 90%;
-    --ring: 25 100% 50%;
+    --ring: 38 95% 45%;
 
     /* Gradients */
-    --gradient-primary: linear-gradient(135deg, hsl(25 100% 50%), hsl(25 100% 60%));
+    --gradient-primary: linear-gradient(135deg, hsl(38 95% 45%), hsl(38 95% 55%));
     --gradient-secondary: linear-gradient(135deg, hsl(210 32% 30%), hsl(210 32% 40%));
-    --gradient-accent: linear-gradient(135deg, hsl(25 100% 50%), hsl(25 100% 60%));
-    --gradient-success: linear-gradient(135deg, hsl(25 100% 50%), hsl(25 100% 60%));
+    --gradient-accent: linear-gradient(135deg, hsl(38 95% 45%), hsl(38 95% 55%));
+    --gradient-success: linear-gradient(135deg, hsl(38 95% 45%), hsl(38 95% 55%));
     --gradient-subtle: linear-gradient(180deg, hsl(0 0% 100%), hsl(210 20% 98%));
 
     /* Shadows */
-    --shadow-soft: 0 2px 8px hsl(25 100% 50% / 0.08);
-    --shadow-medium: 0 4px 16px hsl(25 100% 50% / 0.12);
-    --shadow-primary: 0 8px 24px hsl(25 100% 50% / 0.16);
+    --shadow-soft: 0 2px 8px hsl(38 95% 45% / 0.08);
+    --shadow-medium: 0 4px 16px hsl(38 95% 45% / 0.12);
+    --shadow-primary: 0 8px 24px hsl(38 95% 45% / 0.16);
 
     /* Animations */
     --transition-smooth: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
@@ -91,15 +91,15 @@ All colors MUST be HSL.
     --popover-foreground: 0 0% 100%;
 
     /* UniStock Brand Colors - Dark Mode */
-    --primary: 25 100% 50%; /* #FF6900 - Laranja vibrante */
+    --primary: 38 95% 45%; /* #DF8F06 - Harvest gold (laranja) */
     --primary-foreground: 0 0% 100%;
-    --primary-hover: 25 100% 55%;
-    --primary-glow: 25 100% 65%;
+    --primary-hover: 38 95% 50%;
+    --primary-glow: 38 95% 60%;
 
     --secondary: 210 32% 30%; /* #344966 - Indigo (azul petróleo) */
     --secondary-foreground: 0 0% 100%;
 
-    --accent: 25 100% 50%; /* #FF6900 - Laranja vibrante */
+    --accent: 38 95% 45%; /* #DF8F06 - Harvest gold */
     --accent-foreground: 0 0% 100%;
 
     --success: 142 71% 45%; /* #22C55E - Verde */
@@ -122,19 +122,19 @@ All colors MUST be HSL.
     /* UI elements (dark mode) */
     --border: 210 15% 20%;
     --input: 210 15% 20%;
-    --ring: 25 100% 50%;
+    --ring: 38 95% 45%;
 
     /* Gradients (dark mode) */
-    --gradient-primary: linear-gradient(135deg, hsl(25 100% 50%), hsl(25 100% 60%));
+    --gradient-primary: linear-gradient(135deg, hsl(38 95% 45%), hsl(38 95% 55%));
     --gradient-secondary: linear-gradient(135deg, hsl(210 32% 30%), hsl(210 32% 40%));
-    --gradient-accent: linear-gradient(135deg, hsl(25 100% 50%), hsl(25 100% 60%));
-    --gradient-success: linear-gradient(135deg, hsl(25 100% 50%), hsl(25 100% 60%));
+    --gradient-accent: linear-gradient(135deg, hsl(38 95% 45%), hsl(38 95% 55%));
+    --gradient-success: linear-gradient(135deg, hsl(38 95% 45%), hsl(38 95% 55%));
     --gradient-subtle: linear-gradient(180deg, hsl(0 0% 7%), hsl(210 15% 12%));
 
     /* Shadows (dark mode) */
     --shadow-soft: 0 2px 8px hsl(0 0% 0% / 0.4);
     --shadow-medium: 0 4px 16px hsl(0 0% 0% / 0.5);
-    --shadow-primary: 0 8px 24px hsl(25 100% 50% / 0.15);
+    --shadow-primary: 0 8px 24px hsl(38 95% 45% / 0.15);
   }
 }
 
