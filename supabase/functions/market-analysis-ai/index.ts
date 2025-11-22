@@ -15,6 +15,7 @@ interface PlatformAnalysis {
   platform: string;
   averagePrice: number;
   sampleSize: number;
+  totalSales: number;
   priceRange: {
     min: number;
     max: number;
@@ -174,6 +175,7 @@ function sanitizeAnalysisData(data: any, searchTerm: string): AnalysisData {
       platform: item.platform,
       averagePrice: parseFloat(item.averagePrice.toFixed(2)),
       sampleSize: item.sampleSize,
+      totalSales: typeof item.totalSales === 'number' ? item.totalSales : 0,
       priceRange: {
         min: parseFloat((item.priceRange?.min || item.averagePrice).toFixed(2)),
         max: parseFloat((item.priceRange?.max || item.averagePrice).toFixed(2))
@@ -265,39 +267,47 @@ async function setCachedResult(searchTerm: string, data: AnalysisData): Promise<
 }
 
 function buildOptimizedPrompt(searchTerm: string): string {
-  return `Tarefa: Buscar o produto "${searchTerm}" e calcular PREÇO MÉDIO em cada marketplace brasileiro.
+  return `Tarefa: Buscar o produto "${searchTerm}" e calcular PREÇO MÉDIO + QUANTIDADE DE VENDAS em cada marketplace brasileiro.
 
-🎯 OBJETIVO: Para CADA plataforma, busque entre 3-5 ofertas do mesmo produto e calcule a MÉDIA de preços.
+🎯 OBJETIVO: Para CADA plataforma, busque entre 3-5 ofertas do mesmo produto e calcule:
+1. MÉDIA de preços
+2. TOTAL de vendas somadas
 
 PLATAFORMAS (analisar todas):
 1. Mercado Livre (mercadolivre.com.br)
 2. Shopee (shopee.com.br)
 3. Amazon Brasil (amazon.com.br)
 
-📊 MODO DE ANÁLISE - PREÇO MÉDIO:
+📊 MODO DE ANÁLISE - PREÇO MÉDIO + VENDAS:
 Para CADA plataforma:
 1. Busque entre 3-5 ofertas diferentes do produto "${searchTerm}"
-2. Pegue os preços de todas essas ofertas
-3. Calcule a MÉDIA desses preços
-4. Anote o menor e maior preço encontrado
-5. Conte quantas ofertas você analisou (sampleSize)
+2. Para CADA oferta, pegue:
+   - Preço
+   - Quantidade de vendas (vendidos, sold, purchases, etc.)
+3. Calcule a MÉDIA dos preços
+4. SOME todas as vendas encontradas
+5. Anote o menor e maior preço encontrado
+6. Conte quantas ofertas você analisou (sampleSize)
 
 Exemplo de análise:
 - Encontrou iPhone 15 no Mercado Livre com 5 ofertas:
-  * Oferta 1: R$ 3.899,00
-  * Oferta 2: R$ 4.050,00
-  * Oferta 3: R$ 3.999,00
-  * Oferta 4: R$ 4.100,00
-  * Oferta 5: R$ 3.950,00
-- Média: R$ 3.999,60
+  * Oferta 1: R$ 3.899,00 - 1.234 vendas
+  * Oferta 2: R$ 4.050,00 - 892 vendas
+  * Oferta 3: R$ 3.999,00 - 2.100 vendas
+  * Oferta 4: R$ 4.100,00 - 543 vendas
+  * Oferta 5: R$ 3.950,00 - 1.876 vendas
+- Média de preço: R$ 3.999,60
+- Total de vendas: 6.645
 - Menor: R$ 3.899,00
 - Maior: R$ 4.100,00
-- Total de ofertas analisadas: 5
+- Ofertas analisadas: 5
 
 REGRAS IMPORTANTES:
 ✅ Busque PELO MENOS 3 ofertas por plataforma (ideal: 5)
 ✅ Todas as ofertas devem ser do MESMO produto (mesma especificação)
-✅ Ignore ofertas muito fora do padrão (ex: preços muito baixos suspeitos)
+✅ SEMPRE tente buscar a quantidade de vendas (é MUITO importante)
+✅ Se não encontrar vendas, use 0 (mas tente encontrar!)
+✅ Ignore ofertas muito fora do padrão
 ✅ Preços em formato decimal: 3999.60 (não "R$ 3.999,60")
 
 FORMATO JSON ESPERADO:
@@ -308,6 +318,7 @@ FORMATO JSON ESPERADO:
       "platform": "Mercado Livre",
       "averagePrice": 3999.60,
       "sampleSize": 5,
+      "totalSales": 6645,
       "priceRange": {
         "min": 3899.00,
         "max": 4100.00
@@ -317,6 +328,7 @@ FORMATO JSON ESPERADO:
       "platform": "Shopee",
       "averagePrice": 3850.30,
       "sampleSize": 4,
+      "totalSales": 8234,
       "priceRange": {
         "min": 3799.00,
         "max": 3950.00
@@ -326,6 +338,7 @@ FORMATO JSON ESPERADO:
       "platform": "Amazon",
       "averagePrice": 4120.50,
       "sampleSize": 3,
+      "totalSales": 456,
       "priceRange": {
         "min": 3999.00,
         "max": 4299.00
@@ -342,6 +355,7 @@ FORMATO JSON ESPERADO:
 IMPORTANTE: 
 - Retorne APENAS JSON válido
 - SEM markdown, SEM explicações, SEM blocos de código
+- SEMPRE tente buscar quantidade de vendas (critical!)
 - Se não encontrar em uma plataforma, não inclua ela no resultado
 - Busque em TODAS as 3 plataformas principais`;
 }
@@ -434,7 +448,7 @@ serve(async (req) => {
 
     const prompt = buildOptimizedPrompt(searchTerm);
 
-    console.log('🤖 Chamando Perplexity - MODO MÉDIA DE PREÇOS');
+    console.log('🤖 Chamando Perplexity - MODO MÉDIA DE PREÇOS + VENDAS');
     
     const perplexityResponse = await fetchWithRetry(
       'https://api.perplexity.ai/chat/completions',
@@ -449,7 +463,7 @@ serve(async (req) => {
           messages: [
             {
               role: 'system',
-              content: 'Você é um assistente especializado em análise de preços. Para cada marketplace, busque 3-5 ofertas do produto e calcule a MÉDIA. Retorne APENAS JSON válido.'
+              content: 'Você é um assistente especializado em análise de preços e vendas. Para cada marketplace, busque 3-5 ofertas do produto, calcule a MÉDIA de preços e SOME todas as vendas. SEMPRE tente buscar quantidade de vendas. Retorne APENAS JSON válido.'
             },
             {
               role: 'user',
@@ -537,7 +551,7 @@ serve(async (req) => {
     }
 
     sanitizedData.analysis.forEach(item => {
-      console.log(`✅ ${item.platform}: R$ ${item.averagePrice.toFixed(2)} (${item.sampleSize} ofertas)`);
+      console.log(`✅ ${item.platform}: R$ ${item.averagePrice.toFixed(2)} (${item.sampleSize} ofertas) - ${item.totalSales} vendas`);
     });
 
     await setCachedResult(searchTerm, sanitizedData);
