@@ -13,6 +13,7 @@ interface BestOffer {
   price: number;
   seller: string;
   link: string;
+  confidence?: 'verified' | 'ai' | 'estimated';
 }
 
 interface PlatformAnalysis {
@@ -137,6 +138,31 @@ export default function MarketAnalysis() {
         return 'text-blue-600 bg-blue-50 border-blue-200';
       default:
         return 'text-gray-600 bg-gray-50 border-gray-200';
+    }
+  };
+
+  const getConfidenceBadge = (confidence?: 'verified' | 'ai' | 'estimated') => {
+    switch (confidence) {
+      case 'verified':
+        return (
+          <Badge variant="outline" className="bg-green-50 dark:bg-green-950/30 text-green-700 dark:text-green-400 border-green-200 dark:border-green-900">
+            ✓ Verificado
+          </Badge>
+        );
+      case 'ai':
+        return (
+          <Badge variant="outline" className="bg-purple-50 dark:bg-purple-950/30 text-purple-700 dark:text-purple-400 border-purple-200 dark:border-purple-900">
+            🤖 IA
+          </Badge>
+        );
+      case 'estimated':
+        return (
+          <Badge variant="outline" className="bg-blue-50 dark:bg-blue-950/30 text-blue-700 dark:text-blue-400 border-blue-200 dark:border-blue-900">
+            ~ Estimativa
+          </Badge>
+        );
+      default:
+        return null;
     }
   };
 
@@ -303,14 +329,16 @@ export default function MarketAnalysis() {
             <CardContent className="pt-4">
               <div className="flex items-start space-x-3">
                 <div className="text-amber-600 dark:text-amber-400 flex-shrink-0 mt-0.5">
-                  ⚠️
+                  ℹ️
                 </div>
                 <div className="text-sm text-amber-900 dark:text-amber-100">
-                  <p className="font-semibold mb-1">Importante - Verifique antes de comprar:</p>
-                  <p className="text-amber-800 dark:text-amber-200">
-                    Os preços do <strong>Mercado Livre são reais e verificados</strong>. Shopee e Amazon são estimativas baseadas em análise de mercado e podem variar. 
-                    <strong> Sempre confirme preços, disponibilidade e condições no site oficial antes de comprar.</strong>
-                  </p>
+                  <p className="font-semibold mb-2">Sobre os dados apresentados:</p>
+                  <div className="space-y-1 text-amber-800 dark:text-amber-200">
+                    <p>• <strong>✓ Verificado (Mercado Livre):</strong> Dados reais da API oficial</p>
+                    <p>• <strong>🤖 IA (Shopee/Amazon):</strong> Preços buscados por inteligência artificial</p>
+                    <p>• <strong>~ Estimativa:</strong> Valores aproximados quando IA não encontra dados</p>
+                    <p className="mt-2 font-semibold">⚠️ Sempre confirme preços e disponibilidade no site antes de comprar!</p>
+                  </div>
                 </div>
               </div>
             </CardContent>
@@ -357,16 +385,7 @@ export default function MarketAnalysis() {
                               <Badge variant="secondary">
                                 Melhor oferta
                               </Badge>
-                              {platformAnalysis.platform === 'Mercado Livre' && (
-                                <Badge variant="outline" className="bg-green-50 dark:bg-green-950/30 text-green-700 dark:text-green-400 border-green-200 dark:border-green-900">
-                                  ✓ Verificado
-                                </Badge>
-                              )}
-                              {platformAnalysis.platform !== 'Mercado Livre' && (
-                                <Badge variant="outline" className="bg-blue-50 dark:bg-blue-950/30 text-blue-700 dark:text-blue-400 border-blue-200 dark:border-blue-900">
-                                  ~ Estimativa
-                                </Badge>
-                              )}
+                              {getConfidenceBadge(platformAnalysis.bestOffer.confidence)}
                             </div>
                           </div>
                         </div>

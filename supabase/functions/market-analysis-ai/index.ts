@@ -18,6 +18,7 @@ interface ProductOffer {
   link: string;
   urlConfidence?: 'high' | 'medium' | 'low';
   priceConfidence?: 'high' | 'medium' | 'low';
+  confidence?: 'verified' | 'ai' | 'estimated';
 }
 
 interface PlatformAnalysis {
@@ -756,6 +757,95 @@ async function fetchWithRetry(
 }
 
 
+// ============= BUSCAR COM IA (Shopee e Amazon) =============
+async function searchWithAI(searchTerm: string, platforms: string[]): Promise<any[]> {
+  console.log(`🤖 Buscando com IA em: ${platforms.join(', ')}`);
+  
+  const LOVABLE_API_KEY = Deno.env.get('LOVABLE_API_KEY');
+  if (!LOVABLE_API_KEY) {
+    throw new Error('LOVABLE_API_KEY não configurada');
+  }
+
+  const prompt = `Busque o produto "${searchTerm}" nestas plataformas brasileiras:
+${platforms.map(p => `- ${p}`).join('\n')}
+
+Para cada plataforma, retorne:
+1. Título exato do produto
+2. Preço atual em reais (apenas número, ex: 1999.90)
+3. Nome do vendedor/loja
+4. URL direta do produto
+
+IMPORTANTE:
+- Use apenas dados REAIS e ATUAIS disponíveis online
+- URLs devem ser válidas e acessíveis
+- Preços devem ser os praticados HOJE no Brasil
+- Se não encontrar o produto exato, busque o mais similar
+
+FORMATO DE URL (CRÍTICO):
+- Shopee: deve conter "/product/" ou "shp.ee/"
+- Amazon: deve conter "/dp/" ou "/gp/product/" + código ASIN
+
+Retorne APENAS JSON válido no formato:
+{
+  "results": [
+    {
+      "platform": "Shopee",
+      "title": "Nome do produto",
+      "price": 1999.90,
+      "seller": "Nome da loja",
+      "url": "https://shopee.com.br/product/..."
+    }
+  ]
+}`;
+
+  try {
+    const response = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${LOVABLE_API_KEY}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        model: 'google/gemini-2.5-flash',
+        messages: [
+          { 
+            role: 'system', 
+            content: 'Você é um assistente especializado em buscar preços de produtos em e-commerce brasileiro. Retorne apenas JSON válido sem markdown ou explicações.' 
+          },
+          { role: 'user', content: prompt }
+        ],
+      }),
+    });
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      console.error(`❌ Erro na IA (${response.status}):`, errorText);
+      throw new Error(`Erro na IA: ${response.status}`);
+    }
+
+    const aiData = await response.json();
+    const content = aiData.choices?.[0]?.message?.content;
+    
+    if (!content) {
+      throw new Error('Resposta da IA vazia');
+    }
+
+    // Limpar markdown se houver
+    let jsonStr = content.trim();
+    if (jsonStr.startsWith('```')) {
+      jsonStr = jsonStr.replace(/```json\n?/g, '').replace(/```\n?/g, '');
+    }
+    
+    const parsed = JSON.parse(jsonStr);
+    console.log(`✅ IA retornou ${parsed.results?.length || 0} resultados`);
+    
+    return parsed.results || [];
+  } catch (error) {
+    console.error('❌ Erro ao buscar com IA:', error);
+    throw error;
+  }
+}
+
 // ============= BUSCAR EM APIS REAIS =============
 async function searchRealAPIs(searchTerm: string): Promise<AnalysisData> {
   console.log('🔍 Buscando dados reais de APIs...');
@@ -768,6 +858,7 @@ async function searchRealAPIs(searchTerm: string): Promise<AnalysisData> {
     url: string;
     sales_count?: number;
     shipping_cost?: number;
+    confidence: 'verified' | 'ai' | 'estimated';
   }
 
   const results: RawResult[] = [];
@@ -808,7 +899,8 @@ async function searchRealAPIs(searchTerm: string): Promise<AnalysisData> {
           seller: item.seller?.nickname || 'Vendedor não informado',
           url: item.permalink || `https://lista.mercadolivre.com.br/${encodeURIComponent(searchTerm)}`,
           sales_count: item.sold_quantity || 0,
-          shipping_cost: item.shipping?.free_shipping ? 0 : undefined
+          shipping_cost: item.shipping?.free_shipping ? 0 : undefined,
+          confidence: 'verified' as const
         }));
       
       results.push(...mlResults);
@@ -818,30 +910,55 @@ async function searchRealAPIs(searchTerm: string): Promise<AnalysisData> {
     console.error('❌ Erro Mercado Livre:', error);
   }
 
-  // 2. Gerar dados estimados para outras plataformas (baseado nos reais)
-  if (results.length > 0) {
-    const basePrice = results[0].price;
-    const baseTitle = results[0].title;
+  // 2. Buscar Shopee e Amazon com IA
+  try {
+    console.log('🤖 Iniciando busca com IA...');
+    const aiResults = await searchWithAI(searchTerm, ['Shopee', 'Amazon']);
     
-    // Shopee - preço ligeiramente menor
-    results.push({
-      platform: 'Shopee',
-      title: baseTitle,
-      price: Math.round(basePrice * 0.95), // ~5% menor
-      seller: 'Shopee Brasil',
-      url: `https://shopee.com.br/search?keyword=${encodeURIComponent(searchTerm)}`
+    aiResults.forEach((aiResult: any) => {
+      if (aiResult.platform && aiResult.title && aiResult.price && aiResult.url) {
+        results.push({
+          platform: aiResult.platform,
+          title: aiResult.title,
+          price: aiResult.price,
+          seller: aiResult.seller || `${aiResult.platform} Brasil`,
+          url: aiResult.url,
+          confidence: 'ai' as const
+        });
+      }
     });
     
-    // Amazon - preço ligeiramente maior
-    results.push({
-      platform: 'Amazon',
-      title: baseTitle,
-      price: Math.round(basePrice * 1.08), // ~8% maior
-      seller: 'Amazon.com.br',
-      url: `https://www.amazon.com.br/s?k=${encodeURIComponent(searchTerm)}`
-    });
+    console.log(`✅ IA: ${aiResults.length} produtos encontrados`);
+  } catch (error) {
+    console.error('❌ Erro na busca com IA, usando fallback para estimativas:', error);
     
-    console.log('✅ Estimativas geradas para Shopee e Amazon');
+    // 3. Fallback: Gerar estimativas se IA falhar E se há dados do Mercado Livre
+    if (results.length > 0) {
+      const basePrice = results[0].price;
+      const baseTitle = results[0].title;
+      
+      // Shopee - preço ligeiramente menor
+      results.push({
+        platform: 'Shopee',
+        title: baseTitle,
+        price: Math.round(basePrice * 0.95), // ~5% menor
+        seller: 'Shopee Brasil',
+        url: `https://shopee.com.br/search?keyword=${encodeURIComponent(searchTerm)}`,
+        confidence: 'estimated' as const
+      });
+      
+      // Amazon - preço ligeiramente maior
+      results.push({
+        platform: 'Amazon',
+        title: baseTitle,
+        price: Math.round(basePrice * 1.08), // ~8% maior
+        seller: 'Amazon.com.br',
+        url: `https://www.amazon.com.br/s?k=${encodeURIComponent(searchTerm)}`,
+        confidence: 'estimated' as const
+      });
+      
+      console.log('✅ Estimativas geradas para Shopee e Amazon (fallback)');
+    }
   }
 
   // 3. Processar resultados
@@ -870,8 +987,9 @@ async function searchRealAPIs(searchTerm: string): Promise<AnalysisData> {
       price: r.price,
       seller: r.seller,
       link: r.url,
-      urlConfidence: r.platform === 'Mercado Livre' ? 'high' as const : 'medium' as const,
-      priceConfidence: r.platform === 'Mercado Livre' ? 'high' as const : 'medium' as const
+      confidence: r.confidence,
+      urlConfidence: r.confidence === 'verified' ? 'high' as const : r.confidence === 'ai' ? 'medium' as const : 'low' as const,
+      priceConfidence: r.confidence === 'verified' ? 'high' as const : r.confidence === 'ai' ? 'medium' as const : 'low' as const
     }
   }));
 
@@ -898,7 +1016,7 @@ async function searchRealAPIs(searchTerm: string): Promise<AnalysisData> {
         averageConfidence: 'medium'
       }
     },
-    disclaimer: `✅ Dados do Mercado Livre são reais e verificados. Shopee e Amazon são estimativas baseadas em análise de mercado. Última atualização: ${new Date().toLocaleString('pt-BR')}. SEMPRE confirme preços e disponibilidade no site antes de comprar.`
+    disclaimer: generateDisclaimer(analysis)
   };
 }
 
@@ -920,6 +1038,32 @@ function calculateScore(result: any, searchTerm: string): number {
   if (result.shipping_cost === 0) score += 3;
   
   return score;
+}
+
+function generateDisclaimer(analysis: PlatformAnalysis[]): string {
+  const verified = analysis.filter(a => a.bestOffer.confidence === 'verified').length;
+  const ai = analysis.filter(a => a.bestOffer.confidence === 'ai').length;
+  const estimated = analysis.filter(a => a.bestOffer.confidence === 'estimated').length;
+  
+  let disclaimer = '📊 Fontes dos dados: ';
+  
+  if (verified > 0) {
+    disclaimer += `${verified} verificado(s) via API oficial`;
+  }
+  
+  if (ai > 0) {
+    if (verified > 0) disclaimer += ' | ';
+    disclaimer += `${ai} buscado(s) por IA`;
+  }
+  
+  if (estimated > 0) {
+    if (verified > 0 || ai > 0) disclaimer += ' | ';
+    disclaimer += `${estimated} estimativa(s)`;
+  }
+  
+  disclaimer += `. Última atualização: ${new Date().toLocaleString('pt-BR')}. ⚠️ SEMPRE confirme preços e disponibilidade no site antes de comprar!`;
+  
+  return disclaimer;
 }
 
 serve(async (req) => {
