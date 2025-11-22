@@ -12,6 +12,7 @@ interface PlatformAnalysis {
   platform: string;
   averagePrice: number;
   sampleSize: number;
+  totalSales: number;
   priceRange: {
     min: number;
     max: number;
@@ -329,6 +330,10 @@ export default function MarketAnalysis() {
                         <div className="flex items-center space-x-4 mt-2 text-sm text-muted-foreground">
                           <span>
                             📊 {platformAnalysis.sampleSize} {platformAnalysis.sampleSize === 1 ? 'oferta analisada' : 'ofertas analisadas'}
+                          </span>
+                          <span>•</span>
+                          <span>
+                            🛒 {platformAnalysis.totalSales.toLocaleString('pt-BR')} vendas totais
                           </span>
                           <span>•</span>
                           <span>
