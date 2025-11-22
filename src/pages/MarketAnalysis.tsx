@@ -298,71 +298,102 @@ export default function MarketAnalysis() {
 
       {/* Comparative Analysis Table */}
       {analysis && analysis.analysis.length > 0 && (
-        <Card className="shadow-soft">
-          <CardHeader>
-            <CardTitle>Análise Comparativa de Preços</CardTitle>
-            <CardDescription>
-              Melhores ofertas encontradas em cada plataforma
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-4">
-              {analysis.analysis.map((platformAnalysis, index) => (
-                <div key={index} className="border border-border rounded-lg p-4 hover:shadow-soft transition-shadow">
-                  <div className="flex items-start justify-between space-x-4">
-                    <div className="flex items-start space-x-3 flex-1 min-w-0">
-                      {/* Platform Badge */}
-                      <div className="flex-shrink-0">
-                        <Badge 
-                          variant="outline" 
-                          className={`text-xs font-medium px-2 py-1 ${getPlatformColor(platformAnalysis.platform)}`}
-                        >
-                          {platformAnalysis.platform}
-                        </Badge>
-                      </div>
-                      
-                      {/* Product Info */}
-                      <div className="flex-1 min-w-0">
-                        <h3 className="font-semibold text-foreground mb-2 line-clamp-2">
-                          <a 
-                            href={platformAnalysis.bestOffer.link} 
-                            target="_blank" 
-                            rel="noopener noreferrer"
-                            className="hover:text-primary transition-colors cursor-pointer"
+        <>
+          <Card className="shadow-soft bg-amber-50 dark:bg-amber-950/20 border-amber-200 dark:border-amber-900">
+            <CardContent className="pt-4">
+              <div className="flex items-start space-x-3">
+                <div className="text-amber-600 dark:text-amber-400 flex-shrink-0 mt-0.5">
+                  ⚠️
+                </div>
+                <div className="text-sm text-amber-900 dark:text-amber-100">
+                  <p className="font-semibold mb-1">Importante - Verifique antes de comprar:</p>
+                  <p className="text-amber-800 dark:text-amber-200">
+                    Os preços do <strong>Mercado Livre são reais e verificados</strong>. Shopee e Amazon são estimativas baseadas em análise de mercado e podem variar. 
+                    <strong> Sempre confirme preços, disponibilidade e condições no site oficial antes de comprar.</strong>
+                  </p>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+          
+          <Card className="shadow-soft">
+            <CardHeader>
+              <CardTitle>Análise Comparativa de Preços</CardTitle>
+              <CardDescription>
+                Melhores ofertas encontradas em cada plataforma
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-4">
+                {analysis.analysis.map((platformAnalysis, index) => (
+                  <div key={index} className="border border-border rounded-lg p-4 hover:shadow-soft transition-shadow">
+                    <div className="flex items-start justify-between space-x-4">
+                      <div className="flex items-start space-x-3 flex-1 min-w-0">
+                        {/* Platform Badge */}
+                        <div className="flex-shrink-0">
+                          <Badge 
+                            variant="outline" 
+                            className={`text-xs font-medium px-2 py-1 ${getPlatformColor(platformAnalysis.platform)}`}
                           >
-                            {platformAnalysis.bestOffer.title}
-                          </a>
-                        </h3>
-                        <div className="flex items-center space-x-4 text-sm text-muted-foreground">
-                          <span>Vendedor: {platformAnalysis.bestOffer.seller}</span>
-                          <Badge variant="secondary">
-                            Melhor oferta
+                            {platformAnalysis.platform}
                           </Badge>
                         </div>
+                        
+                        {/* Product Info */}
+                        <div className="flex-1 min-w-0">
+                          <h3 className="font-semibold text-foreground mb-2 line-clamp-2">
+                            <a 
+                              href={platformAnalysis.bestOffer.link} 
+                              target="_blank" 
+                              rel="noopener noreferrer"
+                              className="hover:text-primary transition-colors cursor-pointer"
+                            >
+                              {platformAnalysis.bestOffer.title}
+                            </a>
+                          </h3>
+                          <div className="flex flex-col space-y-1 text-sm text-muted-foreground">
+                            <span>Vendedor: {platformAnalysis.bestOffer.seller}</span>
+                            <div className="flex items-center gap-2">
+                              <Badge variant="secondary">
+                                Melhor oferta
+                              </Badge>
+                              {platformAnalysis.platform === 'Mercado Livre' && (
+                                <Badge variant="outline" className="bg-green-50 dark:bg-green-950/30 text-green-700 dark:text-green-400 border-green-200 dark:border-green-900">
+                                  ✓ Verificado
+                                </Badge>
+                              )}
+                              {platformAnalysis.platform !== 'Mercado Livre' && (
+                                <Badge variant="outline" className="bg-blue-50 dark:bg-blue-950/30 text-blue-700 dark:text-blue-400 border-blue-200 dark:border-blue-900">
+                                  ~ Estimativa
+                                </Badge>
+                              )}
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                      
+                      {/* Price and Action */}
+                      <div className="text-right flex-shrink-0">
+                        <p className="text-2xl font-bold text-primary">
+                          {formatPrice(platformAnalysis.bestOffer.price)}
+                        </p>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          className="mt-2"
+                          onClick={() => window.open(platformAnalysis.bestOffer.link, '_blank')}
+                        >
+                          <ShoppingCart className="w-4 h-4 mr-1" />
+                          Ver na Loja
+                        </Button>
                       </div>
                     </div>
-                    
-                    {/* Price and Action */}
-                    <div className="text-right flex-shrink-0">
-                      <p className="text-2xl font-bold text-primary">
-                        {formatPrice(platformAnalysis.bestOffer.price)}
-                      </p>
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        className="mt-2"
-                        onClick={() => window.open(platformAnalysis.bestOffer.link, '_blank')}
-                      >
-                        <ShoppingCart className="w-4 h-4 mr-1" />
-                        Buscar na Loja
-                      </Button>
-                    </div>
                   </div>
-                </div>
-              ))}
-            </div>
-          </CardContent>
-        </Card>
+                ))}
+              </div>
+            </CardContent>
+          </Card>
+        </>
       )}
 
       {/* Empty State */}
