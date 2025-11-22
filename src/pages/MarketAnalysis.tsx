@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Target, Search, Loader2, TrendingUp, Users, DollarSign, ShoppingCart } from "lucide-react";
+import { Target, Search, Loader2, TrendingUp, Users, DollarSign } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -8,16 +8,14 @@ import { Separator } from "@/components/ui/separator";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 
-interface BestOffer {
-  title: string;
-  price: number;
-  seller: string;
-  link: string;
-}
-
 interface PlatformAnalysis {
   platform: string;
-  bestOffer: BestOffer;
+  averagePrice: number;
+  sampleSize: number;
+  priceRange: {
+    min: number;
+    max: number;
+  };
 }
 
 interface ComparativeAnalysis {
@@ -300,62 +298,44 @@ export default function MarketAnalysis() {
       {analysis && analysis.analysis.length > 0 && (
         <Card className="shadow-soft">
           <CardHeader>
-            <CardTitle>Análise Comparativa de Preços</CardTitle>
+            <CardTitle>Preço Médio por Marketplace</CardTitle>
             <CardDescription>
-              Melhores ofertas encontradas em cada plataforma
+              Análise baseada em 3-5 ofertas de cada plataforma
             </CardDescription>
           </CardHeader>
           <CardContent>
             <div className="space-y-4">
               {analysis.analysis.map((platformAnalysis, index) => (
-                <div key={index} className="border border-border rounded-lg p-4 hover:shadow-soft transition-shadow">
-                  <div className="flex items-start justify-between space-x-4">
-                    <div className="flex items-start space-x-3 flex-1 min-w-0">
-                      {/* Platform Badge */}
-                      <div className="flex-shrink-0">
-                        <Badge 
-                          variant="outline" 
-                          className={`text-xs font-medium px-2 py-1 ${getPlatformColor(platformAnalysis.platform)}`}
-                        >
-                          {platformAnalysis.platform}
-                        </Badge>
-                      </div>
+                <div key={index} className="border border-border rounded-lg p-5 hover:shadow-soft transition-shadow">
+                  <div className="flex items-center justify-between">
+                    {/* Platform Info */}
+                    <div className="flex items-center space-x-4 flex-1">
+                      <Badge 
+                        variant="outline" 
+                        className={`text-sm font-medium px-3 py-1.5 ${getPlatformColor(platformAnalysis.platform)}`}
+                      >
+                        {platformAnalysis.platform}
+                      </Badge>
                       
-                      {/* Product Info */}
-                      <div className="flex-1 min-w-0">
-                        <h3 className="font-semibold text-foreground mb-2 line-clamp-2">
-                          <a 
-                            href={platformAnalysis.bestOffer.link} 
-                            target="_blank" 
-                            rel="noopener noreferrer"
-                            className="hover:text-primary transition-colors cursor-pointer"
-                          >
-                            {platformAnalysis.bestOffer.title}
-                          </a>
-                        </h3>
-                        <div className="flex items-center space-x-4 text-sm text-muted-foreground">
-                          <span>Vendedor: {platformAnalysis.bestOffer.seller}</span>
-                          <Badge variant="secondary">
-                            Melhor oferta
-                          </Badge>
+                      <div className="flex-1">
+                        <div className="flex items-baseline space-x-3">
+                          <p className="text-3xl font-bold text-primary">
+                            {formatPrice(platformAnalysis.averagePrice)}
+                          </p>
+                          <span className="text-sm text-muted-foreground">
+                            preço médio
+                          </span>
+                        </div>
+                        <div className="flex items-center space-x-4 mt-2 text-sm text-muted-foreground">
+                          <span>
+                            📊 {platformAnalysis.sampleSize} {platformAnalysis.sampleSize === 1 ? 'oferta analisada' : 'ofertas analisadas'}
+                          </span>
+                          <span>•</span>
+                          <span>
+                            De {formatPrice(platformAnalysis.priceRange.min)} até {formatPrice(platformAnalysis.priceRange.max)}
+                          </span>
                         </div>
                       </div>
-                    </div>
-                    
-                    {/* Price and Action */}
-                    <div className="text-right flex-shrink-0">
-                      <p className="text-2xl font-bold text-primary">
-                        {formatPrice(platformAnalysis.bestOffer.price)}
-                      </p>
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        className="mt-2"
-                        onClick={() => window.open(platformAnalysis.bestOffer.link, '_blank')}
-                      >
-                        <ShoppingCart className="w-4 h-4 mr-1" />
-                        Buscar na Loja
-                      </Button>
                     </div>
                   </div>
                 </div>
@@ -379,6 +359,7 @@ export default function MarketAnalysis() {
               </p>
               <div className="text-sm text-muted-foreground font-body space-y-2">
                 <p><strong>Plataformas:</strong> Mercado Livre, Shopee, Amazon</p>
+                <p><strong>📊 Análise:</strong> Busca 3-5 ofertas por marketplace e calcula a média</p>
                 <p>Ex: "iPhone 15 128GB", "notebook Dell", "tênis Nike"</p>
               </div>
             </div>
