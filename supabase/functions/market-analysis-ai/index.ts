@@ -18,7 +18,6 @@ interface ProductOffer {
   link: string;
   urlConfidence?: 'high' | 'medium' | 'low';
   priceConfidence?: 'high' | 'medium' | 'low';
-  confidence?: 'verified' | 'ai' | 'estimated';
 }
 
 interface PlatformAnalysis {
@@ -757,340 +756,6 @@ async function fetchWithRetry(
 }
 
 
-// ============= BUSCAR COM PERPLEXITY AI (Shopee e Amazon) =============
-async function searchWithPerplexity(searchTerm: string, platforms: string[]): Promise<any[]> {
-  console.log(`🔍 Buscando com Perplexity AI em: ${platforms.join(', ')}`);
-  
-  const PERPLEXITY_API_KEY = Deno.env.get('PERPLEXITY_API_KEY');
-  if (!PERPLEXITY_API_KEY) {
-    throw new Error('PERPLEXITY_API_KEY não configurada');
-  }
-
-  const prompt = `Busque AGORA em tempo real o produto "${searchTerm}" nestas plataformas de e-commerce brasileiras:
-${platforms.map(p => `- ${p}.com.br`).join('\n')}
-
-INSTRUÇÕES CRÍTICAS:
-1. Acesse os sites REAIS dessas plataformas
-2. Encontre o produto específico "${searchTerm}"
-3. Para CADA plataforma que encontrar o produto, retorne:
-   - title: Título EXATO do produto
-   - price: Preço atual em número decimal (ex: 2499.90)
-   - seller: Nome do vendedor/loja
-   - url: URL COMPLETA e DIRETA do produto
-
-FORMATO DE URL OBRIGATÓRIO:
-- Shopee: https://shopee.com.br/product/[números]/[números]
-- Amazon: https://www.amazon.com.br/dp/[ASIN] ou https://www.amazon.com.br/gp/product/[ASIN]
-
-RETORNE APENAS JSON válido (sem markdown, sem explicações):
-{
-  "results": [
-    {
-      "platform": "Shopee",
-      "title": "Notebook Dell G15 Intel Core i7",
-      "price": 4299.90,
-      "seller": "Dell Oficial",
-      "url": "https://shopee.com.br/product/123456789012/12345678901"
-    }
-  ]
-}
-
-SE NÃO ENCONTRAR o produto em alguma plataforma, NÃO inclua ela no array de results.`;
-
-  try {
-    const response = await fetch('https://api.perplexity.ai/chat/completions', {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${PERPLEXITY_API_KEY}`,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        model: 'llama-3.1-sonar-large-128k-online',
-        messages: [
-          {
-            role: 'system',
-            content: 'Você é um assistente especializado em buscar preços REAIS de produtos em e-commerce. Você TEM acesso à internet e DEVE acessar os sites em tempo real. Retorne APENAS JSON válido sem markdown.'
-          },
-          {
-            role: 'user',
-            content: prompt
-          }
-        ],
-        temperature: 0.2,
-        top_p: 0.9,
-        max_tokens: 2000,
-        return_images: false,
-        return_related_questions: false,
-        search_recency_filter: 'day',
-        frequency_penalty: 1,
-        presence_penalty: 0
-      }),
-    });
-
-    if (!response.ok) {
-      const errorText = await response.text();
-      console.error(`❌ Erro na Perplexity (${response.status}):`, errorText);
-      throw new Error(`Erro na Perplexity: ${response.status}`);
-    }
-
-    const perplexityData = await response.json();
-    const content = perplexityData.choices?.[0]?.message?.content;
-    
-    if (!content) {
-      throw new Error('Resposta da Perplexity vazia');
-    }
-
-    console.log('📝 Resposta Perplexity:', content.substring(0, 200));
-
-    // Limpar markdown se houver
-    let jsonStr = content.trim();
-    if (jsonStr.startsWith('```')) {
-      jsonStr = jsonStr.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim();
-    }
-    
-    // Tentar encontrar JSON na resposta
-    const jsonMatch = jsonStr.match(/\{[\s\S]*\}/);
-    if (jsonMatch) {
-      jsonStr = jsonMatch[0];
-    }
-    
-    const parsed = JSON.parse(jsonStr);
-    console.log(`✅ Perplexity retornou ${parsed.results?.length || 0} resultados`);
-    
-    return parsed.results || [];
-  } catch (error) {
-    console.error('❌ Erro ao buscar com Perplexity:', error);
-    throw error;
-  }
-}
-
-// ============= BUSCAR EM APIS REAIS =============
-async function searchRealAPIs(searchTerm: string): Promise<AnalysisData> {
-  console.log('🔍 Buscando dados reais de APIs...');
-  
-  interface RawResult {
-    platform: string;
-    title: string;
-    price: number;
-    seller: string;
-    url: string;
-    sales_count?: number;
-    shipping_cost?: number;
-    confidence: 'verified' | 'ai' | 'estimated';
-  }
-
-  const results: RawResult[] = [];
-
-  // 1. Buscar no Mercado Livre (API Real)
-  try {
-    const mlUrl = `https://api.mercadolibre.com/sites/MLB/search?q=${encodeURIComponent(searchTerm)}&condition=new&sort=relevance&limit=5`;
-    console.log('📦 Buscando Mercado Livre...');
-    
-    const mlResponse = await fetchWithRetry(mlUrl, {
-      method: 'GET',
-      headers: {
-        'User-Agent': 'Mozilla/5.0',
-        'Accept': 'application/json',
-      }
-    });
-    
-    const mlData = await mlResponse.json();
-    
-    if (mlData.results && Array.isArray(mlData.results)) {
-      const mlResults = mlData.results
-        .filter((item: any) => {
-          const title = (item.title || '').toLowerCase();
-          const price = item.price || 0;
-          
-          // Filtros básicos
-          const negativeKeywords = ['capa', 'película', 'suporte', 'adesivo', 'usado', 'case', 'cabo', 'carregador'];
-          if (negativeKeywords.some(keyword => title.includes(keyword))) return false;
-          if (price < 10) return false;
-          
-          return true;
-        })
-        .slice(0, 3)
-        .map((item: any) => ({
-          platform: 'Mercado Livre',
-          title: item.title || 'Sem título',
-          price: item.price || 0,
-          seller: item.seller?.nickname || 'Vendedor não informado',
-          url: item.permalink || `https://lista.mercadolivre.com.br/${encodeURIComponent(searchTerm)}`,
-          sales_count: item.sold_quantity || 0,
-          shipping_cost: item.shipping?.free_shipping ? 0 : undefined,
-          confidence: 'verified' as const
-        }));
-      
-      results.push(...mlResults);
-      console.log(`✅ Mercado Livre: ${mlResults.length} produtos`);
-    }
-  } catch (error) {
-    console.error('❌ Erro Mercado Livre:', error);
-  }
-
-  // 2. Buscar Shopee e Amazon com Perplexity AI
-  try {
-    console.log('🔍 Iniciando busca com Perplexity AI...');
-    const perplexityResults = await searchWithPerplexity(searchTerm, ['Shopee', 'Amazon']);
-    
-    perplexityResults.forEach((result: any) => {
-      // Validar dados antes de adicionar
-      if (result.platform && result.title && result.price && result.url) {
-        // Validar preço
-        const price = typeof result.price === 'string' ? parseFloat(result.price.replace(/[^\d.,]/g, '').replace(',', '.')) : result.price;
-        
-        if (price > 0 && price < 999999) {
-          results.push({
-            platform: result.platform,
-            title: result.title,
-            price: price,
-            seller: result.seller || `${result.platform} Brasil`,
-            url: result.url,
-            confidence: 'ai' as const
-          });
-          console.log(`✅ ${result.platform}: ${result.title} - R$ ${price}`);
-        }
-      }
-    });
-    
-    console.log(`✅ Perplexity: ${perplexityResults.length} produtos encontrados`);
-  } catch (error) {
-    console.error('❌ Erro na busca com Perplexity, usando fallback para estimativas:', error);
-    
-    // 3. Fallback: Gerar estimativas se IA falhar E se há dados do Mercado Livre
-    if (results.length > 0) {
-      const basePrice = results[0].price;
-      const baseTitle = results[0].title;
-      
-      // Shopee - preço ligeiramente menor
-      results.push({
-        platform: 'Shopee',
-        title: baseTitle,
-        price: Math.round(basePrice * 0.95), // ~5% menor
-        seller: 'Shopee Brasil',
-        url: `https://shopee.com.br/search?keyword=${encodeURIComponent(searchTerm)}`,
-        confidence: 'estimated' as const
-      });
-      
-      // Amazon - preço ligeiramente maior
-      results.push({
-        platform: 'Amazon',
-        title: baseTitle,
-        price: Math.round(basePrice * 1.08), // ~8% maior
-        seller: 'Amazon.com.br',
-        url: `https://www.amazon.com.br/s?k=${encodeURIComponent(searchTerm)}`,
-        confidence: 'estimated' as const
-      });
-      
-      console.log('✅ Estimativas geradas para Shopee e Amazon (fallback)');
-    }
-  }
-
-  // 3. Processar resultados
-  if (results.length === 0) {
-    return await buildFallbackAnalysis(searchTerm);
-  }
-
-  // Calcular scores e escolher melhor de cada plataforma
-  const scoredResults = results.map(r => ({
-    ...r,
-    score: calculateScore(r, searchTerm)
-  }));
-
-  const platformMap = new Map<string, typeof scoredResults[0]>();
-  scoredResults.forEach(result => {
-    const existing = platformMap.get(result.platform);
-    if (!existing || result.score > existing.score) {
-      platformMap.set(result.platform, result);
-    }
-  });
-
-  const analysis: PlatformAnalysis[] = Array.from(platformMap.values()).map(r => ({
-    platform: r.platform,
-    bestOffer: {
-      title: r.title,
-      price: r.price,
-      seller: r.seller,
-      link: r.url,
-      confidence: r.confidence,
-      urlConfidence: r.confidence === 'verified' ? 'high' as const : r.confidence === 'ai' ? 'medium' as const : 'low' as const,
-      priceConfidence: r.confidence === 'verified' ? 'high' as const : r.confidence === 'ai' ? 'medium' as const : 'low' as const
-    }
-  }));
-
-  const prices = analysis.map(a => a.bestOffer.price);
-  const productTitle = results[0]?.title || searchTerm;
-
-  return {
-    productTitle,
-    analysis,
-    priceSummary: {
-      lowestPrice: Math.min(...prices),
-      highestPrice: Math.max(...prices),
-      averagePrice: prices.reduce((a, b) => a + b, 0) / prices.length
-    },
-    confidence: {
-      urls: {
-        verified: analysis.filter(a => a.bestOffer.urlConfidence === 'high').length,
-        total: analysis.length,
-        averageConfidence: 'medium'
-      },
-      prices: {
-        hasOutliers: false,
-        anomaliesCount: 0,
-        averageConfidence: 'medium'
-      }
-    },
-    disclaimer: generateDisclaimer(analysis)
-  };
-}
-
-function calculateScore(result: any, searchTerm: string): number {
-  let score = 0;
-  const title = result.title.toLowerCase();
-  const searchLower = searchTerm.toLowerCase();
-  
-  // Similaridade do título
-  const searchWords = searchLower.split(' ');
-  const matchingWords = searchWords.filter(word => title.includes(word));
-  score += (matchingWords.length / searchWords.length) * 10;
-  
-  // Vendas
-  if (result.sales_count && result.sales_count > 50) score += 5;
-  else if (result.sales_count && result.sales_count > 10) score += 2;
-  
-  // Frete grátis
-  if (result.shipping_cost === 0) score += 3;
-  
-  return score;
-}
-
-function generateDisclaimer(analysis: PlatformAnalysis[]): string {
-  const verified = analysis.filter(a => a.bestOffer.confidence === 'verified').length;
-  const ai = analysis.filter(a => a.bestOffer.confidence === 'ai').length;
-  const estimated = analysis.filter(a => a.bestOffer.confidence === 'estimated').length;
-  
-  let disclaimer = '📊 Fontes dos dados: ';
-  
-  if (verified > 0) {
-    disclaimer += `${verified} verificado(s) via API oficial`;
-  }
-  
-  if (ai > 0) {
-    if (verified > 0) disclaimer += ' | ';
-    disclaimer += `${ai} buscado(s) por Perplexity AI`;
-  }
-  
-  if (estimated > 0) {
-    if (verified > 0 || ai > 0) disclaimer += ' | ';
-    disclaimer += `${estimated} estimativa(s)`;
-  }
-  
-  disclaimer += `. Última atualização: ${new Date().toLocaleString('pt-BR')}. ⚠️ SEMPRE confirme preços e disponibilidade no site antes de comprar!`;
-  
-  return disclaimer;
-}
-
 serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
@@ -1117,8 +782,129 @@ serve(async (req) => {
       );
     }
 
-    console.log('🌐 Buscando dados em APIs reais...');
-    const analysisData = await searchRealAPIs(searchTerm);
+    const perplexityApiKey = Deno.env.get('PERPLEXITY_API_KEY');
+    if (!perplexityApiKey) {
+      console.error('❌ PERPLEXITY_API_KEY não configurada');
+      return new Response(
+        JSON.stringify({ success: false, error: 'API não configurada' }),
+        { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 500 }
+      );
+    }
+
+    const prompt = buildOptimizedPrompt(searchTerm);
+
+    console.log('🤖 Chamando Perplexity API com retry e timeout...');
+    
+    const perplexityResponse = await fetchWithRetry(
+      'https://api.perplexity.ai/chat/completions',
+      {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${perplexityApiKey}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          model: 'sonar',
+          messages: [
+            {
+              role: 'system',
+              content: 'Você é um assistente de pesquisa de preços. Retorne APENAS JSON válido, sem markdown, sem explicações, sem blocos de código.'
+            },
+            {
+              role: 'user',
+              content: prompt
+            }
+          ],
+          temperature: 0.5,
+          max_tokens: 2500,
+          search_recency_filter: 'month',
+        }),
+      }
+    );
+
+    const perplexityData = await perplexityResponse.json();
+    const aiResponse = perplexityData.choices?.[0]?.message?.content;
+    
+    // Validação melhorada de resposta
+    if (!isValidJsonResponse(aiResponse)) {
+      console.error('❌ Resposta inválida da Perplexity:', aiResponse?.substring(0, 100));
+      
+      // Em vez de retornar erro, usar fallback
+      console.log('⚠️ Usando fallback devido a resposta inválida');
+      const fallbackAnalysis = await buildFallbackAnalysis(searchTerm);
+      await setCachedResult(searchTerm, fallbackAnalysis);
+      
+      return new Response(
+        JSON.stringify({ 
+          success: true,
+          step: 'analysis',
+          data: fallbackAnalysis,
+          cached: false,
+          note: 'Resposta da IA inválida - usando fallback'
+        }),
+        { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    console.log('📄 Resposta recebida:', aiResponse.substring(0, 150) + '...');
+
+    // Extrair e parsear JSON
+    let jsonResponse = aiResponse.trim()
+      .replace(/```json\n?/g, '')
+      .replace(/```\n?/g, '')
+      .trim();
+
+    let rawData;
+    try {
+      rawData = JSON.parse(jsonResponse);
+      console.log('✅ JSON parseado');
+    } catch (parseError) {
+      console.error('❌ Erro ao parsear JSON:', parseError);
+      
+      // Fallback em caso de erro de parse
+      const fallbackAnalysis = await buildFallbackAnalysis(searchTerm);
+      await setCachedResult(searchTerm, fallbackAnalysis);
+      
+      return new Response(
+        JSON.stringify({ 
+          success: true,
+          step: 'analysis',
+          data: fallbackAnalysis,
+          cached: false,
+          note: 'Erro ao processar resposta - usando fallback'
+        }),
+        { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    // Sanitizar dados
+    const sanitizedData = sanitizeAnalysisData(rawData, searchTerm);
+    
+    console.log(`📊 Análise sanitizada: ${sanitizedData.analysis.length} plataformas encontradas`);
+
+    // SE NENHUMA PLATAFORMA ENCONTROU, USAR FALLBACK
+    if (sanitizedData.analysis.length === 0) {
+      console.warn('⚠️ Nenhum resultado específico encontrado');
+      const fallbackAnalysis = await buildFallbackAnalysis(searchTerm);
+      
+      // Salvar fallback no cache para evitar retry
+      await setCachedResult(searchTerm, fallbackAnalysis);
+      
+      return new Response(
+        JSON.stringify({ 
+          success: true,
+          step: 'analysis',
+          data: fallbackAnalysis,
+          cached: false,
+          note: 'Produto não encontrado - usando URLs de busca'
+        }),
+        { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    // SE TEM RESULTADOS, FAZER VALIDAÇÃO COMPLETA
+    console.log('🔍 Validando URLs e preços...');
+    const analysisData = await enhanceAnalysisWithValidation(sanitizedData, searchTerm);
 
     // Salvar no cache
     await setCachedResult(searchTerm, analysisData);
@@ -1139,7 +925,7 @@ serve(async (req) => {
   } catch (error: any) {
     console.error('💥 Erro:', error);
     
-    let errorMessage = 'Erro ao buscar produtos. Tente novamente.';
+    let errorMessage = 'Erro inesperado';
     let statusCode = 500;
     
     if (error.name === 'AbortError') {
