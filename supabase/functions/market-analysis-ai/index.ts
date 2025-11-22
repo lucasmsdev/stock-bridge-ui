@@ -757,91 +757,109 @@ async function fetchWithRetry(
 }
 
 
-// ============= BUSCAR COM IA (Shopee e Amazon) =============
-async function searchWithAI(searchTerm: string, platforms: string[]): Promise<any[]> {
-  console.log(`🤖 Buscando com IA em: ${platforms.join(', ')}`);
+// ============= BUSCAR COM PERPLEXITY AI (Shopee e Amazon) =============
+async function searchWithPerplexity(searchTerm: string, platforms: string[]): Promise<any[]> {
+  console.log(`🔍 Buscando com Perplexity AI em: ${platforms.join(', ')}`);
   
-  const LOVABLE_API_KEY = Deno.env.get('LOVABLE_API_KEY');
-  if (!LOVABLE_API_KEY) {
-    throw new Error('LOVABLE_API_KEY não configurada');
+  const PERPLEXITY_API_KEY = Deno.env.get('PERPLEXITY_API_KEY');
+  if (!PERPLEXITY_API_KEY) {
+    throw new Error('PERPLEXITY_API_KEY não configurada');
   }
 
-  const prompt = `Busque o produto "${searchTerm}" nestas plataformas brasileiras:
-${platforms.map(p => `- ${p}`).join('\n')}
+  const prompt = `Busque AGORA em tempo real o produto "${searchTerm}" nestas plataformas de e-commerce brasileiras:
+${platforms.map(p => `- ${p}.com.br`).join('\n')}
 
-Para cada plataforma, retorne:
-1. Título exato do produto
-2. Preço atual em reais (apenas número, ex: 1999.90)
-3. Nome do vendedor/loja
-4. URL direta do produto
+INSTRUÇÕES CRÍTICAS:
+1. Acesse os sites REAIS dessas plataformas
+2. Encontre o produto específico "${searchTerm}"
+3. Para CADA plataforma que encontrar o produto, retorne:
+   - title: Título EXATO do produto
+   - price: Preço atual em número decimal (ex: 2499.90)
+   - seller: Nome do vendedor/loja
+   - url: URL COMPLETA e DIRETA do produto
 
-IMPORTANTE:
-- Use apenas dados REAIS e ATUAIS disponíveis online
-- URLs devem ser válidas e acessíveis
-- Preços devem ser os praticados HOJE no Brasil
-- Se não encontrar o produto exato, busque o mais similar
+FORMATO DE URL OBRIGATÓRIO:
+- Shopee: https://shopee.com.br/product/[números]/[números]
+- Amazon: https://www.amazon.com.br/dp/[ASIN] ou https://www.amazon.com.br/gp/product/[ASIN]
 
-FORMATO DE URL (CRÍTICO):
-- Shopee: deve conter "/product/" ou "shp.ee/"
-- Amazon: deve conter "/dp/" ou "/gp/product/" + código ASIN
-
-Retorne APENAS JSON válido no formato:
+RETORNE APENAS JSON válido (sem markdown, sem explicações):
 {
   "results": [
     {
       "platform": "Shopee",
-      "title": "Nome do produto",
-      "price": 1999.90,
-      "seller": "Nome da loja",
-      "url": "https://shopee.com.br/product/..."
+      "title": "Notebook Dell G15 Intel Core i7",
+      "price": 4299.90,
+      "seller": "Dell Oficial",
+      "url": "https://shopee.com.br/product/123456789012/12345678901"
     }
   ]
-}`;
+}
+
+SE NÃO ENCONTRAR o produto em alguma plataforma, NÃO inclua ela no array de results.`;
 
   try {
-    const response = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
+    const response = await fetch('https://api.perplexity.ai/chat/completions', {
       method: 'POST',
       headers: {
-        'Authorization': `Bearer ${LOVABLE_API_KEY}`,
+        'Authorization': `Bearer ${PERPLEXITY_API_KEY}`,
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        model: 'google/gemini-2.5-flash',
+        model: 'llama-3.1-sonar-large-128k-online',
         messages: [
-          { 
-            role: 'system', 
-            content: 'Você é um assistente especializado em buscar preços de produtos em e-commerce brasileiro. Retorne apenas JSON válido sem markdown ou explicações.' 
+          {
+            role: 'system',
+            content: 'Você é um assistente especializado em buscar preços REAIS de produtos em e-commerce. Você TEM acesso à internet e DEVE acessar os sites em tempo real. Retorne APENAS JSON válido sem markdown.'
           },
-          { role: 'user', content: prompt }
+          {
+            role: 'user',
+            content: prompt
+          }
         ],
+        temperature: 0.2,
+        top_p: 0.9,
+        max_tokens: 2000,
+        return_images: false,
+        return_related_questions: false,
+        search_recency_filter: 'day',
+        frequency_penalty: 1,
+        presence_penalty: 0
       }),
     });
 
     if (!response.ok) {
       const errorText = await response.text();
-      console.error(`❌ Erro na IA (${response.status}):`, errorText);
-      throw new Error(`Erro na IA: ${response.status}`);
+      console.error(`❌ Erro na Perplexity (${response.status}):`, errorText);
+      throw new Error(`Erro na Perplexity: ${response.status}`);
     }
 
-    const aiData = await response.json();
-    const content = aiData.choices?.[0]?.message?.content;
+    const perplexityData = await response.json();
+    const content = perplexityData.choices?.[0]?.message?.content;
     
     if (!content) {
-      throw new Error('Resposta da IA vazia');
+      throw new Error('Resposta da Perplexity vazia');
     }
+
+    console.log('📝 Resposta Perplexity:', content.substring(0, 200));
 
     // Limpar markdown se houver
     let jsonStr = content.trim();
     if (jsonStr.startsWith('```')) {
-      jsonStr = jsonStr.replace(/```json\n?/g, '').replace(/```\n?/g, '');
+      jsonStr = jsonStr.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim();
+    }
+    
+    // Tentar encontrar JSON na resposta
+    const jsonMatch = jsonStr.match(/\{[\s\S]*\}/);
+    if (jsonMatch) {
+      jsonStr = jsonMatch[0];
     }
     
     const parsed = JSON.parse(jsonStr);
-    console.log(`✅ IA retornou ${parsed.results?.length || 0} resultados`);
+    console.log(`✅ Perplexity retornou ${parsed.results?.length || 0} resultados`);
     
     return parsed.results || [];
   } catch (error) {
-    console.error('❌ Erro ao buscar com IA:', error);
+    console.error('❌ Erro ao buscar com Perplexity:', error);
     throw error;
   }
 }
@@ -910,27 +928,34 @@ async function searchRealAPIs(searchTerm: string): Promise<AnalysisData> {
     console.error('❌ Erro Mercado Livre:', error);
   }
 
-  // 2. Buscar Shopee e Amazon com IA
+  // 2. Buscar Shopee e Amazon com Perplexity AI
   try {
-    console.log('🤖 Iniciando busca com IA...');
-    const aiResults = await searchWithAI(searchTerm, ['Shopee', 'Amazon']);
+    console.log('🔍 Iniciando busca com Perplexity AI...');
+    const perplexityResults = await searchWithPerplexity(searchTerm, ['Shopee', 'Amazon']);
     
-    aiResults.forEach((aiResult: any) => {
-      if (aiResult.platform && aiResult.title && aiResult.price && aiResult.url) {
-        results.push({
-          platform: aiResult.platform,
-          title: aiResult.title,
-          price: aiResult.price,
-          seller: aiResult.seller || `${aiResult.platform} Brasil`,
-          url: aiResult.url,
-          confidence: 'ai' as const
-        });
+    perplexityResults.forEach((result: any) => {
+      // Validar dados antes de adicionar
+      if (result.platform && result.title && result.price && result.url) {
+        // Validar preço
+        const price = typeof result.price === 'string' ? parseFloat(result.price.replace(/[^\d.,]/g, '').replace(',', '.')) : result.price;
+        
+        if (price > 0 && price < 999999) {
+          results.push({
+            platform: result.platform,
+            title: result.title,
+            price: price,
+            seller: result.seller || `${result.platform} Brasil`,
+            url: result.url,
+            confidence: 'ai' as const
+          });
+          console.log(`✅ ${result.platform}: ${result.title} - R$ ${price}`);
+        }
       }
     });
     
-    console.log(`✅ IA: ${aiResults.length} produtos encontrados`);
+    console.log(`✅ Perplexity: ${perplexityResults.length} produtos encontrados`);
   } catch (error) {
-    console.error('❌ Erro na busca com IA, usando fallback para estimativas:', error);
+    console.error('❌ Erro na busca com Perplexity, usando fallback para estimativas:', error);
     
     // 3. Fallback: Gerar estimativas se IA falhar E se há dados do Mercado Livre
     if (results.length > 0) {
@@ -1053,7 +1078,7 @@ function generateDisclaimer(analysis: PlatformAnalysis[]): string {
   
   if (ai > 0) {
     if (verified > 0) disclaimer += ' | ';
-    disclaimer += `${ai} buscado(s) por IA`;
+    disclaimer += `${ai} buscado(s) por Perplexity AI`;
   }
   
   if (estimated > 0) {

@@ -152,7 +152,7 @@ export default function MarketAnalysis() {
       case 'ai':
         return (
           <Badge variant="outline" className="bg-purple-50 dark:bg-purple-950/30 text-purple-700 dark:text-purple-400 border-purple-200 dark:border-purple-900">
-            🤖 IA
+            🔍 Perplexity AI
           </Badge>
         );
       case 'estimated':
@@ -184,7 +184,7 @@ export default function MarketAnalysis() {
         <CardHeader>
           <CardTitle className="font-heading">Buscar Produto</CardTitle>
           <CardDescription className="font-body">
-            🤖 Análise por IA em tempo real nos principais marketplaces
+            🔍 Análise por Perplexity AI em tempo real nos principais marketplaces
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
@@ -228,7 +228,7 @@ export default function MarketAnalysis() {
                 <div className="text-center space-y-3">
                   <Loader2 className="h-8 w-8 text-primary animate-spin mx-auto" />
                   <p className="text-sm text-muted-foreground font-body">
-                    🤖 Analisando preços nas plataformas...
+                    🔍 Analisando preços nas plataformas...
                   </p>
                 </div>
             </div>
@@ -335,8 +335,8 @@ export default function MarketAnalysis() {
                   <p className="font-semibold mb-2">Sobre os dados apresentados:</p>
                   <div className="space-y-1 text-amber-800 dark:text-amber-200">
                     <p>• <strong>✓ Verificado (Mercado Livre):</strong> Dados reais da API oficial</p>
-                    <p>• <strong>🤖 IA (Shopee/Amazon):</strong> Preços buscados por inteligência artificial</p>
-                    <p>• <strong>~ Estimativa:</strong> Valores aproximados quando IA não encontra dados</p>
+                    <p>• <strong>🔍 Perplexity AI (Shopee/Amazon):</strong> Preços buscados em tempo real na internet</p>
+                    <p>• <strong>~ Estimativa:</strong> Valores aproximados quando Perplexity não encontra dados</p>
                     <p className="mt-2 font-semibold">⚠️ Sempre confirme preços e disponibilidade no site antes de comprar!</p>
                   </div>
                 </div>
