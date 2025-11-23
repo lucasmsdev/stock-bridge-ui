@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { Target, Search, Loader2, TrendingUp, Users, DollarSign } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
@@ -161,42 +161,45 @@ export default function MarketAnalysis() {
       {/* Search Section */}
       <Card className="shadow-soft">
         <CardHeader>
-          <CardTitle className="font-heading">Buscar Produto</CardTitle>
+          <CardTitle className="font-heading">Criar Análise com IA</CardTitle>
           <CardDescription className="font-body">
-            🤖 Análise por IA em tempo real nos principais marketplaces
+            💬 Descreva o que você quer pesquisar e a IA buscará nos principais marketplaces
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
-          <div className="flex gap-3">
-            <div className="flex-1">
-              <Input
-                type="text"
-                placeholder="Ex: iPhone 15 Pro Max, notebook gamer, fone de ouvido bluetooth..."
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                onKeyPress={(e) => {
-                  if (e.key === 'Enter' && !isAnalyzing) {
-                    handleAnalyze();
-                  }
-                }}
-                className="text-base"
-                disabled={isAnalyzing}
-              />
+          <div className="space-y-3">
+            <div className="bg-muted/50 rounded-lg p-4 border border-border">
+              <p className="text-sm font-medium text-foreground mb-2">💡 Como criar um bom prompt:</p>
+              <ul className="text-sm text-muted-foreground space-y-1 list-disc list-inside">
+                <li>Seja específico sobre o produto (modelo, especificações, marca)</li>
+                <li>Peça para pesquisar em marketplaces específicos se desejar</li>
+                <li>Solicite comparação de preços e quantidade de vendas</li>
+              </ul>
             </div>
+            
+            <Textarea
+              placeholder="Exemplo: 'Pesquise iPhone 16 128GB preto e me retorne os preços e vendas em cada marketplace brasileiro (Mercado Livre, Shopee, Amazon, Magazine Luiza e Americanas)'"
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              className="min-h-[120px] text-base resize-none"
+              disabled={isAnalyzing}
+            />
+            
             <Button 
               onClick={() => handleAnalyze()}
               disabled={isAnalyzing || !searchTerm.trim()}
-              className="bg-gradient-primary hover:bg-primary-hover transition-all duration-200 px-6"
+              className="w-full bg-gradient-primary hover:bg-primary-hover transition-all duration-200"
+              size="lg"
             >
               {isAnalyzing ? (
                 <>
-                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                  Analisando...
+                  <Loader2 className="w-5 h-5 mr-2 animate-spin" />
+                  Analisando com IA...
                 </>
               ) : (
                 <>
-                  <Search className="w-4 h-4 mr-2" />
-                  Analisar
+                  <Search className="w-5 h-5 mr-2" />
+                  Analisar Mercado
                 </>
               )}
             </Button>
@@ -259,10 +262,12 @@ export default function MarketAnalysis() {
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           <Card className="shadow-soft">
             <CardContent className="pt-6">
-              <div className="flex items-center space-x-2">
-                <TrendingUp className="h-5 w-5 text-green-600" />
-                <div>
-                  <p className="text-2xl font-bold text-foreground">
+              <div className="flex items-center gap-3">
+                <div className="flex-shrink-0">
+                  <TrendingUp className="h-5 w-5 text-green-600" />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <p className="text-2xl font-bold text-foreground truncate">
                     {formatPrice(analysis.priceSummary.lowestPrice)}
                   </p>
                   <p className="text-sm text-muted-foreground">Menor Preço</p>
@@ -273,10 +278,12 @@ export default function MarketAnalysis() {
 
           <Card className="shadow-soft">
             <CardContent className="pt-6">
-              <div className="flex items-center space-x-2">
-                <DollarSign className="h-5 w-5 text-blue-600" />
-                <div>
-                  <p className="text-2xl font-bold text-foreground">
+              <div className="flex items-center gap-3">
+                <div className="flex-shrink-0">
+                  <DollarSign className="h-5 w-5 text-blue-600" />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <p className="text-2xl font-bold text-foreground truncate">
                     {formatPrice(analysis.priceSummary.averagePrice)}
                   </p>
                   <p className="text-sm text-muted-foreground">Preço Médio</p>
@@ -287,10 +294,12 @@ export default function MarketAnalysis() {
 
           <Card className="shadow-soft">
             <CardContent className="pt-6">
-              <div className="flex items-center space-x-2">
-                <Users className="h-5 w-5 text-orange-600" />
-                <div>
-                  <p className="text-2xl font-bold text-foreground">
+              <div className="flex items-center gap-3">
+                <div className="flex-shrink-0">
+                  <Users className="h-5 w-5 text-orange-600" />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <p className="text-2xl font-bold text-foreground truncate">
                     {formatPrice(analysis.priceSummary.highestPrice)}
                   </p>
                   <p className="text-sm text-muted-foreground">Maior Preço</p>
@@ -386,18 +395,38 @@ export default function MarketAnalysis() {
       {!isAnalyzing && !analysis && !error && (
         <Card className="shadow-soft">
           <CardContent className="pt-12 pb-12 text-center">
-            <div className="max-w-md mx-auto">
+            <div className="max-w-2xl mx-auto">
               <Target className="mx-auto h-16 w-16 text-muted-foreground mb-6" />
-              <h3 className="text-xl font-semibold font-heading text-foreground mb-2">
-                Análise de Mercado
+              <h3 className="text-xl font-semibold font-heading text-foreground mb-3">
+                Análise de Mercado com IA
               </h3>
-              <p className="text-muted-foreground font-body mb-4">
-                Compare preços de produtos nos principais marketplaces
+              <p className="text-muted-foreground font-body mb-6">
+                Use prompts naturais para a IA pesquisar e comparar preços nos principais marketplaces brasileiros
               </p>
-              <div className="text-sm text-muted-foreground font-body space-y-2">
-                <p><strong>Plataformas:</strong> Mercado Livre, Shopee, Amazon</p>
-                <p><strong>📊 Análise:</strong> Busca 3-5 ofertas por marketplace mostrando vendas por preço</p>
-                <p>Ex: "iPhone 15 128GB", "notebook Dell", "tênis Nike"</p>
+              <div className="bg-muted/30 rounded-lg p-6 text-left space-y-4">
+                <div>
+                  <p className="font-medium text-foreground mb-2">🎯 O que a IA faz:</p>
+                  <ul className="text-sm text-muted-foreground space-y-1 list-disc list-inside ml-2">
+                    <li>Pesquisa em 5 marketplaces: Mercado Livre, Shopee, Amazon, Magazine Luiza e Americanas</li>
+                    <li>Coleta 3-5 ofertas de cada plataforma</li>
+                    <li>Analisa preços e quantidade de vendas</li>
+                    <li>Compara os dados e apresenta o resumo</li>
+                  </ul>
+                </div>
+                <div>
+                  <p className="font-medium text-foreground mb-2">💬 Exemplos de prompts:</p>
+                  <div className="space-y-2 text-sm text-muted-foreground">
+                    <p className="bg-background rounded px-3 py-2 border border-border">
+                      "Pesquise iPhone 16 128GB e me retorne os preços em cada marketplace"
+                    </p>
+                    <p className="bg-background rounded px-3 py-2 border border-border">
+                      "Quero saber os preços do notebook Dell Inspiron 15 nos principais marketplaces"
+                    </p>
+                    <p className="bg-background rounded px-3 py-2 border border-border">
+                      "Compare preços e vendas do tênis Nike Air Max nos marketplaces brasileiros"
+                    </p>
+                  </div>
+                </div>
               </div>
             </div>
           </CardContent>
