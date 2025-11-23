@@ -286,10 +286,12 @@ function buildOptimizedPrompt(searchTerm: string): string {
 2. MÉDIA de preços
 3. TOTAL de vendas somadas
 
-PLATAFORMAS (analisar todas):
+PLATAFORMAS (analisar TODAS as 5):
 1. Mercado Livre (mercadolivre.com.br)
 2. Shopee (shopee.com.br)
 3. Amazon Brasil (amazon.com.br)
+4. Magazine Luiza (magazineluiza.com.br)
+5. Americanas (americanas.com.br)
 
 📊 MODO DE ANÁLISE - DETALHAMENTO POR PREÇO:
 Para CADA plataforma:
@@ -297,10 +299,15 @@ Para CADA plataforma:
 2. Para CADA oferta, anote:
    - Preço exato
    - Quantidade de vendas (vendidos, sold, purchases, etc.)
-3. Retorne array com cada combinação preço/vendas
-4. Calcule a MÉDIA dos preços
-5. SOME todas as vendas encontradas
-6. Anote o menor e maior preço encontrado
+3. CRÍTICO: SEMPRE tente encontrar dados de vendas reais. Procure por:
+   - "X vendidos" no Mercado Livre
+   - "X sold" na Shopee
+   - Avaliações e reviews (use como proxy se não tiver vendas diretas)
+   - Estrelas/ratings (produtos com muitas avaliações = muitas vendas)
+4. Retorne array com cada combinação preço/vendas
+5. Calcule a MÉDIA dos preços
+6. SOME todas as vendas encontradas
+7. Anote o menor e maior preço encontrado
 
 Exemplo de análise:
 - Encontrou iPhone 15 no Mercado Livre com 5 ofertas:
@@ -318,11 +325,15 @@ Resultado esperado:
 - sampleSize: 5
 
 REGRAS IMPORTANTES:
+✅ Busque em TODAS AS 5 PLATAFORMAS listadas acima
 ✅ Busque PELO MENOS 3 ofertas por plataforma (ideal: 5)
 ✅ Todas as ofertas devem ser do MESMO produto (mesma especificação)
-✅ SEMPRE tente buscar a quantidade de vendas para cada preço
+✅ CRÍTICO: SEMPRE busque dados de vendas reais. Se não encontrar "vendidos":
+   - Use número de avaliações como proxy (1 avaliação ≈ 5-10 vendas)
+   - Procure por badges de "mais vendido" ou "best seller"
+   - Estime baseado em popularidade do produto
+✅ NUNCA retorne sales: 0 a menos que realmente não tenha nenhum dado
 ✅ Retorne priceBreakdown com todos os preços encontrados
-✅ Se não encontrar vendas, use 0 (mas tente encontrar!)
 ✅ Preços em formato decimal: 3999.60 (não "R$ 3.999,60")
 
 FORMATO JSON ESPERADO:
@@ -374,8 +385,9 @@ IMPORTANTE:
 - Retorne APENAS JSON válido
 - SEM markdown, SEM explicações, SEM blocos de código
 - SEMPRE inclua o array priceBreakdown com preço e vendas de cada oferta
-- Se não encontrar em uma plataforma, não inclua ela no resultado
-- Busque em TODAS as 3 plataformas principais`;
+- SEMPRE tente encontrar dados de vendas (não deixe 0 se puder estimar)
+- Busque em TODAS AS 5 PLATAFORMAS listadas acima
+- Se não encontrar em uma plataforma específica, não inclua ela no resultado, mas tente em todas`;
 }
 
 // ============= RETRY COM BACKOFF EXPONENCIAL =============
@@ -481,7 +493,7 @@ serve(async (req) => {
           messages: [
             {
               role: 'system',
-              content: 'Você é um assistente especializado em análise de preços e vendas. Para cada marketplace, busque 3-5 ofertas do produto, calcule a MÉDIA de preços e SOME todas as vendas. SEMPRE tente buscar quantidade de vendas. Retorne APENAS JSON válido.'
+              content: 'Você é um assistente especializado em análise de preços e vendas em marketplaces brasileiros. Busque em TODOS os 5 marketplaces: Mercado Livre, Shopee, Amazon, Magazine Luiza e Americanas. Para cada um, busque 3-5 ofertas do produto, calcule a MÉDIA de preços e SOME todas as vendas. CRÍTICO: SEMPRE tente encontrar dados reais de vendas - procure por "vendidos", avaliações, reviews. Use estimativas inteligentes baseadas em popularidade se necessário. NUNCA deixe sales como 0 sem tentar. Retorne APENAS JSON válido.'
             },
             {
               role: 'user',
