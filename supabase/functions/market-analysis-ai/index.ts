@@ -11,11 +11,17 @@ const MAX_RETRIES = 3;
 const CACHE_TTL_SECONDS = 3600; // 1 hora
 
 // ============= VALIDAÇÃO DE DADOS =============
+interface PriceBreakdown {
+  price: number;
+  sales: number;
+}
+
 interface PlatformAnalysis {
   platform: string;
   averagePrice: number;
   sampleSize: number;
   totalSales: number;
+  priceBreakdown: PriceBreakdown[];
   priceRange: {
     min: number;
     max: number;
@@ -176,6 +182,12 @@ function sanitizeAnalysisData(data: any, searchTerm: string): AnalysisData {
       averagePrice: parseFloat(item.averagePrice.toFixed(2)),
       sampleSize: item.sampleSize,
       totalSales: typeof item.totalSales === 'number' ? item.totalSales : 0,
+      priceBreakdown: Array.isArray(item.priceBreakdown) 
+        ? item.priceBreakdown.map((pb: any) => ({
+            price: parseFloat(pb.price.toFixed(2)),
+            sales: typeof pb.sales === 'number' ? pb.sales : 0
+          }))
+        : [],
       priceRange: {
         min: parseFloat((item.priceRange?.min || item.averagePrice).toFixed(2)),
         max: parseFloat((item.priceRange?.max || item.averagePrice).toFixed(2))
@@ -267,27 +279,28 @@ async function setCachedResult(searchTerm: string, data: AnalysisData): Promise<
 }
 
 function buildOptimizedPrompt(searchTerm: string): string {
-  return `Tarefa: Buscar o produto "${searchTerm}" e calcular PREÇO MÉDIO + QUANTIDADE DE VENDAS em cada marketplace brasileiro.
+  return `Tarefa: Buscar o produto "${searchTerm}" e detalhar PREÇOS INDIVIDUAIS + VENDAS em cada marketplace brasileiro.
 
-🎯 OBJETIVO: Para CADA plataforma, busque entre 3-5 ofertas do mesmo produto e calcule:
-1. MÉDIA de preços
-2. TOTAL de vendas somadas
+🎯 OBJETIVO: Para CADA plataforma, busque entre 3-5 ofertas do mesmo produto e retorne:
+1. Cada oferta individual com preço e vendas
+2. MÉDIA de preços
+3. TOTAL de vendas somadas
 
 PLATAFORMAS (analisar todas):
 1. Mercado Livre (mercadolivre.com.br)
 2. Shopee (shopee.com.br)
 3. Amazon Brasil (amazon.com.br)
 
-📊 MODO DE ANÁLISE - PREÇO MÉDIO + VENDAS:
+📊 MODO DE ANÁLISE - DETALHAMENTO POR PREÇO:
 Para CADA plataforma:
 1. Busque entre 3-5 ofertas diferentes do produto "${searchTerm}"
-2. Para CADA oferta, pegue:
-   - Preço
+2. Para CADA oferta, anote:
+   - Preço exato
    - Quantidade de vendas (vendidos, sold, purchases, etc.)
-3. Calcule a MÉDIA dos preços
-4. SOME todas as vendas encontradas
-5. Anote o menor e maior preço encontrado
-6. Conte quantas ofertas você analisou (sampleSize)
+3. Retorne array com cada combinação preço/vendas
+4. Calcule a MÉDIA dos preços
+5. SOME todas as vendas encontradas
+6. Anote o menor e maior preço encontrado
 
 Exemplo de análise:
 - Encontrou iPhone 15 no Mercado Livre com 5 ofertas:
@@ -296,18 +309,20 @@ Exemplo de análise:
   * Oferta 3: R$ 3.999,00 - 2.100 vendas
   * Oferta 4: R$ 4.100,00 - 543 vendas
   * Oferta 5: R$ 3.950,00 - 1.876 vendas
-- Média de preço: R$ 3.999,60
-- Total de vendas: 6.645
-- Menor: R$ 3.899,00
-- Maior: R$ 4.100,00
-- Ofertas analisadas: 5
+
+Resultado esperado:
+- priceBreakdown: [{price: 3899, sales: 1234}, {price: 4050, sales: 892}, ...]
+- averagePrice: 3999.60
+- totalSales: 6645
+- priceRange: {min: 3899, max: 4100}
+- sampleSize: 5
 
 REGRAS IMPORTANTES:
 ✅ Busque PELO MENOS 3 ofertas por plataforma (ideal: 5)
 ✅ Todas as ofertas devem ser do MESMO produto (mesma especificação)
-✅ SEMPRE tente buscar a quantidade de vendas (é MUITO importante)
+✅ SEMPRE tente buscar a quantidade de vendas para cada preço
+✅ Retorne priceBreakdown com todos os preços encontrados
 ✅ Se não encontrar vendas, use 0 (mas tente encontrar!)
-✅ Ignore ofertas muito fora do padrão
 ✅ Preços em formato decimal: 3999.60 (não "R$ 3.999,60")
 
 FORMATO JSON ESPERADO:
@@ -319,6 +334,13 @@ FORMATO JSON ESPERADO:
       "averagePrice": 3999.60,
       "sampleSize": 5,
       "totalSales": 6645,
+      "priceBreakdown": [
+        {"price": 3899.00, "sales": 1234},
+        {"price": 4050.00, "sales": 892},
+        {"price": 3999.00, "sales": 2100},
+        {"price": 4100.00, "sales": 543},
+        {"price": 3950.00, "sales": 1876}
+      ],
       "priceRange": {
         "min": 3899.00,
         "max": 4100.00
@@ -329,33 +351,29 @@ FORMATO JSON ESPERADO:
       "averagePrice": 3850.30,
       "sampleSize": 4,
       "totalSales": 8234,
+      "priceBreakdown": [
+        {"price": 3799.00, "sales": 3200},
+        {"price": 3850.00, "sales": 2500},
+        {"price": 3900.00, "sales": 1534},
+        {"price": 3950.00, "sales": 1000}
+      ],
       "priceRange": {
         "min": 3799.00,
         "max": 3950.00
       }
-    },
-    {
-      "platform": "Amazon",
-      "averagePrice": 4120.50,
-      "sampleSize": 3,
-      "totalSales": 456,
-      "priceRange": {
-        "min": 3999.00,
-        "max": 4299.00
-      }
     }
   ],
   "priceSummary": {
-    "lowestPrice": 3850.30,
-    "highestPrice": 4120.50,
-    "averagePrice": 3990.13
+    "lowestPrice": 3799.00,
+    "highestPrice": 4100.00,
+    "averagePrice": 3924.95
   }
 }
 
 IMPORTANTE: 
 - Retorne APENAS JSON válido
 - SEM markdown, SEM explicações, SEM blocos de código
-- SEMPRE tente buscar quantidade de vendas (critical!)
+- SEMPRE inclua o array priceBreakdown com preço e vendas de cada oferta
 - Se não encontrar em uma plataforma, não inclua ela no resultado
 - Busque em TODAS as 3 plataformas principais`;
 }

@@ -8,11 +8,17 @@ import { Separator } from "@/components/ui/separator";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 
+interface PriceBreakdown {
+  price: number;
+  sales: number;
+}
+
 interface PlatformAnalysis {
   platform: string;
   averagePrice: number;
   sampleSize: number;
   totalSales: number;
+  priceBreakdown: PriceBreakdown[];
   priceRange: {
     min: number;
     max: number;
@@ -340,6 +346,32 @@ export default function MarketAnalysis() {
                             De {formatPrice(platformAnalysis.priceRange.min)} até {formatPrice(platformAnalysis.priceRange.max)}
                           </span>
                         </div>
+                        
+                        {/* Price Breakdown */}
+                        {platformAnalysis.priceBreakdown && platformAnalysis.priceBreakdown.length > 0 && (
+                          <div className="mt-4 pt-4 border-t border-border">
+                            <p className="text-sm font-medium text-foreground mb-3">
+                              Vendas por Preço:
+                            </p>
+                            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-2">
+                              {platformAnalysis.priceBreakdown
+                                .sort((a, b) => b.sales - a.sales)
+                                .map((breakdown, idx) => (
+                                <div 
+                                  key={idx}
+                                  className="flex items-center justify-between bg-muted/50 rounded-md px-3 py-2 text-sm"
+                                >
+                                  <span className="font-medium text-primary">
+                                    {formatPrice(breakdown.price)}
+                                  </span>
+                                  <span className="text-muted-foreground">
+                                    {breakdown.sales.toLocaleString('pt-BR')} vendas
+                                  </span>
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+                        )}
                       </div>
                     </div>
                   </div>
@@ -364,7 +396,7 @@ export default function MarketAnalysis() {
               </p>
               <div className="text-sm text-muted-foreground font-body space-y-2">
                 <p><strong>Plataformas:</strong> Mercado Livre, Shopee, Amazon</p>
-                <p><strong>📊 Análise:</strong> Busca 3-5 ofertas por marketplace e calcula a média</p>
+                <p><strong>📊 Análise:</strong> Busca 3-5 ofertas por marketplace mostrando vendas por preço</p>
                 <p>Ex: "iPhone 15 128GB", "notebook Dell", "tênis Nike"</p>
               </div>
             </div>
