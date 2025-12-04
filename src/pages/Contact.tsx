@@ -44,7 +44,7 @@ const Contact = () => {
 
       if (error) throw error;
 
-      toast.success("Mensagem enviada com sucesso! Você receberá uma confirmação por email.");
+      toast.success("Mensagem enviada com sucesso! Entraremos em contato em breve.");
       reset();
     } catch (error: any) {
       console.error("Error sending contact email:", error);
