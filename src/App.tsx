@@ -27,6 +27,7 @@ import Landing from "./pages/Landing";
 import Reports from "./pages/Reports";
 import Checkout from "./pages/Checkout";
 import AIAssistant from "./pages/AIAssistant";
+import Contact from "./pages/Contact";
 
 const App = () => (
   <QueryClientProvider client={queryClient}>
@@ -65,6 +66,7 @@ const App = () => (
 
               {/* Landing page as root */}
               <Route path="/" element={<Landing />} />
+              <Route path="/contato" element={<Contact />} />
               
               {/* Catch all route - redirect to landing */}
               <Route path="*" element={<Navigate to="/" replace />} />
