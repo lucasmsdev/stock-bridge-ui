@@ -634,32 +634,84 @@ const Landing = () => {
       </section>
 
       {/* Footer */}
-      <footer className="border-t border-border py-8 bg-muted/20">
+      <footer className="border-t border-border py-12 bg-muted/20">
         <div className="container mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
-          <div className="flex flex-col items-center justify-center space-y-4">
-            <div className="flex items-center gap-6">
-              <a 
-                href="https://instagram.com/unistock" 
-                target="_blank" 
-                rel="noopener noreferrer"
-                className="text-muted-foreground hover:text-primary transition-colors"
-                aria-label="Instagram"
-              >
-                <Instagram className="w-6 h-6" />
-              </a>
-              <a 
-                href="https://wa.me/5511999999999" 
-                target="_blank" 
-                rel="noopener noreferrer"
-                className="text-muted-foreground hover:text-primary transition-colors"
-                aria-label="WhatsApp"
-              >
-                <MessageCircle className="w-6 h-6" />
-              </a>
+          <div className="grid md:grid-cols-3 gap-8 mb-8">
+            {/* Logo e Descrição */}
+            <div className="space-y-4">
+              <img 
+                key={`footer-logo-${theme}`}
+                src={`/logos/unistock-${theme}.png`}
+                alt="UniStock Logo"
+                className="h-16 w-auto"
+              />
+              <p className="text-sm text-muted-foreground">
+                Centralize suas vendas em múltiplos marketplaces e descubra seu lucro real em tempo recorde.
+              </p>
             </div>
-            <p className="text-sm text-muted-foreground text-center">
-              &copy; 2025 UniStock. Todos os direitos reservados.
-            </p>
+
+            {/* Contato */}
+            <div className="space-y-4">
+              <h4 className="font-semibold text-foreground">Contato</h4>
+              <div className="space-y-2 text-sm text-muted-foreground">
+                <p className="flex items-center gap-2">
+                  <MessageCircle className="w-4 h-4 text-primary" />
+                  <a href="https://wa.me/5512996872975" target="_blank" rel="noopener noreferrer" className="hover:text-primary transition-colors">
+                    +55 12 99687-2975
+                  </a>
+                </p>
+                <p className="flex items-center gap-2">
+                  <Instagram className="w-4 h-4 text-primary" />
+                  <a href="https://instagram.com/oficialunistock" target="_blank" rel="noopener noreferrer" className="hover:text-primary transition-colors">
+                    @oficialunistock
+                  </a>
+                </p>
+              </div>
+            </div>
+
+            {/* Links */}
+            <div className="space-y-4">
+              <h4 className="font-semibold text-foreground">Links</h4>
+              <div className="space-y-2 text-sm">
+                <Link to="/contato" className="block text-muted-foreground hover:text-primary transition-colors">
+                  Fale Conosco
+                </Link>
+                <a href="#planos" className="block text-muted-foreground hover:text-primary transition-colors">
+                  Planos
+                </a>
+                <a href="#faq" className="block text-muted-foreground hover:text-primary transition-colors">
+                  FAQ
+                </a>
+              </div>
+            </div>
+          </div>
+
+          <div className="border-t border-border pt-8">
+            <div className="flex flex-col md:flex-row items-center justify-between gap-4">
+              <div className="flex items-center gap-6">
+                <a 
+                  href="https://instagram.com/oficialunistock" 
+                  target="_blank" 
+                  rel="noopener noreferrer"
+                  className="text-muted-foreground hover:text-primary transition-colors"
+                  aria-label="Instagram"
+                >
+                  <Instagram className="w-6 h-6" />
+                </a>
+                <a 
+                  href="https://wa.me/5512996872975" 
+                  target="_blank" 
+                  rel="noopener noreferrer"
+                  className="text-muted-foreground hover:text-primary transition-colors"
+                  aria-label="WhatsApp"
+                >
+                  <MessageCircle className="w-6 h-6" />
+                </a>
+              </div>
+              <p className="text-sm text-muted-foreground text-center">
+                &copy; 2025 UniStock. Todos os direitos reservados.
+              </p>
+            </div>
           </div>
         </div>
       </footer>
