@@ -662,7 +662,7 @@ const Landing = () => {
                 </p>
                 <p className="flex items-center gap-2">
                   <Instagram className="w-4 h-4 text-primary" />
-                  <a href="https://instagram.com/oficialunistock" target="_blank" rel="noopener noreferrer" className="hover:text-primary transition-colors">
+                  <a href="https://www.instagram.com/oficialunistock/" target="_blank" rel="noopener noreferrer" className="hover:text-primary transition-colors">
                     @oficialunistock
                   </a>
                 </p>
@@ -690,7 +690,7 @@ const Landing = () => {
             <div className="flex flex-col md:flex-row items-center justify-between gap-4">
               <div className="flex items-center gap-6">
                 <a 
-                  href="https://instagram.com/oficialunistock" 
+                  href="https://www.instagram.com/oficialunistock/" 
                   target="_blank" 
                   rel="noopener noreferrer"
                   className="text-muted-foreground hover:text-primary transition-colors"
