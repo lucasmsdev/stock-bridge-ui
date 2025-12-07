@@ -1,14 +1,17 @@
-import { useEffect, createContext, useContext } from "react";
+import { useEffect, createContext, useContext, useCallback } from "react";
 import { User, Session } from "@supabase/supabase-js";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { queryKeys } from "@/lib/queryClient";
+
+const SESSION_START_KEY = "unistock_session_start";
 
 interface AuthContextType {
   user: User | null;
   session: Session | null;
   isLoading: boolean;
   signOut: () => Promise<void>;
+  clearAllSessionData: () => void;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -29,6 +32,13 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
 
   const user = session?.user ?? null;
 
+  // Função para limpar todos os dados de sessão
+  const clearAllSessionData = useCallback(() => {
+    console.log('🔐 useAuth: Limpando todos os dados de sessão');
+    localStorage.removeItem(SESSION_START_KEY);
+    queryClient.clear();
+  }, [queryClient]);
+
   useEffect(() => {
     console.log('🔐 useAuth: Inicializando autenticação com React Query...');
     
@@ -46,9 +56,9 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
         // Atualiza o cache do React Query com a nova sessão
         queryClient.setQueryData(queryKeys.auth.session, newSession);
         
-        // Se logout, limpa todo o cache
+        // Se logout, limpa todo o cache e dados de sessão
         if (event === 'SIGNED_OUT') {
-          queryClient.clear();
+          clearAllSessionData();
         }
         
         // Se login/signup, invalida queries relacionadas ao usuário
@@ -62,15 +72,17 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       console.log('🔐 useAuth: Limpando subscription');
       subscription.unsubscribe();
     };
-  }, [queryClient]);
+  }, [queryClient, clearAllSessionData]);
 
   const signOut = async () => {
+    console.log('🔐 useAuth: Executando signOut');
+    clearAllSessionData();
     await supabase.auth.signOut();
     // O cache será limpo automaticamente pelo onAuthStateChange
   };
 
   return (
-    <AuthContext.Provider value={{ user, session, isLoading, signOut }}>
+    <AuthContext.Provider value={{ user, session, isLoading, signOut, clearAllSessionData }}>
       {children}
     </AuthContext.Provider>
   );
