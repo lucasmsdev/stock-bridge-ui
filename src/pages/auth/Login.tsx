@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { Eye, EyeOff, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -7,14 +7,62 @@ import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
+import { useAuthSession } from "@/hooks/useAuthSession";
+
+const SESSION_START_KEY = "unistock_session_start";
 
 export default function Login() {
   const [showPassword, setShowPassword] = useState(false);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [isLoading, setIsLoading] = useState(false);
+  const [isCheckingSession, setIsCheckingSession] = useState(true);
   const navigate = useNavigate();
   const { toast } = useToast();
+  const { hasValidSession, registerLogin } = useAuthSession({ requireAuth: false });
+
+  // Verificar sessão ativa ao carregar a página
+  useEffect(() => {
+    const checkExistingSession = async () => {
+      setIsCheckingSession(true);
+      
+      try {
+        const { data: { session } } = await supabase.auth.getSession();
+        
+        if (session?.user) {
+          // Verificar se a sessão ainda está dentro do limite de 6 horas
+          const sessionStart = localStorage.getItem(SESSION_START_KEY);
+          if (sessionStart) {
+            const elapsed = Date.now() - parseInt(sessionStart, 10);
+            const sixHoursMs = 6 * 60 * 60 * 1000;
+            
+            if (elapsed < sixHoursMs) {
+              toast({
+                title: "Sessão ativa detectada",
+                description: "Redirecionando...",
+              });
+              
+              // Aguardar um momento para mostrar a mensagem
+              setTimeout(() => {
+                navigate("/app/dashboard", { replace: true });
+              }, 1000);
+              return;
+            } else {
+              // Sessão expirou, limpar dados
+              localStorage.removeItem(SESSION_START_KEY);
+              await supabase.auth.signOut();
+            }
+          }
+        }
+      } catch (error) {
+        console.error("Erro ao verificar sessão:", error);
+      } finally {
+        setIsCheckingSession(false);
+      }
+    };
+    
+    checkExistingSession();
+  }, [navigate, toast]);
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -36,6 +84,9 @@ export default function Login() {
       }
 
       if (data.user) {
+        // Registrar início da sessão de 6 horas
+        registerLogin();
+        
         // Primeiro verificar se é admin
         const { data: roleData } = await supabase
           .from('user_roles')
@@ -47,7 +98,7 @@ export default function Login() {
         if (roleData?.role === 'admin') {
           toast({
             title: "Login realizado com sucesso!",
-            description: "Bem-vindo, Admin!",
+            description: "Bem-vindo, Admin! Sessão válida por 6 horas.",
           });
           navigate("/app/dashboard");
           return;
@@ -74,7 +125,7 @@ export default function Login() {
         // Se tem assinatura, vai pro dashboard
         toast({
           title: "Login realizado com sucesso!",
-          description: "Bem-vindo ao UniStock",
+          description: "Bem-vindo ao UniStock! Sessão válida por 6 horas.",
         });
         navigate("/app/dashboard");
       }
@@ -88,6 +139,18 @@ export default function Login() {
       setIsLoading(false);
     }
   };
+
+  // Mostrar loading enquanto verifica sessão
+  if (isCheckingSession) {
+    return (
+      <div className="min-h-screen bg-gradient-subtle flex items-center justify-center p-4">
+        <div className="text-center space-y-4">
+          <Loader2 className="h-8 w-8 text-primary animate-spin mx-auto" />
+          <p className="text-muted-foreground">Verificando sessão...</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-gradient-subtle flex items-center justify-center p-4">

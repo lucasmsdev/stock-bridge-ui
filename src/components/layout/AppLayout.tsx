@@ -4,7 +4,7 @@ import { AppSidebar } from "./AppSidebar";
 import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent } from "@/components/ui/sheet";
 import { Menu, Loader2, Moon, Sun } from "lucide-react";
-import { useAuth } from "@/hooks/useAuth";
+import { useAuthSession } from "@/hooks/useAuthSession";
 import { useThemeProvider } from "@/components/layout/ThemeProvider";
 import { usePlan } from "@/hooks/usePlan";
 import { NotificationsPopover } from "@/components/notifications/NotificationsPopover";
@@ -12,7 +12,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useIsMobile } from "@/hooks/use-mobile";
 
 export const AppLayout = () => {
-  const { user, isLoading } = useAuth();
+  const { user, isLoading, isSessionExpired, forceLogout } = useAuthSession({ requireAuth: true });
   const { theme, toggleTheme } = useThemeProvider();
   const { currentPlan, isLoading: planLoading } = usePlan();
   const isMobile = useIsMobile();
@@ -24,6 +24,14 @@ export const AppLayout = () => {
   const navigate = useNavigate();
 
   console.log('🏗️ AppLayout: user=', !!user, 'isLoading=', isLoading, 'planLoading=', planLoading, 'location=', location.pathname);
+
+  // Verificar se sessão expirou
+  useEffect(() => {
+    if (!isLoading && user && isSessionExpired()) {
+      console.log('🔐 AppLayout: Sessão expirada, forçando logout');
+      forceLogout(true, "expired");
+    }
+  }, [isLoading, user, isSessionExpired, forceLogout]);
 
   // Verificar assinatura ao carregar
   useEffect(() => {

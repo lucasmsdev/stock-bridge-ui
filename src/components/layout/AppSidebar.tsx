@@ -1,4 +1,4 @@
-import { NavLink } from "react-router-dom";
+import { NavLink, useNavigate } from "react-router-dom";
 import { 
   LayoutDashboard, 
   Package, 
@@ -26,8 +26,9 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { useAuth } from "@/hooks/useAuth";
+import { useAuthSession } from "@/hooks/useAuthSession";
 import { usePlan, FeatureName } from "@/hooks/usePlan";
+import { useToast } from "@/hooks/use-toast";
 
 interface AppSidebarProps {
   isCollapsed: boolean;
@@ -71,11 +72,21 @@ const navItems = [
 ];
 
 export const AppSidebar = ({ isCollapsed }: AppSidebarProps) => {
-  const { user, signOut } = useAuth();
+  const { user, forceLogout, clearSessionData } = useAuthSession({ requireAuth: false });
   const { hasFeature, currentPlan, isAdmin, isLoading } = usePlan();
+  const { toast } = useToast();
+  const navigate = useNavigate();
 
   const handleLogout = async () => {
-    await signOut();
+    toast({
+      title: "Desconectando...",
+      description: "Encerrando sua sessão.",
+    });
+    await forceLogout(false, "manual");
+    toast({
+      title: "Desconectado",
+      description: "Você foi desconectado com sucesso.",
+    });
   };
 
   const getUserInitials = (email: string) => {
