@@ -1,4 +1,4 @@
-import { TrendingUp, Package, ShoppingCart, Plug2, DollarSign, Loader2, TrendingDown, Users, Receipt, Target, Percent, Store, Calendar } from "lucide-react";
+import { TrendingUp, Package, ShoppingCart, Plug2, DollarSign, Loader2, TrendingDown, Users, Receipt, Target, Percent, Store, Calendar, Wallet, AlertTriangle } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import DashboardFilters, { DashboardFiltersState } from "@/components/dashboard/DashboardFilters";
@@ -15,6 +15,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { useToast } from "@/hooks/use-toast";
 import { usePlan } from "@/hooks/usePlan";
+import { Link } from "react-router-dom";
 import {
   ChartContainer,
   ChartTooltip,
@@ -22,6 +23,16 @@ import {
   ChartConfig,
 } from "@/components/ui/chart";
 import { Bar, BarChart, XAxis, YAxis } from "recharts";
+
+interface Expense {
+  id: string;
+  amount: number;
+  category: 'fixed' | 'variable' | 'operational';
+  recurrence: 'monthly' | 'weekly' | 'yearly' | 'one-time';
+  is_active: boolean;
+  start_date: string;
+  end_date: string | null;
+}
 
 interface DashboardMetrics {
   todayRevenue: number;
@@ -138,10 +149,69 @@ export default function Dashboard() {
     marketplace: "all",
     period: "7days",
   });
+  const [expenses, setExpenses] = useState<Expense[]>([]);
+  const [totalMonthlyExpenses, setTotalMonthlyExpenses] = useState(0);
   
   const { user } = useAuth();
   const { toast } = useToast();
   const { currentPlan } = usePlan();
+
+  // Calculate monthly expense from a single expense item
+  const calculateMonthlyExpense = (expense: Expense): number => {
+    if (!expense.is_active) return 0;
+
+    const now = new Date();
+    const startDate = new Date(expense.start_date);
+    const endDate = expense.end_date ? new Date(expense.end_date) : null;
+
+    if (startDate > new Date(now.getFullYear(), now.getMonth() + 1, 0)) return 0;
+    if (endDate && endDate < new Date(now.getFullYear(), now.getMonth(), 1)) return 0;
+
+    switch (expense.recurrence) {
+      case 'monthly':
+        return expense.amount;
+      case 'weekly':
+        return expense.amount * 4.33;
+      case 'yearly':
+        return expense.amount / 12;
+      case 'one-time':
+        const startMonth = startDate.getMonth();
+        const startYear = startDate.getFullYear();
+        if (startMonth === now.getMonth() && startYear === now.getFullYear()) {
+          return expense.amount;
+        }
+        return 0;
+      default:
+        return expense.amount;
+    }
+  };
+
+  // Load expenses
+  useEffect(() => {
+    const loadExpenses = async () => {
+      if (!user?.id) return;
+
+      try {
+        const { data, error } = await supabase
+          .from('expenses')
+          .select('id, amount, category, recurrence, is_active, start_date, end_date')
+          .eq('user_id', user.id)
+          .eq('is_active', true);
+
+        if (error) throw error;
+
+        const expensesData = (data || []) as Expense[];
+        setExpenses(expensesData);
+        
+        const total = expensesData.reduce((sum, exp) => sum + calculateMonthlyExpense(exp), 0);
+        setTotalMonthlyExpenses(total);
+      } catch (error) {
+        console.error('Error loading expenses:', error);
+      }
+    };
+
+    loadExpenses();
+  }, [user]);
 
   const loadDashboardMetrics = useCallback(async (filters?: DashboardFiltersState) => {
     if (!user?.id) {
@@ -317,6 +387,12 @@ export default function Dashboard() {
   );
 
   function renderDashboardContent() {
+    const grossProfit = dashboardData.marketing?.grossProfit || demoMarketingMetrics.grossProfit;
+    const netProfit = grossProfit - totalMonthlyExpenses;
+    const netMargin = dashboardData.todayRevenue > 0 
+      ? (netProfit / dashboardData.todayRevenue) * 100 
+      : (netProfit / demoMarketingMetrics.billing) * 100;
+
     const metrics: MetricCard[] = [
       {
         title: "Vendas Totais (Hoje)",
@@ -376,6 +452,77 @@ export default function Dashboard() {
             </Card>
           ))}
         </div>
+
+        {/* Net Profit Card - Highlighted */}
+        <Card className={`shadow-medium border-l-4 ${netProfit >= 0 ? 'border-l-emerald-500' : 'border-l-red-500'}`}>
+          <CardContent className="pt-6">
+            <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+              <div className="flex items-center gap-4">
+                <div className={`h-14 w-14 rounded-full flex items-center justify-center ${
+                  netProfit >= 0 ? 'bg-emerald-500/10' : 'bg-red-500/10'
+                }`}>
+                  <Wallet className={`h-7 w-7 ${netProfit >= 0 ? 'text-emerald-500' : 'text-red-500'}`} />
+                </div>
+                <div>
+                  <p className="text-sm font-medium text-muted-foreground">LUCRO LÍQUIDO REAL</p>
+                  <p className={`text-3xl font-bold ${
+                    netProfit >= 0 
+                      ? 'text-emerald-600 dark:text-emerald-400' 
+                      : 'text-red-600 dark:text-red-400'
+                  }`}>
+                    {formatCurrency(netProfit)}
+                  </p>
+                  <p className="text-xs text-muted-foreground mt-1">
+                    Lucro Bruto ({formatCurrency(grossProfit)}) - Despesas ({formatCurrency(totalMonthlyExpenses)})
+                  </p>
+                </div>
+              </div>
+
+              <div className="flex flex-col md:items-end gap-2">
+                <div className="flex items-center gap-4">
+                  <div className="text-center">
+                    <p className="text-xs text-muted-foreground">Margem Líquida</p>
+                    <p className={`text-lg font-bold ${netMargin >= 10 ? 'text-emerald-600' : 'text-amber-600'}`}>
+                      {netMargin.toFixed(1)}%
+                    </p>
+                  </div>
+                  <div className="text-center">
+                    <p className="text-xs text-muted-foreground">Despesas/Mês</p>
+                    <p className="text-lg font-bold text-amber-600">
+                      {formatCurrency(totalMonthlyExpenses)}
+                    </p>
+                  </div>
+                </div>
+                
+                <Link 
+                  to="/app/expenses" 
+                  className="text-xs text-primary hover:underline flex items-center gap-1"
+                >
+                  <Receipt className="h-3 w-3" />
+                  Gerenciar despesas
+                </Link>
+              </div>
+            </div>
+
+            {netMargin < 10 && netMargin >= 0 && (
+              <div className="mt-4 p-3 rounded-lg bg-amber-500/10 flex items-center gap-2">
+                <AlertTriangle className="h-4 w-4 text-amber-500 shrink-0" />
+                <p className="text-xs text-amber-700 dark:text-amber-400">
+                  Margem baixa! Considere revisar seus custos ou aumentar preços.
+                </p>
+              </div>
+            )}
+
+            {expenses.length === 0 && (
+              <div className="mt-4 p-3 rounded-lg bg-muted/50 flex items-center gap-2">
+                <Receipt className="h-4 w-4 text-muted-foreground shrink-0" />
+                <p className="text-xs text-muted-foreground">
+                  Nenhuma despesa cadastrada. <Link to="/app/expenses" className="text-primary hover:underline">Cadastre suas despesas</Link> para ver o lucro líquido real.
+                </p>
+              </div>
+            )}
+          </CardContent>
+        </Card>
 
         <div className="grid grid-cols-1 xl:grid-cols-2 gap-4 lg:gap-6">
           {/* Sales Chart */}
