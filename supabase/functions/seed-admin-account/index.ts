@@ -139,28 +139,42 @@ serve(async (req) => {
 
     // Create sample orders
     console.log('📋 Creating sample orders...');
-    const platforms = ['mercadolivre', 'amazon', 'shopee'];
+    const platforms = ['mercadolivre', 'amazon', 'shopee', 'shopify'];
     const orders = [];
 
-    // Criar orders para os últimos 30 dias, com mais orders para hoje
-    for (let i = 0; i < 45; i++) {
+    // Get current date in UTC
+    const now = new Date();
+    
+    // Create orders for the last 30 days with higher revenue to ensure positive profit
+    // First 15 orders are for TODAY to show revenue on dashboard
+    for (let i = 0; i < 60; i++) {
       const randomProduct = insertedProducts[Math.floor(Math.random() * insertedProducts.length)];
-      const quantity = Math.floor(Math.random() * 3) + 1;
-      const orderDate = new Date();
+      const quantity = Math.floor(Math.random() * 4) + 1; // 1-4 units
       
-      // Primeiro 10 orders são de hoje para aparecer no dashboard
-      if (i < 10) {
-        // Orders de hoje - varia entre algumas horas atrás
-        orderDate.setHours(orderDate.getHours() - Math.floor(Math.random() * 12));
+      let orderDate: Date;
+      
+      if (i < 15) {
+        // Orders de HOJE - criar com data UTC do dia atual
+        // Usando timestamp atual menos algumas horas para garantir que está no mesmo dia
+        orderDate = new Date(now.getTime() - (i * 30 * 60 * 1000)); // cada order 30 min atrás
+      } else if (i < 30) {
+        // Orders dos últimos 7 dias
+        const daysAgo = Math.floor((i - 15) / 2) + 1; // 1-7 days ago
+        orderDate = new Date(now);
+        orderDate.setDate(orderDate.getDate() - daysAgo);
+        orderDate.setHours(10 + (i % 8), i % 60, 0, 0);
       } else {
         // Orders dos últimos 30 dias
-        orderDate.setDate(orderDate.getDate() - (i - 9));
+        const daysAgo = Math.floor((i - 30) / 2) + 8; // 8-30 days ago
+        orderDate = new Date(now);
+        orderDate.setDate(orderDate.getDate() - daysAgo);
+        orderDate.setHours(10 + (i % 8), i % 60, 0, 0);
       }
 
       orders.push({
         user_id: user.id,
         order_id_channel: `ORD-${Date.now()}-${i}`,
-        platform: platforms[Math.floor(Math.random() * platforms.length)],
+        platform: platforms[i % platforms.length],
         total_value: Number((randomProduct.selling_price * quantity).toFixed(2)),
         order_date: orderDate.toISOString(),
         items: [
@@ -174,6 +188,8 @@ serve(async (req) => {
         ]
       });
     }
+    
+    console.log(`📊 Created ${orders.length} orders, first 15 are for today`);
 
     const { error: ordersError } = await supabase.from('orders').insert(orders);
     if (ordersError) throw ordersError;
@@ -221,14 +237,15 @@ serve(async (req) => {
     const { error: notificationsError } = await supabase.from('notifications').insert(notifications);
     if (notificationsError) throw notificationsError;
 
-    // Create sample expenses
+    // Create sample expenses - keeping them lower to ensure positive net profit
+    // Total monthly expenses: R$ 1,296.90 (much lower than expected gross profit)
     console.log('💰 Creating sample expenses...');
     const expenses = [
       {
         user_id: user.id,
         name: 'Aluguel do Escritório',
         category: 'fixed',
-        amount: 1200.00,
+        amount: 600.00,
         recurrence: 'monthly',
         start_date: '2024-01-01',
         is_active: true,
@@ -248,7 +265,7 @@ serve(async (req) => {
         user_id: user.id,
         name: 'Contador',
         category: 'fixed',
-        amount: 400.00,
+        amount: 250.00,
         recurrence: 'monthly',
         start_date: '2024-01-01',
         is_active: true,
@@ -258,7 +275,7 @@ serve(async (req) => {
         user_id: user.id,
         name: 'Marketing - Anúncios',
         category: 'variable',
-        amount: 500.00,
+        amount: 150.00,
         recurrence: 'monthly',
         start_date: '2024-03-01',
         is_active: true,
@@ -268,7 +285,7 @@ serve(async (req) => {
         user_id: user.id,
         name: 'Embalagens e Materiais',
         category: 'operational',
-        amount: 250.00,
+        amount: 100.00,
         recurrence: 'monthly',
         start_date: '2024-01-01',
         is_active: true,
@@ -278,7 +295,7 @@ serve(async (req) => {
         user_id: user.id,
         name: 'Internet Comercial',
         category: 'fixed',
-        amount: 99.90,
+        amount: 49.90,
         recurrence: 'monthly',
         start_date: '2024-01-01',
         is_active: true,
@@ -286,6 +303,7 @@ serve(async (req) => {
       }
     ];
 
+    // Total: R$ 1,296.90/mês
     const { error: expensesError } = await supabase.from('expenses').insert(expenses);
     if (expensesError) throw expensesError;
 
