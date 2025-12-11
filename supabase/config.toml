@@ -89,3 +89,9 @@ verify_jwt = false
 
 [functions.send-contact-email]
 verify_jwt = false
+
+[functions.seed-admin-account]
+verify_jwt = true
+
+[functions.reset-admin-data]
+verify_jwt = true
