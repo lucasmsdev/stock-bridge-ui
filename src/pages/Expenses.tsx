@@ -7,6 +7,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { ExpenseForm } from "@/components/expenses/ExpenseForm";
 import { ExpensesList } from "@/components/expenses/ExpensesList";
 import { ProfitBreakdown } from "@/components/expenses/ProfitBreakdown";
+import { ProfitProjection } from "@/components/expenses/ProfitProjection";
 import { Receipt, PlusCircle, PieChart, TrendingUp } from "lucide-react";
 
 export interface Expense {
@@ -190,19 +191,7 @@ export default function Expenses() {
         </TabsContent>
 
         <TabsContent value="projection">
-          <Card>
-            <CardHeader>
-              <CardTitle>Projeção de Lucro</CardTitle>
-              <CardDescription>
-                Baseada na média de vendas dos últimos 30 dias.
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="text-center py-12">
-              <p className="text-muted-foreground">
-                Em breve: projeção de lucro líquido e alertas de margem baixa.
-              </p>
-            </CardContent>
-          </Card>
+          <ProfitProjection expenses={expenses} />
         </TabsContent>
       </Tabs>
     </div>
