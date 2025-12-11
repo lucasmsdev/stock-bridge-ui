@@ -66,60 +66,13 @@ interface MetricCard {
   color: string;
 }
 
-// Dados de demonstração definidos como constantes
-const demoMetrics: DashboardMetrics = {
-  todayRevenue: 1874.50,
-  todayOrders: 12,
-  totalProducts: 842,
-  salesLast7Days: [
-    { date: "2024-09-13", revenue: 1200 },
-    { date: "2024-09-14", revenue: 1500 },
-    { date: "2024-09-15", revenue: 1400 },
-    { date: "2024-09-16", revenue: 1800 },
-    { date: "2024-09-17", revenue: 2100 },
-    { date: "2024-09-18", revenue: 2500 },
-    { date: "2024-09-19", revenue: 2850 }
-  ]
+// Estado inicial vazio (sem dados de demonstração)
+const emptyMetrics: DashboardMetrics = {
+  todayRevenue: 0,
+  todayOrders: 0,
+  totalProducts: 0,
+  salesLast7Days: []
 };
-
-const demoMarketingMetrics = {
-  billing: 3305.00,
-  marketplaceLiquid: 2261.30,
-  grossProfit: 373.44,
-  margin: 11.3,
-  salesCount: 39,
-  unitsSold: 39,
-  averageTicket: 84.74,
-  roi: 23.98,
-  adSpend: 208.58,
-  tacos: 35.1,
-  profitAfterAds: 164.86,
-  marginAfterAds: 4.99
-};
-
-const demoOrders = [
-  {
-    id: "1",
-    productName: "Monitor Gamer UltraWide 34\"",
-    sku: "UG34-01",
-    status: "Entregue",
-    value: 2899.90
-  },
-  {
-    id: "2", 
-    productName: "Teclado Mecânico RGB TKL",
-    sku: "TM-RGB-TKL",
-    status: "Enviado",
-    value: 349.90
-  },
-  {
-    id: "3",
-    productName: "Mouse Gamer Sem Fio 16k DPI", 
-    sku: "MG-SF-16K",
-    status: "Processando",
-    value: 499.00
-  }
-];
 
 const chartConfig = {
   revenue: {
@@ -156,10 +109,10 @@ const formatDate = (dateStr: string) => {
 };
 
 export default function Dashboard() {
-  // Inicializa o estado com dados demo para carregamento instantâneo
-  const [dashboardData, setDashboardData] = useState<DashboardMetrics>(demoMetrics);
+  // Inicializa o estado vazio - dados serão carregados do banco
+  const [dashboardData, setDashboardData] = useState<DashboardMetrics>(emptyMetrics);
   const [isLoading, setIsLoading] = useState(true);
-  const [hasRealData, setHasRealData] = useState(false);
+  const [hasData, setHasData] = useState(false);
   const [activeFilters, setActiveFilters] = useState<DashboardFiltersState>({
     marketplace: "all",
     period: "7days",
@@ -284,6 +237,48 @@ export default function Dashboard() {
     };
 
     loadExpensesAndProfitHistory();
+
+    // Subscribe to real-time changes on expenses table
+    const expensesSubscription = supabase
+      .channel('dashboard-expenses')
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'expenses',
+          filter: `user_id=eq.${user?.id}`
+        },
+        () => {
+          console.log('Despesa atualizada, recarregando dados...');
+          loadExpensesAndProfitHistory();
+        }
+      )
+      .subscribe();
+
+    // Subscribe to real-time changes on orders table
+    const ordersSubscription = supabase
+      .channel('dashboard-orders')
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'orders',
+          filter: `user_id=eq.${user?.id}`
+        },
+        () => {
+          console.log('Pedido atualizado, recarregando dados...');
+          loadExpensesAndProfitHistory();
+          // Dashboard metrics serão atualizados pelo outro useEffect
+        }
+      )
+      .subscribe();
+
+    return () => {
+      expensesSubscription.unsubscribe();
+      ordersSubscription.unsubscribe();
+    };
   }, [user]);
 
   const loadDashboardMetrics = useCallback(async (filters?: DashboardFiltersState) => {
@@ -317,17 +312,20 @@ export default function Dashboard() {
                                   (data.salesLast7Days && data.salesLast7Days.some(day => day.revenue > 0));
         
         if (hasSignificantData) {
-          console.log('Substituindo dados demo por dados reais');
+          console.log('Dados reais carregados com sucesso');
           setDashboardData(data);
-          setHasRealData(true);
+          setHasData(true);
         } else {
-          console.log('Dados reais vazios, mantendo dados demo');
+          console.log('Nenhum dado encontrado no banco');
+          setHasData(false);
         }
       } else {
-        console.warn('Edge function falhou, mantendo dados demo');
+        console.warn('Edge function falhou');
+        setHasData(false);
       }
     } catch (error) {
-      console.warn('Erro na busca de dados reais, mantendo dados demo:', error);
+      console.warn('Erro na busca de dados:', error);
+      setHasData(false);
     } finally {
       setIsLoading(false);
     }
@@ -449,10 +447,14 @@ export default function Dashboard() {
         </div>
       )}
 
-      {!hasRealData && (
-        <Badge variant="secondary" className="text-xs">
-          Modo Demonstração
-        </Badge>
+      {!hasData && !isLoading && (
+        <div className="p-8 text-center border border-dashed border-border rounded-lg bg-muted/20">
+          <Package className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
+          <h3 className="text-lg font-semibold text-foreground mb-2">Nenhum dado encontrado</h3>
+          <p className="text-sm text-muted-foreground">
+            Gere dados de demonstração no seu perfil ou conecte uma integração para ver métricas.
+          </p>
+        </div>
       )}
 
       {renderDashboardContent()}
@@ -460,33 +462,36 @@ export default function Dashboard() {
   );
 
   function renderDashboardContent() {
-    const grossProfit = dashboardData.marketing?.grossProfit || demoMarketingMetrics.grossProfit;
+    // Se não há dados, não renderiza o conteúdo principal
+    if (!hasData && !isLoading) return null;
+    
+    const grossProfit = dashboardData.marketing?.grossProfit || (dashboardData.todayRevenue * 0.3);
     const netProfit = grossProfit - totalMonthlyExpenses;
     const netMargin = dashboardData.todayRevenue > 0 
       ? (netProfit / dashboardData.todayRevenue) * 100 
-      : (netProfit / demoMarketingMetrics.billing) * 100;
+      : 0;
 
     const metrics: MetricCard[] = [
       {
         title: "Vendas Totais (Hoje)",
         value: formatCurrency(dashboardData.todayRevenue),
         icon: DollarSign,
-        trend: hasRealData ? "+0%" : "+15%",
+        trend: "+0%",
         color: "text-success"
       },
       {
         title: "Pedidos Recebidos (Hoje)",
         value: dashboardData.todayOrders.toString(),
         icon: ShoppingCart,
-        trend: hasRealData ? "+0%" : "+8%",
+        trend: "+0%",
         color: "text-primary"
       },
       {
         title: "Itens em Estoque",
         value: dashboardData.totalProducts.toString(),
         icon: Package,
-        trend: hasRealData ? "0%" : "-2%",
-        color: hasRealData ? "text-warning" : "text-destructive"
+        trend: "0%",
+        color: "text-warning"
       },
       {
         title: "Canais Ativos",
@@ -742,50 +747,11 @@ export default function Dashboard() {
             </CardTitle>
           </CardHeader>
           <CardContent className="overflow-x-auto">
-            {!hasRealData ? (
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Produto</TableHead>
-                    <TableHead>SKU</TableHead>
-                    <TableHead>Status</TableHead>
-                    <TableHead className="text-right">Valor</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {demoOrders.map((order) => (
-                    <TableRow 
-                      key={order.id}
-                      className="border-b border-border/50 hover:bg-muted/50 transition-colors cursor-pointer"
-                    >
-                      <TableCell className="font-medium">{order.productName}</TableCell>
-                      <TableCell className="text-muted-foreground">{order.sku}</TableCell>
-                      <TableCell>
-                        <Badge 
-                          variant={
-                            order.status === "Entregue" ? "success" :
-                            order.status === "Enviado" ? "default" : 
-                            "warning"
-                          }
-                          className="text-xs"
-                        >
-                          {order.status}
-                        </Badge>
-                      </TableCell>
-                      <TableCell className="text-right font-medium">
-                        {formatCurrency(order.value)}
-                      </TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            ) : (
-              <div className="text-center py-8 text-muted-foreground font-body">
-                <ShoppingCart className="h-12 w-12 mx-auto mb-4 opacity-50" />
-                <p>Nenhum pedido</p>
-                <p className="text-sm">Conecte seus canais de venda</p>
-              </div>
-            )}
+            <div className="text-center py-8 text-muted-foreground font-body">
+              <ShoppingCart className="h-12 w-12 mx-auto mb-4 opacity-50" />
+              <p>Nenhum pedido recente</p>
+              <p className="text-sm">Os pedidos aparecerão aqui quando houver vendas</p>
+            </div>
           </CardContent>
         </Card>
 
@@ -807,7 +773,7 @@ export default function Dashboard() {
               </CardHeader>
               <CardContent>
                 <div className="text-2xl font-bold">
-                  {formatCurrency(dashboardData.marketing?.billing || demoMarketingMetrics.billing)}
+                  {formatCurrency(dashboardData.marketing?.billing || 0)}
                 </div>
               </CardContent>
             </Card>
@@ -821,7 +787,7 @@ export default function Dashboard() {
               </CardHeader>
               <CardContent>
                 <div className="text-2xl font-bold">
-                  {formatCurrency(dashboardData.marketing?.marketplaceLiquid || demoMarketingMetrics.marketplaceLiquid)}
+                  {formatCurrency(dashboardData.marketing?.marketplaceLiquid || 0)}
                 </div>
               </CardContent>
             </Card>
@@ -835,7 +801,7 @@ export default function Dashboard() {
               </CardHeader>
               <CardContent>
                 <div className="text-2xl font-bold">
-                  {formatCurrency(dashboardData.marketing?.grossProfit || demoMarketingMetrics.grossProfit)}
+                  {formatCurrency(dashboardData.marketing?.grossProfit || 0)}
                 </div>
               </CardContent>
             </Card>
@@ -849,7 +815,7 @@ export default function Dashboard() {
               </CardHeader>
               <CardContent>
                 <div className="text-2xl font-bold">
-                  {dashboardData.marketing?.margin || demoMarketingMetrics.margin}%
+                  {dashboardData.marketing?.margin || 0}%
                 </div>
               </CardContent>
             </Card>
@@ -864,7 +830,7 @@ export default function Dashboard() {
               </CardHeader>
               <CardContent>
                 <div className="text-2xl font-bold">
-                  {dashboardData.marketing?.salesCount || demoMarketingMetrics.salesCount}
+                  {dashboardData.marketing?.salesCount || 0}
                 </div>
               </CardContent>
             </Card>
@@ -878,7 +844,7 @@ export default function Dashboard() {
               </CardHeader>
               <CardContent>
                 <div className="text-2xl font-bold">
-                  {dashboardData.marketing?.unitsSold || demoMarketingMetrics.unitsSold}
+                  {dashboardData.marketing?.unitsSold || 0}
                 </div>
               </CardContent>
             </Card>
@@ -892,7 +858,7 @@ export default function Dashboard() {
               </CardHeader>
               <CardContent>
                 <div className="text-2xl font-bold">
-                  {formatCurrency(dashboardData.marketing?.averageTicket || demoMarketingMetrics.averageTicket)}
+                  {formatCurrency(dashboardData.marketing?.averageTicket || 0)}
                 </div>
               </CardContent>
             </Card>
@@ -906,7 +872,7 @@ export default function Dashboard() {
               </CardHeader>
               <CardContent>
                 <div className="text-2xl font-bold">
-                  {dashboardData.marketing?.roi || demoMarketingMetrics.roi}%
+                  {dashboardData.marketing?.roi || 0}%
                 </div>
               </CardContent>
             </Card>
@@ -921,7 +887,7 @@ export default function Dashboard() {
               </CardHeader>
               <CardContent>
                 <div className="text-2xl font-bold">
-                  {formatCurrency(dashboardData.marketing?.adSpend || demoMarketingMetrics.adSpend)}
+                  {formatCurrency(dashboardData.marketing?.adSpend || 0)}
                 </div>
               </CardContent>
             </Card>
@@ -935,7 +901,7 @@ export default function Dashboard() {
               </CardHeader>
               <CardContent>
                 <div className="text-2xl font-bold">
-                  {dashboardData.marketing?.tacos || demoMarketingMetrics.tacos}%
+                  {dashboardData.marketing?.tacos || 0}%
                 </div>
               </CardContent>
             </Card>
@@ -949,7 +915,7 @@ export default function Dashboard() {
               </CardHeader>
               <CardContent>
                 <div className="text-2xl font-bold">
-                  {formatCurrency(dashboardData.marketing?.profitAfterAds || demoMarketingMetrics.profitAfterAds)}
+                  {formatCurrency(dashboardData.marketing?.profitAfterAds || 0)}
                 </div>
               </CardContent>
             </Card>
@@ -963,7 +929,7 @@ export default function Dashboard() {
               </CardHeader>
               <CardContent>
                 <div className="text-2xl font-bold">
-                  {dashboardData.marketing?.marginAfterAds || demoMarketingMetrics.marginAfterAds}%
+                  {dashboardData.marketing?.marginAfterAds || 0}%
                 </div>
               </CardContent>
             </Card>
