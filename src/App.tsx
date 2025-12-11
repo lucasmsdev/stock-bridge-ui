@@ -16,6 +16,7 @@ import CreateProduct from "./pages/CreateProduct";
 import ProductDetails from "./pages/ProductDetails";
 import Orders from "./pages/Orders";
 import Finance from "./pages/Finance";
+import Expenses from "./pages/Expenses";
 import Integrations from "./pages/Integrations";
 import MarketAnalysis from "./pages/MarketAnalysis";
 import Help from "./pages/Help";
@@ -54,6 +55,7 @@ const App = () => (
                 <Route path="products/:id" element={<ProductDetails />} />
                 <Route path="orders" element={<Orders />} />
                 <Route path="finance" element={<Finance />} />
+                <Route path="expenses" element={<Expenses />} />
                 <Route path="integrations" element={<Integrations />} />
                 <Route path="market-analysis" element={<MarketAnalysis />} />
                 <Route path="help" element={<Help />} />
