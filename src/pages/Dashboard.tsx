@@ -465,10 +465,14 @@ export default function Dashboard() {
     // Se não há dados, não renderiza o conteúdo principal
     if (!hasData && !isLoading) return null;
     
-    const grossProfit = dashboardData.marketing?.grossProfit || (dashboardData.todayRevenue * 0.3);
+    // Usar o faturamento total (billing) do período para calcular lucro bruto
+    const periodBilling = dashboardData.marketing?.billing || 0;
+    // Lucro bruto assumindo 30% de margem após taxas do marketplace
+    const grossProfit = dashboardData.marketing?.grossProfit || (periodBilling * 0.3);
+    // Lucro líquido = lucro bruto - despesas mensais
     const netProfit = grossProfit - totalMonthlyExpenses;
-    const netMargin = dashboardData.todayRevenue > 0 
-      ? (netProfit / dashboardData.todayRevenue) * 100 
+    const netMargin = periodBilling > 0 
+      ? (netProfit / periodBilling) * 100 
       : 0;
 
     const metrics: MetricCard[] = [
