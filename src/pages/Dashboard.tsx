@@ -38,6 +38,7 @@ interface DashboardMetrics {
   todayRevenue: number;
   todayOrders: number;
   totalProducts: number;
+  totalStock: number;
   salesLast7Days: Array<{
     date: string;
     revenue: number;
@@ -71,6 +72,7 @@ const emptyMetrics: DashboardMetrics = {
   todayRevenue: 0,
   todayOrders: 0,
   totalProducts: 0,
+  totalStock: 0,
   salesLast7Days: []
 };
 
@@ -309,7 +311,9 @@ export default function Dashboard() {
         const hasSignificantData = data.todayRevenue > 0 || 
                                   data.todayOrders > 0 || 
                                   data.totalProducts > 0 ||
-                                  (data.salesLast7Days && data.salesLast7Days.some(day => day.revenue > 0));
+                                  data.totalStock > 0 ||
+                                  (data.salesLast7Days && data.salesLast7Days.some((day: {revenue: number}) => day.revenue > 0)) ||
+                                  (data.marketing && data.marketing.billing > 0);
         
         if (hasSignificantData) {
           console.log('Dados reais carregados com sucesso');
@@ -492,7 +496,7 @@ export default function Dashboard() {
       },
       {
         title: "Itens em Estoque",
-        value: dashboardData.totalProducts.toString(),
+        value: (dashboardData.totalStock || 0).toString(),
         icon: Package,
         trend: "0%",
         color: "text-warning"
@@ -617,40 +621,51 @@ export default function Dashboard() {
             </CardHeader>
             <CardContent className="pb-8">
               <div className="h-[300px] w-full">
-                <ChartContainer config={chartConfig} className="h-full w-full">
-                  <BarChart
-                    data={dashboardData.salesLast7Days.map(item => ({
-                      ...item,
-                      displayDate: formatDate(item.date)
-                    }))}
-                    margin={{ top: 20, right: 20, left: 0, bottom: 40 }}
-                    barCategoryGap="25%"
-                  >
-                    <XAxis 
-                      dataKey="displayDate" 
-                      tick={{ fontSize: 12, fill: 'hsl(var(--muted-foreground))' }}
-                      tickLine={false}
-                      axisLine={false}
-                      height={60}
-                    />
-                    <YAxis hide />
-                    <ChartTooltip 
-                      content={<ChartTooltipContent 
-                        labelFormatter={(label, payload) => {
-                          const originalDate = payload?.[0]?.payload?.date;
-                          return originalDate ? formatDate(originalDate) : label;
-                        }}
-                        formatter={(value) => [formatCurrency(Number(value)), "Receita"]}
-                      />} 
-                    />
-                    <Bar 
-                      dataKey="revenue" 
-                      fill="var(--color-revenue)" 
-                      radius={[6, 6, 0, 0]}
-                      maxBarSize={80}
-                    />
-                  </BarChart>
-                </ChartContainer>
+                {dashboardData.salesLast7Days.length > 0 && dashboardData.salesLast7Days.some(d => d.revenue > 0) ? (
+                  <ChartContainer config={chartConfig} className="h-full w-full">
+                    <BarChart
+                      data={dashboardData.salesLast7Days.map(item => ({
+                        ...item,
+                        displayDate: formatDate(item.date)
+                      }))}
+                      margin={{ top: 20, right: 20, left: 0, bottom: 40 }}
+                      barCategoryGap="25%"
+                    >
+                      <XAxis 
+                        dataKey="displayDate" 
+                        tick={{ fontSize: 12, fill: 'hsl(var(--muted-foreground))' }}
+                        tickLine={false}
+                        axisLine={false}
+                        height={60}
+                      />
+                      <YAxis hide />
+                      <ChartTooltip 
+                        content={<ChartTooltipContent 
+                          labelFormatter={(label, payload) => {
+                            const originalDate = payload?.[0]?.payload?.date;
+                            return originalDate ? formatDate(originalDate) : label;
+                          }}
+                          formatter={(value) => [formatCurrency(Number(value)), "Receita"]}
+                        />} 
+                      />
+                      <Bar 
+                        dataKey="revenue" 
+                        fill="var(--color-revenue)" 
+                        radius={[6, 6, 0, 0]}
+                        maxBarSize={80}
+                      />
+                    </BarChart>
+                  </ChartContainer>
+                ) : (
+                  <div className="h-full flex items-center justify-center">
+                    <div className="text-center">
+                      <TrendingUp className="h-12 w-12 mx-auto text-muted-foreground mb-3" />
+                      <p className="text-sm text-muted-foreground">
+                        Nenhuma venda no período selecionado
+                      </p>
+                    </div>
+                  </div>
+                )}
               </div>
             </CardContent>
           </Card>
