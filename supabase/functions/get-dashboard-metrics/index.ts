@@ -9,6 +9,7 @@ interface DashboardMetrics {
   todayRevenue: number;
   todayOrders: number;
   totalProducts: number;
+  totalStock: number;
   salesLast7Days: Array<{
     date: string;
     revenue: number;
@@ -30,12 +31,12 @@ interface DashboardMetrics {
 }
 
 function calculateDateRange(period: string, customStart?: string, customEnd?: string) {
-  const today = new Date();
-  const todayStart = new Date(today.getFullYear(), today.getMonth(), today.getDate());
+  const now = new Date();
+  // Use UTC dates consistently
+  const todayStart = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate(), 0, 0, 0));
   
   let startDate: Date;
-  let endDate: Date = new Date(todayStart);
-  endDate.setDate(endDate.getDate() + 1);
+  let endDate: Date = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate() + 1, 0, 0, 0));
   
   switch(period) {
     case 'today':
@@ -43,18 +44,18 @@ function calculateDateRange(period: string, customStart?: string, customEnd?: st
       break;
     case '7days':
       startDate = new Date(todayStart);
-      startDate.setDate(startDate.getDate() - 7);
+      startDate.setUTCDate(startDate.getUTCDate() - 7);
       break;
     case '30days':
       startDate = new Date(todayStart);
-      startDate.setDate(startDate.getDate() - 30);
+      startDate.setUTCDate(startDate.getUTCDate() - 30);
       break;
     case 'this_month':
-      startDate = new Date(today.getFullYear(), today.getMonth(), 1);
+      startDate = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1, 0, 0, 0));
       break;
     case 'last_month':
-      startDate = new Date(today.getFullYear(), today.getMonth() - 1, 1);
-      endDate = new Date(today.getFullYear(), today.getMonth(), 1);
+      startDate = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth() - 1, 1, 0, 0, 0));
+      endDate = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1, 0, 0, 0));
       break;
     case 'custom':
       if (!customStart || !customEnd) {
@@ -62,11 +63,11 @@ function calculateDateRange(period: string, customStart?: string, customEnd?: st
       }
       startDate = new Date(customStart);
       endDate = new Date(customEnd);
-      endDate.setDate(endDate.getDate() + 1); // Include the end date
+      endDate.setUTCDate(endDate.getUTCDate() + 1); // Include the end date
       break;
     default:
       startDate = new Date(todayStart);
-      startDate.setDate(startDate.getDate() - 7);
+      startDate.setUTCDate(startDate.getUTCDate() - 7);
   }
   
   return { startDate, endDate };
@@ -147,13 +148,16 @@ export default async function handler(req: Request): Promise<Response> {
     let todayRevenue = 0;
     let todayOrders = 0;
     let totalProducts = 0;
+    let totalStock = 0;
     let salesLast7Days: Array<{date: string; revenue: number}> = [];
 
-    // Get today's dates for "today" metrics
-    const today = new Date();
-    const todayStart = new Date(today.getFullYear(), today.getMonth(), today.getDate());
-    const todayEnd = new Date(todayStart);
-    todayEnd.setDate(todayEnd.getDate() + 1);
+    // Get today's dates for "today" metrics - using UTC to match database
+    const now = new Date();
+    // Create today start in UTC
+    const todayStart = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate(), 0, 0, 0));
+    const todayEnd = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate() + 1, 0, 0, 0));
+    
+    console.log('Today UTC range:', { todayStart: todayStart.toISOString(), todayEnd: todayEnd.toISOString() });
 
     try {
       console.log('Fetching today orders...');
@@ -185,22 +189,22 @@ export default async function handler(req: Request): Promise<Response> {
     }
 
     try {
-      console.log('Fetching products count...');
-      // Get total products count
-      const { count: productsCount, error: productsError } = await supabase
+      console.log('Fetching products and stock...');
+      // Get total products count and stock
+      const { data: productsData, error: productsError } = await supabase
         .from('products')
-        .select('*', { count: 'exact', head: true })
+        .select('id, stock')
         .eq('user_id', user.id);
 
       if (productsError) {
-        console.error('Error fetching products count:', productsError);
-        // Don't throw, just log and continue with default values
+        console.error('Error fetching products:', productsError);
       } else {
-        totalProducts = productsCount || 0;
-        console.log(`Total products: ${totalProducts}`);
+        totalProducts = productsData?.length || 0;
+        totalStock = productsData?.reduce((sum, p) => sum + (p.stock || 0), 0) || 0;
+        console.log(`Total products: ${totalProducts}, Total stock: ${totalStock}`);
       }
     } catch (productsError) {
-      console.error('Failed to fetch products count, using defaults:', productsError);
+      console.error('Failed to fetch products, using defaults:', productsError);
     }
 
     try {
@@ -223,35 +227,38 @@ export default async function handler(req: Request): Promise<Response> {
 
       if (salesError) {
         console.error('Error fetching sales data:', salesError);
-      } else if (salesDataResult && salesDataResult.length > 0) {
+      } else {
         // Group sales by date
         const salesByDate = new Map<string, number>();
         
         // Calculate number of days in the period
         const daysDiff = Math.ceil((endDate.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24));
         
-        // Initialize all days in the range with 0
+        // Initialize all days in the range with 0 using UTC
         for (let i = 0; i < daysDiff; i++) {
-          const date = new Date(startDate);
-          date.setDate(date.getDate() + i);
+          const date = new Date(startDate.getTime() + (i * 24 * 60 * 60 * 1000));
           const dateStr = date.toISOString().split('T')[0];
           salesByDate.set(dateStr, 0);
         }
         
         // Add actual sales data
-        salesDataResult.forEach(order => {
-          const dateStr = order.order_date.split('T')[0];
-          const currentValue = salesByDate.get(dateStr) || 0;
-          salesByDate.set(dateStr, currentValue + Number(order.total_value));
-        });
+        if (salesDataResult && salesDataResult.length > 0) {
+          salesDataResult.forEach(order => {
+            const dateStr = order.order_date.split('T')[0];
+            const currentValue = salesByDate.get(dateStr) || 0;
+            salesByDate.set(dateStr, currentValue + Number(order.total_value));
+          });
+        }
         
         // Convert to array format
-        salesLast7Days = Array.from(salesByDate.entries()).map(([date, revenue]) => ({
-          date,
-          revenue: Math.round(revenue * 100) / 100
-        }));
+        salesLast7Days = Array.from(salesByDate.entries())
+          .sort(([a], [b]) => a.localeCompare(b))
+          .map(([date, revenue]) => ({
+            date,
+            revenue: Math.round(revenue * 100) / 100
+          }));
         
-        console.log(`Generated ${salesLast7Days.length} days of sales data`);
+        console.log(`Generated ${salesLast7Days.length} days of sales data with total orders: ${salesDataResult?.length || 0}`);
       }
     } catch (salesError) {
       console.error('Failed to fetch sales data, using defaults:', salesError);
@@ -379,6 +386,7 @@ export default async function handler(req: Request): Promise<Response> {
       todayRevenue: Math.round(todayRevenue * 100) / 100,
       todayOrders,
       totalProducts,
+      totalStock,
       salesLast7Days,
       marketing: marketingMetrics
     };
