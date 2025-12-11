@@ -22,7 +22,7 @@ import {
   ChartTooltipContent,
   ChartConfig,
 } from "@/components/ui/chart";
-import { Bar, BarChart, XAxis, YAxis } from "recharts";
+import { Bar, BarChart, XAxis, YAxis, Line, LineChart, CartesianGrid, Area, AreaChart, ResponsiveContainer } from "recharts";
 
 interface Expense {
   id: string;
@@ -128,6 +128,21 @@ const chartConfig = {
   },
 } satisfies ChartConfig;
 
+const profitChartConfig = {
+  netProfit: {
+    label: "Lucro Líquido",
+    color: "hsl(142.1 76.2% 36.3%)", // green-600
+  },
+} satisfies ChartConfig;
+
+interface MonthlyProfitData {
+  month: string;
+  revenue: number;
+  grossProfit: number;
+  expenses: number;
+  netProfit: number;
+}
+
 const formatCurrency = (value: number) => {
   return new Intl.NumberFormat('pt-BR', {
     style: 'currency',
@@ -151,6 +166,7 @@ export default function Dashboard() {
   });
   const [expenses, setExpenses] = useState<Expense[]>([]);
   const [totalMonthlyExpenses, setTotalMonthlyExpenses] = useState(0);
+  const [monthlyProfitData, setMonthlyProfitData] = useState<MonthlyProfitData[]>([]);
   
   const { user } = useAuth();
   const { toast } = useToast();
@@ -186,31 +202,88 @@ export default function Dashboard() {
     }
   };
 
-  // Load expenses
+  // Load expenses and monthly profit data
   useEffect(() => {
-    const loadExpenses = async () => {
+    const loadExpensesAndProfitHistory = async () => {
       if (!user?.id) return;
 
       try {
-        const { data, error } = await supabase
+        // Load expenses
+        const { data: expensesData, error: expError } = await supabase
           .from('expenses')
           .select('id, amount, category, recurrence, is_active, start_date, end_date')
           .eq('user_id', user.id)
           .eq('is_active', true);
 
-        if (error) throw error;
+        if (expError) throw expError;
 
-        const expensesData = (data || []) as Expense[];
-        setExpenses(expensesData);
+        const expensesList = (expensesData || []) as Expense[];
+        setExpenses(expensesList);
         
-        const total = expensesData.reduce((sum, exp) => sum + calculateMonthlyExpense(exp), 0);
+        const total = expensesList.reduce((sum, exp) => sum + calculateMonthlyExpense(exp), 0);
         setTotalMonthlyExpenses(total);
+
+        // Load orders for last 6 months
+        const sixMonthsAgo = new Date();
+        sixMonthsAgo.setMonth(sixMonthsAgo.getMonth() - 5);
+        sixMonthsAgo.setDate(1);
+        sixMonthsAgo.setHours(0, 0, 0, 0);
+
+        const { data: ordersData, error: ordError } = await supabase
+          .from('orders')
+          .select('total_value, order_date')
+          .eq('user_id', user.id)
+          .gte('order_date', sixMonthsAgo.toISOString());
+
+        if (ordError) throw ordError;
+
+        // Group orders by month
+        const monthlyData: Record<string, { revenue: number }> = {};
+        const now = new Date();
+        
+        // Initialize last 6 months
+        for (let i = 5; i >= 0; i--) {
+          const date = new Date(now.getFullYear(), now.getMonth() - i, 1);
+          const key = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
+          monthlyData[key] = { revenue: 0 };
+        }
+
+        // Sum orders by month
+        (ordersData || []).forEach((order: { total_value: number; order_date: string }) => {
+          const date = new Date(order.order_date);
+          const key = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
+          if (monthlyData[key]) {
+            monthlyData[key].revenue += Number(order.total_value);
+          }
+        });
+
+        // Calculate profit for each month
+        const profitHistory: MonthlyProfitData[] = Object.entries(monthlyData)
+          .sort(([a], [b]) => a.localeCompare(b))
+          .map(([monthKey, data]) => {
+            const [year, month] = monthKey.split('-');
+            const monthDate = new Date(parseInt(year), parseInt(month) - 1);
+            const monthName = monthDate.toLocaleDateString('pt-BR', { month: 'short' });
+            
+            const grossProfit = data.revenue * 0.30; // 30% margin assumption
+            const netProfit = grossProfit - total;
+            
+            return {
+              month: monthName.charAt(0).toUpperCase() + monthName.slice(1),
+              revenue: data.revenue,
+              grossProfit,
+              expenses: total,
+              netProfit,
+            };
+          });
+
+        setMonthlyProfitData(profitHistory);
       } catch (error) {
-        console.error('Error loading expenses:', error);
+        console.error('Error loading expenses and profit history:', error);
       }
     };
 
-    loadExpenses();
+    loadExpensesAndProfitHistory();
   }, [user]);
 
   const loadDashboardMetrics = useCallback(async (filters?: DashboardFiltersState) => {
@@ -573,62 +646,148 @@ export default function Dashboard() {
             </CardContent>
           </Card>
 
-          {/* Recent Orders */}
+          {/* Monthly Net Profit Evolution Chart */}
           <Card className="shadow-soft">
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
-                <ShoppingCart className="h-5 w-5 text-primary" />
-                Últimos Pedidos Recebidos
+                <Wallet className="h-5 w-5 text-emerald-500" />
+                Evolução do Lucro Líquido (6 meses)
               </CardTitle>
             </CardHeader>
-            <CardContent className="overflow-x-auto">
-              {!hasRealData ? (
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>Produto</TableHead>
-                      <TableHead>SKU</TableHead>
-                      <TableHead>Status</TableHead>
-                      <TableHead className="text-right">Valor</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {demoOrders.map((order) => (
-                      <TableRow 
-                        key={order.id}
-                        className="border-b border-border/50 hover:bg-muted/50 transition-colors cursor-pointer"
-                      >
-                        <TableCell className="font-medium">{order.productName}</TableCell>
-                        <TableCell className="text-muted-foreground">{order.sku}</TableCell>
-                        <TableCell>
-                          <Badge 
-                            variant={
-                              order.status === "Entregue" ? "success" :
-                              order.status === "Enviado" ? "default" : 
-                              "warning"
-                            }
-                            className="text-xs"
-                          >
-                            {order.status}
-                          </Badge>
-                        </TableCell>
-                        <TableCell className="text-right font-medium">
-                          {formatCurrency(order.value)}
-                        </TableCell>
-                      </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
-              ) : (
-                <div className="text-center py-8 text-muted-foreground font-body">
-                  <ShoppingCart className="h-12 w-12 mx-auto mb-4 opacity-50" />
-                  <p>Nenhum pedido</p>
-                  <p className="text-sm">Conecte seus canais de venda</p>
-                </div>
-              )}
+            <CardContent className="pb-8">
+              <div className="h-[300px] w-full">
+                {monthlyProfitData.length > 0 ? (
+                  <ChartContainer config={profitChartConfig} className="h-full w-full">
+                    <AreaChart
+                      data={monthlyProfitData}
+                      margin={{ top: 20, right: 20, left: 0, bottom: 40 }}
+                    >
+                      <defs>
+                        <linearGradient id="profitGradient" x1="0" y1="0" x2="0" y2="1">
+                          <stop offset="5%" stopColor="hsl(142.1 76.2% 36.3%)" stopOpacity={0.3}/>
+                          <stop offset="95%" stopColor="hsl(142.1 76.2% 36.3%)" stopOpacity={0}/>
+                        </linearGradient>
+                      </defs>
+                      <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
+                      <XAxis 
+                        dataKey="month" 
+                        tick={{ fontSize: 12, fill: 'hsl(var(--muted-foreground))' }}
+                        tickLine={false}
+                        axisLine={false}
+                        height={60}
+                      />
+                      <YAxis 
+                        tick={{ fontSize: 10, fill: 'hsl(var(--muted-foreground))' }}
+                        tickLine={false}
+                        axisLine={false}
+                        tickFormatter={(value) => `R$${(value / 1000).toFixed(0)}k`}
+                        width={50}
+                      />
+                      <ChartTooltip 
+                        content={({ active, payload, label }) => {
+                          if (active && payload && payload.length) {
+                            const data = payload[0].payload as MonthlyProfitData;
+                            return (
+                              <div className="rounded-lg border bg-background p-3 shadow-md">
+                                <p className="font-medium mb-2">{label}</p>
+                                <div className="space-y-1 text-sm">
+                                  <p className="text-muted-foreground">
+                                    Faturamento: <span className="font-medium text-foreground">{formatCurrency(data.revenue)}</span>
+                                  </p>
+                                  <p className="text-muted-foreground">
+                                    Lucro Bruto: <span className="font-medium text-foreground">{formatCurrency(data.grossProfit)}</span>
+                                  </p>
+                                  <p className="text-muted-foreground">
+                                    Despesas: <span className="font-medium text-red-500">-{formatCurrency(data.expenses)}</span>
+                                  </p>
+                                  <hr className="my-1 border-border" />
+                                  <p className={`font-medium ${data.netProfit >= 0 ? 'text-emerald-500' : 'text-red-500'}`}>
+                                    Lucro Líquido: {formatCurrency(data.netProfit)}
+                                  </p>
+                                </div>
+                              </div>
+                            );
+                          }
+                          return null;
+                        }}
+                      />
+                      <Area 
+                        type="monotone"
+                        dataKey="netProfit" 
+                        stroke="hsl(142.1 76.2% 36.3%)"
+                        strokeWidth={2}
+                        fill="url(#profitGradient)"
+                      />
+                    </AreaChart>
+                  </ChartContainer>
+                ) : (
+                  <div className="h-full flex items-center justify-center text-muted-foreground">
+                    <div className="text-center">
+                      <Wallet className="h-12 w-12 mx-auto mb-2 opacity-50" />
+                      <p>Sem dados de vendas</p>
+                    </div>
+                  </div>
+                )}
+              </div>
             </CardContent>
           </Card>
         </div>
+
+        {/* Recent Orders */}
+        <Card className="shadow-soft">
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <ShoppingCart className="h-5 w-5 text-primary" />
+              Últimos Pedidos Recebidos
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="overflow-x-auto">
+            {!hasRealData ? (
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Produto</TableHead>
+                    <TableHead>SKU</TableHead>
+                    <TableHead>Status</TableHead>
+                    <TableHead className="text-right">Valor</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {demoOrders.map((order) => (
+                    <TableRow 
+                      key={order.id}
+                      className="border-b border-border/50 hover:bg-muted/50 transition-colors cursor-pointer"
+                    >
+                      <TableCell className="font-medium">{order.productName}</TableCell>
+                      <TableCell className="text-muted-foreground">{order.sku}</TableCell>
+                      <TableCell>
+                        <Badge 
+                          variant={
+                            order.status === "Entregue" ? "success" :
+                            order.status === "Enviado" ? "default" : 
+                            "warning"
+                          }
+                          className="text-xs"
+                        >
+                          {order.status}
+                        </Badge>
+                      </TableCell>
+                      <TableCell className="text-right font-medium">
+                        {formatCurrency(order.value)}
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            ) : (
+              <div className="text-center py-8 text-muted-foreground font-body">
+                <ShoppingCart className="h-12 w-12 mx-auto mb-4 opacity-50" />
+                <p>Nenhum pedido</p>
+                <p className="text-sm">Conecte seus canais de venda</p>
+              </div>
+            )}
+          </CardContent>
+        </Card>
 
         {/* Marketing Metrics Section */}
         <div className="mt-8">
