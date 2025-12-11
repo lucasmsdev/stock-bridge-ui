@@ -71,6 +71,7 @@ serve(async (req) => {
     await supabase.from('price_monitoring_jobs').delete().eq('user_id', user.id);
     await supabase.from('orders').delete().eq('user_id', user.id);
     await supabase.from('products').delete().eq('user_id', user.id);
+    await supabase.from('expenses').delete().eq('user_id', user.id);
 
     // Create sample products
     console.log('📦 Creating sample products...');
@@ -211,6 +212,94 @@ serve(async (req) => {
     const { error: notificationsError } = await supabase.from('notifications').insert(notifications);
     if (notificationsError) throw notificationsError;
 
+    // Create sample expenses
+    console.log('💰 Creating sample expenses...');
+    const expenses = [
+      {
+        user_id: user.id,
+        name: 'Aluguel do Escritório',
+        category: 'fixed',
+        amount: 3500.00,
+        recurrence: 'monthly',
+        start_date: '2024-01-01',
+        is_active: true,
+        notes: 'Aluguel mensal do espaço comercial'
+      },
+      {
+        user_id: user.id,
+        name: 'Funcionário - Empacotador',
+        category: 'fixed',
+        amount: 2200.00,
+        recurrence: 'monthly',
+        start_date: '2024-01-01',
+        is_active: true,
+        notes: 'Salário + encargos do empacotador'
+      },
+      {
+        user_id: user.id,
+        name: 'Software UniStock (Assinatura)',
+        category: 'fixed',
+        amount: 297.00,
+        recurrence: 'monthly',
+        start_date: '2024-06-01',
+        is_active: true,
+        notes: 'Plano Profissional'
+      },
+      {
+        user_id: user.id,
+        name: 'Contador',
+        category: 'fixed',
+        amount: 800.00,
+        recurrence: 'monthly',
+        start_date: '2024-01-01',
+        is_active: true,
+        notes: 'Serviços de contabilidade mensal'
+      },
+      {
+        user_id: user.id,
+        name: 'Marketing - Anúncios Mercado Livre',
+        category: 'variable',
+        amount: 1500.00,
+        recurrence: 'monthly',
+        start_date: '2024-03-01',
+        is_active: true,
+        notes: 'Investimento em ads nos marketplaces'
+      },
+      {
+        user_id: user.id,
+        name: 'Embalagens e Materiais',
+        category: 'operational',
+        amount: 650.00,
+        recurrence: 'monthly',
+        start_date: '2024-01-01',
+        is_active: true,
+        notes: 'Caixas, fitas, plástico bolha'
+      },
+      {
+        user_id: user.id,
+        name: 'Internet Comercial',
+        category: 'fixed',
+        amount: 189.90,
+        recurrence: 'monthly',
+        start_date: '2024-01-01',
+        is_active: true,
+        notes: 'Plano empresarial de internet'
+      },
+      {
+        user_id: user.id,
+        name: 'Manutenção de Equipamentos',
+        category: 'operational',
+        amount: 350.00,
+        recurrence: 'monthly',
+        start_date: '2024-02-01',
+        is_active: true,
+        notes: 'Manutenção preventiva de computadores e impressoras'
+      }
+    ];
+
+    const { error: expensesError } = await supabase.from('expenses').insert(expenses);
+    if (expensesError) throw expensesError;
+
     console.log('✅ Data seeding completed successfully');
 
     return new Response(
@@ -220,9 +309,10 @@ serve(async (req) => {
           products: products.length,
           orders: orders.length,
           monitoring_jobs: monitoringJobs.length,
-          notifications: notifications.length
+          notifications: notifications.length,
+          expenses: expenses.length
         }
-      }), 
+      }),
       { 
         status: 200, 
         headers: { ...corsHeaders, 'Content-Type': 'application/json' } 

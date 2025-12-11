@@ -71,6 +71,7 @@ export default function Profile() {
   const [isSaving, setIsSaving] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
   const [isSeeding, setIsSeeding] = useState(false);
+  const [isResetting, setIsResetting] = useState(false);
   const [isCheckingSubscription, setIsCheckingSubscription] = useState(true);
   const [profileData, setProfileData] = useState<ProfileData>({
     full_name: '',
@@ -362,7 +363,7 @@ export default function Profile() {
 
       toast({
         title: "✅ Dados de demonstração criados!",
-        description: `Foram criados: ${data.summary?.products || 0} produtos, ${data.summary?.orders || 0} pedidos, ${data.summary?.monitoring_jobs || 0} alertas e ${data.summary?.notifications || 0} notificações.`,
+        description: `Foram criados: ${data.summary?.products || 0} produtos, ${data.summary?.orders || 0} pedidos, ${data.summary?.monitoring_jobs || 0} alertas, ${data.summary?.notifications || 0} notificações e ${data.summary?.expenses || 0} despesas.`,
       });
       
     } catch (error) {
@@ -374,6 +375,40 @@ export default function Profile() {
       });
     } finally {
       setIsSeeding(false);
+    }
+  };
+
+  const handleResetAdminData = async () => {
+    if (!user || !isAdmin) return;
+    
+    try {
+      setIsResetting(true);
+      
+      const { data, error } = await supabase.functions.invoke('reset-admin-data', {
+        headers: {
+          Authorization: `Bearer ${(await supabase.auth.getSession()).data.session?.access_token}`,
+        },
+      });
+
+      if (error) {
+        console.error('❌ Erro na função reset-admin-data:', error);
+        throw new Error(error.message || 'Erro ao limpar dados');
+      }
+
+      toast({
+        title: "🗑️ Dados removidos!",
+        description: `Foram removidos: ${data.summary?.products || 0} produtos, ${data.summary?.orders || 0} pedidos, ${data.summary?.expenses || 0} despesas.`,
+      });
+      
+    } catch (error) {
+      console.error('💥 Erro ao limpar dados:', error);
+      toast({
+        title: "❌ Erro ao limpar dados",
+        description: error instanceof Error ? error.message : "Não foi possível limpar os dados.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsResetting(false);
     }
   };
 
@@ -662,16 +697,16 @@ export default function Profile() {
                 </CardTitle>
               </CardHeader>
               <CardContent>
-                <div className="space-y-4">
+                <div className="space-y-6">
                   <div>
                     <h4 className="font-medium text-foreground mb-2">Gerar Dados de Demonstração</h4>
                     <p className="text-sm text-muted-foreground mb-4">
-                      Popula sua conta com produtos, pedidos e alertas fictícios para captura de tela do dashboard.
+                      Popula sua conta com produtos, pedidos, despesas e alertas fictícios.
                     </p>
                     
                     <Button 
                       onClick={handleSeedAdminAccount}
-                      disabled={isSeeding}
+                      disabled={isSeeding || isResetting}
                       size="sm"
                       className="bg-primary hover:bg-primary/90"
                     >
@@ -681,6 +716,30 @@ export default function Profile() {
                         <Database className="h-4 w-4 mr-2" />
                       )}
                       Gerar Dados de Demonstração
+                    </Button>
+                  </div>
+
+                  <Separator />
+
+                  <div>
+                    <h4 className="font-medium text-foreground mb-2">Limpar Dados de Demonstração</h4>
+                    <p className="text-sm text-muted-foreground mb-4">
+                      Remove todos os dados fictícios (produtos, pedidos, despesas, alertas).
+                    </p>
+                    
+                    <Button 
+                      onClick={handleResetAdminData}
+                      disabled={isResetting || isSeeding}
+                      size="sm"
+                      variant="outline"
+                      className="border-destructive/50 text-destructive hover:bg-destructive/10"
+                    >
+                      {isResetting ? (
+                        <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                      ) : (
+                        <Trash2 className="h-4 w-4 mr-2" />
+                      )}
+                      Limpar Todos os Dados
                     </Button>
                   </div>
                 </div>
