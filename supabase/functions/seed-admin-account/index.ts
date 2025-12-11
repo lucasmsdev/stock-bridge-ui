@@ -142,11 +142,20 @@ serve(async (req) => {
     const platforms = ['mercadolivre', 'amazon', 'shopee'];
     const orders = [];
 
-    for (let i = 0; i < 30; i++) {
+    // Criar orders para os últimos 30 dias, com mais orders para hoje
+    for (let i = 0; i < 45; i++) {
       const randomProduct = insertedProducts[Math.floor(Math.random() * insertedProducts.length)];
       const quantity = Math.floor(Math.random() * 3) + 1;
       const orderDate = new Date();
-      orderDate.setDate(orderDate.getDate() - i);
+      
+      // Primeiro 10 orders são de hoje para aparecer no dashboard
+      if (i < 10) {
+        // Orders de hoje - varia entre algumas horas atrás
+        orderDate.setHours(orderDate.getHours() - Math.floor(Math.random() * 12));
+      } else {
+        // Orders dos últimos 30 dias
+        orderDate.setDate(orderDate.getDate() - (i - 9));
+      }
 
       orders.push({
         user_id: user.id,
@@ -219,7 +228,7 @@ serve(async (req) => {
         user_id: user.id,
         name: 'Aluguel do Escritório',
         category: 'fixed',
-        amount: 3500.00,
+        amount: 1200.00,
         recurrence: 'monthly',
         start_date: '2024-01-01',
         is_active: true,
@@ -227,19 +236,9 @@ serve(async (req) => {
       },
       {
         user_id: user.id,
-        name: 'Funcionário - Empacotador',
-        category: 'fixed',
-        amount: 2200.00,
-        recurrence: 'monthly',
-        start_date: '2024-01-01',
-        is_active: true,
-        notes: 'Salário + encargos do empacotador'
-      },
-      {
-        user_id: user.id,
         name: 'Software UniStock (Assinatura)',
         category: 'fixed',
-        amount: 297.00,
+        amount: 147.00,
         recurrence: 'monthly',
         start_date: '2024-06-01',
         is_active: true,
@@ -249,7 +248,7 @@ serve(async (req) => {
         user_id: user.id,
         name: 'Contador',
         category: 'fixed',
-        amount: 800.00,
+        amount: 400.00,
         recurrence: 'monthly',
         start_date: '2024-01-01',
         is_active: true,
@@ -257,9 +256,9 @@ serve(async (req) => {
       },
       {
         user_id: user.id,
-        name: 'Marketing - Anúncios Mercado Livre',
+        name: 'Marketing - Anúncios',
         category: 'variable',
-        amount: 1500.00,
+        amount: 500.00,
         recurrence: 'monthly',
         start_date: '2024-03-01',
         is_active: true,
@@ -269,7 +268,7 @@ serve(async (req) => {
         user_id: user.id,
         name: 'Embalagens e Materiais',
         category: 'operational',
-        amount: 650.00,
+        amount: 250.00,
         recurrence: 'monthly',
         start_date: '2024-01-01',
         is_active: true,
@@ -279,21 +278,11 @@ serve(async (req) => {
         user_id: user.id,
         name: 'Internet Comercial',
         category: 'fixed',
-        amount: 189.90,
+        amount: 99.90,
         recurrence: 'monthly',
         start_date: '2024-01-01',
         is_active: true,
         notes: 'Plano empresarial de internet'
-      },
-      {
-        user_id: user.id,
-        name: 'Manutenção de Equipamentos',
-        category: 'operational',
-        amount: 350.00,
-        recurrence: 'monthly',
-        start_date: '2024-02-01',
-        is_active: true,
-        notes: 'Manutenção preventiva de computadores e impressoras'
       }
     ];
 

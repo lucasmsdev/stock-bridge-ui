@@ -147,7 +147,7 @@ export default async function handler(req: Request): Promise<Response> {
     let todayRevenue = 0;
     let todayOrders = 0;
     let totalProducts = 0;
-    let salesData = [];
+    let salesLast7Days: Array<{date: string; revenue: number}> = [];
 
     // Get today's dates for "today" metrics
     const today = new Date();
@@ -294,10 +294,14 @@ export default async function handler(req: Request): Promise<Response> {
       if (!ordersError && ordersData && ordersData.length > 0) {
         console.log(`Found ${ordersData.length} orders for marketing metrics`);
         
+        // Calculate billing (total revenue)
+        marketingMetrics.billing = ordersData.reduce((sum, order) => sum + Number(order.total_value), 0);
+        marketingMetrics.salesCount = ordersData.length;
+        
         // Calculate units sold
         marketingMetrics.unitsSold = ordersData.reduce((sum, order) => {
           const items = order.items || [];
-          return sum + items.reduce((itemSum: number, item: any) => itemSum + (item.quantity || 0), 0);
+          return sum + items.reduce((itemSum: number, item: any) => itemSum + (item.quantity || 1), 0);
         }, 0);
         
         // Get products with cost and ad spend data
@@ -317,7 +321,10 @@ export default async function handler(req: Request): Promise<Response> {
             items.forEach((item: any) => {
               const product = productsData.find(p => p.selling_price === item.unit_price);
               if (product && product.cost_price) {
-                totalCost += Number(product.cost_price) * (item.quantity || 0);
+                totalCost += Number(product.cost_price) * (item.quantity || 1);
+              } else {
+                // Assume 30% cost if no product match
+                totalCost += Number(item.unit_price || 0) * (item.quantity || 1) * 0.3;
               }
             });
           });
