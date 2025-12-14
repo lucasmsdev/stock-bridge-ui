@@ -27,7 +27,8 @@ import {
   Camera, 
   Save,
   Loader2,
-  Database 
+  Database,
+  BarChart3
 } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import { usePlan } from "@/hooks/usePlan";
@@ -71,6 +72,7 @@ export default function Profile() {
   const [isSaving, setIsSaving] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
   const [isSeeding, setIsSeeding] = useState(false);
+  const [isSeedingDashboard, setIsSeedingDashboard] = useState(false);
   const [isResetting, setIsResetting] = useState(false);
   const [isCheckingSubscription, setIsCheckingSubscription] = useState(true);
   const [profileData, setProfileData] = useState<ProfileData>({
@@ -375,6 +377,41 @@ export default function Profile() {
       });
     } finally {
       setIsSeeding(false);
+    }
+  };
+
+  // New function to seed only dashboard data (products and orders)
+  const handleSeedDashboardData = async () => {
+    if (!user || !isAdmin) return;
+    
+    try {
+      setIsSeedingDashboard(true);
+      
+      const { data, error } = await supabase.functions.invoke('seed-dashboard-data', {
+        headers: {
+          Authorization: `Bearer ${(await supabase.auth.getSession()).data.session?.access_token}`,
+        },
+      });
+
+      if (error) {
+        console.error('❌ Erro na função seed-dashboard-data:', error);
+        throw new Error(error.message || 'Erro ao gerar dados do dashboard');
+      }
+
+      toast({
+        title: "✅ Dados do Dashboard criados!",
+        description: `Foram criados: ${data.summary?.products || 0} produtos e ${data.summary?.orders || 0} pedidos.`,
+      });
+      
+    } catch (error) {
+      console.error('💥 Erro ao gerar dados do dashboard:', error);
+      toast({
+        title: "❌ Erro ao gerar dados",
+        description: error instanceof Error ? error.message : "Não foi possível gerar os dados do dashboard.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsSeedingDashboard(false);
     }
   };
 
@@ -699,14 +736,14 @@ export default function Profile() {
               <CardContent>
                 <div className="space-y-6">
                   <div>
-                    <h4 className="font-medium text-foreground mb-2">Gerar Dados de Demonstração</h4>
+                    <h4 className="font-medium text-foreground mb-2">Gerar Dados Completos</h4>
                     <p className="text-sm text-muted-foreground mb-4">
                       Popula sua conta com produtos, pedidos, despesas e alertas fictícios.
                     </p>
                     
                     <Button 
                       onClick={handleSeedAdminAccount}
-                      disabled={isSeeding || isResetting}
+                      disabled={isSeeding || isResetting || isSeedingDashboard}
                       size="sm"
                       className="bg-primary hover:bg-primary/90"
                     >
@@ -715,7 +752,31 @@ export default function Profile() {
                       ) : (
                         <Database className="h-4 w-4 mr-2" />
                       )}
-                      Gerar Dados de Demonstração
+                      Gerar Dados Completos
+                    </Button>
+                  </div>
+
+                  <Separator />
+
+                  <div>
+                    <h4 className="font-medium text-foreground mb-2">Gerar Dados do Dashboard</h4>
+                    <p className="text-sm text-muted-foreground mb-4">
+                      Gera apenas produtos e pedidos para testar o Dashboard (mais rápido).
+                    </p>
+                    
+                    <Button 
+                      onClick={handleSeedDashboardData}
+                      disabled={isSeeding || isResetting || isSeedingDashboard}
+                      size="sm"
+                      variant="outline"
+                      className="border-primary/50 text-primary hover:bg-primary/10"
+                    >
+                      {isSeedingDashboard ? (
+                        <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                      ) : (
+                        <BarChart3 className="h-4 w-4 mr-2" />
+                      )}
+                      Gerar Dados do Dashboard
                     </Button>
                   </div>
 
@@ -729,7 +790,7 @@ export default function Profile() {
                     
                     <Button 
                       onClick={handleResetAdminData}
-                      disabled={isResetting || isSeeding}
+                      disabled={isResetting || isSeeding || isSeedingDashboard}
                       size="sm"
                       variant="outline"
                       className="border-destructive/50 text-destructive hover:bg-destructive/10"
