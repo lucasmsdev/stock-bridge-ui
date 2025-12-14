@@ -144,61 +144,6 @@ export default function Dashboard() {
     checkAdmin();
   }, [user]);
 
-  // Generate demo data
-  const handleGenerateDemoData = async () => {
-    setIsGeneratingData(true);
-    try {
-      const { data, error } = await supabase.functions.invoke('seed-admin-account');
-      
-      if (error) throw error;
-      
-      toast({
-        title: "Dados gerados com sucesso!",
-        description: `Criados: ${data.summary.products} produtos, ${data.summary.orders} pedidos, ${data.summary.expenses} despesas`,
-      });
-      
-      // Reload dashboard data
-      await loadDashboardMetrics();
-    } catch (error: any) {
-      toast({
-        title: "Erro ao gerar dados",
-        description: error.message,
-        variant: "destructive",
-      });
-    } finally {
-      setIsGeneratingData(false);
-    }
-  };
-
-  // Clear all data
-  const handleClearData = async () => {
-    setIsClearingData(true);
-    try {
-      const { error } = await supabase.functions.invoke('reset-admin-data');
-      
-      if (error) throw error;
-      
-      toast({
-        title: "Dados limpos com sucesso!",
-        description: "Todos os dados de demonstração foram removidos.",
-      });
-      
-      // Reset dashboard state
-      setDashboardData(emptyMetrics);
-      setHasData(false);
-      setExpenses([]);
-      setTotalMonthlyExpenses(0);
-      setMonthlyProfitData([]);
-    } catch (error: any) {
-      toast({
-        title: "Erro ao limpar dados",
-        description: error.message,
-        variant: "destructive",
-      });
-    } finally {
-      setIsClearingData(false);
-    }
-  };
 
   // Calculate monthly expense from a single expense item
   const calculateMonthlyExpense = (expense: Expense): number => {
@@ -230,87 +175,88 @@ export default function Dashboard() {
     }
   };
 
-  // Load expenses and monthly profit data
-  useEffect(() => {
-    const loadExpensesAndProfitHistory = async () => {
-      if (!user?.id) return;
+  // Load expenses and monthly profit data - extracted as useCallback
+  const loadExpensesAndProfitHistory = useCallback(async () => {
+    if (!user?.id) return;
 
-      try {
-        // Load expenses
-        const { data: expensesData, error: expError } = await supabase
-          .from('expenses')
-          .select('id, amount, category, recurrence, is_active, start_date, end_date')
-          .eq('user_id', user.id)
-          .eq('is_active', true);
+    try {
+      // Load expenses
+      const { data: expensesData, error: expError } = await supabase
+        .from('expenses')
+        .select('id, amount, category, recurrence, is_active, start_date, end_date')
+        .eq('user_id', user.id)
+        .eq('is_active', true);
 
-        if (expError) throw expError;
+      if (expError) throw expError;
 
-        const expensesList = (expensesData || []) as Expense[];
-        setExpenses(expensesList);
-        
-        const total = expensesList.reduce((sum, exp) => sum + calculateMonthlyExpense(exp), 0);
-        setTotalMonthlyExpenses(total);
+      const expensesList = (expensesData || []) as Expense[];
+      setExpenses(expensesList);
+      
+      const total = expensesList.reduce((sum, exp) => sum + calculateMonthlyExpense(exp), 0);
+      setTotalMonthlyExpenses(total);
 
-        // Load orders for last 6 months
-        const sixMonthsAgo = new Date();
-        sixMonthsAgo.setMonth(sixMonthsAgo.getMonth() - 5);
-        sixMonthsAgo.setDate(1);
-        sixMonthsAgo.setHours(0, 0, 0, 0);
+      // Load orders for last 6 months
+      const sixMonthsAgo = new Date();
+      sixMonthsAgo.setMonth(sixMonthsAgo.getMonth() - 5);
+      sixMonthsAgo.setDate(1);
+      sixMonthsAgo.setHours(0, 0, 0, 0);
 
-        const { data: ordersData, error: ordError } = await supabase
-          .from('orders')
-          .select('total_value, order_date')
-          .eq('user_id', user.id)
-          .gte('order_date', sixMonthsAgo.toISOString());
+      const { data: ordersData, error: ordError } = await supabase
+        .from('orders')
+        .select('total_value, order_date')
+        .eq('user_id', user.id)
+        .gte('order_date', sixMonthsAgo.toISOString());
 
-        if (ordError) throw ordError;
+      if (ordError) throw ordError;
 
-        // Group orders by month
-        const monthlyData: Record<string, { revenue: number }> = {};
-        const now = new Date();
-        
-        // Initialize last 6 months
-        for (let i = 5; i >= 0; i--) {
-          const date = new Date(now.getFullYear(), now.getMonth() - i, 1);
-          const key = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
-          monthlyData[key] = { revenue: 0 };
+      // Group orders by month
+      const monthlyData: Record<string, { revenue: number }> = {};
+      const now = new Date();
+      
+      // Initialize last 6 months
+      for (let i = 5; i >= 0; i--) {
+        const date = new Date(now.getFullYear(), now.getMonth() - i, 1);
+        const key = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
+        monthlyData[key] = { revenue: 0 };
+      }
+
+      // Sum orders by month
+      (ordersData || []).forEach((order: { total_value: number; order_date: string }) => {
+        const date = new Date(order.order_date);
+        const key = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
+        if (monthlyData[key]) {
+          monthlyData[key].revenue += Number(order.total_value);
         }
+      });
 
-        // Sum orders by month
-        (ordersData || []).forEach((order: { total_value: number; order_date: string }) => {
-          const date = new Date(order.order_date);
-          const key = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
-          if (monthlyData[key]) {
-            monthlyData[key].revenue += Number(order.total_value);
-          }
+      // Calculate profit for each month
+      const profitHistory: MonthlyProfitData[] = Object.entries(monthlyData)
+        .sort(([a], [b]) => a.localeCompare(b))
+        .map(([monthKey, data]) => {
+          const [year, month] = monthKey.split('-');
+          const monthDate = new Date(parseInt(year), parseInt(month) - 1);
+          const monthName = monthDate.toLocaleDateString('pt-BR', { month: 'short' });
+          
+          const grossProfit = data.revenue * 0.30; // 30% margin assumption
+          const netProfit = grossProfit - total;
+          
+          return {
+            month: monthName.charAt(0).toUpperCase() + monthName.slice(1),
+            revenue: data.revenue,
+            grossProfit,
+            expenses: total,
+            netProfit,
+          };
         });
 
-        // Calculate profit for each month
-        const profitHistory: MonthlyProfitData[] = Object.entries(monthlyData)
-          .sort(([a], [b]) => a.localeCompare(b))
-          .map(([monthKey, data]) => {
-            const [year, month] = monthKey.split('-');
-            const monthDate = new Date(parseInt(year), parseInt(month) - 1);
-            const monthName = monthDate.toLocaleDateString('pt-BR', { month: 'short' });
-            
-            const grossProfit = data.revenue * 0.30; // 30% margin assumption
-            const netProfit = grossProfit - total;
-            
-            return {
-              month: monthName.charAt(0).toUpperCase() + monthName.slice(1),
-              revenue: data.revenue,
-              grossProfit,
-              expenses: total,
-              netProfit,
-            };
-          });
+      setMonthlyProfitData(profitHistory);
+    } catch (error) {
+      console.error('Error loading expenses and profit history:', error);
+    }
+  }, [user]);
 
-        setMonthlyProfitData(profitHistory);
-      } catch (error) {
-        console.error('Error loading expenses and profit history:', error);
-      }
-    };
-
+  // Initial load and real-time subscriptions for expenses and orders
+  useEffect(() => {
     loadExpensesAndProfitHistory();
 
     // Subscribe to real-time changes on expenses table
@@ -345,7 +291,6 @@ export default function Dashboard() {
         () => {
           console.log('Pedido atualizado, recarregando dados...');
           loadExpensesAndProfitHistory();
-          // Dashboard metrics serão atualizados pelo outro useEffect
         }
       )
       .subscribe();
@@ -354,7 +299,7 @@ export default function Dashboard() {
       expensesSubscription.unsubscribe();
       ordersSubscription.unsubscribe();
     };
-  }, [user]);
+  }, [user, loadExpensesAndProfitHistory]);
 
   const loadDashboardMetrics = useCallback(async (filters?: DashboardFiltersState) => {
     if (!user?.id) {
@@ -407,6 +352,65 @@ export default function Dashboard() {
       setIsLoading(false);
     }
   }, [user, toast, activeFilters]);
+
+  // Generate demo data (must be after loadDashboardMetrics and loadExpensesAndProfitHistory)
+  const handleGenerateDemoData = async () => {
+    setIsGeneratingData(true);
+    try {
+      const { data, error } = await supabase.functions.invoke('seed-admin-account');
+      
+      if (error) throw error;
+      
+      toast({
+        title: "Dados gerados com sucesso!",
+        description: `Criados: ${data.summary.products} produtos, ${data.summary.orders} pedidos, ${data.summary.expenses} despesas`,
+      });
+      
+      // Reload all dashboard data
+      await Promise.all([
+        loadDashboardMetrics(),
+        loadExpensesAndProfitHistory()
+      ]);
+    } catch (error: any) {
+      toast({
+        title: "Erro ao gerar dados",
+        description: error.message,
+        variant: "destructive",
+      });
+    } finally {
+      setIsGeneratingData(false);
+    }
+  };
+
+  // Clear all data
+  const handleClearData = async () => {
+    setIsClearingData(true);
+    try {
+      const { error } = await supabase.functions.invoke('reset-admin-data');
+      
+      if (error) throw error;
+      
+      toast({
+        title: "Dados limpos com sucesso!",
+        description: "Todos os dados de demonstração foram removidos.",
+      });
+      
+      // Reset dashboard state
+      setDashboardData(emptyMetrics);
+      setHasData(false);
+      setExpenses([]);
+      setTotalMonthlyExpenses(0);
+      setMonthlyProfitData([]);
+    } catch (error: any) {
+      toast({
+        title: "Erro ao limpar dados",
+        description: error.message,
+        variant: "destructive",
+      });
+    } finally {
+      setIsClearingData(false);
+    }
+  };
 
   const handleApplyFilters = (filters: DashboardFiltersState) => {
     setActiveFilters(filters);
