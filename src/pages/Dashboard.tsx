@@ -1,4 +1,4 @@
-import { TrendingUp, Package, ShoppingCart, Plug2, DollarSign, Loader2, TrendingDown, Users, Receipt, Target, Percent, Store, Calendar, Wallet, AlertTriangle, Database, Trash2 } from "lucide-react";
+import { TrendingUp, Package, ShoppingCart, Plug2, DollarSign, Loader2, TrendingDown, Users, Receipt, Target, Percent, Store, Calendar, Wallet, AlertTriangle } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import DashboardFilters, { DashboardFiltersState } from "@/components/dashboard/DashboardFilters";
@@ -122,8 +122,6 @@ export default function Dashboard() {
   const [expenses, setExpenses] = useState<Expense[]>([]);
   const [totalMonthlyExpenses, setTotalMonthlyExpenses] = useState(0);
   const [monthlyProfitData, setMonthlyProfitData] = useState<MonthlyProfitData[]>([]);
-  const [isGeneratingData, setIsGeneratingData] = useState(false);
-  const [isClearingData, setIsClearingData] = useState(false);
   const [isAdmin, setIsAdmin] = useState(false);
   
   const { user } = useAuth();
@@ -361,70 +359,6 @@ export default function Dashboard() {
     }
   }, [user, toast, activeFilters]);
 
-  // Generate demo data for Dashboard (products and orders only)
-  const handleGenerateDemoData = async () => {
-    setIsGeneratingData(true);
-    try {
-      console.log('Chamando seed-dashboard-data...');
-      const { data, error } = await supabase.functions.invoke('seed-dashboard-data');
-      
-      console.log('Resposta da edge function:', { data, error });
-      
-      if (error) throw error;
-      
-      toast({
-        title: "Dados do Dashboard gerados!",
-        description: `Criados: ${data.summary.products} produtos, ${data.summary.orders} pedidos`,
-      });
-      
-      // Reload dashboard data after a small delay to ensure DB is updated
-      setTimeout(async () => {
-        console.log('Recarregando métricas do dashboard...');
-        await loadDashboardMetrics();
-        await loadExpensesAndProfitHistory();
-      }, 500);
-    } catch (error: any) {
-      console.error('Erro ao gerar dados:', error);
-      toast({
-        title: "Erro ao gerar dados",
-        description: error.message,
-        variant: "destructive",
-      });
-    } finally {
-      setIsGeneratingData(false);
-    }
-  };
-
-  // Clear all data
-  const handleClearData = async () => {
-    setIsClearingData(true);
-    try {
-      const { error } = await supabase.functions.invoke('reset-admin-data');
-      
-      if (error) throw error;
-      
-      toast({
-        title: "Dados limpos com sucesso!",
-        description: "Todos os dados de demonstração foram removidos.",
-      });
-      
-      // Reset dashboard state
-      setDashboardData(emptyMetrics);
-      setHasData(false);
-      setExpenses([]);
-      setTotalMonthlyExpenses(0);
-      setMonthlyProfitData([]);
-    } catch (error: any) {
-      toast({
-        title: "Erro ao limpar dados",
-        description: error.message,
-        variant: "destructive",
-      });
-    } finally {
-      setIsClearingData(false);
-    }
-  };
-
   const handleApplyFilters = (filters: DashboardFiltersState) => {
     setActiveFilters(filters);
     setIsLoading(true);
@@ -543,44 +477,12 @@ export default function Dashboard() {
         </div>
       )}
 
-      {/* Admin Demo Data Controls */}
-      {isAdmin && (
-        <div className="flex flex-wrap gap-2">
-          <button
-            onClick={handleGenerateDemoData}
-            disabled={isGeneratingData || isClearingData}
-            className="inline-flex items-center gap-2 px-4 py-2 text-sm font-medium rounded-md bg-primary text-primary-foreground hover:bg-primary/90 disabled:opacity-50 transition-colors"
-          >
-            {isGeneratingData ? (
-              <Loader2 className="h-4 w-4 animate-spin" />
-            ) : (
-              <Database className="h-4 w-4" />
-            )}
-            Gerar Dados do Dashboard
-          </button>
-          {hasData && (
-            <button
-              onClick={handleClearData}
-              disabled={isGeneratingData || isClearingData}
-              className="inline-flex items-center gap-2 px-4 py-2 text-sm font-medium rounded-md bg-destructive text-destructive-foreground hover:bg-destructive/90 disabled:opacity-50 transition-colors"
-            >
-              {isClearingData ? (
-                <Loader2 className="h-4 w-4 animate-spin" />
-              ) : (
-                <Trash2 className="h-4 w-4" />
-              )}
-              Limpar Dados
-            </button>
-          )}
-        </div>
-      )}
-
       {!hasData && !isLoading && (
         <div className="p-8 text-center border border-dashed border-border rounded-lg bg-muted/20">
           <Package className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
           <h3 className="text-lg font-semibold text-foreground mb-2">Nenhum dado encontrado</h3>
           <p className="text-sm text-muted-foreground">
-            {isAdmin ? "Clique em 'Gerar Dados de Demonstração' acima para popular o dashboard." : "Conecte uma integração para ver métricas."}
+            {isAdmin ? "Vá para a página de Perfil e clique em 'Gerar Dados do Dashboard' nas ferramentas de administrador." : "Conecte uma integração para ver métricas."}
           </p>
         </div>
       )}
