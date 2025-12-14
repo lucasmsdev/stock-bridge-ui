@@ -50,6 +50,14 @@ function calculateDateRange(period: string, customStart?: string, customEnd?: st
       startDate = new Date(todayStart);
       startDate.setUTCDate(startDate.getUTCDate() - 30);
       break;
+    case '90days':
+      startDate = new Date(todayStart);
+      startDate.setUTCDate(startDate.getUTCDate() - 90);
+      break;
+    case '180days':
+      startDate = new Date(todayStart);
+      startDate.setUTCDate(startDate.getUTCDate() - 180);
+      break;
     case 'this_month':
       startDate = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1, 0, 0, 0));
       break;

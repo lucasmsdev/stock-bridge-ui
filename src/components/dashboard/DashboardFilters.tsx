@@ -35,6 +35,8 @@ const periods = [
   { value: "today", label: "Hoje" },
   { value: "7days", label: "Últimos 7 dias" },
   { value: "30days", label: "Últimos 30 dias" },
+  { value: "90days", label: "Últimos 90 dias" },
+  { value: "180days", label: "Últimos 180 dias" },
   { value: "this_month", label: "Este mês" },
   { value: "last_month", label: "Mês passado" },
   { value: "custom", label: "Personalizado" },
