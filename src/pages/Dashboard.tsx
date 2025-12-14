@@ -325,24 +325,32 @@ export default function Dashboard() {
       if (!functionError && data && !data.error) {
         console.log('Dados recebidos da edge function:', data);
         
-        // Verifica se há dados reais significativos
-        const hasSignificantData = data.todayRevenue > 0 || 
-                                  data.todayOrders > 0 || 
-                                  data.totalProducts > 0 ||
-                                  data.totalStock > 0 ||
-                                  (data.salesLast7Days && data.salesLast7Days.some((day: {revenue: number}) => day.revenue > 0)) ||
-                                  (data.marketing && data.marketing.billing > 0);
+        // Verifica se há dados reais significativos - consideramos que há dados se:
+        // - Tem produtos cadastrados, OU
+        // - Tem vendas de hoje, OU
+        // - Tem vendas no período selecionado (marketing.billing), OU
+        // - Tem vendas no histórico (salesLast7Days)
+        const hasSignificantData = 
+          data.totalProducts > 0 ||
+          data.totalStock > 0 ||
+          data.todayRevenue > 0 || 
+          data.todayOrders > 0 || 
+          (data.salesLast7Days && data.salesLast7Days.length > 0 && data.salesLast7Days.some((day: {revenue: number}) => day.revenue > 0)) ||
+          (data.marketing && data.marketing.billing > 0) ||
+          (data.marketing && data.marketing.salesCount > 0);
         
-        if (hasSignificantData) {
-          console.log('Dados reais carregados com sucesso');
-          setDashboardData(data);
-          setHasData(true);
-        } else {
-          console.log('Nenhum dado encontrado no banco');
-          setHasData(false);
-        }
+        console.log('Has significant data:', hasSignificantData, {
+          totalProducts: data.totalProducts,
+          totalStock: data.totalStock,
+          todayRevenue: data.todayRevenue,
+          salesDays: data.salesLast7Days?.length,
+          marketingBilling: data.marketing?.billing
+        });
+        
+        setDashboardData(data);
+        setHasData(hasSignificantData);
       } else {
-        console.warn('Edge function falhou');
+        console.warn('Edge function falhou:', functionError, data?.error);
         setHasData(false);
       }
     } catch (error) {
@@ -433,6 +441,8 @@ export default function Dashboard() {
       today: "Hoje",
       "7days": "Últimos 7 dias",
       "30days": "Últimos 30 dias",
+      "90days": "Últimos 90 dias",
+      "180days": "Últimos 180 dias",
       this_month: "Este mês",
       last_month: "Mês passado",
       custom: "Período personalizado",
