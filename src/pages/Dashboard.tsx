@@ -361,25 +361,30 @@ export default function Dashboard() {
     }
   }, [user, toast, activeFilters]);
 
-  // Generate demo data (must be after loadDashboardMetrics and loadExpensesAndProfitHistory)
+  // Generate demo data for Dashboard (products and orders only)
   const handleGenerateDemoData = async () => {
     setIsGeneratingData(true);
     try {
-      const { data, error } = await supabase.functions.invoke('seed-admin-account');
+      console.log('Chamando seed-dashboard-data...');
+      const { data, error } = await supabase.functions.invoke('seed-dashboard-data');
+      
+      console.log('Resposta da edge function:', { data, error });
       
       if (error) throw error;
       
       toast({
-        title: "Dados gerados com sucesso!",
-        description: `Criados: ${data.summary.products} produtos, ${data.summary.orders} pedidos, ${data.summary.expenses} despesas`,
+        title: "Dados do Dashboard gerados!",
+        description: `Criados: ${data.summary.products} produtos, ${data.summary.orders} pedidos`,
       });
       
-      // Reload all dashboard data
-      await Promise.all([
-        loadDashboardMetrics(),
-        loadExpensesAndProfitHistory()
-      ]);
+      // Reload dashboard data after a small delay to ensure DB is updated
+      setTimeout(async () => {
+        console.log('Recarregando métricas do dashboard...');
+        await loadDashboardMetrics();
+        await loadExpensesAndProfitHistory();
+      }, 500);
     } catch (error: any) {
+      console.error('Erro ao gerar dados:', error);
       toast({
         title: "Erro ao gerar dados",
         description: error.message,
@@ -551,7 +556,7 @@ export default function Dashboard() {
             ) : (
               <Database className="h-4 w-4" />
             )}
-            Gerar Dados de Demonstração
+            Gerar Dados do Dashboard
           </button>
           {hasData && (
             <button
