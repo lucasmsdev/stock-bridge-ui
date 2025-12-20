@@ -491,11 +491,30 @@ serve(async (req) => {
           );
         }
 
-        console.log('🔧 Inicializando cliente Amazon SP-API...');
+        // Usar marketplace_id salvo na integração (obrigatório)
+        const marketplaceId = integration.marketplace_id;
+        if (!marketplaceId) {
+          console.error('❌ Marketplace ID não configurado na integração');
+          return new Response(
+            JSON.stringify({ 
+              error: 'Marketplace não configurado. Reconecte sua conta Amazon.' 
+            }), 
+            { 
+              status: 400, 
+              headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
+            }
+          );
+        }
+
+        console.log('🔧 Inicializando cliente Amazon SP-API...', {
+          marketplaceId,
+          sellingPartnerId: integration.selling_partner_id,
+          accountName: integration.account_name,
+        });
 
         // Inicializar cliente Amazon SP-API
         const sellingPartner = new SellingPartnerAPI({
-          region: Deno.env.get('AMAZON_REGION') || 'na', // na, eu, fe
+          region: 'na', // América (inclui Brasil)
           refresh_token: refreshToken,
           credentials: {
             SELLING_PARTNER_APP_CLIENT_ID: Deno.env.get('AMAZON_CLIENT_ID'),
@@ -503,9 +522,7 @@ serve(async (req) => {
           },
         });
 
-        const marketplaceId = integration.marketplace_id || Deno.env.get('AMAZON_MARKETPLACE_ID') || 'ATVPDKIKX0DER';
-
-        console.log('📦 Buscando inventário FBA da Amazon...');
+        console.log('📦 Buscando inventário FBA da Amazon no marketplace:', marketplaceId);
 
         // Opção 1: Buscar inventário FBA (mais comum)
         const inventoryResponse = await sellingPartner.callAPI({
