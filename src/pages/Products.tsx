@@ -327,7 +327,19 @@ export default function Products() {
       if (error) {
         console.error('Error importing products:', error);
 
-        const details = (data as any)?.error || error.message;
+        const contextBody = (error as any)?.context?.body;
+        let contextMessage: string | null = null;
+
+        if (contextBody) {
+          try {
+            const parsed = typeof contextBody === 'string' ? JSON.parse(contextBody) : contextBody;
+            contextMessage = parsed?.error || parsed?.details || parsed?.message || null;
+          } catch {
+            contextMessage = typeof contextBody === 'string' ? contextBody : JSON.stringify(contextBody);
+          }
+        }
+
+        const details = contextMessage || (data as any)?.error || error.message;
 
         // Check if it's a 403 error (SKU limit reached)
         if (details && typeof details === 'string' && details.includes('Limite de SKUs atingido')) {

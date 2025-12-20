@@ -279,9 +279,22 @@ export default function Integrations() {
 
       if (error) {
         console.error("Error importing products:", error);
+
+        const contextBody = (error as any)?.context?.body;
+        let details: string | null = null;
+
+        if (contextBody) {
+          try {
+            const parsed = typeof contextBody === 'string' ? JSON.parse(contextBody) : contextBody;
+            details = parsed?.error || parsed?.details || parsed?.message || null;
+          } catch {
+            details = typeof contextBody === 'string' ? contextBody : JSON.stringify(contextBody);
+          }
+        }
+
         toast({
           title: "Erro ao importar",
-          description: error.message || "Não foi possível importar os produtos.",
+          description: details || error.message || "Não foi possível importar os produtos.",
           variant: "destructive",
         });
         setImportingId(null);

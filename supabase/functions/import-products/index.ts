@@ -591,13 +591,31 @@ serve(async (req) => {
         
         // Tratamento de erros específicos da Amazon
         if (amazonError.code === 'InvalidInput') {
+          const msg = amazonError?.message ? String(amazonError.message) : '';
+
+          // Caso típico: marketplace configurado não corresponde ao Seller
+          if (msg.includes('not registered in marketplace')) {
+            return new Response(
+              JSON.stringify({
+                error: 'Marketplace Amazon incorreto para esta conta.',
+                details: msg,
+                hint: 'Conecte novamente escolhendo o marketplace certo (ex: EUA vs Brasil).',
+              }),
+              {
+                status: 400,
+                headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+              }
+            );
+          }
+
           return new Response(
-            JSON.stringify({ 
-              error: 'Parâmetros inválidos na requisição Amazon. Verifique as configurações da integração.' 
-            }), 
-            { 
-              status: 400, 
-              headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
+            JSON.stringify({
+              error: 'Parâmetros inválidos na requisição Amazon. Verifique as configurações da integração.',
+              details: msg || undefined,
+            }),
+            {
+              status: 400,
+              headers: { ...corsHeaders, 'Content-Type': 'application/json' },
             }
           );
         }
