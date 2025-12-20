@@ -470,7 +470,7 @@ serve(async (req) => {
       productsToInsert.push(productData);
         }
       }
-    } else if (platform === 'amazon') {
+  } else if (platform === 'amazon') {
       console.log('🛒 Importando produtos da Amazon SP-API...');
 
       try {
@@ -491,24 +491,9 @@ serve(async (req) => {
           );
         }
 
-        // Usar marketplace_id salvo na integração (obrigatório)
-        const marketplaceId = integration.marketplace_id;
-        if (!marketplaceId) {
-          console.error('❌ Marketplace ID não configurado na integração');
-          return new Response(
-            JSON.stringify({ 
-              error: 'Marketplace não configurado. Reconecte sua conta Amazon.' 
-            }), 
-            { 
-              status: 400, 
-              headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
-            }
-          );
-        }
-
         console.log('🔧 Inicializando cliente Amazon SP-API...', {
-          marketplaceId,
-          sellingPartnerId: integration.selling_partner_id,
+          currentMarketplaceId: integration.marketplace_id,
+          currentSellingPartnerId: integration.selling_partner_id,
           accountName: integration.account_name,
         });
 
@@ -522,7 +507,181 @@ serve(async (req) => {
           },
         });
 
-        console.log('📦 Buscando inventário FBA da Amazon no marketplace:', marketplaceId);
+        // ========================================================
+        // PASSO 1: Descobrir selling_partner_id e marketplaces válidos
+        // ========================================================
+        console.log('📊 Buscando getMarketplaceParticipations para validar conta...');
+        
+        let marketplaceParticipations: any[] = [];
+        let detectedSellingPartnerId: string | null = null;
+        
+        try {
+          const participationsResponse = await sellingPartner.callAPI({
+            operation: 'getMarketplaceParticipations',
+            endpoint: 'sellers',
+          });
+
+          console.log('📋 Resposta getMarketplaceParticipations:', JSON.stringify(participationsResponse, null, 2));
+
+          if (participationsResponse && Array.isArray(participationsResponse)) {
+            marketplaceParticipations = participationsResponse;
+          } else if (participationsResponse?.payload && Array.isArray(participationsResponse.payload)) {
+            marketplaceParticipations = participationsResponse.payload;
+          }
+
+          // Extrair selling_partner_id (se disponível na resposta)
+          // Nota: O selling_partner_id geralmente vem do fluxo de auth, mas podemos tentar extrair
+          if (marketplaceParticipations.length > 0) {
+            // Alguns SDKs retornam sellerId em cada participação
+            const firstParticipation = marketplaceParticipations[0];
+            if (firstParticipation.sellerId) {
+              detectedSellingPartnerId = firstParticipation.sellerId;
+            }
+          }
+
+          console.log('✅ Marketplaces encontrados:', marketplaceParticipations.length);
+          console.log('🔍 Detected Selling Partner ID:', detectedSellingPartnerId || 'Não disponível na resposta');
+          
+        } catch (participationError: any) {
+          console.error('❌ Erro ao buscar getMarketplaceParticipations:', participationError);
+          
+          // Se não conseguimos obter participações, não podemos validar
+          // Mas ainda tentamos prosseguir se temos marketplace_id configurado
+          if (!integration.marketplace_id) {
+            return new Response(
+              JSON.stringify({
+                error: 'Não foi possível validar sua conta Amazon.',
+                details: participationError?.message || 'Erro ao obter marketplaces participantes',
+                hint: 'Reconecte sua conta Amazon Seller.',
+              }),
+              {
+                status: 400,
+                headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+              }
+            );
+          }
+        }
+
+        // ========================================================
+        // PASSO 2: Validar/ajustar marketplace_id
+        // ========================================================
+        let validatedMarketplaceId = integration.marketplace_id;
+        const validMarketplaceIds = marketplaceParticipations
+          .filter((p: any) => p.participation?.isParticipating)
+          .map((p: any) => p.marketplace?.id)
+          .filter(Boolean);
+
+        console.log('📍 Marketplaces válidos para esta conta:', validMarketplaceIds);
+
+        // Se não temos marketplace configurado, escolher um
+        if (!validatedMarketplaceId && validMarketplaceIds.length > 0) {
+          // Preferir Brasil (A2Q3Y263D00KWC)
+          const brazilMarketplace = 'A2Q3Y263D00KWC';
+          if (validMarketplaceIds.includes(brazilMarketplace)) {
+            validatedMarketplaceId = brazilMarketplace;
+            console.log('🇧🇷 Selecionando marketplace Brasil automaticamente');
+          } else {
+            validatedMarketplaceId = validMarketplaceIds[0];
+            console.log(`📍 Selecionando primeiro marketplace disponível: ${validatedMarketplaceId}`);
+          }
+        }
+
+        // Se marketplace configurado não está na lista de válidos
+        if (validMarketplaceIds.length > 0 && validatedMarketplaceId && !validMarketplaceIds.includes(validatedMarketplaceId)) {
+          console.error('❌ Marketplace configurado não é válido para esta conta:', {
+            configured: validatedMarketplaceId,
+            valid: validMarketplaceIds,
+          });
+
+          // Encontrar nome do marketplace para mensagem amigável
+          const marketplaceNames: Record<string, string> = {
+            'A2Q3Y263D00KWC': 'Brasil',
+            'ATVPDKIKX0DER': 'Estados Unidos',
+            'A2EUQ1WTGCTBG2': 'Canadá',
+            'A1AM78C64UM0Y8': 'México',
+            'A1PA6795UKMFR9': 'Alemanha',
+            'A1RKKUPIHCS9HS': 'Espanha',
+            'A13V1IB3VIYZZH': 'França',
+            'APJ6JRA9NG5V4': 'Itália',
+            'A1F83G8C2ARO7P': 'Reino Unido',
+            'A21TJRUUN4KGV': 'Índia',
+            'A19VAU5U5O7RUS': 'Singapura',
+            'A39IBJ37TRP1C6': 'Austrália',
+            'A1VC38T7YXB528': 'Japão',
+          };
+
+          const configuredName = marketplaceNames[validatedMarketplaceId] || validatedMarketplaceId;
+          const validNames = validMarketplaceIds.map((id: string) => marketplaceNames[id] || id).join(', ');
+
+          return new Response(
+            JSON.stringify({
+              error: `Marketplace "${configuredName}" não está habilitado para sua conta Amazon.`,
+              details: `Sua conta está registrada apenas em: ${validNames}`,
+              hint: 'Reconecte sua conta Amazon selecionando o país/marketplace correto no Amazon Seller Central.',
+              valid_marketplaces: validMarketplaceIds.map((id: string) => ({
+                id,
+                name: marketplaceNames[id] || id,
+              })),
+            }),
+            {
+              status: 400,
+              headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+            }
+          );
+        }
+
+        // Validação final: precisamos ter um marketplace válido
+        if (!validatedMarketplaceId) {
+          console.error('❌ Nenhum marketplace válido encontrado');
+          return new Response(
+            JSON.stringify({
+              error: 'Nenhum marketplace válido encontrado para sua conta Amazon.',
+              hint: 'Verifique se sua conta Amazon Seller está ativa e tem pelo menos um marketplace habilitado.',
+            }),
+            {
+              status: 400,
+              headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+            }
+          );
+        }
+
+        // ========================================================
+        // PASSO 3: Persistir selling_partner_id e marketplace_id atualizados
+        // ========================================================
+        const needsUpdate = 
+          (detectedSellingPartnerId && detectedSellingPartnerId !== integration.selling_partner_id) ||
+          (validatedMarketplaceId !== integration.marketplace_id);
+
+        if (needsUpdate) {
+          console.log('💾 Atualizando integração com dados validados...', {
+            selling_partner_id: detectedSellingPartnerId || integration.selling_partner_id,
+            marketplace_id: validatedMarketplaceId,
+          });
+
+          const updateData: Record<string, any> = {};
+          if (detectedSellingPartnerId && detectedSellingPartnerId !== integration.selling_partner_id) {
+            updateData.selling_partner_id = detectedSellingPartnerId;
+          }
+          if (validatedMarketplaceId !== integration.marketplace_id) {
+            updateData.marketplace_id = validatedMarketplaceId;
+          }
+
+          const { error: updateError } = await supabaseClient
+            .from('integrations')
+            .update(updateData)
+            .eq('id', integration.id);
+
+          if (updateError) {
+            console.error('⚠️ Erro ao atualizar integração (não crítico):', updateError);
+          } else {
+            console.log('✅ Integração atualizada com sucesso');
+          }
+        }
+
+        // ========================================================
+        // PASSO 4: Buscar produtos usando marketplace validado
+        // ========================================================
+        console.log('📦 Buscando inventário FBA da Amazon no marketplace:', validatedMarketplaceId);
 
         // Opção 1: Buscar inventário FBA (mais comum)
         const inventoryResponse = await sellingPartner.callAPI({
@@ -530,23 +689,40 @@ serve(async (req) => {
           endpoint: 'fbaInventory',
           query: {
             granularityType: 'Marketplace',
-            granularityId: marketplaceId,
-            marketplaceIds: [marketplaceId],
+            granularityId: validatedMarketplaceId,
+            marketplaceIds: [validatedMarketplaceId],
           },
         });
 
         if (!inventoryResponse?.inventorySummaries || inventoryResponse.inventorySummaries.length === 0) {
           console.log('⚠️ Nenhum produto FBA encontrado, tentando buscar listings...');
           
+          // Para listings, precisamos do selling_partner_id
+          const sellerId = detectedSellingPartnerId || integration.selling_partner_id;
+          
+          if (!sellerId) {
+            console.log('⚠️ selling_partner_id não disponível para buscar listings');
+            return new Response(
+              JSON.stringify({ 
+                message: 'Nenhum produto FBA encontrado. Para buscar outros produtos, reconecte sua conta Amazon.', 
+                count: 0 
+              }), 
+              { 
+                status: 200, 
+                headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
+              }
+            );
+          }
+
           // Opção 2: Buscar listings ativos (produtos não-FBA ou todos)
           const listingsResponse = await sellingPartner.callAPI({
             operation: 'getListingsItem',
             endpoint: 'listingsItems',
             path: {
-              sellerId: integration.selling_partner_id,
+              sellerId: sellerId,
             },
             query: {
-              marketplaceIds: [marketplaceId],
+              marketplaceIds: [validatedMarketplaceId],
               includedData: ['summaries', 'offers'],
             },
           });
@@ -614,9 +790,9 @@ serve(async (req) => {
           if (msg.includes('not registered in marketplace')) {
             return new Response(
               JSON.stringify({
-                error: 'Marketplace Amazon incorreto para esta conta.',
+                error: 'Sua conta Amazon não está registrada neste marketplace.',
                 details: msg,
-                hint: 'Conecte novamente escolhendo o marketplace certo (ex: EUA vs Brasil).',
+                hint: 'Reconecte sua conta Amazon selecionando o país/marketplace correto. Verifique no Amazon Seller Central em Configurações → Informações da conta → Seus Marketplaces quais países estão habilitados.',
               }),
               {
                 status: 400,
