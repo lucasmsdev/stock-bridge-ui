@@ -471,7 +471,7 @@ serve(async (req) => {
         }
       }
   } else if (platform === 'amazon') {
-      console.log('🛒 Importando produtos da Amazon SP-API...');
+      console.log('🛒 Importando produtos da Amazon SP-API via Reports API...');
 
       try {
         // Importar biblioteca Amazon SP-API
@@ -508,12 +508,11 @@ serve(async (req) => {
         });
 
         // ========================================================
-        // PASSO 1: Descobrir selling_partner_id e marketplaces válidos
+        // PASSO 1: Descobrir marketplaces válidos
         // ========================================================
         console.log('📊 Buscando getMarketplaceParticipations para validar conta...');
         
         let marketplaceParticipations: any[] = [];
-        let detectedSellingPartnerId: string | null = null;
         
         try {
           const participationsResponse = await sellingPartner.callAPI({
@@ -529,24 +528,11 @@ serve(async (req) => {
             marketplaceParticipations = participationsResponse.payload;
           }
 
-          // Extrair selling_partner_id (se disponível na resposta)
-          // Nota: O selling_partner_id geralmente vem do fluxo de auth, mas podemos tentar extrair
-          if (marketplaceParticipations.length > 0) {
-            // Alguns SDKs retornam sellerId em cada participação
-            const firstParticipation = marketplaceParticipations[0];
-            if (firstParticipation.sellerId) {
-              detectedSellingPartnerId = firstParticipation.sellerId;
-            }
-          }
-
           console.log('✅ Marketplaces encontrados:', marketplaceParticipations.length);
-          console.log('🔍 Detected Selling Partner ID:', detectedSellingPartnerId || 'Não disponível na resposta');
           
         } catch (participationError: any) {
           console.error('❌ Erro ao buscar getMarketplaceParticipations:', participationError);
           
-          // Se não conseguimos obter participações, não podemos validar
-          // Mas ainda tentamos prosseguir se temos marketplace_id configurado
           if (!integration.marketplace_id) {
             return new Response(
               JSON.stringify({
@@ -575,7 +561,6 @@ serve(async (req) => {
 
         // Se não temos marketplace configurado, escolher um
         if (!validatedMarketplaceId && validMarketplaceIds.length > 0) {
-          // Preferir Brasil (A2Q3Y263D00KWC)
           const brazilMarketplace = 'A2Q3Y263D00KWC';
           if (validMarketplaceIds.includes(brazilMarketplace)) {
             validatedMarketplaceId = brazilMarketplace;
@@ -584,50 +569,6 @@ serve(async (req) => {
             validatedMarketplaceId = validMarketplaceIds[0];
             console.log(`📍 Selecionando primeiro marketplace disponível: ${validatedMarketplaceId}`);
           }
-        }
-
-        // Se marketplace configurado não está na lista de válidos
-        if (validMarketplaceIds.length > 0 && validatedMarketplaceId && !validMarketplaceIds.includes(validatedMarketplaceId)) {
-          console.error('❌ Marketplace configurado não é válido para esta conta:', {
-            configured: validatedMarketplaceId,
-            valid: validMarketplaceIds,
-          });
-
-          // Encontrar nome do marketplace para mensagem amigável
-          const marketplaceNames: Record<string, string> = {
-            'A2Q3Y263D00KWC': 'Brasil',
-            'ATVPDKIKX0DER': 'Estados Unidos',
-            'A2EUQ1WTGCTBG2': 'Canadá',
-            'A1AM78C64UM0Y8': 'México',
-            'A1PA6795UKMFR9': 'Alemanha',
-            'A1RKKUPIHCS9HS': 'Espanha',
-            'A13V1IB3VIYZZH': 'França',
-            'APJ6JRA9NG5V4': 'Itália',
-            'A1F83G8C2ARO7P': 'Reino Unido',
-            'A21TJRUUN4KGV': 'Índia',
-            'A19VAU5U5O7RUS': 'Singapura',
-            'A39IBJ37TRP1C6': 'Austrália',
-            'A1VC38T7YXB528': 'Japão',
-          };
-
-          const configuredName = marketplaceNames[validatedMarketplaceId] || validatedMarketplaceId;
-          const validNames = validMarketplaceIds.map((id: string) => marketplaceNames[id] || id).join(', ');
-
-          return new Response(
-            JSON.stringify({
-              error: `Marketplace "${configuredName}" não está habilitado para sua conta Amazon.`,
-              details: `Sua conta está registrada apenas em: ${validNames}`,
-              hint: 'Reconecte sua conta Amazon selecionando o país/marketplace correto no Amazon Seller Central.',
-              valid_marketplaces: validMarketplaceIds.map((id: string) => ({
-                id,
-                name: marketplaceNames[id] || id,
-              })),
-            }),
-            {
-              status: 400,
-              headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-            }
-          );
         }
 
         // Validação final: precisamos ter um marketplace válido
@@ -646,89 +587,147 @@ serve(async (req) => {
         }
 
         // ========================================================
-        // PASSO 3: Persistir selling_partner_id e marketplace_id atualizados
+        // PASSO 3: Usar Reports API (funciona para FBA e FBM)
         // ========================================================
-        const needsUpdate = 
-          (detectedSellingPartnerId && detectedSellingPartnerId !== integration.selling_partner_id) ||
-          (validatedMarketplaceId !== integration.marketplace_id);
+        console.log('📄 Criando relatório GET_MERCHANT_LISTINGS_ALL_DATA no marketplace:', validatedMarketplaceId);
 
-        if (needsUpdate) {
-          console.log('💾 Atualizando integração com dados validados...', {
-            selling_partner_id: detectedSellingPartnerId || integration.selling_partner_id,
-            marketplace_id: validatedMarketplaceId,
+        // Criar relatório
+        let reportId: string;
+        try {
+          const createReportResponse = await sellingPartner.callAPI({
+            operation: 'createReport',
+            endpoint: 'reports',
+            body: {
+              reportType: 'GET_MERCHANT_LISTINGS_ALL_DATA',
+              marketplaceIds: [validatedMarketplaceId],
+            },
           });
 
-          const updateData: Record<string, any> = {};
-          if (detectedSellingPartnerId && detectedSellingPartnerId !== integration.selling_partner_id) {
-            updateData.selling_partner_id = detectedSellingPartnerId;
-          }
-          if (validatedMarketplaceId !== integration.marketplace_id) {
-            updateData.marketplace_id = validatedMarketplaceId;
-          }
+          reportId = createReportResponse?.reportId;
+          console.log('✅ Relatório criado com ID:', reportId);
 
-          const { error: updateError } = await supabaseClient
-            .from('integrations')
-            .update(updateData)
-            .eq('id', integration.id);
-
-          if (updateError) {
-            console.error('⚠️ Erro ao atualizar integração (não crítico):', updateError);
-          } else {
-            console.log('✅ Integração atualizada com sucesso');
+          if (!reportId) {
+            throw new Error('Não foi possível criar o relatório');
           }
+        } catch (createError: any) {
+          console.error('❌ Erro ao criar relatório:', createError);
+          throw createError;
         }
 
         // ========================================================
-        // PASSO 4: Buscar produtos usando marketplace validado
+        // PASSO 4: Aguardar relatório ficar pronto (polling)
         // ========================================================
-        console.log('📦 Buscando inventário FBA da Amazon no marketplace:', validatedMarketplaceId);
+        console.log('⏳ Aguardando relatório ficar pronto...');
 
-        // Opção 1: Buscar inventário FBA (mais comum)
-        const inventoryResponse = await sellingPartner.callAPI({
-          operation: 'getInventorySummaries',
-          endpoint: 'fbaInventory',
-          query: {
-            granularityType: 'Marketplace',
-            granularityId: validatedMarketplaceId,
-            marketplaceIds: [validatedMarketplaceId],
-          },
-        });
+        let reportDocumentId: string | null = null;
+        const maxAttempts = 30; // ~5 minutos (10s * 30)
+        let attempts = 0;
 
-        if (!inventoryResponse?.inventorySummaries || inventoryResponse.inventorySummaries.length === 0) {
-          console.log('⚠️ Nenhum produto FBA encontrado, tentando buscar listings...');
-          
-          // Para listings, precisamos do selling_partner_id
-          const sellerId = detectedSellingPartnerId || integration.selling_partner_id;
-          
-          if (!sellerId) {
-            console.log('⚠️ selling_partner_id não disponível para buscar listings');
-            return new Response(
-              JSON.stringify({ 
-                message: 'Nenhum produto FBA encontrado. Para buscar outros produtos, reconecte sua conta Amazon.', 
-                count: 0 
-              }), 
-              { 
-                status: 200, 
-                headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
-              }
-            );
+        while (attempts < maxAttempts && !reportDocumentId) {
+          await new Promise(resolve => setTimeout(resolve, 10000)); // Esperar 10 segundos
+          attempts++;
+
+          try {
+            const reportStatus = await sellingPartner.callAPI({
+              operation: 'getReport',
+              endpoint: 'reports',
+              path: {
+                reportId: reportId,
+              },
+            });
+
+            console.log(`📊 Status do relatório (tentativa ${attempts}):`, reportStatus?.processingStatus);
+
+            if (reportStatus?.processingStatus === 'DONE') {
+              reportDocumentId = reportStatus.reportDocumentId;
+              console.log('✅ Relatório pronto! Document ID:', reportDocumentId);
+            } else if (reportStatus?.processingStatus === 'CANCELLED') {
+              throw new Error('Relatório foi cancelado pela Amazon');
+            } else if (reportStatus?.processingStatus === 'FATAL') {
+              throw new Error('Erro fatal ao gerar relatório na Amazon');
+            }
+          } catch (statusError: any) {
+            console.error(`⚠️ Erro ao verificar status (tentativa ${attempts}):`, statusError?.message);
           }
+        }
 
-          // Opção 2: Buscar listings ativos (produtos não-FBA ou todos)
-          const listingsResponse = await sellingPartner.callAPI({
-            operation: 'getListingsItem',
-            endpoint: 'listingsItems',
+        if (!reportDocumentId) {
+          console.error('❌ Timeout esperando relatório ficar pronto');
+          return new Response(
+            JSON.stringify({
+              error: 'Timeout ao gerar relatório de produtos da Amazon.',
+              hint: 'O relatório está demorando mais que o esperado. Tente novamente em alguns minutos.',
+            }),
+            {
+              status: 408,
+              headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+            }
+          );
+        }
+
+        // ========================================================
+        // PASSO 5: Baixar documento do relatório
+        // ========================================================
+        console.log('📥 Baixando documento do relatório...');
+
+        let reportContent: string;
+        try {
+          // Obter URL do documento
+          const documentInfo = await sellingPartner.callAPI({
+            operation: 'getReportDocument',
+            endpoint: 'reports',
             path: {
-              sellerId: sellerId,
-            },
-            query: {
-              marketplaceIds: [validatedMarketplaceId],
-              includedData: ['summaries', 'offers'],
+              reportDocumentId: reportDocumentId,
             },
           });
 
-          if (!listingsResponse?.items || listingsResponse.items.length === 0) {
-            console.log('⚠️ Nenhum produto encontrado na conta Amazon');
+          console.log('📋 Informações do documento:', {
+            hasUrl: !!documentInfo?.url,
+            compressionAlgorithm: documentInfo?.compressionAlgorithm,
+          });
+
+          if (!documentInfo?.url) {
+            throw new Error('URL do documento não encontrada');
+          }
+
+          // Baixar conteúdo do relatório
+          const downloadResponse = await fetch(documentInfo.url);
+          
+          if (!downloadResponse.ok) {
+            throw new Error(`Erro ao baixar relatório: ${downloadResponse.status}`);
+          }
+
+          // Se o relatório estiver comprimido com GZIP, precisamos descomprimir
+          if (documentInfo.compressionAlgorithm === 'GZIP') {
+            const arrayBuffer = await downloadResponse.arrayBuffer();
+            const decompressedStream = new Response(arrayBuffer).body?.pipeThrough(new DecompressionStream('gzip'));
+            if (decompressedStream) {
+              reportContent = await new Response(decompressedStream).text();
+            } else {
+              throw new Error('Erro ao descomprimir relatório');
+            }
+          } else {
+            reportContent = await downloadResponse.text();
+          }
+
+          console.log('✅ Relatório baixado, tamanho:', reportContent.length, 'caracteres');
+          console.log('📋 Primeiras 500 caracteres:', reportContent.substring(0, 500));
+
+        } catch (downloadError: any) {
+          console.error('❌ Erro ao baixar documento:', downloadError);
+          throw downloadError;
+        }
+
+        // ========================================================
+        // PASSO 6: Parsear relatório TSV e mapear produtos
+        // ========================================================
+        console.log('🔄 Parseando relatório TSV...');
+
+        try {
+          const lines = reportContent.split('\n').filter(line => line.trim());
+          
+          if (lines.length < 2) {
+            console.log('⚠️ Relatório vazio ou apenas cabeçalho');
             return new Response(
               JSON.stringify({ 
                 message: 'Nenhum produto encontrado na sua conta Amazon Seller', 
@@ -741,40 +740,81 @@ serve(async (req) => {
             );
           }
 
-          // Mapear listings para nosso formato
-          productsToInsert = listingsResponse.items.map((item: any) => {
-            const summary = item.summaries?.[0] || {};
-            const offer = item.offers?.[0] || {};
-            
-            return {
-              user_id: user.id,
-              name: summary.itemName || item.sku,
-              sku: item.sku,
-              stock: offer.fulfillmentAvailability?.quantity || 0,
-              selling_price: offer.price?.listingPrice?.amount 
-                ? parseFloat(offer.price.listingPrice.amount) 
-                : null,
-              image_url: summary.mainImage?.link || null,
-            };
-          });
-        } else {
-          // Mapear inventário FBA para nosso formato
-          productsToInsert = inventoryResponse.inventorySummaries.map((item: any) => {
-            const fnSku = item.fnSku || item.sellerSku;
-            const productName = item.productName || fnSku;
-            const availableQuantity = item.totalQuantity || 0;
-            
-            return {
-              user_id: user.id,
-              name: productName,
-              sku: fnSku,
-              stock: availableQuantity,
-              selling_price: null, // Preço requer chamada adicional à API de precificação
-              image_url: null, // Imagem requer chamada adicional à API de catálogo
-            };
-          });
+          // Primeira linha é o cabeçalho
+          const headers = lines[0].split('\t').map(h => h.trim().toLowerCase().replace(/-/g, '_'));
+          console.log('📋 Colunas do relatório:', headers);
 
-          console.log(`✅ ${productsToInsert.length} produtos FBA encontrados`);
+          // Mapear índices das colunas que precisamos
+          const columnIndexes = {
+            itemName: headers.findIndex(h => h === 'item_name' || h === 'item-name' || h === 'product_name'),
+            sellerSku: headers.findIndex(h => h === 'seller_sku' || h === 'seller-sku' || h === 'sku'),
+            price: headers.findIndex(h => h === 'price'),
+            quantity: headers.findIndex(h => h === 'quantity' || h === 'available_quantity'),
+            asin: headers.findIndex(h => h === 'asin1' || h === 'asin'),
+            status: headers.findIndex(h => h === 'status'),
+            fulfillmentChannel: headers.findIndex(h => h === 'fulfillment_channel' || h === 'fulfilment_channel' || h === 'fulfilment-channel'),
+          };
+
+          console.log('📋 Índices das colunas:', columnIndexes);
+
+          // Parsear cada linha de produto
+          for (let i = 1; i < lines.length; i++) {
+            const values = lines[i].split('\t');
+            
+            // Extrair valores usando os índices
+            const itemName = columnIndexes.itemName >= 0 ? values[columnIndexes.itemName]?.trim() : null;
+            const sellerSku = columnIndexes.sellerSku >= 0 ? values[columnIndexes.sellerSku]?.trim() : null;
+            const priceStr = columnIndexes.price >= 0 ? values[columnIndexes.price]?.trim() : null;
+            const quantityStr = columnIndexes.quantity >= 0 ? values[columnIndexes.quantity]?.trim() : null;
+            const status = columnIndexes.status >= 0 ? values[columnIndexes.status]?.trim() : null;
+
+            // Validar SKU (obrigatório)
+            if (!sellerSku || sellerSku === '') {
+              continue;
+            }
+
+            // Pular produtos inativos/fechados
+            if (status && (status.toLowerCase() === 'inactive' || status.toLowerCase() === 'closed')) {
+              console.log(`⏭️ Pulando produto inativo: ${sellerSku}`);
+              continue;
+            }
+
+            // Converter preço
+            let sellingPrice: number | null = null;
+            if (priceStr && priceStr !== '') {
+              const cleanPrice = priceStr.replace(/[^\d.,]/g, '').replace(',', '.');
+              const parsedPrice = parseFloat(cleanPrice);
+              if (!isNaN(parsedPrice) && parsedPrice > 0) {
+                sellingPrice = parsedPrice;
+              }
+            }
+
+            // Converter quantidade
+            let stock = 0;
+            if (quantityStr && quantityStr !== '') {
+              const parsedQty = parseInt(quantityStr, 10);
+              if (!isNaN(parsedQty)) {
+                stock = parsedQty;
+              }
+            }
+
+            const productData = {
+              user_id: user.id,
+              name: itemName || sellerSku,
+              sku: sellerSku,
+              stock: stock,
+              selling_price: sellingPrice,
+              image_url: null, // Imagem não disponível no relatório de listings
+            };
+
+            productsToInsert.push(productData);
+          }
+
+          console.log(`✅ ${productsToInsert.length} produtos parseados do relatório`);
+
+        } catch (parseError: any) {
+          console.error('❌ Erro ao parsear relatório:', parseError);
+          throw parseError;
         }
 
         console.log(`📦 Preparados ${productsToInsert.length} produtos da Amazon para importação`);
@@ -786,10 +826,7 @@ serve(async (req) => {
         if (amazonError.code === 'InvalidInput') {
           const msg = amazonError?.message ? String(amazonError.message) : '';
 
-          // Caso típico: marketplace configurado não corresponde ao Seller
-          // Exemplo de mensagem: "Merchant: A251067YXRBAPB is not registered in marketplace: A2Q3Y263D00KWC"
           if (msg.includes('not registered in marketplace')) {
-            // Extrair IDs da mensagem de erro para diagnóstico
             const merchantIdMatch = msg.match(/Merchant:\s*(\w+)/i);
             const marketplaceIdMatch = msg.match(/marketplace:\s*(\w+)/i);
             
@@ -800,10 +837,8 @@ serve(async (req) => {
               merchantIdFromError: extractedMerchantId,
               marketplaceIdFromError: extractedMarketplaceId,
               configuredMarketplaceId: integration.marketplace_id,
-              savedSellingPartnerId: integration.selling_partner_id,
             });
 
-            // Mapear marketplace IDs para nomes amigáveis
             const marketplaceNames: Record<string, string> = {
               'A2Q3Y263D00KWC': 'Brasil',
               'ATVPDKIKX0DER': 'Estados Unidos',
@@ -828,12 +863,7 @@ serve(async (req) => {
               JSON.stringify({
                 error: `Sua conta Amazon (Merchant: ${extractedMerchantId || 'desconhecido'}) não está registrada no marketplace ${marketplaceName}.`,
                 details: msg,
-                hint: 'O refresh token usado pertence a uma conta/região diferente. Por favor:\n1. Acesse o Amazon Seller Central do país correto\n2. Gere um novo refresh token lá\n3. Reconecte sua conta Amazon no UniStock',
-                diagnostic: {
-                  merchant_id: extractedMerchantId,
-                  attempted_marketplace: extractedMarketplaceId,
-                  marketplace_name: marketplaceName,
-                },
+                hint: 'O refresh token usado pertence a uma conta/região diferente. Reconecte sua conta Amazon.',
               }),
               {
                 status: 400,
@@ -844,7 +874,7 @@ serve(async (req) => {
 
           return new Response(
             JSON.stringify({
-              error: 'Parâmetros inválidos na requisição Amazon. Verifique as configurações da integração.',
+              error: 'Parâmetros inválidos na requisição Amazon.',
               details: msg || undefined,
             }),
             {
@@ -866,6 +896,7 @@ serve(async (req) => {
           );
         }
 
+        // Erro genérico
         return new Response(
           JSON.stringify({ 
             error: 'Erro ao buscar produtos da Amazon. Tente novamente ou contate o suporte.',
