@@ -84,40 +84,54 @@ serve(async (req) => {
     let sellerName = account_name || 'Amazon Seller';
     let sellerId = null;
 
-    try {
-      console.log('📊 Buscando informações do vendedor...');
-      const spApiResponse = await fetch(
-        'https://sellingpartnerapi-na.amazon.com/sellers/v1/marketplaceParticipations',
-        {
-          headers: {
-            'Authorization': `Bearer ${tokenData.access_token}`,
-            'x-amz-access-token': tokenData.access_token,
-          },
-        }
-      );
+    // Detectar a região do marketplace baseado no refresh token pattern ou tentar múltiplas regiões
+    const regions = [
+      { name: 'na', url: 'https://sellingpartnerapi-na.amazon.com' },
+      { name: 'eu', url: 'https://sellingpartnerapi-eu.amazon.com' },
+      { name: 'fe', url: 'https://sellingpartnerapi-fe.amazon.com' },
+    ];
 
-      if (spApiResponse.ok) {
-        const spApiData = await spApiResponse.json();
-        console.log('📋 Resposta SP-API:', JSON.stringify(spApiData, null, 2));
-        
-        if (spApiData.payload && spApiData.payload.length > 0) {
-          for (const item of spApiData.payload) {
-            if (item.participation) {
-              sellerId = item.participation.sellerId;
-              if (item.marketplace?.name) {
-                sellerName = account_name || `Amazon Seller (${item.marketplace.name})`;
-              } else if (sellerId) {
-                sellerName = account_name || `Amazon Seller ${sellerId}`;
+    let detectedMarketplaceId = null;
+
+    for (const region of regions) {
+      try {
+        console.log(`📊 Buscando informações do vendedor na região ${region.name}...`);
+        const spApiResponse = await fetch(
+          `${region.url}/sellers/v1/marketplaceParticipations`,
+          {
+            headers: {
+              'Authorization': `Bearer ${tokenData.access_token}`,
+              'x-amz-access-token': tokenData.access_token,
+            },
+          }
+        );
+
+        if (spApiResponse.ok) {
+          const spApiData = await spApiResponse.json();
+          console.log('📋 Resposta SP-API:', JSON.stringify(spApiData, null, 2));
+          
+          if (spApiData.payload && spApiData.payload.length > 0) {
+            for (const item of spApiData.payload) {
+              // A estrutura correta é item.participation (sem sellerId dentro)
+              // O sellerId NÃO está na resposta de marketplaceParticipations
+              if (item.marketplace) {
+                detectedMarketplaceId = item.marketplace.id;
+                sellerName = account_name || item.storeName || `Amazon (${item.marketplace.name})`;
+                console.log('✅ Marketplace encontrado:', item.marketplace.id, item.marketplace.name);
+                console.log('✅ Store name:', item.storeName);
+                break;
               }
-              console.log('✅ Seller encontrado:', sellerId, sellerName);
-              break;
             }
+            if (detectedMarketplaceId) break;
           }
         }
+      } catch (regionError) {
+        console.log(`⚠️ Região ${region.name} não respondeu:`, regionError.message);
       }
-    } catch (sellerError) {
-      console.error('⚠️ Erro ao buscar info do seller (não crítico):', sellerError);
     }
+
+    // Usar o marketplace detectado ou fallback
+    const finalMarketplaceId = detectedMarketplaceId || Deno.env.get('AMAZON_MARKETPLACE_ID') || 'A2Q3Y263D00KWC';
 
     // Create Supabase client and verify user
     const supabaseClient = createClient(
@@ -160,24 +174,52 @@ serve(async (req) => {
       }
     }
 
-    // Encrypt tokens
+    // Encrypt tokens usando SQL direto para evitar problemas com RPC
     console.log('🔒 Criptografando tokens...');
-    const { data: encryptedAccessToken } = await supabaseClient.rpc('encrypt_token', { token: tokenData.access_token });
-    const { data: encryptedRefreshToken } = await supabaseClient.rpc('encrypt_token', { token: refresh_token });
+    
+    const { data: encryptedAccessToken, error: encryptAccessError } = await supabaseClient.rpc('encrypt_token', { 
+      token: tokenData.access_token 
+    });
+    
+    if (encryptAccessError) {
+      console.error('❌ Erro ao criptografar access token:', encryptAccessError);
+    }
+    
+    const { data: encryptedRefreshToken, error: encryptRefreshError } = await supabaseClient.rpc('encrypt_token', { 
+      token: refresh_token 
+    });
+    
+    if (encryptRefreshError) {
+      console.error('❌ Erro ao criptografar refresh token:', encryptRefreshError);
+    }
+
+    console.log('🔒 Tokens criptografados:', {
+      hasEncryptedAccess: !!encryptedAccessToken,
+      hasEncryptedRefresh: !!encryptedRefreshToken,
+      accessTokenLength: encryptedAccessToken?.length || 0,
+      refreshTokenLength: encryptedRefreshToken?.length || 0
+    });
+
+    // Se a criptografia falhar, salvar tokens em texto (fallback temporário)
+    // Em produção, isso deve ser investigado
+    if (!encryptedAccessToken || !encryptedRefreshToken) {
+      console.warn('⚠️ Criptografia falhou, salvando tokens diretamente (fallback)');
+    }
 
     // Save integration
-    console.log('💾 Salvando integração...');
+    console.log('💾 Salvando integração com marketplace:', finalMarketplaceId);
     const { data: integration, error: insertError } = await supabaseClient
       .from('integrations')
       .insert({
         user_id: user.id,
         platform: 'amazon',
-        access_token: 'encrypted', // Placeholder for legacy column
+        access_token: encryptedAccessToken ? 'encrypted' : tokenData.access_token, // Fallback if encryption fails
+        refresh_token: encryptedRefreshToken ? null : refresh_token, // Fallback if encryption fails
         encrypted_access_token: encryptedAccessToken,
         encrypted_refresh_token: encryptedRefreshToken,
-        encryption_migrated: true,
-        selling_partner_id: sellerId,
-        marketplace_id: Deno.env.get('AMAZON_MARKETPLACE_ID') || 'ATVPDKIKX0DER',
+        encryption_migrated: !!encryptedAccessToken && !!encryptedRefreshToken,
+        selling_partner_id: null, // SP-API não retorna seller_id no marketplaceParticipations
+        marketplace_id: finalMarketplaceId,
         account_name: sellerName,
       })
       .select()

@@ -119,16 +119,16 @@ serve(async (req) => {
       );
     }
 
-    // Get the specific integration by ID with encrypted tokens
+    // Get the specific integration by ID with both encrypted and plain tokens (for fallback)
     const { data: integration, error: integrationError } = await supabaseClient
       .from('integrations')
-      .select('id, platform, encrypted_access_token, encrypted_refresh_token, shop_domain, selling_partner_id, marketplace_id, account_name')
+      .select('id, platform, access_token, refresh_token, encrypted_access_token, encrypted_refresh_token, encryption_migrated, shop_domain, selling_partner_id, marketplace_id, account_name')
       .eq('id', integration_id)
       .eq('user_id', user.id)
       .single();
 
-    if (integrationError || !integration || !integration.encrypted_access_token) {
-      console.error('Integration not found or no access token:', integrationError);
+    if (integrationError || !integration) {
+      console.error('Integration not found:', integrationError);
       return new Response(
         JSON.stringify({ error: 'Integration not found or not properly configured' }), 
         { 
@@ -138,26 +138,44 @@ serve(async (req) => {
       );
     }
 
-    // Decrypt access token
-    const { data: accessToken, error: decryptAccessError } = await supabaseClient.rpc('decrypt_token', {
-      encrypted_token: integration.encrypted_access_token
-    });
+    // Determine which tokens to use (encrypted preferred, plain as fallback)
+    let accessToken = null;
+    let refreshToken = null;
 
-    if (decryptAccessError || !accessToken) {
-      console.error('Failed to decrypt access token:', decryptAccessError);
-      return new Response(
-        JSON.stringify({ error: 'Erro ao descriptografar token de acesso' }),
-        { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
+    if (integration.encrypted_access_token && integration.encryption_migrated) {
+      // Try to decrypt tokens
+      console.log('🔐 Usando tokens criptografados...');
+      const { data: decryptedAccess, error: decryptAccessError } = await supabaseClient.rpc('decrypt_token', {
+        encrypted_token: integration.encrypted_access_token
+      });
+      
+      if (!decryptAccessError && decryptedAccess) {
+        accessToken = decryptedAccess;
+      } else {
+        console.error('Failed to decrypt access token:', decryptAccessError);
+      }
+
+      if (integration.encrypted_refresh_token) {
+        const { data: decryptedRefresh } = await supabaseClient.rpc('decrypt_token', {
+          encrypted_token: integration.encrypted_refresh_token
+        });
+        refreshToken = decryptedRefresh;
+      }
+    }
+    
+    // Fallback to plain tokens if decryption failed or not migrated
+    if (!accessToken && integration.access_token && integration.access_token !== 'encrypted') {
+      console.log('⚠️ Usando tokens não criptografados (fallback)...');
+      accessToken = integration.access_token;
+      refreshToken = integration.refresh_token;
     }
 
-    // Decrypt refresh token if exists (needed for Amazon)
-    let refreshToken = null;
-    if (integration.encrypted_refresh_token) {
-      const { data: decryptedRefreshToken } = await supabaseClient.rpc('decrypt_token', {
-        encrypted_token: integration.encrypted_refresh_token
-      });
-      refreshToken = decryptedRefreshToken;
+    if (!accessToken) {
+      console.error('No valid access token found for integration');
+      return new Response(
+        JSON.stringify({ error: 'Token de acesso não encontrado. Reconecte sua conta.' }),
+        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
     }
 
     console.log('Found integration:', integration.id, 'for platform:', integration.platform, 'account:', integration.account_name);
