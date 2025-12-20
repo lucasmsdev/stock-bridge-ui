@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { useSearchParams } from "react-router-dom";
-import { Plus, Settings, Unlink, ExternalLink, CheckCircle2, Plug, Loader2, Lock, Download } from "lucide-react";
+import { Plus, Settings, Unlink, ExternalLink, CheckCircle2, Plug, Loader2, Lock, Download, Key } from "lucide-react";
 import { useThemeProvider } from "@/components/layout/ThemeProvider";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -22,6 +22,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { usePlan } from "@/hooks/usePlan";
 import { UpgradeBanner } from "@/components/ui/upgrade-banner";
+import { AmazonSelfAuthDialog } from "@/components/integrations/AmazonSelfAuthDialog";
 
 // Mock data
 const availableIntegrations = [
@@ -62,6 +63,7 @@ export default function Integrations() {
   const [importingId, setImportingId] = useState<string | null>(null);
   const [connectedIntegrations, setConnectedIntegrations] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const [amazonSelfAuthOpen, setAmazonSelfAuthOpen] = useState(false);
   const { toast } = useToast();
   const { canAccess, getUpgradeRequiredMessage } = usePlan();
   const { theme } = useThemeProvider();
@@ -178,37 +180,9 @@ export default function Integrations() {
       // Redirect to Mercado Livre authorization page
       window.location.href = authUrl;
     } else if (platformId === "amazon") {
-      // Obter user_id atual
-      const {
-        data: { user },
-      } = await supabase.auth.getUser();
-
-      if (!user) {
-        toast({
-          title: "Erro de autenticação",
-          description: "Faça login para conectar integrações.",
-          variant: "destructive",
-        });
-        return;
-      }
-
-      console.log("🔐 Iniciando fluxo OAuth Amazon...");
-
-      // Configurar URL de autorização OAuth da Amazon
-      const amazonApplicationId = "amzn1.sp.solution.0c710273-638d-46c9-9060-8448f1ceaeea";
-      const callbackUrl = `https://fcvwogaqarkuqvumyqqm.supabase.co/functions/v1/amazon-callback`;
-
-      const authUrl =
-        `https://sellercentral.amazon.com/apps/authorize/consent` +
-        `?application_id=${amazonApplicationId}` +
-        `&state=${user.id}` +
-        `&redirect_uri=${encodeURIComponent(callbackUrl)}` +
-        `&version=beta`;
-
-      console.log("🔄 Redirecionando para Amazon Seller Central...");
-
-      // Redirecionar para página de autorização da Amazon
-      window.location.href = authUrl;
+      // Usar Self-Authorization enquanto aguarda aprovação do app
+      // OAuth de terceiros requer aprovação da Amazon App Store
+      setAmazonSelfAuthOpen(true);
     } else if (platformId === "shopify") {
       // Get current user
       const {
@@ -689,6 +663,13 @@ export default function Integrations() {
           </div>
         </CardContent>
       </Card>
+
+      {/* Amazon Self-Auth Dialog */}
+      <AmazonSelfAuthDialog
+        open={amazonSelfAuthOpen}
+        onOpenChange={setAmazonSelfAuthOpen}
+        onSuccess={loadConnectedIntegrations}
+      />
     </div>
   );
 }
