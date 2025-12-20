@@ -6,6 +6,9 @@ verify_jwt = false
 [functions.amazon-callback]
 verify_jwt = false
 
+[functions.amazon-self-auth]
+verify_jwt = true
+
 [functions.check-competitor-prices]
 verify_jwt = false
 
