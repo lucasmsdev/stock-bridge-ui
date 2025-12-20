@@ -303,11 +303,13 @@ export default function Products() {
     }
   };
 
-  const importProducts = async (platform: string) => {
+  const importProducts = async (integration: Integration) => {
+    const platform = integration.platform;
+    const platformName = platformNames[platform] || platform;
+
     try {
       setIsImporting(true);
-      const platformName = platformNames[platform] || platform;
-      
+
       // Check if user can import more products
       if (!canImportProducts(products.length, 1)) {
         toast({
@@ -317,26 +319,24 @@ export default function Products() {
         });
         return;
       }
-      
+
       const { data, error } = await supabase.functions.invoke('import-products', {
-        body: { platform }
+        body: { integration_id: integration.id },
       });
 
       if (error) {
         console.error('Error importing products:', error);
-        
+
+        const details = (data as any)?.error || error.message;
+
         // Check if it's a 403 error (SKU limit reached)
-        if (error.message && error.message.includes('Limite de SKUs atingido')) {
+        if (details && typeof details === 'string' && details.includes('Limite de SKUs atingido')) {
           toast({
             title: "❌ Limite de SKUs atingido",
-            description: error.message,
+            description: details,
             variant: "destructive",
             action: (
-              <Button 
-                variant="outline" 
-                size="sm" 
-                onClick={() => window.location.href = '/billing'}
-              >
+              <Button variant="outline" size="sm" onClick={() => window.location.href = '/billing'}>
                 Fazer Upgrade
               </Button>
             ),
@@ -344,7 +344,9 @@ export default function Products() {
         } else {
           toast({
             title: "❌ Falha ao importar produtos",
-            description: `Não foi possível importar os produtos do ${platformName}. Tente novamente.`,
+            description: details
+              ? `${platformName} respondeu: ${details}`
+              : `Não foi possível importar os produtos do ${platformName}. Tente novamente.`,
             variant: "destructive",
           });
         }
@@ -353,7 +355,7 @@ export default function Products() {
 
       toast({
         title: "✅ Produtos importados com sucesso!",
-        description: `${data.count} produtos foram importados do ${platformName}.`,
+        description: `${data?.count ?? 0} produtos foram importados do ${platformName}.`,
       });
 
       // Reload products after import
@@ -437,7 +439,7 @@ export default function Products() {
                     <DropdownMenuItem 
                       key={integration.id}
                       className="hover:bg-muted cursor-pointer"
-                      onClick={() => importProducts(integration.platform)}
+                      onClick={() => importProducts(integration)}
                     >
                       <Download className="mr-2 h-4 w-4" />
                       Do {platformNames[integration.platform] || integration.platform}
@@ -495,7 +497,7 @@ export default function Products() {
                   <DropdownMenuItem 
                     key={integration.id}
                     className="hover:bg-muted cursor-pointer"
-                    onClick={() => importProducts(integration.platform)}
+                    onClick={() => importProducts(integration)}
                   >
                     <Download className="mr-2 h-4 w-4" />
                     Do {platformNames[integration.platform] || integration.platform}
