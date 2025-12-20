@@ -787,12 +787,53 @@ serve(async (req) => {
           const msg = amazonError?.message ? String(amazonError.message) : '';
 
           // Caso típico: marketplace configurado não corresponde ao Seller
+          // Exemplo de mensagem: "Merchant: A251067YXRBAPB is not registered in marketplace: A2Q3Y263D00KWC"
           if (msg.includes('not registered in marketplace')) {
+            // Extrair IDs da mensagem de erro para diagnóstico
+            const merchantIdMatch = msg.match(/Merchant:\s*(\w+)/i);
+            const marketplaceIdMatch = msg.match(/marketplace:\s*(\w+)/i);
+            
+            const extractedMerchantId = merchantIdMatch ? merchantIdMatch[1] : null;
+            const extractedMarketplaceId = marketplaceIdMatch ? marketplaceIdMatch[1] : null;
+
+            console.error('❌ Diagnóstico de erro de marketplace:', {
+              merchantIdFromError: extractedMerchantId,
+              marketplaceIdFromError: extractedMarketplaceId,
+              configuredMarketplaceId: integration.marketplace_id,
+              savedSellingPartnerId: integration.selling_partner_id,
+            });
+
+            // Mapear marketplace IDs para nomes amigáveis
+            const marketplaceNames: Record<string, string> = {
+              'A2Q3Y263D00KWC': 'Brasil',
+              'ATVPDKIKX0DER': 'Estados Unidos',
+              'A2EUQ1WTGCTBG2': 'Canadá',
+              'A1AM78C64UM0Y8': 'México',
+              'A1PA6795UKMFR9': 'Alemanha',
+              'A1RKKUPIHCS9HS': 'Espanha',
+              'A13V1IB3VIYZZH': 'França',
+              'APJ6JRA9NG5V4': 'Itália',
+              'A1F83G8C2ARO7P': 'Reino Unido',
+              'A21TJRUUN4KGV': 'Índia',
+              'A19VAU5U5O7RUS': 'Singapura',
+              'A39IBJ37TRP1C6': 'Austrália',
+              'A1VC38T7YXB528': 'Japão',
+            };
+
+            const marketplaceName = extractedMarketplaceId 
+              ? (marketplaceNames[extractedMarketplaceId] || extractedMarketplaceId)
+              : 'configurado';
+
             return new Response(
               JSON.stringify({
-                error: 'Sua conta Amazon não está registrada neste marketplace.',
+                error: `Sua conta Amazon (Merchant: ${extractedMerchantId || 'desconhecido'}) não está registrada no marketplace ${marketplaceName}.`,
                 details: msg,
-                hint: 'Reconecte sua conta Amazon selecionando o país/marketplace correto. Verifique no Amazon Seller Central em Configurações → Informações da conta → Seus Marketplaces quais países estão habilitados.',
+                hint: 'O refresh token usado pertence a uma conta/região diferente. Por favor:\n1. Acesse o Amazon Seller Central do país correto\n2. Gere um novo refresh token lá\n3. Reconecte sua conta Amazon no UniStock',
+                diagnostic: {
+                  merchant_id: extractedMerchantId,
+                  attempted_marketplace: extractedMarketplaceId,
+                  marketplace_name: marketplaceName,
+                },
               }),
               {
                 status: 400,
