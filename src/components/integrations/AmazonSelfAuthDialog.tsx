@@ -12,13 +12,6 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Alert, AlertDescription } from "@/components/ui/alert";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 import { Loader2, ExternalLink, Key, AlertCircle } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
@@ -32,7 +25,7 @@ interface AmazonSelfAuthDialogProps {
 export function AmazonSelfAuthDialog({ open, onOpenChange, onSuccess }: AmazonSelfAuthDialogProps) {
   const [refreshToken, setRefreshToken] = useState("");
   const [accountName, setAccountName] = useState("");
-  const [marketplaceId, setMarketplaceId] = useState<string>("A2Q3Y263D00KWC");
+  const marketplaceId = "A2Q3Y263D00KWC"; // Brasil - app exclusivo para brasileiros
   const [isLoading, setIsLoading] = useState(false);
   const { toast } = useToast();
 
@@ -156,20 +149,15 @@ export function AmazonSelfAuthDialog({ open, onOpenChange, onSuccess }: AmazonSe
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="marketplace">Marketplace *</Label>
-            <Select value={marketplaceId} onValueChange={setMarketplaceId}>
-              <SelectTrigger id="marketplace">
-                <SelectValue placeholder="Selecione o marketplace" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="A2Q3Y263D00KWC">Brasil (Amazon.com.br)</SelectItem>
-                <SelectItem value="ATVPDKIKX0DER">EUA (Amazon.com)</SelectItem>
-                <SelectItem value="A2EUQ1WTGCTBG2">Canadá (Amazon.ca)</SelectItem>
-                <SelectItem value="A1AM78C64UM0Y8">México (Amazon.com.mx)</SelectItem>
-              </SelectContent>
-            </Select>
+            <Label htmlFor="marketplace">Marketplace</Label>
+            <Input
+              id="marketplace"
+              value="Brasil (Amazon.com.br)"
+              disabled
+              className="bg-muted"
+            />
             <p className="text-xs text-muted-foreground">
-              Precisa ser o mesmo marketplace que você marcou no Seller Central ao autorizar o app.
+              Ao autorizar o app no Seller Central, marque o marketplace do Brasil.
             </p>
           </div>
 
