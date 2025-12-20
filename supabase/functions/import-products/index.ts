@@ -624,7 +624,7 @@ serve(async (req) => {
         let attempts = 0;
 
         while (attempts < maxAttempts && !reportDocumentId) {
-          await new Promise(resolve => setTimeout(resolve, 10000)); // Esperar 10 segundos
+          await new Promise(resolve => setTimeout(resolve, 3000)); // Esperar 3 segundos (otimizado)
           attempts++;
 
           try {
