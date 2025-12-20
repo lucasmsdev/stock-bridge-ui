@@ -107,36 +107,65 @@ serve(async (req) => {
 
     console.log(`SKU check passed. Current: ${currentProductCount}, Limit: ${limit}, Plan: ${userPlan}`);
 
-    const { integration_id } = await req.json();
-
-    if (!integration_id) {
+    // Body parsing (support both integration_id and platform for backward compatibility)
+    let body: any = {};
+    try {
+      body = await req.json();
+    } catch (parseError: any) {
+      console.error('❌ Failed to parse request body as JSON:', parseError?.message || parseError);
       return new Response(
-        JSON.stringify({ error: 'integration_id is required' }), 
-        { 
-          status: 400, 
-          headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
+        JSON.stringify({ error: 'Corpo da requisição inválido. Tente novamente.' }),
+        {
+          status: 400,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
         }
       );
     }
 
-    // Get the specific integration by ID with both encrypted and plain tokens (for fallback)
-    const { data: integration, error: integrationError } = await supabaseClient
+    const integrationId: string | null = body?.integration_id ?? body?.integrationId ?? null;
+    const platformFromBody: string | null = body?.platform ?? null;
+
+    console.log('📥 Import request body received:', {
+      hasIntegrationId: !!integrationId,
+      platform: platformFromBody,
+    });
+
+    if (!integrationId && !platformFromBody) {
+      return new Response(
+        JSON.stringify({ error: 'integration_id ou platform é obrigatório' }),
+        {
+          status: 400,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        }
+      );
+    }
+
+    // Get the specific integration (by id when provided, otherwise latest by platform)
+    let integrationQuery = supabaseClient
       .from('integrations')
       .select('id, platform, access_token, refresh_token, encrypted_access_token, encrypted_refresh_token, encryption_migrated, shop_domain, selling_partner_id, marketplace_id, account_name')
-      .eq('id', integration_id)
-      .eq('user_id', user.id)
-      .single();
+      .eq('user_id', user.id);
+
+    if (integrationId) {
+      integrationQuery = integrationQuery.eq('id', integrationId);
+    } else if (platformFromBody) {
+      integrationQuery = integrationQuery.eq('platform', platformFromBody).order('created_at', { ascending: false }).limit(1);
+    }
+
+    const { data: integration, error: integrationError } = await integrationQuery.maybeSingle();
 
     if (integrationError || !integration) {
       console.error('Integration not found:', integrationError);
       return new Response(
-        JSON.stringify({ error: 'Integration not found or not properly configured' }), 
-        { 
-          status: 404, 
-          headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
+        JSON.stringify({ error: 'Integration not found or not properly configured' }),
+        {
+          status: 404,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
         }
       );
     }
+
+    console.log('Found integration:', integration.id, 'for platform:', integration.platform, 'account:', integration.account_name);
 
     // Determine which tokens to use (encrypted preferred, plain as fallback)
     let accessToken = null;
