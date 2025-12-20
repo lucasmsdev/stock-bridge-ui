@@ -26,7 +26,7 @@ serve(async (req) => {
     }
 
     // Parse request body
-    const { refresh_token, account_name } = await req.json();
+    const { refresh_token, account_name, marketplace_id } = await req.json();
 
     if (!refresh_token) {
       console.error('❌ Refresh token não fornecido');
@@ -130,8 +130,8 @@ serve(async (req) => {
       }
     }
 
-    // Usar o marketplace detectado ou fallback
-    const finalMarketplaceId = detectedMarketplaceId || Deno.env.get('AMAZON_MARKETPLACE_ID') || 'A2Q3Y263D00KWC';
+    // Usar o marketplace selecionado pelo usuário (preferencial) ou fallback
+    const finalMarketplaceId = marketplace_id || detectedMarketplaceId || Deno.env.get('AMAZON_MARKETPLACE_ID') || 'A2Q3Y263D00KWC';
 
     // Create Supabase client and verify user
     const supabaseClient = createClient(
