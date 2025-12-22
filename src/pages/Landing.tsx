@@ -246,8 +246,8 @@ const Landing = () => {
               Potencialize sua Performance
             </h2>
             <p className="text-lg text-muted-foreground max-w-3xl mx-auto">
-              Você fica exausto trabalhando em planilhas para saber seu lucro real? 
-              Tenha acesso a essas informações na palma da mão e em tempo real.
+              Você está deixando dinheiro na mesa. Enquanto você alterna entre marketplaces e planilhas, 
+              seus concorrentes estão ajustando preços em tempo real e capturando suas vendas. Recupere o controle.
             </p>
           </div>
 
