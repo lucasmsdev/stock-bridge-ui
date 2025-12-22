@@ -42,6 +42,7 @@ const pricingFeatureDescriptions: Record<string, string> = {
   "Até 500 produtos": "5x mais produtos que o Iniciante. Ideal para quem está crescendo. Precisa de mais? O Enterprise suporta até 2.000 produtos.",
   "2 contas por marketplace": "Conecte até 2 lojas por canal (ex: 2 contas do Mercado Livre). Tem mais contas? O Enterprise permite 5 e o Unlimited é ilimitado.",
   "Tudo do plano Iniciante": "Você mantém sincronização, gestão de pedidos, dashboard e suporte — e ainda ganha recursos extras como IA, relatórios e cálculo de lucro.",
+  "50 consultas IA/mês (modelo padrão)": "Use a Uni, nossa IA, até 50 vezes por mês para otimizar anúncios, tirar dúvidas e receber sugestões estratégicas. No Enterprise são 200 consultas com IA avançada.",
   "Acesso ao Agente Uni (IA) para Otimização de Anúncios": "EXCLUSIVO do Profissional em diante. A Uni analisa seus anúncios e sugere melhorias em títulos, descrições e fotos para vender mais. No Iniciante você não tem acesso a isso.",
   "Relatórios básicos de vendas": "Veja relatórios de vendas por período, produto e canal. Para relatórios personalizados e mais completos, considere o Enterprise.",
   "Cálculo financeiro e de lucro": "EXCLUSIVO do Profissional em diante. Descubra seu lucro real descontando taxas, frete, custos e impostos. No Iniciante você não tem essa visibilidade.",
@@ -51,6 +52,7 @@ const pricingFeatureDescriptions: Record<string, string> = {
   "Até 2.000 produtos": "4x mais que o Profissional. Para catálogos grandes. Se ainda não for suficiente, o Unlimited não tem limite.",
   "5 contas por marketplace": "Conecte até 5 lojas por canal. Ideal para quem tem múltiplas operações ou CNPJs diferentes. O Unlimited não tem limite.",
   "Tudo do plano Profissional": "Mantém IA, relatórios, cálculo de lucro e suporte prioritário — e adiciona análise de concorrência e relatórios personalizados.",
+  "200 consultas IA/mês (modelo avançado)": "4x mais consultas que o Profissional! Usa o modelo de IA mais inteligente (sonar-pro) para análises mais profundas e estratégicas.",
   "Análise de Mercado com IA e Monitoramento de Concorrência em Tempo Real": "EXCLUSIVO do Enterprise em diante. Monitore preços dos concorrentes e receba alertas e sugestões de ajuste. Proteja sua margem sem esforço manual.",
   "Relatórios personalizados": "Relatórios sob medida para seu tipo de operação. Mais detalhes e filtros que os relatórios básicos do Profissional.",
   "Suporte prioritário dedicado": "Além de prioritário, você tem acompanhamento mais próximo da equipe de suporte.",
@@ -59,6 +61,7 @@ const pricingFeatureDescriptions: Record<string, string> = {
   "Produtos ilimitados": "Sem teto. Cadastre quantos produtos precisar. Ideal para operações grandes ou distribuidores.",
   "Contas ilimitadas por marketplace": "Conecte quantas lojas quiser por canal. Sem restrições.",
   "Tudo do plano Enterprise": "Análise de concorrência, relatórios personalizados, IA e tudo mais — com capacidade ilimitada.",
+  "Consultas IA ilimitadas (modelo avançado)": "Use a IA quantas vezes quiser, sem limites mensais. Modelo avançado (sonar-pro) para máxima inteligência nas análises.",
   "Análise de mercado ilimitada": "No Enterprise há limites de consultas. No Unlimited, use análises de mercado e concorrência sem restrições.",
   "Automação avançada": "EXCLUSIVO do Unlimited. Automatize tarefas repetitivas: atualização de preços, respostas, e fluxos operacionais.",
   "API de Integração Completa e Gerente de Sucesso Dedicado": "EXCLUSIVO do Unlimited. Integre com seu ERP ou sistemas internos via API. Além disso, você tem um gerente de sucesso dedicado para acompanhar sua conta e ajudar a crescer.",
@@ -95,7 +98,7 @@ const Landing = () => {
         "Até 500 produtos",
         "2 contas por marketplace",
         "Tudo do plano Iniciante",
-        "Acesso ao Agente Uni (IA) para Otimização de Anúncios",
+        "50 consultas IA/mês (modelo padrão)",
         "Relatórios básicos de vendas",
         "Cálculo financeiro e de lucro",
         "Suporte prioritário"
@@ -112,6 +115,7 @@ const Landing = () => {
         "Até 2.000 produtos",
         "5 contas por marketplace",
         "Tudo do plano Profissional",
+        "200 consultas IA/mês (modelo avançado)",
         "Análise de Mercado com IA e Monitoramento de Concorrência em Tempo Real",
         "Relatórios personalizados",
         "Suporte prioritário dedicado"
@@ -128,7 +132,7 @@ const Landing = () => {
         "Produtos ilimitados",
         "Contas ilimitadas por marketplace",
         "Tudo do plano Enterprise",
-        "Análise de mercado ilimitada",
+        "Consultas IA ilimitadas (modelo avançado)",
         "Automação avançada",
         "API de Integração Completa e Gerente de Sucesso Dedicado"
       ]

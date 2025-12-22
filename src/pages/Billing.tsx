@@ -21,6 +21,7 @@ const featureDescriptions: Record<string, string> = {
   sync: "Mantenha seu estoque sempre atualizado automaticamente em todos os marketplaces conectados.",
   orders: "Visualize e gerencie todos os seus pedidos de todos os canais em um único lugar.",
   ai_assistant: "Converse com a Uni, nossa IA que te ajuda a tomar decisões, responder dúvidas e automatizar tarefas.",
+  ai_quota: "Número de consultas mensais ao assistente de IA. No Profissional são 50 com modelo padrão, Enterprise tem 200 com modelo avançado, e Unlimited não tem limite.",
   reports: "Gere relatórios detalhados de vendas, lucratividade e performance do seu negócio.",
   financial: "Calcule automaticamente seus custos, margens e lucro real por produto e por canal.",
   market_analysis: "Análise de concorrentes, tendências de mercado e sugestões de precificação com IA.",
@@ -307,14 +308,21 @@ export default function Billing() {
                         <PopoverTrigger asChild>
                           <div className="flex items-center text-sm cursor-pointer group hover:bg-muted/50 rounded-md p-1 -m-1 transition-colors">
                             <Check className="h-4 w-4 text-green-600 mr-2 flex-shrink-0" />
-                            <span className="flex-1">Agente de IA "Uni"</span>
+                            <span className="flex-1">
+                              {plan.aiQueryLimit === -1 
+                                ? 'Consultas IA ilimitadas (modelo avançado)'
+                                : plan.aiQueryLimit === 0
+                                  ? 'Sem acesso à IA'
+                                  : `${plan.aiQueryLimit} consultas IA/mês (${plan.aiModel === 'sonar-pro' ? 'avançado' : 'padrão'})`
+                              }
+                            </span>
                             <HelpCircle className="h-3.5 w-3.5 text-muted-foreground opacity-50 group-hover:opacity-100 transition-opacity" />
                           </div>
                         </PopoverTrigger>
                         <PopoverContent side="right" className="max-w-[280px] p-4">
                           <div className="space-y-2">
-                            <h4 className="font-medium text-sm">Assistente IA</h4>
-                            <p className="text-sm text-muted-foreground">{featureDescriptions.ai_assistant}</p>
+                            <h4 className="font-medium text-sm">Consultas IA</h4>
+                            <p className="text-sm text-muted-foreground">{featureDescriptions.ai_quota}</p>
                           </div>
                         </PopoverContent>
                       </Popover>
