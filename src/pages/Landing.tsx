@@ -184,7 +184,7 @@ const Landing = () => {
             {/* Headline */}
             <div className="space-y-6 animate-fade-in max-w-4xl">
               <h1 className="font-heading text-4xl sm:text-5xl lg:text-6xl xl:text-7xl font-bold text-foreground leading-tight">
-                <span className="text-primary">UniStock:</span> Tudo o que você vende, <span className="text-primary">em um só lugar.</span>
+                <span className="text-primary">UniStock</span>: Tudo o que você vende, <span className="text-primary">em um só lugar.</span>
               </h1>
               
               <p className="text-lg sm:text-xl lg:text-2xl text-muted-foreground leading-relaxed max-w-3xl mx-auto">
