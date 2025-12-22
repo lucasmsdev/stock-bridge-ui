@@ -472,17 +472,15 @@ const Landing = () => {
                       return (
                         <div key={idx} className="flex items-start gap-3">
                           <CheckCircle className="h-5 w-5 text-accent flex-shrink-0 mt-0.5" />
-                          <span className="text-sm text-foreground flex-1">{feature}</span>
-
                           {description ? (
                             <Popover>
                               <PopoverTrigger asChild>
                                 <button
                                   type="button"
-                                  className="mt-0.5 inline-flex h-7 w-7 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+                                  className="text-sm text-foreground text-left underline decoration-dotted underline-offset-2 decoration-muted-foreground/50 hover:decoration-primary hover:text-primary transition-colors cursor-pointer"
                                   aria-label={`Ver explicação: ${feature}`}
                                 >
-                                  <HelpCircle className="h-4 w-4" />
+                                  {feature}
                                 </button>
                               </PopoverTrigger>
                               <PopoverContent
@@ -496,7 +494,9 @@ const Landing = () => {
                                 </div>
                               </PopoverContent>
                             </Popover>
-                          ) : null}
+                          ) : (
+                            <span className="text-sm text-foreground">{feature}</span>
+                          )}
                         </div>
                       );
                     })}
