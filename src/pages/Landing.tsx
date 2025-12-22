@@ -188,7 +188,7 @@ const Landing = () => {
               </h1>
               
               <p className="text-lg sm:text-xl lg:text-2xl text-muted-foreground leading-relaxed max-w-3xl mx-auto">
-                Descubra o Lucro Real em Tempo Recorde. Sincronize Estoque, Vendas e Finanças de Mercado Livre, Shopee, Amazon e mais, tudo em um só lugar.
+                Chega de alternar entre abas, planilhas, e marketplaces. UniStock sincroniza tudo automaticamente e mostra seu lucro real em tempo real. Trabalhe menos, ganhe mais.
               </p>
             </div>
             
