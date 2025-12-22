@@ -237,22 +237,6 @@ const Landing = () => {
         </div>
       </section>
 
-      {/* What is UniStock */}
-      <section className="py-20 bg-muted/30">
-        <div className="container mx-auto max-w-5xl px-4 sm:px-6 lg:px-8">
-          <div className="text-center space-y-6">
-            <h2 className="font-heading text-3xl sm:text-4xl font-bold text-foreground">
-              O que é o UniStock?
-            </h2>
-            <p className="text-lg text-muted-foreground leading-relaxed">
-              UniStock é uma poderosa ferramenta de gestão unificada para vendedores que operam 
-              em múltiplos marketplaces. Sincronize estoque, acompanhe vendas e lucro em tempo real, 
-              e tome decisões mais rápidas e assertivas. Chega de planilhas complexas e abas abertas 
-              sem parar. Tudo que você precisa em um único lugar.
-            </p>
-          </div>
-        </div>
-      </section>
 
       {/* Benefits */}
       <section className="py-20 px-4 sm:px-6 lg:px-8">
