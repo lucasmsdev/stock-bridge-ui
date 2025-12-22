@@ -3,6 +3,7 @@ import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 import { ThemeToggle } from "@/components/ui/theme-toggle";
 import { PlatformLogo } from "@/components/ui/platform-logo";
@@ -27,6 +28,37 @@ import {
   MessageCircle,
   HelpCircle
 } from "lucide-react";
+
+const pricingFeatureDescriptions: Record<string, string> = {
+  "Até 100 produtos": "Você pode cadastrar e gerenciar até 100 produtos (SKUs) dentro do UniStock.",
+  "1 conta por marketplace": "Conecte 1 conta por canal (ex.: 1 Mercado Livre, 1 Shopee, 1 Amazon, 1 Shopify).",
+  "Sincronização de produtos e estoque": "Atualiza estoque e informações do produto entre os canais conectados para evitar venda sem estoque.",
+  "Gestão de pedidos": "Centraliza pedidos de todos os canais em um só lugar para acompanhar status e detalhes.",
+  "Dashboard básico": "Painel com visão geral do que importa: vendas, pedidos e indicadores principais.",
+  "Suporte por WhatsApp": "Suporte direto pelo WhatsApp para tirar dúvidas e destravar configurações.",
+
+  "Até 500 produtos": "Expande o limite para até 500 produtos (SKUs) gerenciados no UniStock.",
+  "2 contas por marketplace": "Conecte até 2 contas por canal (ex.: duas lojas do Mercado Livre).",
+  "Tudo do plano Iniciante": "Você mantém todas as funcionalidades do plano Iniciante e adiciona as extras deste plano.",
+  "Acesso ao Agente Uni (IA) para Otimização de Anúncios": "A Uni ajuda a melhorar títulos, descrições e performance dos anúncios com sugestões práticas.",
+  "Relatórios básicos de vendas": "Relatórios simples para acompanhar vendas, evolução e principais produtos/canais.",
+  "Cálculo financeiro e de lucro": "Calcula margem e lucro considerando custos, taxas e despesas para você decidir com clareza.",
+  "Suporte prioritário": "Atendimento mais rápido quando você precisar de ajuda.",
+
+  "Até 2.000 produtos": "Limite ampliado para até 2.000 produtos (SKUs), ideal para catálogo grande.",
+  "5 contas por marketplace": "Conecte até 5 contas por canal (ex.: várias lojas/contas por marketplace).",
+  "Tudo do plano Profissional": "Inclui tudo do Profissional e adiciona recursos avançados para operações maiores.",
+  "Análise de Mercado com IA e Monitoramento de Concorrência em Tempo Real": "Monitora concorrentes e sugere ajustes de preço/posicionamento para proteger sua margem.",
+  "Relatórios personalizados": "Relatórios mais completos e ajustados ao seu tipo de operação.",
+  "Suporte prioritário dedicado": "Atendimento prioritário com acompanhamento mais próximo.",
+
+  "Produtos ilimitados": "Sem limite de produtos cadastrados e gerenciados no UniStock.",
+  "Contas ilimitadas por marketplace": "Sem limite de contas conectadas por canal.",
+  "Tudo do plano Enterprise": "Inclui tudo do Enterprise + recursos e acompanhamento para operação grande.",
+  "Análise de mercado ilimitada": "Use análises e consultas de mercado sem limites dentro do plano.",
+  "Automação avançada": "Automatizações para reduzir trabalho manual e acelerar sua operação.",
+  "API de Integração Completa e Gerente de Sucesso Dedicado": "Integrações avançadas via API e acompanhamento com um gerente de sucesso para a sua conta.",
+};
 
 const Landing = () => {
   const { theme } = useThemeProvider();
@@ -434,12 +466,40 @@ const Landing = () => {
                   </div>
 
                   <div className="space-y-3 flex-grow mb-8">
-                    {plan.features.map((feature, idx) => (
-                      <div key={idx} className="flex items-start gap-3">
-                        <CheckCircle className="h-5 w-5 text-accent flex-shrink-0 mt-0.5" />
-                        <span className="text-sm text-foreground">{feature}</span>
-                      </div>
-                    ))}
+                    {plan.features.map((feature, idx) => {
+                      const description = pricingFeatureDescriptions[feature];
+
+                      return (
+                        <div key={idx} className="flex items-start gap-3">
+                          <CheckCircle className="h-5 w-5 text-accent flex-shrink-0 mt-0.5" />
+                          <span className="text-sm text-foreground flex-1">{feature}</span>
+
+                          {description ? (
+                            <Popover>
+                              <PopoverTrigger asChild>
+                                <button
+                                  type="button"
+                                  className="mt-0.5 inline-flex h-7 w-7 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+                                  aria-label={`Ver explicação: ${feature}`}
+                                >
+                                  <HelpCircle className="h-4 w-4" />
+                                </button>
+                              </PopoverTrigger>
+                              <PopoverContent
+                                side="right"
+                                align="start"
+                                className="w-[280px] p-4"
+                              >
+                                <div className="space-y-2">
+                                  <p className="text-sm font-medium text-foreground">{feature}</p>
+                                  <p className="text-sm text-muted-foreground">{description}</p>
+                                </div>
+                              </PopoverContent>
+                            </Popover>
+                          ) : null}
+                        </div>
+                      );
+                    })}
                   </div>
 
                   <div className="mt-auto space-y-3">
