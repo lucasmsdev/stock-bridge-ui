@@ -5,10 +5,12 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/useAuth";
+import { useAIQuota } from "@/hooks/useAIQuota";
 import { supabase } from "@/integrations/supabase/client";
 import { Send, Bot, User, Loader2, Sparkles, Plus, MessageSquare, Trash2 } from "lucide-react";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { Separator } from "@/components/ui/separator";
+import { AIQuotaBar } from "@/components/ai/AIQuotaBar";
+import { AIUpgradeDialog } from "@/components/ai/AIUpgradeDialog";
 
 interface Message {
   role: 'user' | 'assistant';
@@ -35,9 +37,24 @@ const AIAssistant = () => {
   const [isLoading, setIsLoading] = useState(false);
   const [conversationId, setConversationId] = useState<string | null>(null);
   const [conversations, setConversations] = useState<Conversation[]>([]);
+  const [showUpgradeDialog, setShowUpgradeDialog] = useState(false);
+  const [upgradeReason, setUpgradeReason] = useState<'no_access' | 'quota_exceeded'>('no_access');
   const scrollRef = useRef<HTMLDivElement>(null);
   const { toast } = useToast();
   const { user } = useAuth();
+  
+  const {
+    hasAccess,
+    isAtLimit,
+    isNearLimit,
+    isUnlimited,
+    currentUsage,
+    limit,
+    percentUsed,
+    daysUntilReset,
+    isLoading: quotaLoading,
+    incrementUsage
+  } = useAIQuota();
 
   // Load conversations on mount
   useEffect(() => {
@@ -162,35 +179,17 @@ const AIAssistant = () => {
 
   const deleteConversation = async (id: string) => {
     try {
-      console.log('🗑️ Tentando deletar conversa:', id);
-      console.log('🗑️ User ID:', user?.id);
-      console.log('🗑️ Conversas antes de deletar:', conversations.length);
-      
       const { error } = await supabase
         .from('ai_conversations')
         .delete()
         .eq('id', id)
         .eq('user_id', user!.id);
 
-      if (error) {
-        console.error('❌ Erro RLS ao deletar:', error);
-        throw error;
-      }
+      if (error) throw error;
 
-      console.log('✅ Conversa deletada no banco');
+      setConversations(prevConversations => prevConversations.filter(c => c.id !== id));
 
-      // Atualizar lista de conversas removendo a deletada
-      setConversations(prevConversations => {
-        const updated = prevConversations.filter(c => c.id !== id);
-        console.log('📋 Conversas após deletar:', updated.length);
-        return updated;
-      });
-
-      // Se deletou a conversa atual, carregar outra ou criar nova
       if (conversationId === id) {
-        console.log('🔄 Conversa deletada era a ativa, buscando outra...');
-        
-        // Buscar conversas atualizadas do banco
         const { data: remainingConvs } = await supabase
           .from('ai_conversations')
           .select('id')
@@ -199,10 +198,8 @@ const AIAssistant = () => {
           .limit(1);
 
         if (remainingConvs && remainingConvs.length > 0) {
-          console.log('📝 Carregando conversa:', remainingConvs[0].id);
           await loadConversationById(remainingConvs[0].id);
         } else {
-          console.log('➕ Criando nova conversa');
           await createNewConversation();
         }
       }
@@ -212,7 +209,7 @@ const AIAssistant = () => {
         description: "A conversa foi removida com sucesso.",
       });
     } catch (error) {
-      console.error('❌ Erro ao excluir conversa:', error);
+      console.error('Erro ao excluir conversa:', error);
       toast({
         title: "Erro",
         description: "Não foi possível excluir a conversa.",
@@ -225,7 +222,6 @@ const AIAssistant = () => {
     if (!conversationId) return;
 
     try {
-      // Convert messages to plain objects for storage
       const messagesToStore = messages.map(msg => ({
         role: msg.role,
         content: msg.content,
@@ -248,7 +244,6 @@ const AIAssistant = () => {
 
   const cleanupOldConversations = async () => {
     try {
-      // Get all conversations
       const { data: conversations, error: fetchError } = await supabase
         .from('ai_conversations')
         .select('id')
@@ -257,7 +252,6 @@ const AIAssistant = () => {
 
       if (fetchError) throw fetchError;
 
-      // If more than 10, delete the oldest ones
       if (conversations && conversations.length > 10) {
         const idsToDelete = conversations.slice(10).map(c => c.id);
         const { error: deleteError } = await supabase
@@ -272,23 +266,16 @@ const AIAssistant = () => {
     }
   };
 
-  // Função para limpar markdown e manter formatação
   const cleanMarkdown = (text: string) => {
-    // Remove markdown progressivamente
     let cleaned = text
-      // Remove check marks unicode
       .replace(/✅/g, '✓')
-      // Remove bold/italic combinations
       .replace(/\*\*\*(.*?)\*\*\*/g, '$1')
       .replace(/\*\*(.*?)\*\*/g, '$1')
       .replace(/\*(.*?)\*/g, '$1')
       .replace(/__(.*?)__/g, '$1')
       .replace(/_(.*?)_/g, '$1')
-      // Remove inline code
       .replace(/`(.*?)`/g, '$1')
-      // Remove headers
       .replace(/#{1,6}\s+/g, '')
-      // Remove remaining asterisks
       .replace(/\*/g, '');
     
     return cleaned.trim();
@@ -296,6 +283,20 @@ const AIAssistant = () => {
 
   const handleSend = async () => {
     if (!input.trim() || isLoading) return;
+
+    // Verificar acesso antes de enviar
+    if (!hasAccess) {
+      setUpgradeReason('no_access');
+      setShowUpgradeDialog(true);
+      return;
+    }
+
+    // Verificar se está no limite
+    if (isAtLimit) {
+      setUpgradeReason('quota_exceeded');
+      setShowUpgradeDialog(true);
+      return;
+    }
 
     const userMessage: Message = {
       role: 'user',
@@ -307,7 +308,6 @@ const AIAssistant = () => {
     setInput('');
     setIsLoading(true);
 
-    // Create conversation if doesn't exist
     if (!conversationId) {
       await createNewConversation();
     }
@@ -319,6 +319,21 @@ const AIAssistant = () => {
 
       if (error) throw error;
 
+      // Tratar erros de quota do backend
+      if (!data?.success) {
+        if (data?.code === 'NO_ACCESS') {
+          setUpgradeReason('no_access');
+          setShowUpgradeDialog(true);
+          return;
+        }
+        if (data?.code === 'QUOTA_EXCEEDED') {
+          setUpgradeReason('quota_exceeded');
+          setShowUpgradeDialog(true);
+          return;
+        }
+        throw new Error(data?.error || 'Erro desconhecido');
+      }
+
       if (data?.answer) {
         const assistantMessage: Message = {
           role: 'assistant',
@@ -326,11 +341,29 @@ const AIAssistant = () => {
           timestamp: new Date()
         };
         setMessages(prev => [...prev, assistantMessage]);
+        
+        // Incrementar uso local (para atualizar UI)
+        await incrementUsage();
       } else {
         throw new Error('Resposta inválida da IA');
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error('Erro ao consultar assistente:', error);
+      
+      // Verificar se é erro de quota (429)
+      if (error?.status === 429 || error?.message?.includes('QUOTA_EXCEEDED')) {
+        setUpgradeReason('quota_exceeded');
+        setShowUpgradeDialog(true);
+        return;
+      }
+      
+      // Verificar se é erro de acesso (403)
+      if (error?.status === 403 || error?.message?.includes('NO_ACCESS')) {
+        setUpgradeReason('no_access');
+        setShowUpgradeDialog(true);
+        return;
+      }
+
       toast({
         title: "Erro",
         description: "Não foi possível obter resposta do assistente. Tente novamente.",
@@ -354,6 +387,16 @@ const AIAssistant = () => {
     "Analise tendências do mercado e ações dos concorrentes"
   ];
 
+  // Mostrar aviso se está perto do limite
+  useEffect(() => {
+    if (isNearLimit && !isAtLimit && currentUsage > 0) {
+      toast({
+        title: "Atenção: Limite Próximo",
+        description: `Você usou ${percentUsed}% das suas consultas de IA este mês.`,
+      });
+    }
+  }, [isNearLimit]);
+
   return (
     <div className="space-y-4 md:space-y-6 animate-fade-in">
       <div>
@@ -366,6 +409,19 @@ const AIAssistant = () => {
           Estratégia e crescimento com IA
         </p>
       </div>
+
+      {/* Barra de quota */}
+      {hasAccess && !quotaLoading && (
+        <AIQuotaBar
+          currentUsage={currentUsage}
+          limit={limit}
+          percentUsed={percentUsed}
+          daysUntilReset={daysUntilReset}
+          isUnlimited={isUnlimited}
+          isNearLimit={isNearLimit}
+          isAtLimit={isAtLimit}
+        />
+      )}
 
       <div className="grid grid-cols-1 lg:grid-cols-[minmax(280px,1fr)_2fr] gap-4">
         {/* Sidebar with conversations */}
@@ -494,6 +550,7 @@ const AIAssistant = () => {
                       size="sm"
                       onClick={() => setInput(question)}
                       className="justify-start text-left h-auto py-2 px-2 md:px-3 text-xs md:text-sm"
+                      disabled={!hasAccess || isAtLimit}
                     >
                       {question}
                     </Button>
@@ -507,13 +564,19 @@ const AIAssistant = () => {
                 value={input}
                 onChange={(e) => setInput(e.target.value)}
                 onKeyPress={handleKeyPress}
-                placeholder="Digite sua pergunta..."
-                disabled={isLoading}
+                placeholder={
+                  !hasAccess 
+                    ? "Faça upgrade para usar a IA..." 
+                    : isAtLimit 
+                      ? "Limite atingido. Faça upgrade ou aguarde renovação..." 
+                      : "Digite sua pergunta..."
+                }
+                disabled={isLoading || !hasAccess || isAtLimit}
                 className="flex-1 text-sm md:text-base"
               />
               <Button
                 onClick={handleSend}
-                disabled={isLoading || !input.trim()}
+                disabled={isLoading || !input.trim() || !hasAccess || isAtLimit}
                 className="px-3 md:px-6"
               >
                 {isLoading ? (
@@ -527,6 +590,16 @@ const AIAssistant = () => {
         </CardContent>
         </Card>
       </div>
+
+      {/* Dialog de upgrade */}
+      <AIUpgradeDialog
+        open={showUpgradeDialog}
+        onOpenChange={setShowUpgradeDialog}
+        reason={upgradeReason}
+        currentUsage={currentUsage}
+        limit={limit}
+        daysUntilReset={daysUntilReset}
+      />
     </div>
   );
 };

@@ -37,6 +37,9 @@ export interface PlanFeatures {
   maxIntegrationsPerMarketplace: number;
   maxProducts: number;
   pricing: { monthly: number; currency: string };
+  // Sistema de quota de IA
+  aiQueryLimit: number; // -1 para ilimitado
+  aiModel: 'sonar' | 'sonar-pro';
 }
 
 // Mapa claro de permissões por plano
@@ -49,7 +52,9 @@ export const planFeatures: Record<PlanType, PlanFeatures> = {
     ],
     maxIntegrationsPerMarketplace: 1,
     maxProducts: 100,
-    pricing: { monthly: 97, currency: 'BRL' }
+    pricing: { monthly: 97, currency: 'BRL' },
+    aiQueryLimit: 0, // Sem acesso
+    aiModel: 'sonar'
   },
   [PlanType.PROFISSIONAL]: {
     name: 'Profissional',
@@ -62,7 +67,9 @@ export const planFeatures: Record<PlanType, PlanFeatures> = {
     ],
     maxIntegrationsPerMarketplace: 2,
     maxProducts: 500,
-    pricing: { monthly: 197, currency: 'BRL' }
+    pricing: { monthly: 197, currency: 'BRL' },
+    aiQueryLimit: 50, // 50 consultas/mês
+    aiModel: 'sonar'
   },
   [PlanType.ENTERPRISE]: {
     name: 'Enterprise',
@@ -78,7 +85,9 @@ export const planFeatures: Record<PlanType, PlanFeatures> = {
     ],
     maxIntegrationsPerMarketplace: 5,
     maxProducts: 2000,
-    pricing: { monthly: 297, currency: 'BRL' }
+    pricing: { monthly: 297, currency: 'BRL' },
+    aiQueryLimit: 200, // 200 consultas/mês
+    aiModel: 'sonar-pro'
   },
   [PlanType.UNLIMITED]: {
     name: 'Unlimited',
@@ -95,7 +104,9 @@ export const planFeatures: Record<PlanType, PlanFeatures> = {
     ],
     maxIntegrationsPerMarketplace: Infinity,
     maxProducts: Infinity,
-    pricing: { monthly: 397, currency: 'BRL' }
+    pricing: { monthly: 397, currency: 'BRL' },
+    aiQueryLimit: -1, // Ilimitado
+    aiModel: 'sonar-pro'
   },
 };
 

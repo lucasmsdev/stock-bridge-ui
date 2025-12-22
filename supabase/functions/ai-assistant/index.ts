@@ -6,6 +6,19 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
+// Limites de IA por plano
+const AI_LIMITS: Record<string, { limit: number; model: string }> = {
+  'iniciante': { limit: 0, model: 'sonar' },
+  'profissional': { limit: 50, model: 'sonar' },
+  'enterprise': { limit: 200, model: 'sonar-pro' },
+  'unlimited': { limit: -1, model: 'sonar-pro' },
+};
+
+const getCurrentMonthYear = () => {
+  const now = new Date();
+  return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+};
+
 serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
@@ -53,7 +66,102 @@ serve(async (req) => {
 
     console.log('👤 Usuário autenticado:', user.id);
 
-    // Buscar dados do usuário
+    // ========== VERIFICAÇÃO DE QUOTA ==========
+    
+    // Buscar plano do usuário
+    const { data: profileData, error: profileError } = await supabase
+      .from('profiles')
+      .select('plan')
+      .eq('id', user.id)
+      .single();
+
+    if (profileError) {
+      console.error('❌ Erro ao buscar perfil:', profileError);
+    }
+
+    // Verificar se é admin
+    const { data: roleData } = await supabase
+      .from('user_roles')
+      .select('role')
+      .eq('user_id', user.id)
+      .maybeSingle();
+
+    const isAdmin = roleData?.role === 'admin';
+    const userPlan = profileData?.plan || 'iniciante';
+    const planConfig = AI_LIMITS[userPlan] || AI_LIMITS['iniciante'];
+
+    console.log('📋 Plano do usuário:', userPlan, 'Admin:', isAdmin);
+
+    // Admin tem acesso ilimitado
+    if (!isAdmin) {
+      // Verificar se tem acesso à feature
+      if (planConfig.limit === 0) {
+        console.log('⛔ Usuário sem acesso à IA (plano iniciante)');
+        return new Response(
+          JSON.stringify({ 
+            success: false, 
+            error: 'Faça upgrade para o plano Profissional para acessar a IA',
+            code: 'NO_ACCESS'
+          }),
+          { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 403 }
+        );
+      }
+
+      // Verificar quota (se não é ilimitado)
+      if (planConfig.limit !== -1) {
+        const monthYear = getCurrentMonthYear();
+        
+        // Buscar uso atual
+        const { data: usageData } = await supabase
+          .from('ai_usage')
+          .select('query_count')
+          .eq('user_id', user.id)
+          .eq('month_year', monthYear)
+          .maybeSingle();
+
+        const currentUsage = usageData?.query_count || 0;
+        console.log('📊 Uso atual:', currentUsage, '/', planConfig.limit);
+
+        if (currentUsage >= planConfig.limit) {
+          console.log('⛔ Limite de consultas atingido');
+          return new Response(
+            JSON.stringify({ 
+              success: false, 
+              error: `Você atingiu o limite de ${planConfig.limit} consultas este mês`,
+              code: 'QUOTA_EXCEEDED',
+              usage: currentUsage,
+              limit: planConfig.limit
+            }),
+            { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 429 }
+          );
+        }
+
+        // Incrementar uso
+        if (usageData) {
+          await supabase
+            .from('ai_usage')
+            .update({ query_count: currentUsage + 1 })
+            .eq('user_id', user.id)
+            .eq('month_year', monthYear);
+        } else {
+          await supabase
+            .from('ai_usage')
+            .insert({
+              user_id: user.id,
+              month_year: monthYear,
+              query_count: 1
+            });
+        }
+        console.log('✅ Uso incrementado para:', currentUsage + 1);
+      }
+    }
+
+    // Selecionar modelo baseado no plano
+    const aiModel = isAdmin ? 'sonar-pro' : planConfig.model;
+    console.log('🧠 Modelo selecionado:', aiModel);
+
+    // ========== BUSCAR DADOS DO USUÁRIO ==========
+    
     const [productsResult, ordersResult, integrationsResult] = await Promise.all([
       supabase.from('products').select('*').eq('user_id', user.id),
       supabase.from('orders').select('*').eq('user_id', user.id).order('order_date', { ascending: false }).limit(100),
@@ -223,7 +331,7 @@ SEMPRE QUE POSSÍVEL:
 - Ofereça próximos passos concretos
 - Pergunte se o usuário quer ajuda para executar a ação`;
 
-    console.log('🤖 Enviando requisição para Perplexity API...');
+    console.log('🤖 Enviando requisição para Perplexity API com modelo:', aiModel);
     
     const perplexityResponse = await fetch('https://api.perplexity.ai/chat/completions', {
       method: 'POST',
@@ -232,7 +340,7 @@ SEMPRE QUE POSSÍVEL:
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        model: 'sonar-pro',
+        model: aiModel,
         messages: [
           {
             role: 'system',
@@ -280,7 +388,8 @@ SEMPRE QUE POSSÍVEL:
     return new Response(
       JSON.stringify({ 
         success: true,
-        answer: answer
+        answer: answer,
+        model: aiModel
       }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
