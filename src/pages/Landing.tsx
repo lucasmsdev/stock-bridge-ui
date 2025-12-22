@@ -516,7 +516,7 @@ const Landing = () => {
                         }`}
                         variant={plan.popular ? "default" : "outline"}
                       >
-                        Testar grátis por 14 dias
+                        Grátis por 14 dias
                         <ArrowRight className="ml-2 h-4 w-4 group-hover:translate-x-1 transition-transform" />
                       </Button>
                     </Link>
