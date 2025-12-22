@@ -19,6 +19,63 @@ const getCurrentMonthYear = () => {
   return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
 };
 
+// Função para criar notificação de limite de IA
+const createAILimitNotification = async (
+  supabase: any, 
+  userId: string, 
+  type: '80_percent' | '100_percent',
+  currentUsage: number,
+  limit: number
+) => {
+  const monthYear = getCurrentMonthYear();
+  const notificationId = `ai_limit_${type}_${monthYear}`;
+  
+  // Verificar se já enviou essa notificação este mês
+  const { data: existingNotification } = await supabase
+    .from('notifications')
+    .select('id')
+    .eq('user_id', userId)
+    .like('title', type === '80_percent' ? '%80%' : '%100%')
+    .gte('created_at', new Date(new Date().getFullYear(), new Date().getMonth(), 1).toISOString())
+    .maybeSingle();
+
+  if (existingNotification) {
+    console.log(`📬 Notificação de ${type} já enviada este mês`);
+    return;
+  }
+
+  const notifications = {
+    '80_percent': {
+      title: '⚠️ 80% do limite de IA usado',
+      message: `Você usou ${currentUsage} de ${limit} consultas de IA disponíveis este mês. Considere fazer upgrade para mais consultas.`,
+      type: 'ai_quota_warning'
+    },
+    '100_percent': {
+      title: '🚫 Limite de consultas IA atingido',
+      message: `Você atingiu o limite de ${limit} consultas de IA este mês. Faça upgrade para continuar usando ou aguarde a renovação no próximo mês.`,
+      type: 'ai_quota_exceeded'
+    }
+  };
+
+  const notif = notifications[type];
+
+  const { error } = await supabase
+    .from('notifications')
+    .insert({
+      user_id: userId,
+      title: notif.title,
+      message: notif.message,
+      type: notif.type,
+      is_read: false
+    });
+
+  if (error) {
+    console.error('❌ Erro ao criar notificação:', error);
+  } else {
+    console.log(`✅ Notificação de ${type} criada com sucesso`);
+  }
+};
+
 serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
@@ -124,6 +181,10 @@ serve(async (req) => {
 
         if (currentUsage >= planConfig.limit) {
           console.log('⛔ Limite de consultas atingido');
+          
+          // Criar notificação de 100% se ainda não existe
+          await createAILimitNotification(supabase, user.id, '100_percent', currentUsage, planConfig.limit);
+          
           return new Response(
             JSON.stringify({ 
               success: false, 
@@ -137,10 +198,11 @@ serve(async (req) => {
         }
 
         // Incrementar uso
+        const newUsage = currentUsage + 1;
         if (usageData) {
           await supabase
             .from('ai_usage')
-            .update({ query_count: currentUsage + 1 })
+            .update({ query_count: newUsage })
             .eq('user_id', user.id)
             .eq('month_year', monthYear);
         } else {
@@ -152,7 +214,25 @@ serve(async (req) => {
               query_count: 1
             });
         }
-        console.log('✅ Uso incrementado para:', currentUsage + 1);
+        console.log('✅ Uso incrementado para:', newUsage);
+
+        // ========== VERIFICAR THRESHOLDS PARA NOTIFICAÇÕES ==========
+        const percentUsed = (newUsage / planConfig.limit) * 100;
+        
+        // Notificação de 80% (quando cruza o threshold)
+        if (percentUsed >= 80 && percentUsed < 100) {
+          const previousPercent = (currentUsage / planConfig.limit) * 100;
+          if (previousPercent < 80) {
+            console.log('📬 Enviando notificação de 80%');
+            await createAILimitNotification(supabase, user.id, '80_percent', newUsage, planConfig.limit);
+          }
+        }
+        
+        // Notificação de 100% (quando atinge exatamente o limite)
+        if (newUsage >= planConfig.limit) {
+          console.log('📬 Enviando notificação de 100%');
+          await createAILimitNotification(supabase, user.id, '100_percent', newUsage, planConfig.limit);
+        }
       }
     }
 
