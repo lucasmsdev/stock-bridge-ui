@@ -153,6 +153,7 @@ export default function Billing() {
   };
 
   return (
+    <TooltipProvider delayDuration={100}>
     <div className="container mx-auto py-4 md:py-6 space-y-4 md:space-y-6 px-2 md:px-0">
       <div className="flex items-center space-x-2 md:space-x-4">
         {!isFirstTime && (
@@ -232,7 +233,6 @@ export default function Billing() {
               </CardHeader>
 
               <CardContent className="space-y-6">
-                <TooltipProvider delayDuration={200}>
                   <div className="space-y-3">
                     <Tooltip>
                       <TooltipTrigger asChild>
@@ -367,7 +367,6 @@ export default function Billing() {
                       </Tooltip>
                     )}
                   </div>
-                </TooltipProvider>
 
                 <Button
                   className="w-full"
@@ -403,5 +402,6 @@ export default function Billing() {
         </CardContent>
       </Card>
     </div>
+    </TooltipProvider>
   );
 }
