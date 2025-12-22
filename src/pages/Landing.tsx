@@ -165,7 +165,7 @@ const Landing = () => {
             <div className="flex items-center space-x-4">
               <a href="#planos">
                 <Button className="bg-accent hover:bg-accent/90 text-accent-foreground font-semibold">
-                  Testar 14 dias GRÁTIS
+                  Comece agora
                 </Button>
               </a>
               <ThemeToggle />
@@ -196,7 +196,7 @@ const Landing = () => {
             <div className="flex flex-col sm:flex-row gap-4 animate-fade-in" style={{ animationDelay: '0.1s' }}>
               <a href="#planos">
                 <Button size="lg" className="w-full sm:w-auto px-8 py-6 text-lg bg-accent hover:bg-accent/90 text-accent-foreground group hover:shadow-xl hover:shadow-accent/50 transition-all hover:scale-105">
-                  Começar meu Teste Grátis de 14 Dias
+                  Quero conhecer
                   <ArrowRight className="ml-2 h-5 w-5 group-hover:translate-x-1 transition-transform" />
                 </Button>
               </a>
@@ -494,7 +494,7 @@ const Landing = () => {
               <a href="#planos" className="inline-block w-full sm:w-auto">
                 <Button size="lg" className="w-full sm:w-auto bg-accent hover:bg-accent/90 text-accent-foreground font-semibold group hover:shadow-2xl hover:shadow-accent/50 hover:scale-105 transition-all text-sm sm:text-base">
                   <Sparkles className="mr-2 h-4 w-4 sm:h-5 sm:w-5" />
-                  Começar teste grátis de 14 dias
+                  Faça parte agora
                   <ArrowRight className="ml-2 h-4 w-4 sm:h-5 sm:w-5 group-hover:translate-x-1 transition-transform" />
                 </Button>
               </a>
