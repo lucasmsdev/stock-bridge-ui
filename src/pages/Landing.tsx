@@ -108,27 +108,27 @@ const Landing = () => {
     {
       icon: TrendingUp,
       title: "Análise de Lucro Real",
-      description: "Saiba o Lucro Líquido de Cada Venda, na Hora. O UniStock calcula taxas, fretes e custos para você."
+      description: "UniStock calcula automaticamente todas as taxas, fretes, devoluções e custos. Você vê o lucro real em tempo real. Nada escondido."
     },
     {
       icon: Sparkles,
       title: "IA Inteligente",
-      description: "Inteligência Artificial que Vende Mais por Você. Use o Agente Uni para otimizar anúncios, identificar preços da concorrência e maximizar sua margem."
+      description: "O Agente Uni otimiza seus anúncios, monitora preços da concorrência e garante a melhor margem, sem você precisar mexer um dedo."
     },
     {
       icon: ShoppingBag,
       title: "Análise de Vendas",
-      description: "Veja todos os pedidos com detalhes: itens, comissões, frete e mais"
+      description: "Veja todos os pedidos com detalhes: itens, comissões, frete e mais."
     },
     {
       icon: BarChart3,
       title: "Dashboards Inteligentes",
-      description: "Acompanhe seu lucro diário, semanal e mensal em segundos"
+      description: "Acompanhe seu lucro diário, semanal e mensal em segundos."
     },
     {
       icon: LineChart,
       title: "Mais Vendidos",
-      description: "Saiba quais produtos estão vendendo mais em poucos cliques"
+      description: "Saiba quais produtos estão vendendo mais em poucos cliques."
     }
   ];
 
@@ -308,7 +308,7 @@ const Landing = () => {
               Funções do UniStock
             </h2>
             <p className="text-lg text-muted-foreground">
-              Diga adeus às planilhas de Excel e relatórios incompletos
+              Diga adeus às planilhas confusas e relatórios incompletos
             </p>
           </div>
 
