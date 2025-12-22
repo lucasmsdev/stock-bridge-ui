@@ -521,11 +521,6 @@ const Landing = () => {
                       </Button>
                     </Link>
 
-                    {plan.popular && (
-                      <p className="text-xs text-center text-muted-foreground">
-                        ⚡ Escolha de 73% dos nossos clientes
-                      </p>
-                    )}
                   </div>
                 </CardContent>
               </Card>
