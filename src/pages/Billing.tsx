@@ -9,11 +9,10 @@ import { useToast } from "@/hooks/use-toast";
 import { UpgradeBanner } from "@/components/ui/upgrade-banner";
 import { supabase } from "@/integrations/supabase/client";
 import {
-  Tooltip,
-  TooltipContent,
-  TooltipProvider,
-  TooltipTrigger,
-} from "@/components/ui/tooltip";
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
 
 // Descrições dos benefícios para os tooltips
 const featureDescriptions: Record<string, string> = {
@@ -153,7 +152,6 @@ export default function Billing() {
   };
 
   return (
-    <TooltipProvider delayDuration={100}>
     <div className="container mx-auto py-4 md:py-6 space-y-4 md:space-y-6 px-2 md:px-0">
       <div className="flex items-center space-x-2 md:space-x-4">
         {!isFirstTime && (
@@ -234,137 +232,164 @@ export default function Billing() {
 
               <CardContent className="space-y-6">
                   <div className="space-y-3">
-                    <Tooltip>
-                      <TooltipTrigger asChild>
-                        <div className="flex items-center text-sm cursor-help group">
+                    <Popover>
+                      <PopoverTrigger asChild>
+                        <div className="flex items-center text-sm cursor-pointer group hover:bg-muted/50 rounded-md p-1 -m-1 transition-colors">
                           <Check className="h-4 w-4 text-green-600 mr-2" />
                           <span className="flex-1">
                             {plan.maxProducts === Infinity ? 'Produtos Ilimitados' : `Até ${plan.maxProducts} produtos`}
                           </span>
-                          <HelpCircle className="h-3.5 w-3.5 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity" />
+                          <HelpCircle className="h-3.5 w-3.5 text-muted-foreground opacity-50 group-hover:opacity-100 transition-opacity" />
                         </div>
-                      </TooltipTrigger>
-                      <TooltipContent side="right" className="max-w-[250px]">
-                        <p>{featureDescriptions.products}</p>
-                      </TooltipContent>
-                    </Tooltip>
+                      </PopoverTrigger>
+                      <PopoverContent side="right" className="max-w-[280px] p-4">
+                        <div className="space-y-2">
+                          <h4 className="font-medium text-sm">Produtos</h4>
+                          <p className="text-sm text-muted-foreground">{featureDescriptions.products}</p>
+                        </div>
+                      </PopoverContent>
+                    </Popover>
                     
-                    <Tooltip>
-                      <TooltipTrigger asChild>
-                        <div className="flex items-center text-sm cursor-help group">
+                    <Popover>
+                      <PopoverTrigger asChild>
+                        <div className="flex items-center text-sm cursor-pointer group hover:bg-muted/50 rounded-md p-1 -m-1 transition-colors">
                           <Check className="h-4 w-4 text-green-600 mr-2" />
                           <span className="flex-1">
                             {plan.maxIntegrationsPerMarketplace === Infinity 
                               ? 'Contas ilimitadas por marketplace' 
                               : `${plan.maxIntegrationsPerMarketplace} conta${plan.maxIntegrationsPerMarketplace > 1 ? 's' : ''} por marketplace`}
                           </span>
-                          <HelpCircle className="h-3.5 w-3.5 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity" />
+                          <HelpCircle className="h-3.5 w-3.5 text-muted-foreground opacity-50 group-hover:opacity-100 transition-opacity" />
                         </div>
-                      </TooltipTrigger>
-                      <TooltipContent side="right" className="max-w-[250px]">
-                        <p>{featureDescriptions.integrations}</p>
-                      </TooltipContent>
-                    </Tooltip>
+                      </PopoverTrigger>
+                      <PopoverContent side="right" className="max-w-[280px] p-4">
+                        <div className="space-y-2">
+                          <h4 className="font-medium text-sm">Integrações</h4>
+                          <p className="text-sm text-muted-foreground">{featureDescriptions.integrations}</p>
+                        </div>
+                      </PopoverContent>
+                    </Popover>
                     
-                    <Tooltip>
-                      <TooltipTrigger asChild>
-                        <div className="flex items-center text-sm cursor-help group">
+                    <Popover>
+                      <PopoverTrigger asChild>
+                        <div className="flex items-center text-sm cursor-pointer group hover:bg-muted/50 rounded-md p-1 -m-1 transition-colors">
                           <Check className="h-4 w-4 text-green-600 mr-2" />
                           <span className="flex-1">Sincronização de produtos e estoque</span>
-                          <HelpCircle className="h-3.5 w-3.5 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity" />
+                          <HelpCircle className="h-3.5 w-3.5 text-muted-foreground opacity-50 group-hover:opacity-100 transition-opacity" />
                         </div>
-                      </TooltipTrigger>
-                      <TooltipContent side="right" className="max-w-[250px]">
-                        <p>{featureDescriptions.sync}</p>
-                      </TooltipContent>
-                    </Tooltip>
+                      </PopoverTrigger>
+                      <PopoverContent side="right" className="max-w-[280px] p-4">
+                        <div className="space-y-2">
+                          <h4 className="font-medium text-sm">Sincronização</h4>
+                          <p className="text-sm text-muted-foreground">{featureDescriptions.sync}</p>
+                        </div>
+                      </PopoverContent>
+                    </Popover>
                     
-                    <Tooltip>
-                      <TooltipTrigger asChild>
-                        <div className="flex items-center text-sm cursor-help group">
+                    <Popover>
+                      <PopoverTrigger asChild>
+                        <div className="flex items-center text-sm cursor-pointer group hover:bg-muted/50 rounded-md p-1 -m-1 transition-colors">
                           <Check className="h-4 w-4 text-green-600 mr-2" />
                           <span className="flex-1">Gestão de pedidos</span>
-                          <HelpCircle className="h-3.5 w-3.5 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity" />
+                          <HelpCircle className="h-3.5 w-3.5 text-muted-foreground opacity-50 group-hover:opacity-100 transition-opacity" />
                         </div>
-                      </TooltipTrigger>
-                      <TooltipContent side="right" className="max-w-[250px]">
-                        <p>{featureDescriptions.orders}</p>
-                      </TooltipContent>
-                    </Tooltip>
+                      </PopoverTrigger>
+                      <PopoverContent side="right" className="max-w-[280px] p-4">
+                        <div className="space-y-2">
+                          <h4 className="font-medium text-sm">Pedidos</h4>
+                          <p className="text-sm text-muted-foreground">{featureDescriptions.orders}</p>
+                        </div>
+                      </PopoverContent>
+                    </Popover>
                     
                     {plan.features.includes(FeatureName.AI_ASSISTANT) && (
-                      <Tooltip>
-                        <TooltipTrigger asChild>
-                          <div className="flex items-center text-sm cursor-help group">
+                      <Popover>
+                        <PopoverTrigger asChild>
+                          <div className="flex items-center text-sm cursor-pointer group hover:bg-muted/50 rounded-md p-1 -m-1 transition-colors">
                             <Check className="h-4 w-4 text-green-600 mr-2 flex-shrink-0" />
                             <span className="flex-1">Agente de IA "Uni"</span>
-                            <HelpCircle className="h-3.5 w-3.5 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity" />
+                            <HelpCircle className="h-3.5 w-3.5 text-muted-foreground opacity-50 group-hover:opacity-100 transition-opacity" />
                           </div>
-                        </TooltipTrigger>
-                        <TooltipContent side="right" className="max-w-[250px]">
-                          <p>{featureDescriptions.ai_assistant}</p>
-                        </TooltipContent>
-                      </Tooltip>
+                        </PopoverTrigger>
+                        <PopoverContent side="right" className="max-w-[280px] p-4">
+                          <div className="space-y-2">
+                            <h4 className="font-medium text-sm">Assistente IA</h4>
+                            <p className="text-sm text-muted-foreground">{featureDescriptions.ai_assistant}</p>
+                          </div>
+                        </PopoverContent>
+                      </Popover>
                     )}
                     
                     {plan.features.includes(FeatureName.REPORTS) && (
-                      <Tooltip>
-                        <TooltipTrigger asChild>
-                          <div className="flex items-center text-sm cursor-help group">
+                      <Popover>
+                        <PopoverTrigger asChild>
+                          <div className="flex items-center text-sm cursor-pointer group hover:bg-muted/50 rounded-md p-1 -m-1 transition-colors">
                             <Check className="h-4 w-4 text-green-600 mr-2 flex-shrink-0" />
                             <span className="flex-1">Relatórios de vendas</span>
-                            <HelpCircle className="h-3.5 w-3.5 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity" />
+                            <HelpCircle className="h-3.5 w-3.5 text-muted-foreground opacity-50 group-hover:opacity-100 transition-opacity" />
                           </div>
-                        </TooltipTrigger>
-                        <TooltipContent side="right" className="max-w-[250px]">
-                          <p>{featureDescriptions.reports}</p>
-                        </TooltipContent>
-                      </Tooltip>
+                        </PopoverTrigger>
+                        <PopoverContent side="right" className="max-w-[280px] p-4">
+                          <div className="space-y-2">
+                            <h4 className="font-medium text-sm">Relatórios</h4>
+                            <p className="text-sm text-muted-foreground">{featureDescriptions.reports}</p>
+                          </div>
+                        </PopoverContent>
+                      </Popover>
                     )}
                     
                     {plan.features.includes(FeatureName.FINANCIAL_CALCULATOR) && (
-                      <Tooltip>
-                        <TooltipTrigger asChild>
-                          <div className="flex items-center text-sm cursor-help group">
+                      <Popover>
+                        <PopoverTrigger asChild>
+                          <div className="flex items-center text-sm cursor-pointer group hover:bg-muted/50 rounded-md p-1 -m-1 transition-colors">
                             <Check className="h-4 w-4 text-green-600 mr-2 flex-shrink-0" />
                             <span className="flex-1">Cálculo financeiro e lucro</span>
-                            <HelpCircle className="h-3.5 w-3.5 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity" />
+                            <HelpCircle className="h-3.5 w-3.5 text-muted-foreground opacity-50 group-hover:opacity-100 transition-opacity" />
                           </div>
-                        </TooltipTrigger>
-                        <TooltipContent side="right" className="max-w-[250px]">
-                          <p>{featureDescriptions.financial}</p>
-                        </TooltipContent>
-                      </Tooltip>
+                        </PopoverTrigger>
+                        <PopoverContent side="right" className="max-w-[280px] p-4">
+                          <div className="space-y-2">
+                            <h4 className="font-medium text-sm">Financeiro</h4>
+                            <p className="text-sm text-muted-foreground">{featureDescriptions.financial}</p>
+                          </div>
+                        </PopoverContent>
+                      </Popover>
                     )}
                     
                     {plan.features.includes(FeatureName.MARKET_ANALYSIS) && (
-                      <Tooltip>
-                        <TooltipTrigger asChild>
-                          <div className="flex items-center text-sm cursor-help group">
+                      <Popover>
+                        <PopoverTrigger asChild>
+                          <div className="flex items-center text-sm cursor-pointer group hover:bg-muted/50 rounded-md p-1 -m-1 transition-colors">
                             <Check className="h-4 w-4 text-green-600 mr-2 flex-shrink-0" />
                             <span className="flex-1">Análise de mercado com IA</span>
-                            <HelpCircle className="h-3.5 w-3.5 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity" />
+                            <HelpCircle className="h-3.5 w-3.5 text-muted-foreground opacity-50 group-hover:opacity-100 transition-opacity" />
                           </div>
-                        </TooltipTrigger>
-                        <TooltipContent side="right" className="max-w-[250px]">
-                          <p>{featureDescriptions.market_analysis}</p>
-                        </TooltipContent>
-                      </Tooltip>
+                        </PopoverTrigger>
+                        <PopoverContent side="right" className="max-w-[280px] p-4">
+                          <div className="space-y-2">
+                            <h4 className="font-medium text-sm">Análise de Mercado</h4>
+                            <p className="text-sm text-muted-foreground">{featureDescriptions.market_analysis}</p>
+                          </div>
+                        </PopoverContent>
+                      </Popover>
                     )}
                     
                     {plan.features.includes(FeatureName.PRIORITY_SUPPORT) && (
-                      <Tooltip>
-                        <TooltipTrigger asChild>
-                          <div className="flex items-center text-sm cursor-help group">
+                      <Popover>
+                        <PopoverTrigger asChild>
+                          <div className="flex items-center text-sm cursor-pointer group hover:bg-muted/50 rounded-md p-1 -m-1 transition-colors">
                             <Check className="h-4 w-4 text-green-600 mr-2 flex-shrink-0" />
                             <span className="flex-1">Suporte prioritário</span>
-                            <HelpCircle className="h-3.5 w-3.5 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity" />
+                            <HelpCircle className="h-3.5 w-3.5 text-muted-foreground opacity-50 group-hover:opacity-100 transition-opacity" />
                           </div>
-                        </TooltipTrigger>
-                        <TooltipContent side="right" className="max-w-[250px]">
-                          <p>{featureDescriptions.priority_support}</p>
-                        </TooltipContent>
-                      </Tooltip>
+                        </PopoverTrigger>
+                        <PopoverContent side="right" className="max-w-[280px] p-4">
+                          <div className="space-y-2">
+                            <h4 className="font-medium text-sm">Suporte Prioritário</h4>
+                            <p className="text-sm text-muted-foreground">{featureDescriptions.priority_support}</p>
+                          </div>
+                        </PopoverContent>
+                      </Popover>
                     )}
                   </div>
 
@@ -402,6 +427,5 @@ export default function Billing() {
         </CardContent>
       </Card>
     </div>
-    </TooltipProvider>
   );
 }
