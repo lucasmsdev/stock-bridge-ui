@@ -3,11 +3,30 @@ import { useLocation, useNavigate } from "react-router-dom";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Check, Crown, Zap, Star, ArrowLeft } from "lucide-react";
+import { Check, Crown, Zap, Star, ArrowLeft, HelpCircle } from "lucide-react";
 import { usePlan, PlanType, FeatureName } from "@/hooks/usePlan";
 import { useToast } from "@/hooks/use-toast";
 import { UpgradeBanner } from "@/components/ui/upgrade-banner";
 import { supabase } from "@/integrations/supabase/client";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
+
+// Descrições dos benefícios para os tooltips
+const featureDescriptions: Record<string, string> = {
+  products: "Quantidade máxima de produtos que você pode cadastrar e gerenciar na plataforma.",
+  integrations: "Número de contas diferentes que você pode conectar em cada marketplace (ex: 2 lojas no Mercado Livre).",
+  sync: "Mantenha seu estoque sempre atualizado automaticamente em todos os marketplaces conectados.",
+  orders: "Visualize e gerencie todos os seus pedidos de todos os canais em um único lugar.",
+  ai_assistant: "Converse com a Uni, nossa IA que te ajuda a tomar decisões, responder dúvidas e automatizar tarefas.",
+  reports: "Gere relatórios detalhados de vendas, lucratividade e performance do seu negócio.",
+  financial: "Calcule automaticamente seus custos, margens e lucro real por produto e por canal.",
+  market_analysis: "Análise de concorrentes, tendências de mercado e sugestões de precificação com IA.",
+  priority_support: "Atendimento prioritário com tempo de resposta reduzido e suporte dedicado.",
+};
 
 interface LocationState {
   targetPlan?: PlanType;
@@ -213,68 +232,142 @@ export default function Billing() {
               </CardHeader>
 
               <CardContent className="space-y-6">
-                <div className="space-y-3">
-                  <div className="flex items-center text-sm">
-                    <Check className="h-4 w-4 text-green-600 mr-2" />
-                    <span>
-                      {plan.maxProducts === Infinity ? 'Produtos Ilimitados' : `Até ${plan.maxProducts} produtos`}
-                    </span>
+                <TooltipProvider delayDuration={200}>
+                  <div className="space-y-3">
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <div className="flex items-center text-sm cursor-help group">
+                          <Check className="h-4 w-4 text-green-600 mr-2" />
+                          <span className="flex-1">
+                            {plan.maxProducts === Infinity ? 'Produtos Ilimitados' : `Até ${plan.maxProducts} produtos`}
+                          </span>
+                          <HelpCircle className="h-3.5 w-3.5 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity" />
+                        </div>
+                      </TooltipTrigger>
+                      <TooltipContent side="right" className="max-w-[250px]">
+                        <p>{featureDescriptions.products}</p>
+                      </TooltipContent>
+                    </Tooltip>
+                    
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <div className="flex items-center text-sm cursor-help group">
+                          <Check className="h-4 w-4 text-green-600 mr-2" />
+                          <span className="flex-1">
+                            {plan.maxIntegrationsPerMarketplace === Infinity 
+                              ? 'Contas ilimitadas por marketplace' 
+                              : `${plan.maxIntegrationsPerMarketplace} conta${plan.maxIntegrationsPerMarketplace > 1 ? 's' : ''} por marketplace`}
+                          </span>
+                          <HelpCircle className="h-3.5 w-3.5 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity" />
+                        </div>
+                      </TooltipTrigger>
+                      <TooltipContent side="right" className="max-w-[250px]">
+                        <p>{featureDescriptions.integrations}</p>
+                      </TooltipContent>
+                    </Tooltip>
+                    
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <div className="flex items-center text-sm cursor-help group">
+                          <Check className="h-4 w-4 text-green-600 mr-2" />
+                          <span className="flex-1">Sincronização de produtos e estoque</span>
+                          <HelpCircle className="h-3.5 w-3.5 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity" />
+                        </div>
+                      </TooltipTrigger>
+                      <TooltipContent side="right" className="max-w-[250px]">
+                        <p>{featureDescriptions.sync}</p>
+                      </TooltipContent>
+                    </Tooltip>
+                    
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <div className="flex items-center text-sm cursor-help group">
+                          <Check className="h-4 w-4 text-green-600 mr-2" />
+                          <span className="flex-1">Gestão de pedidos</span>
+                          <HelpCircle className="h-3.5 w-3.5 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity" />
+                        </div>
+                      </TooltipTrigger>
+                      <TooltipContent side="right" className="max-w-[250px]">
+                        <p>{featureDescriptions.orders}</p>
+                      </TooltipContent>
+                    </Tooltip>
+                    
+                    {plan.features.includes(FeatureName.AI_ASSISTANT) && (
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <div className="flex items-center text-sm cursor-help group">
+                            <Check className="h-4 w-4 text-green-600 mr-2 flex-shrink-0" />
+                            <span className="flex-1">Agente de IA "Uni"</span>
+                            <HelpCircle className="h-3.5 w-3.5 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity" />
+                          </div>
+                        </TooltipTrigger>
+                        <TooltipContent side="right" className="max-w-[250px]">
+                          <p>{featureDescriptions.ai_assistant}</p>
+                        </TooltipContent>
+                      </Tooltip>
+                    )}
+                    
+                    {plan.features.includes(FeatureName.REPORTS) && (
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <div className="flex items-center text-sm cursor-help group">
+                            <Check className="h-4 w-4 text-green-600 mr-2 flex-shrink-0" />
+                            <span className="flex-1">Relatórios de vendas</span>
+                            <HelpCircle className="h-3.5 w-3.5 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity" />
+                          </div>
+                        </TooltipTrigger>
+                        <TooltipContent side="right" className="max-w-[250px]">
+                          <p>{featureDescriptions.reports}</p>
+                        </TooltipContent>
+                      </Tooltip>
+                    )}
+                    
+                    {plan.features.includes(FeatureName.FINANCIAL_CALCULATOR) && (
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <div className="flex items-center text-sm cursor-help group">
+                            <Check className="h-4 w-4 text-green-600 mr-2 flex-shrink-0" />
+                            <span className="flex-1">Cálculo financeiro e lucro</span>
+                            <HelpCircle className="h-3.5 w-3.5 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity" />
+                          </div>
+                        </TooltipTrigger>
+                        <TooltipContent side="right" className="max-w-[250px]">
+                          <p>{featureDescriptions.financial}</p>
+                        </TooltipContent>
+                      </Tooltip>
+                    )}
+                    
+                    {plan.features.includes(FeatureName.MARKET_ANALYSIS) && (
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <div className="flex items-center text-sm cursor-help group">
+                            <Check className="h-4 w-4 text-green-600 mr-2 flex-shrink-0" />
+                            <span className="flex-1">Análise de mercado com IA</span>
+                            <HelpCircle className="h-3.5 w-3.5 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity" />
+                          </div>
+                        </TooltipTrigger>
+                        <TooltipContent side="right" className="max-w-[250px]">
+                          <p>{featureDescriptions.market_analysis}</p>
+                        </TooltipContent>
+                      </Tooltip>
+                    )}
+                    
+                    {plan.features.includes(FeatureName.PRIORITY_SUPPORT) && (
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <div className="flex items-center text-sm cursor-help group">
+                            <Check className="h-4 w-4 text-green-600 mr-2 flex-shrink-0" />
+                            <span className="flex-1">Suporte prioritário</span>
+                            <HelpCircle className="h-3.5 w-3.5 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity" />
+                          </div>
+                        </TooltipTrigger>
+                        <TooltipContent side="right" className="max-w-[250px]">
+                          <p>{featureDescriptions.priority_support}</p>
+                        </TooltipContent>
+                      </Tooltip>
+                    )}
                   </div>
-                  
-                  <div className="flex items-center text-sm">
-                    <Check className="h-4 w-4 text-green-600 mr-2" />
-                    <span>
-                      {plan.maxIntegrationsPerMarketplace === Infinity 
-                        ? 'Contas ilimitadas por marketplace' 
-                        : `${plan.maxIntegrationsPerMarketplace} conta${plan.maxIntegrationsPerMarketplace > 1 ? 's' : ''} por marketplace`}
-                    </span>
-                  </div>
-                  
-                  <div className="flex items-center text-sm">
-                    <Check className="h-4 w-4 text-green-600 mr-2" />
-                    <span>Sincronização de produtos e estoque</span>
-                  </div>
-                  
-                  <div className="flex items-center text-sm">
-                    <Check className="h-4 w-4 text-green-600 mr-2" />
-                    <span>Gestão de pedidos</span>
-                  </div>
-                  
-                  {plan.features.includes(FeatureName.AI_ASSISTANT) && (
-                    <div className="flex items-center text-sm">
-                      <Check className="h-4 w-4 text-green-600 mr-2 flex-shrink-0" />
-                      <span>Agente de IA "Uni"</span>
-                    </div>
-                  )}
-                  
-                  {plan.features.includes(FeatureName.REPORTS) && (
-                    <div className="flex items-center text-sm">
-                      <Check className="h-4 w-4 text-green-600 mr-2 flex-shrink-0" />
-                      <span>Relatórios de vendas</span>
-                    </div>
-                  )}
-                  
-                  {plan.features.includes(FeatureName.FINANCIAL_CALCULATOR) && (
-                    <div className="flex items-center text-sm">
-                      <Check className="h-4 w-4 text-green-600 mr-2 flex-shrink-0" />
-                      <span>Cálculo financeiro e lucro</span>
-                    </div>
-                  )}
-                  
-                  {plan.features.includes(FeatureName.MARKET_ANALYSIS) && (
-                    <div className="flex items-center text-sm">
-                      <Check className="h-4 w-4 text-green-600 mr-2 flex-shrink-0" />
-                      <span>Análise de mercado com IA</span>
-                    </div>
-                  )}
-                  
-                  {plan.features.includes(FeatureName.PRIORITY_SUPPORT) && (
-                    <div className="flex items-center text-sm">
-                      <Check className="h-4 w-4 text-green-600 mr-2 flex-shrink-0" />
-                      <span>Suporte prioritário</span>
-                    </div>
-                  )}
-                </div>
+                </TooltipProvider>
 
                 <Button
                   className="w-full"
