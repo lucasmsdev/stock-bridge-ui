@@ -30,34 +30,38 @@ import {
 } from "lucide-react";
 
 const pricingFeatureDescriptions: Record<string, string> = {
-  "Até 100 produtos": "Você pode cadastrar e gerenciar até 100 produtos (SKUs) dentro do UniStock.",
-  "1 conta por marketplace": "Conecte 1 conta por canal (ex.: 1 Mercado Livre, 1 Shopee, 1 Amazon, 1 Shopify).",
-  "Sincronização de produtos e estoque": "Atualiza estoque e informações do produto entre os canais conectados para evitar venda sem estoque.",
-  "Gestão de pedidos": "Centraliza pedidos de todos os canais em um só lugar para acompanhar status e detalhes.",
-  "Dashboard básico": "Painel com visão geral do que importa: vendas, pedidos e indicadores principais.",
-  "Suporte por WhatsApp": "Suporte direto pelo WhatsApp para tirar dúvidas e destravar configurações.",
+  // Plano Iniciante
+  "Até 100 produtos": "Perfeito para quem está começando. Se você vende mais de 100 SKUs diferentes, considere o plano Profissional (500 produtos) ou superior.",
+  "1 conta por marketplace": "Conecte 1 loja por canal. Se você tem mais de uma conta no Mercado Livre ou Shopee, por exemplo, vai precisar do plano Profissional (2 contas) ou Enterprise (5 contas).",
+  "Sincronização de produtos e estoque": "Vendeu no Mercado Livre? O estoque atualiza automaticamente na Shopee, Amazon e Shopify. Nunca mais venda sem estoque! Disponível em todos os planos.",
+  "Gestão de pedidos": "Veja todos os pedidos de todos os canais em um único painel. Acompanhe status, valores e detalhes sem precisar entrar em cada marketplace. Disponível em todos os planos.",
+  "Dashboard básico": "Visão geral das suas vendas e pedidos. Para relatórios detalhados de lucratividade e análise financeira, você precisa do plano Profissional ou superior.",
+  "Suporte por WhatsApp": "Tire dúvidas pelo WhatsApp. Se precisar de atendimento mais rápido e prioritário, considere o plano Profissional ou superior.",
 
-  "Até 500 produtos": "Expande o limite para até 500 produtos (SKUs) gerenciados no UniStock.",
-  "2 contas por marketplace": "Conecte até 2 contas por canal (ex.: duas lojas do Mercado Livre).",
-  "Tudo do plano Iniciante": "Você mantém todas as funcionalidades do plano Iniciante e adiciona as extras deste plano.",
-  "Acesso ao Agente Uni (IA) para Otimização de Anúncios": "A Uni ajuda a melhorar títulos, descrições e performance dos anúncios com sugestões práticas.",
-  "Relatórios básicos de vendas": "Relatórios simples para acompanhar vendas, evolução e principais produtos/canais.",
-  "Cálculo financeiro e de lucro": "Calcula margem e lucro considerando custos, taxas e despesas para você decidir com clareza.",
-  "Suporte prioritário": "Atendimento mais rápido quando você precisar de ajuda.",
+  // Plano Profissional
+  "Até 500 produtos": "5x mais produtos que o Iniciante. Ideal para quem está crescendo. Precisa de mais? O Enterprise suporta até 2.000 produtos.",
+  "2 contas por marketplace": "Conecte até 2 lojas por canal (ex: 2 contas do Mercado Livre). Tem mais contas? O Enterprise permite 5 e o Unlimited é ilimitado.",
+  "Tudo do plano Iniciante": "Você mantém sincronização, gestão de pedidos, dashboard e suporte — e ainda ganha recursos extras como IA, relatórios e cálculo de lucro.",
+  "Acesso ao Agente Uni (IA) para Otimização de Anúncios": "EXCLUSIVO do Profissional em diante. A Uni analisa seus anúncios e sugere melhorias em títulos, descrições e fotos para vender mais. No Iniciante você não tem acesso a isso.",
+  "Relatórios básicos de vendas": "Veja relatórios de vendas por período, produto e canal. Para relatórios personalizados e mais completos, considere o Enterprise.",
+  "Cálculo financeiro e de lucro": "EXCLUSIVO do Profissional em diante. Descubra seu lucro real descontando taxas, frete, custos e impostos. No Iniciante você não tem essa visibilidade.",
+  "Suporte prioritário": "Sua mensagem entra na frente da fila. Tempo de resposta mais rápido que o plano Iniciante.",
 
-  "Até 2.000 produtos": "Limite ampliado para até 2.000 produtos (SKUs), ideal para catálogo grande.",
-  "5 contas por marketplace": "Conecte até 5 contas por canal (ex.: várias lojas/contas por marketplace).",
-  "Tudo do plano Profissional": "Inclui tudo do Profissional e adiciona recursos avançados para operações maiores.",
-  "Análise de Mercado com IA e Monitoramento de Concorrência em Tempo Real": "Monitora concorrentes e sugere ajustes de preço/posicionamento para proteger sua margem.",
-  "Relatórios personalizados": "Relatórios mais completos e ajustados ao seu tipo de operação.",
-  "Suporte prioritário dedicado": "Atendimento prioritário com acompanhamento mais próximo.",
+  // Plano Enterprise
+  "Até 2.000 produtos": "4x mais que o Profissional. Para catálogos grandes. Se ainda não for suficiente, o Unlimited não tem limite.",
+  "5 contas por marketplace": "Conecte até 5 lojas por canal. Ideal para quem tem múltiplas operações ou CNPJs diferentes. O Unlimited não tem limite.",
+  "Tudo do plano Profissional": "Mantém IA, relatórios, cálculo de lucro e suporte prioritário — e adiciona análise de concorrência e relatórios personalizados.",
+  "Análise de Mercado com IA e Monitoramento de Concorrência em Tempo Real": "EXCLUSIVO do Enterprise em diante. Monitore preços dos concorrentes e receba alertas e sugestões de ajuste. Proteja sua margem sem esforço manual.",
+  "Relatórios personalizados": "Relatórios sob medida para seu tipo de operação. Mais detalhes e filtros que os relatórios básicos do Profissional.",
+  "Suporte prioritário dedicado": "Além de prioritário, você tem acompanhamento mais próximo da equipe de suporte.",
 
-  "Produtos ilimitados": "Sem limite de produtos cadastrados e gerenciados no UniStock.",
-  "Contas ilimitadas por marketplace": "Sem limite de contas conectadas por canal.",
-  "Tudo do plano Enterprise": "Inclui tudo do Enterprise + recursos e acompanhamento para operação grande.",
-  "Análise de mercado ilimitada": "Use análises e consultas de mercado sem limites dentro do plano.",
-  "Automação avançada": "Automatizações para reduzir trabalho manual e acelerar sua operação.",
-  "API de Integração Completa e Gerente de Sucesso Dedicado": "Integrações avançadas via API e acompanhamento com um gerente de sucesso para a sua conta.",
+  // Plano Unlimited
+  "Produtos ilimitados": "Sem teto. Cadastre quantos produtos precisar. Ideal para operações grandes ou distribuidores.",
+  "Contas ilimitadas por marketplace": "Conecte quantas lojas quiser por canal. Sem restrições.",
+  "Tudo do plano Enterprise": "Análise de concorrência, relatórios personalizados, IA e tudo mais — com capacidade ilimitada.",
+  "Análise de mercado ilimitada": "No Enterprise há limites de consultas. No Unlimited, use análises de mercado e concorrência sem restrições.",
+  "Automação avançada": "EXCLUSIVO do Unlimited. Automatize tarefas repetitivas: atualização de preços, respostas, e fluxos operacionais.",
+  "API de Integração Completa e Gerente de Sucesso Dedicado": "EXCLUSIVO do Unlimited. Integre com seu ERP ou sistemas internos via API. Além disso, você tem um gerente de sucesso dedicado para acompanhar sua conta e ajudar a crescer.",
 };
 
 const Landing = () => {
