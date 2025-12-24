@@ -110,7 +110,13 @@ export function ProfitProjection({ expenses }: ProfitProjectionProps) {
 
   // Calculate projections
   const projections = useMemo(() => {
-    const baseMonthlyRevenue = salesMetrics.avgDailyRevenue * 30;
+    // Use a base revenue that results in ~40k gross profit at 30% margin (133,333 * 0.30 = 40,000)
+    const defaultBaseRevenue = 133333;
+    const hasRealSalesData = salesMetrics.totalRevenue > 0;
+    const baseMonthlyRevenue = hasRealSalesData 
+      ? salesMetrics.avgDailyRevenue * 30 
+      : defaultBaseRevenue;
+    
     const simulatedRevenue = useCustomRevenue && customMonthlyRevenue 
       ? parseFloat(customMonthlyRevenue) || 0
       : baseMonthlyRevenue * (salesMultiplier / 100);
@@ -122,8 +128,9 @@ export function ProfitProjection({ expenses }: ProfitProjectionProps) {
     
     // Break-even calculation
     const breakEvenRevenue = totalMonthlyExpenses / 0.30; // Revenue needed to cover expenses at 30% margin
-    const breakEvenOrders = salesMetrics.avgOrderValue > 0 
-      ? Math.ceil(breakEvenRevenue / salesMetrics.avgOrderValue)
+    const avgOrderValue = hasRealSalesData ? salesMetrics.avgOrderValue : 250; // Default ticket médio
+    const breakEvenOrders = avgOrderValue > 0 
+      ? Math.ceil(breakEvenRevenue / avgOrderValue)
       : 0;
 
     return {
