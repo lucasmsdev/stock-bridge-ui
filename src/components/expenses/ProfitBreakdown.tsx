@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -9,12 +9,27 @@ import {
   DollarSign, 
   Receipt,
   Loader2,
-  AlertTriangle
+  AlertTriangle,
+  ArrowDown,
+  Percent,
+  Package,
+  Store
 } from "lucide-react";
 import { PieChart, Pie, Cell, ResponsiveContainer, Legend, Tooltip } from "recharts";
+import { Separator } from "@/components/ui/separator";
 
 interface ProfitBreakdownProps {
   expenses: Expense[];
+}
+
+interface RevenueBreakdown {
+  totalRevenue: number;
+  marketplaceFees: number;
+  productCost: number;
+  grossProfit: number;
+  marketplaceFeePercent: number;
+  productCostPercent: number;
+  grossMarginPercent: number;
 }
 
 const formatCurrency = (value: number) => {
@@ -39,8 +54,15 @@ const categoryLabels = {
 export function ProfitBreakdown({ expenses }: ProfitBreakdownProps) {
   const { user } = useAuth();
   const [loading, setLoading] = useState(true);
-  const [grossProfit, setGrossProfit] = useState(0);
-  const [totalRevenue, setTotalRevenue] = useState(0);
+  const [revenueBreakdown, setRevenueBreakdown] = useState<RevenueBreakdown>({
+    totalRevenue: 0,
+    marketplaceFees: 0,
+    productCost: 0,
+    grossProfit: 0,
+    marketplaceFeePercent: 12,
+    productCostPercent: 55,
+    grossMarginPercent: 33,
+  });
 
   useEffect(() => {
     const fetchFinancialData = async () => {
@@ -92,28 +114,52 @@ export function ProfitBreakdown({ expenses }: ProfitBreakdownProps) {
           });
         });
 
-        // If no real data, use demo values with 25%+ margin
-        // Demo: R$ 150.000 revenue, R$ 37.500 gross profit (25% margin)
+        // If no real data, use demo values
         if (revenue === 0) {
           const demoRevenue = 150000;
-          const demoGrossProfit = demoRevenue * 0.27; // 27% margin = R$ 40.500
-          setTotalRevenue(demoRevenue);
-          setGrossProfit(demoGrossProfit);
+          // Demo breakdown: 12% marketplace fees, 55% product cost = 33% gross margin
+          const demoMarketplaceFees = demoRevenue * 0.12;
+          const demoProductCost = demoRevenue * 0.55;
+          const demoGrossProfit = demoRevenue - demoMarketplaceFees - demoProductCost;
+          
+          setRevenueBreakdown({
+            totalRevenue: demoRevenue,
+            marketplaceFees: demoMarketplaceFees,
+            productCost: demoProductCost,
+            grossProfit: demoGrossProfit,
+            marketplaceFeePercent: 12,
+            productCostPercent: 55,
+            grossMarginPercent: 33,
+          });
         } else {
-          // For real data without product costs, estimate 27% gross margin
-          // This ensures net margin will be around 25% after low expenses
-          const marketplaceFees = revenue * 0.12;
-          let calculatedGrossProfit: number;
+          // Real data calculation
+          const marketplaceFeePercent = 12;
+          const marketplaceFees = revenue * (marketplaceFeePercent / 100);
+          
+          let productCost: number;
+          let productCostPercent: number;
           
           if (hasProductCosts && cost > 0) {
-            calculatedGrossProfit = revenue - marketplaceFees - cost;
+            productCost = cost;
+            productCostPercent = (cost / revenue) * 100;
           } else {
-            // Estimate: 27% gross margin (after 12% fees = 61% product cost assumed)
-            calculatedGrossProfit = revenue * 0.27;
+            // Estimate product cost at 55% for healthy margin (~33% gross)
+            productCostPercent = 55;
+            productCost = revenue * 0.55;
           }
+          
+          const grossProfit = revenue - marketplaceFees - productCost;
+          const grossMarginPercent = (grossProfit / revenue) * 100;
 
-          setTotalRevenue(revenue);
-          setGrossProfit(calculatedGrossProfit);
+          setRevenueBreakdown({
+            totalRevenue: revenue,
+            marketplaceFees,
+            productCost,
+            grossProfit,
+            marketplaceFeePercent,
+            productCostPercent,
+            grossMarginPercent,
+          });
         }
       } catch (error) {
         console.error('Error fetching financial data:', error);
@@ -169,8 +215,8 @@ export function ProfitBreakdown({ expenses }: ProfitBreakdownProps) {
   };
 
   const totalExpenses = expensesByCategory.fixed + expensesByCategory.variable + expensesByCategory.operational;
-  const netProfit = grossProfit - totalExpenses;
-  const netMargin = totalRevenue > 0 ? (netProfit / totalRevenue) * 100 : 0;
+  const netProfit = revenueBreakdown.grossProfit - totalExpenses;
+  const netMargin = revenueBreakdown.totalRevenue > 0 ? (netProfit / revenueBreakdown.totalRevenue) * 100 : 0;
 
   const pieData = [
     { name: categoryLabels.fixed, value: expensesByCategory.fixed, color: categoryColors.fixed },
@@ -196,12 +242,79 @@ export function ProfitBreakdown({ expenses }: ProfitBreakdownProps) {
               <div>
                 <p className="text-sm text-muted-foreground">Receita Bruta (Este Mês)</p>
                 <p className="text-2xl font-bold text-foreground mt-1">
-                  {formatCurrency(totalRevenue)}
+                  {formatCurrency(revenueBreakdown.totalRevenue)}
                 </p>
               </div>
               <div className="h-12 w-12 rounded-full bg-primary/10 flex items-center justify-center">
                 <DollarSign className="h-6 w-6 text-primary" />
               </div>
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Revenue Breakdown Card - NEW */}
+        <Card className="border-l-4 border-l-muted-foreground/50">
+          <CardContent className="pt-6">
+            <p className="text-sm font-medium text-muted-foreground mb-4 flex items-center gap-2">
+              <ArrowDown className="h-4 w-4" />
+              Deduções da Receita
+            </p>
+            
+            <div className="space-y-3">
+              {/* Marketplace Fees */}
+              <div className="flex items-center justify-between p-3 rounded-lg bg-red-500/10">
+                <div className="flex items-center gap-3">
+                  <div className="h-8 w-8 rounded-full bg-red-500/20 flex items-center justify-center">
+                    <Store className="h-4 w-4 text-red-500" />
+                  </div>
+                  <div>
+                    <p className="text-sm font-medium text-foreground">Taxas de Marketplace</p>
+                    <p className="text-xs text-muted-foreground">Comissão cobrada pela plataforma</p>
+                  </div>
+                </div>
+                <div className="text-right">
+                  <p className="text-sm font-bold text-red-500">
+                    -{formatCurrency(revenueBreakdown.marketplaceFees)}
+                  </p>
+                  <p className="text-xs text-muted-foreground">
+                    {revenueBreakdown.marketplaceFeePercent.toFixed(0)}% da receita
+                  </p>
+                </div>
+              </div>
+
+              {/* Product Cost */}
+              <div className="flex items-center justify-between p-3 rounded-lg bg-orange-500/10">
+                <div className="flex items-center gap-3">
+                  <div className="h-8 w-8 rounded-full bg-orange-500/20 flex items-center justify-center">
+                    <Package className="h-4 w-4 text-orange-500" />
+                  </div>
+                  <div>
+                    <p className="text-sm font-medium text-foreground">Custo dos Produtos</p>
+                    <p className="text-xs text-muted-foreground">Valor pago aos fornecedores</p>
+                  </div>
+                </div>
+                <div className="text-right">
+                  <p className="text-sm font-bold text-orange-500">
+                    -{formatCurrency(revenueBreakdown.productCost)}
+                  </p>
+                  <p className="text-xs text-muted-foreground">
+                    {revenueBreakdown.productCostPercent.toFixed(0)}% da receita
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            <Separator className="my-4" />
+
+            {/* Gross Margin Summary */}
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <Percent className="h-4 w-4 text-muted-foreground" />
+                <span className="text-sm text-muted-foreground">Total descontado</span>
+              </div>
+              <span className="text-sm font-medium text-muted-foreground">
+                {(revenueBreakdown.marketplaceFeePercent + revenueBreakdown.productCostPercent).toFixed(0)}% da receita
+              </span>
             </div>
           </CardContent>
         </Card>
@@ -212,10 +325,10 @@ export function ProfitBreakdown({ expenses }: ProfitBreakdownProps) {
               <div>
                 <p className="text-sm text-muted-foreground">Lucro Bruto</p>
                 <p className="text-2xl font-bold text-green-600 dark:text-green-400 mt-1">
-                  {formatCurrency(grossProfit)}
+                  {formatCurrency(revenueBreakdown.grossProfit)}
                 </p>
                 <p className="text-xs text-muted-foreground mt-1">
-                  Após taxas de marketplace e custo de produtos
+                  Margem bruta: {revenueBreakdown.grossMarginPercent.toFixed(1)}%
                 </p>
               </div>
               <div className="h-12 w-12 rounded-full bg-green-500/10 flex items-center justify-center">
@@ -256,7 +369,7 @@ export function ProfitBreakdown({ expenses }: ProfitBreakdownProps) {
                   {formatCurrency(netProfit)}
                 </p>
                 <p className={`text-sm mt-1 ${
-                  netProfit >= 0 ? 'text-emerald-600' : 'text-red-600'
+                  netMargin >= 25 ? 'text-emerald-600' : netMargin >= 15 ? 'text-amber-600' : 'text-red-600'
                 }`}>
                   Margem: {netMargin.toFixed(1)}%
                 </p>
@@ -271,7 +384,7 @@ export function ProfitBreakdown({ expenses }: ProfitBreakdownProps) {
                 )}
               </div>
             </div>
-            {netMargin < 10 && netMargin >= 0 && (
+            {netMargin < 15 && netMargin >= 0 && (
               <div className="mt-4 p-3 rounded-lg bg-amber-500/10 flex items-center gap-2">
                 <AlertTriangle className="h-4 w-4 text-amber-500 shrink-0" />
                 <p className="text-xs text-amber-700 dark:text-amber-400">
