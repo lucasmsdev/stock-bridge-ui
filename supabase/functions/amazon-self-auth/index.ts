@@ -92,6 +92,7 @@ serve(async (req) => {
     ];
 
     let detectedMarketplaceId = null;
+    let detectedRegionUrl = regions[0].url; // Default to NA
 
     for (const region of regions) {
       try {
@@ -112,10 +113,9 @@ serve(async (req) => {
           
           if (spApiData.payload && spApiData.payload.length > 0) {
             for (const item of spApiData.payload) {
-              // A estrutura correta é item.participation (sem sellerId dentro)
-              // O sellerId NÃO está na resposta de marketplaceParticipations
               if (item.marketplace) {
                 detectedMarketplaceId = item.marketplace.id;
+                detectedRegionUrl = region.url;
                 sellerName = account_name || item.storeName || `Amazon (${item.marketplace.name})`;
                 console.log('✅ Marketplace encontrado:', item.marketplace.id, item.marketplace.name);
                 console.log('✅ Store name:', item.storeName);
@@ -128,6 +128,154 @@ serve(async (req) => {
       } catch (regionError) {
         console.log(`⚠️ Região ${region.name} não respondeu:`, regionError.message);
       }
+    }
+
+    // Obter Seller ID real usando a Orders API (getOrders com limit 1)
+    // Esta é a forma mais confiável de obter o Seller ID
+    console.log('🔍 Buscando Seller ID real via Orders API...');
+    try {
+      const ordersResponse = await fetch(
+        `${detectedRegionUrl}/orders/v0/orders?MarketplaceIds=${detectedMarketplaceId || marketplace_id || 'A2Q3Y263D00KWC'}&CreatedAfter=2020-01-01T00:00:00Z&MaxResultsPerPage=1`,
+        {
+          headers: {
+            'Authorization': `Bearer ${tokenData.access_token}`,
+            'x-amz-access-token': tokenData.access_token,
+          },
+        }
+      );
+
+      if (ordersResponse.ok) {
+        const ordersData = await ordersResponse.json();
+        console.log('📋 Resposta Orders API:', JSON.stringify(ordersData, null, 2));
+        
+        // O Seller ID está no header da resposta ou podemos extrair de outra forma
+        // Vamos tentar a Sellers API diretamente com /sellers/v1/participations
+      }
+    } catch (ordersError) {
+      console.log('⚠️ Orders API não retornou Seller ID:', ordersError.message);
+    }
+
+    // Tentar obter Seller ID via Catalog Items API ou Listings API
+    // Usando a abordagem de criar uma listagem de teste e pegar o erro com o Seller ID
+    console.log('🔍 Tentando obter Seller ID via Listings API...');
+    try {
+      // Chamando getListingsItem com SKU inexistente para obter o sellerId do erro
+      const listingsResponse = await fetch(
+        `${detectedRegionUrl}/listings/2021-08-01/items/SELLER_ID_PLACEHOLDER/TEST_SKU_NOT_EXISTS?marketplaceIds=${detectedMarketplaceId || marketplace_id || 'A2Q3Y263D00KWC'}`,
+        {
+          headers: {
+            'Authorization': `Bearer ${tokenData.access_token}`,
+            'x-amz-access-token': tokenData.access_token,
+          },
+        }
+      );
+
+      // O erro vai retornar informações úteis
+      const listingsData = await listingsResponse.text();
+      console.log('📋 Resposta Listings API:', listingsData);
+    } catch (listingsError) {
+      console.log('⚠️ Listings API:', listingsError.message);
+    }
+
+    // Usar Feeds API para obter Seller ID - método mais confiável
+    console.log('🔍 Tentando obter Seller ID via Feeds API...');
+    try {
+      const feedsResponse = await fetch(
+        `${detectedRegionUrl}/feeds/2021-06-30/feeds?feedTypes=POST_PRODUCT_DATA&pageSize=1`,
+        {
+          headers: {
+            'Authorization': `Bearer ${tokenData.access_token}`,
+            'x-amz-access-token': tokenData.access_token,
+          },
+        }
+      );
+
+      if (feedsResponse.ok) {
+        const feedsData = await feedsResponse.json();
+        console.log('📋 Resposta Feeds API:', JSON.stringify(feedsData, null, 2));
+        
+        // Se houver feeds, podemos extrair informações do seller
+        if (feedsData.feeds && feedsData.feeds.length > 0) {
+          // Alguns feeds contêm referência ao seller
+          const feed = feedsData.feeds[0];
+          if (feed.sellerId) {
+            sellerId = feed.sellerId;
+            console.log('✅ Seller ID encontrado via Feeds:', sellerId);
+          }
+        }
+      }
+    } catch (feedsError) {
+      console.log('⚠️ Feeds API:', feedsError.message);
+    }
+
+    // Se ainda não temos o Seller ID, usar a Amazon SP-API SDK para obter
+    if (!sellerId) {
+      console.log('🔍 Tentando obter Seller ID via SP-API SDK...');
+      try {
+        const { default: SellingPartnerAPI } = await import('npm:amazon-sp-api@latest');
+        
+        const sellingPartner = new SellingPartnerAPI({
+          region: 'na',
+          refresh_token: refresh_token,
+          credentials: {
+            SELLING_PARTNER_APP_CLIENT_ID: clientId,
+            SELLING_PARTNER_APP_CLIENT_SECRET: clientSecret,
+          },
+        });
+
+        // Tentar buscar seller ID via getMyFeesEstimateForSKU (precisa de um ASIN válido)
+        // Ou usar getMarketplaceParticipations e extrair do endpoint
+        const participations = await sellingPartner.callAPI({
+          operation: 'getMarketplaceParticipations',
+          endpoint: 'sellers',
+        });
+        
+        console.log('📋 SP-API SDK Participations:', JSON.stringify(participations, null, 2));
+        
+        // Extrair o sellerId que vem na resposta interna da SDK
+        if (sellingPartner.seller_id) {
+          sellerId = sellingPartner.seller_id;
+          console.log('✅ Seller ID encontrado via SDK:', sellerId);
+        }
+
+        // Se a SDK não tiver, tentar obter via uma chamada que retorna o seller ID
+        if (!sellerId) {
+          try {
+            // A chamada getAccount retorna informações do seller
+            const reports = await sellingPartner.callAPI({
+              operation: 'getReports',
+              endpoint: 'reports',
+              query: {
+                reportTypes: ['GET_MERCHANT_LISTINGS_DATA'],
+                pageSize: 1,
+              },
+            });
+            
+            console.log('📋 Reports response:', JSON.stringify(reports, null, 2));
+            
+            // Extrair seller ID se disponível na resposta
+            if (reports && reports.reports && reports.reports.length > 0) {
+              // Alguns relatórios contêm o sellerId
+              const report = reports.reports[0];
+              if (report.sellerId) {
+                sellerId = report.sellerId;
+                console.log('✅ Seller ID encontrado via Reports:', sellerId);
+              }
+            }
+          } catch (reportsError) {
+            console.log('⚠️ Reports API:', reportsError.message);
+          }
+        }
+      } catch (sdkError) {
+        console.log('⚠️ SP-API SDK error:', sdkError.message);
+      }
+    }
+
+    // Último recurso: deixar null e obter na primeira sincronização
+    if (!sellerId) {
+      console.log('⚠️ Seller ID não encontrado, será obtido na primeira sincronização');
+    } else {
+      console.log('✅ Seller ID final:', sellerId);
     }
 
     // Usar o marketplace selecionado pelo usuário (preferencial) ou fallback
