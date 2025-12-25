@@ -125,6 +125,7 @@ export type Database = {
           refresh_token: string | null
           selling_partner_id: string | null
           shop_domain: string | null
+          token_expires_at: string | null
           updated_at: string
           user_id: string
         }
@@ -142,6 +143,7 @@ export type Database = {
           refresh_token?: string | null
           selling_partner_id?: string | null
           shop_domain?: string | null
+          token_expires_at?: string | null
           updated_at?: string
           user_id: string
         }
@@ -159,6 +161,7 @@ export type Database = {
           refresh_token?: string | null
           selling_partner_id?: string | null
           shop_domain?: string | null
+          token_expires_at?: string | null
           updated_at?: string
           user_id?: string
         }

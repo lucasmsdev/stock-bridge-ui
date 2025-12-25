@@ -184,15 +184,20 @@ serve(async (req) => {
     const { data: encryptedAccessToken } = await supabase.rpc('encrypt_token', { token: tokenData.access_token });
     const { data: encryptedRefreshToken } = await supabase.rpc('encrypt_token', { token: tokenData.refresh_token });
 
+    // Calcular data de expiração do token (Mercado Livre = 6 horas)
+    const tokenExpiresAt = new Date(Date.now() + 6 * 60 * 60 * 1000);
+
     const { error: insertError } = await supabase
       .from('integrations')
       .insert({
         user_id: user.id,
         platform: 'mercadolivre',
+        access_token: 'encrypted',
         encrypted_access_token: encryptedAccessToken,
         encrypted_refresh_token: encryptedRefreshToken,
         encryption_migrated: true,
         account_name: accountName,
+        token_expires_at: tokenExpiresAt.toISOString(),
       });
 
     if (insertError) {

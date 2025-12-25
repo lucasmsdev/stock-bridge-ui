@@ -23,6 +23,7 @@ import { useToast } from "@/hooks/use-toast";
 import { usePlan } from "@/hooks/usePlan";
 import { UpgradeBanner } from "@/components/ui/upgrade-banner";
 import { AmazonSelfAuthDialog } from "@/components/integrations/AmazonSelfAuthDialog";
+import { TokenStatusBadge, getTimeUntilExpiry } from "@/components/integrations/TokenStatusBadge";
 
 // Mock data
 const availableIntegrations = [
@@ -608,18 +609,16 @@ export default function Integrations() {
                             </div>
                           </div>
                           {importingId === integration.id ? (
-                            <Badge variant="secondary" className="bg-primary text-primary-foreground animate-pulse">
+                                                    <Badge variant="secondary" className="bg-primary text-primary-foreground animate-pulse">
                               <Loader2 className="w-3 h-3 mr-1 animate-spin" />
                               Importando
                             </Badge>
                           ) : (
-                            <Badge
-                              variant="secondary"
-                              className="bg-green-500 text-white hover:opacity-90 transition-opacity"
-                            >
-                              <CheckCircle2 className="w-3 h-3 mr-1" />
-                              Ativo
-                            </Badge>
+                            <TokenStatusBadge 
+                              platform={integration.platform}
+                              tokenExpiresAt={integration.token_expires_at}
+                              updatedAt={integration.updated_at}
+                            />
                           )}
                         </div>
                       </CardHeader>
@@ -627,12 +626,20 @@ export default function Integrations() {
                       <CardContent className="space-y-4">
                         <div className="flex items-center justify-between text-xs text-muted-foreground">
                           <span>Conectado: {new Date(integration.created_at).toLocaleDateString("pt-BR")}</span>
-                          {lastSyncTimes[integration.id] && (
-                            <span className="flex items-center gap-1">
-                              <RefreshCw className="w-3 h-3" />
-                              Sync: {new Date(lastSyncTimes[integration.id]!).toLocaleTimeString("pt-BR", { hour: '2-digit', minute: '2-digit' })}
-                            </span>
-                          )}
+                          <div className="flex items-center gap-2">
+                            {integration.token_expires_at && integration.platform !== 'shopify' && (
+                              <span className="flex items-center gap-1">
+                                <Clock className="w-3 h-3" />
+                                Expira: {getTimeUntilExpiry(integration.token_expires_at)}
+                              </span>
+                            )}
+                            {lastSyncTimes[integration.id] && (
+                              <span className="flex items-center gap-1">
+                                <RefreshCw className="w-3 h-3" />
+                                Sync: {new Date(lastSyncTimes[integration.id]!).toLocaleTimeString("pt-BR", { hour: '2-digit', minute: '2-digit' })}
+                              </span>
+                            )}
+                          </div>
                         </div>
 
                         <Separator />

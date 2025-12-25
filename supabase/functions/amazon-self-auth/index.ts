@@ -206,21 +206,26 @@ serve(async (req) => {
       console.warn('⚠️ Criptografia falhou, salvando tokens diretamente (fallback)');
     }
 
+    // Calcular data de expiração do token (Amazon = 1 hora)
+    const tokenExpiresAt = new Date(Date.now() + 1 * 60 * 60 * 1000);
+
     // Save integration
     console.log('💾 Salvando integração com marketplace:', finalMarketplaceId);
+    console.log('📅 Token expira em:', tokenExpiresAt.toISOString());
     const { data: integration, error: insertError } = await supabaseClient
       .from('integrations')
       .insert({
         user_id: user.id,
         platform: 'amazon',
-        access_token: encryptedAccessToken ? 'encrypted' : tokenData.access_token, // Fallback if encryption fails
-        refresh_token: encryptedRefreshToken ? null : refresh_token, // Fallback if encryption fails
+        access_token: encryptedAccessToken ? 'encrypted' : tokenData.access_token,
+        refresh_token: encryptedRefreshToken ? null : refresh_token,
         encrypted_access_token: encryptedAccessToken,
         encrypted_refresh_token: encryptedRefreshToken,
         encryption_migrated: !!encryptedAccessToken && !!encryptedRefreshToken,
-        selling_partner_id: null, // SP-API não retorna seller_id no marketplaceParticipations
+        selling_partner_id: null,
         marketplace_id: finalMarketplaceId,
         account_name: sellerName,
+        token_expires_at: tokenExpiresAt.toISOString(),
       })
       .select()
       .single();
