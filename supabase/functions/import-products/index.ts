@@ -753,7 +753,10 @@ serve(async (req) => {
             asin: headers.findIndex(h => h === 'asin1' || h === 'asin'),
             status: headers.findIndex(h => h === 'status'),
             fulfillmentChannel: headers.findIndex(h => h === 'fulfillment_channel' || h === 'fulfilment_channel' || h === 'fulfilment-channel'),
+            imageUrl: headers.findIndex(h => h === 'image_url' || h === 'image-url'),
           };
+
+          console.log('📋 Índices das colunas (inclui imagem):', columnIndexes);
 
           console.log('📋 Índices das colunas:', columnIndexes);
 
@@ -767,6 +770,7 @@ serve(async (req) => {
             const priceStr = columnIndexes.price >= 0 ? values[columnIndexes.price]?.trim() : null;
             const quantityStr = columnIndexes.quantity >= 0 ? values[columnIndexes.quantity]?.trim() : null;
             const status = columnIndexes.status >= 0 ? values[columnIndexes.status]?.trim() : null;
+            const imageUrl = columnIndexes.imageUrl >= 0 ? values[columnIndexes.imageUrl]?.trim() : null;
 
             // Validar SKU (obrigatório)
             if (!sellerSku || sellerSku === '') {
@@ -798,13 +802,20 @@ serve(async (req) => {
               }
             }
 
+            // Processar URL da imagem (garantir HTTPS)
+            let processedImageUrl: string | null = null;
+            if (imageUrl && imageUrl !== '') {
+              processedImageUrl = imageUrl.replace('http://', 'https://');
+              console.log(`🖼️ Imagem encontrada para ${sellerSku}:`, processedImageUrl.substring(0, 80) + '...');
+            }
+
             const productData = {
               user_id: user.id,
               name: itemName || sellerSku,
               sku: sellerSku,
               stock: stock,
               selling_price: sellingPrice,
-              image_url: null, // Imagem não disponível no relatório de listings
+              image_url: processedImageUrl,
             };
 
             productsToInsert.push(productData);
