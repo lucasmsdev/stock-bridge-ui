@@ -331,6 +331,147 @@ const providers: Record<string, MarketplaceOrderProvider> = {
   'shopee': ShopeeProvider,
 };
 
+// Helper function to refresh tokens before syncing
+async function refreshTokensForIntegration(
+  supabase: any, 
+  integration: any
+): Promise<{ success: boolean; accessToken: string | null; error?: string }> {
+  const platform = integration.platform;
+  
+  // Shopify tokens don't expire
+  if (platform === 'shopify') {
+    let accessToken = integration.access_token;
+    if (integration.encrypted_access_token) {
+      const { data: decrypted } = await supabase.rpc('decrypt_token', { 
+        encrypted_token: integration.encrypted_access_token 
+      });
+      if (decrypted) accessToken = decrypted;
+    }
+    return { success: true, accessToken };
+  }
+  
+  // Check if we have a refresh token
+  if (!integration.encrypted_refresh_token) {
+    console.log(`⚠️ ${platform}: No refresh token available`);
+    let accessToken = integration.access_token;
+    if (integration.encrypted_access_token) {
+      const { data: decrypted } = await supabase.rpc('decrypt_token', { 
+        encrypted_token: integration.encrypted_access_token 
+      });
+      if (decrypted) accessToken = decrypted;
+    }
+    return { success: !!accessToken, accessToken, error: accessToken ? undefined : 'No tokens available' };
+  }
+  
+  // Decrypt refresh token
+  const { data: refreshToken, error: decryptError } = await supabase.rpc('decrypt_token', { 
+    encrypted_token: integration.encrypted_refresh_token 
+  });
+  
+  if (decryptError || !refreshToken) {
+    console.error(`❌ ${platform}: Failed to decrypt refresh token`);
+    return { success: false, accessToken: null, error: 'Failed to decrypt refresh token' };
+  }
+  
+  // Platform-specific token refresh
+  try {
+    let newTokenData: { access_token?: string; refresh_token?: string } | null = null;
+    
+    if (platform === 'mercadolivre') {
+      const appId = Deno.env.get('MERCADOLIVRE_APP_ID');
+      const secretKey = Deno.env.get('MERCADOLIVRE_SECRET_KEY');
+      
+      if (!appId || !secretKey) {
+        throw new Error('Mercado Livre credentials not configured');
+      }
+      
+      console.log(`🔄 ${platform}: Refreshing token...`);
+      const response = await fetch('https://api.mercadolibre.com/oauth/token', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded', 'Accept': 'application/json' },
+        body: new URLSearchParams({
+          grant_type: 'refresh_token',
+          client_id: appId,
+          client_secret: secretKey,
+          refresh_token: refreshToken,
+        }),
+      });
+      
+      if (!response.ok) {
+        const errorText = await response.text();
+        console.error(`❌ ${platform}: Refresh failed - ${errorText}`);
+        throw new Error(`Refresh failed: ${response.status}`);
+      }
+      
+      const data = await response.json();
+      newTokenData = { access_token: data.access_token, refresh_token: data.refresh_token || refreshToken };
+      
+    } else if (platform === 'amazon') {
+      const clientId = Deno.env.get('AMAZON_CLIENT_ID');
+      const clientSecret = Deno.env.get('AMAZON_CLIENT_SECRET');
+      
+      if (!clientId || !clientSecret) {
+        throw new Error('Amazon credentials not configured');
+      }
+      
+      console.log(`🔄 ${platform}: Refreshing token...`);
+      const response = await fetch('https://api.amazon.com/auth/o2/token', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded;charset=UTF-8' },
+        body: new URLSearchParams({
+          grant_type: 'refresh_token',
+          refresh_token: refreshToken,
+          client_id: clientId,
+          client_secret: clientSecret,
+        }),
+      });
+      
+      if (!response.ok) {
+        const errorText = await response.text();
+        console.error(`❌ ${platform}: Refresh failed - ${errorText}`);
+        throw new Error(`Refresh failed: ${response.status}`);
+      }
+      
+      const data = await response.json();
+      newTokenData = { access_token: data.access_token };
+      
+    } else if (platform === 'shopee') {
+      console.log(`⚠️ ${platform}: Token refresh not implemented yet`);
+      return { success: false, accessToken: null, error: 'Shopee refresh not implemented' };
+    }
+    
+    if (newTokenData && newTokenData.access_token) {
+      // Encrypt and save new tokens
+      const { data: encryptedAccessToken } = await supabase.rpc('encrypt_token', { 
+        token: newTokenData.access_token 
+      });
+      
+      const updateData: any = {
+        encrypted_access_token: encryptedAccessToken,
+        updated_at: new Date().toISOString()
+      };
+      
+      if (newTokenData.refresh_token) {
+        const { data: encryptedRefreshToken } = await supabase.rpc('encrypt_token', { 
+          token: newTokenData.refresh_token 
+        });
+        updateData.encrypted_refresh_token = encryptedRefreshToken;
+      }
+      
+      await supabase.from('integrations').update(updateData).eq('id', integration.id);
+      console.log(`✅ ${platform}: Token refreshed successfully`);
+      
+      return { success: true, accessToken: newTokenData.access_token };
+    }
+    
+    return { success: false, accessToken: null, error: 'No access token in response' };
+    
+  } catch (error) {
+    console.error(`❌ ${platform}: Token refresh error - ${error.message}`);
+    return { success: false, accessToken: null, error: error.message };
+  }
+}
+
 serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
@@ -352,6 +493,9 @@ serve(async (req) => {
     const platform = body.platform; // Optional: sync only specific platform
     const daysSince = body.days_since || 30; // Default: last 30 days
     const allUsers = body.all_users || false; // For cron job execution
+    const skipTokenRefresh = body.skip_token_refresh || false; // Skip refresh if already done
+    
+    console.log(`🚀 Starting order sync - daysSince: ${daysSince}, allUsers: ${allUsers}`);
     
     const since = new Date();
     since.setDate(since.getDate() - daysSince);
@@ -452,28 +596,23 @@ serve(async (req) => {
       }
 
       try {
-        // Get access token (use encrypted if available)
-        let accessToken = integration.access_token;
+        // Refresh tokens before syncing (automatic token validation)
+        console.log(`🔐 Validating tokens for ${integration.platform}...`);
+        const tokenResult = await refreshTokensForIntegration(supabase, integration);
         
-        if (integration.encrypted_access_token) {
-          // Decrypt token
-          const { data: decrypted, error: decryptError } = await supabase
-            .rpc('decrypt_token', { encrypted_token: integration.encrypted_access_token });
-          
-          if (!decryptError && decrypted) {
-            accessToken = decrypted;
-          }
-        }
-
-        if (!accessToken) {
-          console.error(`No access token for ${integration.platform}`);
+        if (!tokenResult.success || !tokenResult.accessToken) {
+          console.error(`❌ Token validation failed for ${integration.platform}: ${tokenResult.error}`);
           results.push({
             platform: integration.platform,
             status: 'error',
-            message: 'No access token'
+            message: `Token error: ${tokenResult.error || 'No valid token'}`,
+            needsReconnect: true
           });
           continue;
         }
+        
+        const accessToken = tokenResult.accessToken;
+        console.log(`✅ Token validated for ${integration.platform}`);
 
         // Fetch orders from marketplace
         const orders = await provider.fetchOrders(accessToken, integration, since);
