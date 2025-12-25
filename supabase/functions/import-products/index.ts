@@ -971,6 +971,38 @@ serve(async (req) => {
 
     console.log(`✅ Successfully imported ${validProducts.length} products`);
 
+    // ========================================================
+    // PASSO 7: Criar vínculos na tabela product_listings
+    // ========================================================
+    if (insertedProducts && insertedProducts.length > 0 && platform) {
+      console.log('🔗 Criando vínculos em product_listings...');
+      
+      const listingsToInsert = insertedProducts.map(product => ({
+        user_id: user.id,
+        product_id: product.id,
+        platform: platform,
+        platform_product_id: product.sku, // SKU é usado como identificador
+        integration_id: integration.id,
+        sync_status: 'active',
+        last_sync_at: new Date().toISOString(),
+      }));
+
+      const { data: insertedListings, error: listingsError } = await supabaseClient
+        .from('product_listings')
+        .upsert(listingsToInsert, {
+          onConflict: 'product_id,integration_id',
+          ignoreDuplicates: false,
+        })
+        .select();
+
+      if (listingsError) {
+        console.warn('⚠️ Erro ao criar vínculos em product_listings:', listingsError);
+        // Não falhar a importação por causa disso
+      } else {
+        console.log(`✅ ${insertedListings?.length || 0} vínculos criados em product_listings`);
+      }
+    }
+
     return new Response(
       JSON.stringify({ 
         message: 'Products imported successfully', 
