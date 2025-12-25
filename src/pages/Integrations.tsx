@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { useSearchParams } from "react-router-dom";
-import { Plus, Settings, Unlink, ExternalLink, CheckCircle2, Plug, Loader2, Lock, Download, Key } from "lucide-react";
+import { Plus, Settings, Unlink, ExternalLink, CheckCircle2, Plug, Loader2, Lock, Download, Key, RefreshCw, Clock } from "lucide-react";
 import { useThemeProvider } from "@/components/layout/ThemeProvider";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -61,9 +61,12 @@ export default function Integrations() {
   const [searchParams, setSearchParams] = useSearchParams();
   const [disconnectingId, setDisconnectingId] = useState<string | null>(null);
   const [importingId, setImportingId] = useState<string | null>(null);
+  const [syncingId, setSyncingId] = useState<string | null>(null);
+  const [syncingAll, setSyncingAll] = useState(false);
   const [connectedIntegrations, setConnectedIntegrations] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [amazonSelfAuthOpen, setAmazonSelfAuthOpen] = useState(false);
+  const [lastSyncTimes, setLastSyncTimes] = useState<Record<string, string | null>>({});
   const { toast } = useToast();
   const { canAccess, getUpgradeRequiredMessage } = usePlan();
   const { theme } = useThemeProvider();
@@ -355,13 +358,178 @@ export default function Integrations() {
     }
   };
 
+  const handleSyncOrders = async (integrationId: string, platform: string, accountName?: string) => {
+    try {
+      setSyncingId(integrationId);
+      const accountDisplay = accountName || platform;
+
+      toast({
+        title: "Sincronizando pedidos...",
+        description: `Buscando pedidos de ${accountDisplay}`,
+      });
+
+      const { data: { session } } = await supabase.auth.getSession();
+
+      if (!session) {
+        toast({
+          title: "Erro de autenticação",
+          description: "Faça login para sincronizar pedidos.",
+          variant: "destructive",
+        });
+        return;
+      }
+
+      const { data, error } = await supabase.functions.invoke("sync-orders", {
+        body: { platform, days_since: 30 },
+        headers: {
+          Authorization: `Bearer ${session.access_token}`,
+        },
+      });
+
+      if (error) {
+        console.error("Error syncing orders:", error);
+        toast({
+          title: "Erro ao sincronizar",
+          description: error.message || "Não foi possível sincronizar os pedidos.",
+          variant: "destructive",
+        });
+        return;
+      }
+
+      // Update last sync time
+      setLastSyncTimes(prev => ({
+        ...prev,
+        [integrationId]: new Date().toISOString()
+      }));
+
+      const platformResult = data?.results?.find((r: any) => r.platform === platform);
+      const syncedCount = platformResult?.orders_synced || data?.total_synced || 0;
+      const newCount = platformResult?.new_orders || data?.new_orders || 0;
+
+      toast({
+        title: "Sincronização concluída!",
+        description: `${syncedCount} pedidos sincronizados${newCount > 0 ? `, ${newCount} novos` : ""} de ${accountDisplay}.`,
+      });
+    } catch (error) {
+      console.error("Unexpected error syncing orders:", error);
+      toast({
+        title: "Erro inesperado",
+        description: "Ocorreu um erro ao sincronizar os pedidos.",
+        variant: "destructive",
+      });
+    } finally {
+      setSyncingId(null);
+    }
+  };
+
+  const handleSyncAllOrders = async () => {
+    try {
+      setSyncingAll(true);
+
+      toast({
+        title: "Sincronizando todos os pedidos...",
+        description: "Buscando pedidos de todas as integrações",
+      });
+
+      const { data: { session } } = await supabase.auth.getSession();
+
+      if (!session) {
+        toast({
+          title: "Erro de autenticação",
+          description: "Faça login para sincronizar pedidos.",
+          variant: "destructive",
+        });
+        return;
+      }
+
+      const { data, error } = await supabase.functions.invoke("sync-orders", {
+        body: { days_since: 30 },
+        headers: {
+          Authorization: `Bearer ${session.access_token}`,
+        },
+      });
+
+      if (error) {
+        console.error("Error syncing all orders:", error);
+        toast({
+          title: "Erro ao sincronizar",
+          description: error.message || "Não foi possível sincronizar os pedidos.",
+          variant: "destructive",
+        });
+        return;
+      }
+
+      // Update all last sync times
+      const now = new Date().toISOString();
+      const newSyncTimes: Record<string, string> = {};
+      connectedIntegrations.forEach(int => {
+        newSyncTimes[int.id] = now;
+      });
+      setLastSyncTimes(prev => ({ ...prev, ...newSyncTimes }));
+
+      toast({
+        title: "Sincronização concluída!",
+        description: `${data?.total_synced || 0} pedidos sincronizados, ${data?.new_orders || 0} novos.`,
+      });
+    } catch (error) {
+      console.error("Unexpected error syncing all orders:", error);
+      toast({
+        title: "Erro inesperado",
+        description: "Ocorreu um erro ao sincronizar os pedidos.",
+        variant: "destructive",
+      });
+    } finally {
+      setSyncingAll(false);
+    }
+  };
+
   return (
     <div className="space-y-4 md:space-y-6 animate-fade-in">
       {/* Page Header */}
-      <div>
-        <h1 className="text-2xl md:text-3xl font-bold">Integrações de Canais</h1>
-        <p className="text-muted-foreground">Conecte e gerencie seus canais de venda em um só lugar</p>
+      <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+        <div>
+          <h1 className="text-2xl md:text-3xl font-bold">Integrações de Canais</h1>
+          <p className="text-muted-foreground">Conecte e gerencie seus canais de venda em um só lugar</p>
+        </div>
+        {connectedIntegrations.length > 0 && (
+          <Button
+            onClick={handleSyncAllOrders}
+            disabled={syncingAll || syncingId !== null}
+            className="bg-gradient-primary"
+          >
+            {syncingAll ? (
+              <>
+                <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                Sincronizando...
+              </>
+            ) : (
+              <>
+                <RefreshCw className="w-4 h-4 mr-2" />
+                Sincronizar Todos os Pedidos
+              </>
+            )}
+          </Button>
+        )}
       </div>
+
+      {/* Auto Sync Info */}
+      {connectedIntegrations.length > 0 && (
+        <Card className="shadow-soft border-primary/20 bg-primary/5">
+          <CardContent className="pt-4 pb-4">
+            <div className="flex items-center gap-3">
+              <div className="p-2 rounded-full bg-primary/10">
+                <Clock className="w-5 h-5 text-primary" />
+              </div>
+              <div>
+                <p className="font-medium text-foreground">Sincronização Automática Ativa</p>
+                <p className="text-sm text-muted-foreground">
+                  Seus pedidos são sincronizados automaticamente a cada 30 minutos
+                </p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      )}
 
       {/* Connected Integrations */}
       <div className="space-y-4">
@@ -457,11 +625,44 @@ export default function Integrations() {
                       </CardHeader>
 
                       <CardContent className="space-y-4">
-                        <div className="text-xs text-muted-foreground">
-                          Última atualização: {new Date(integration.updated_at).toLocaleDateString("pt-BR")}
+                        <div className="flex items-center justify-between text-xs text-muted-foreground">
+                          <span>Conectado: {new Date(integration.created_at).toLocaleDateString("pt-BR")}</span>
+                          {lastSyncTimes[integration.id] && (
+                            <span className="flex items-center gap-1">
+                              <RefreshCw className="w-3 h-3" />
+                              Sync: {new Date(lastSyncTimes[integration.id]!).toLocaleTimeString("pt-BR", { hour: '2-digit', minute: '2-digit' })}
+                            </span>
+                          )}
                         </div>
 
                         <Separator />
+
+                        {/* Sync Orders Button */}
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          className="w-full"
+                          onClick={() =>
+                            handleSyncOrders(
+                              integration.id,
+                              integration.platform,
+                              integration.account_nickname || integration.account_name,
+                            )
+                          }
+                          disabled={syncingId === integration.id || syncingAll}
+                        >
+                          {syncingId === integration.id ? (
+                            <>
+                              <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                              <span className="animate-pulse">Sincronizando...</span>
+                            </>
+                          ) : (
+                            <>
+                              <RefreshCw className="w-4 h-4 mr-2" />
+                              Sincronizar Pedidos
+                            </>
+                          )}
+                        </Button>
 
                         {/* Import Products Button for all platforms */}
                         <Button

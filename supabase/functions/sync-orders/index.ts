@@ -341,28 +341,6 @@ serve(async (req) => {
     const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
     const supabase = createClient(supabaseUrl, supabaseKey);
 
-    // Get authorization header
-    const authHeader = req.headers.get('Authorization');
-    if (!authHeader) {
-      return new Response(JSON.stringify({ error: 'Unauthorized' }), {
-        status: 401,
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' }
-      });
-    }
-
-    // Get user from token
-    const token = authHeader.replace('Bearer ', '');
-    const { data: { user }, error: authError } = await supabase.auth.getUser(token);
-    
-    if (authError || !user) {
-      return new Response(JSON.stringify({ error: 'Invalid token' }), {
-        status: 401,
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' }
-      });
-    }
-
-    console.log(`Syncing orders for user: ${user.id}`);
-
     // Parse request body for options
     let body: any = {};
     try {
@@ -373,43 +351,91 @@ serve(async (req) => {
 
     const platform = body.platform; // Optional: sync only specific platform
     const daysSince = body.days_since || 30; // Default: last 30 days
+    const allUsers = body.all_users || false; // For cron job execution
     
     const since = new Date();
     since.setDate(since.getDate() - daysSince);
 
-    // Get user's integrations
-    const integrationsQuery = supabase
-      .from('integrations')
-      .select('*')
-      .eq('user_id', user.id);
-    
-    if (platform) {
-      integrationsQuery.eq('platform', platform);
-    }
-    
-    const { data: integrations, error: integrationError } = await integrationsQuery;
+    let usersToSync: { id: string }[] = [];
 
-    if (integrationError) {
-      console.error('Error fetching integrations:', integrationError);
-      return new Response(JSON.stringify({ error: 'Failed to fetch integrations' }), {
-        status: 500,
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' }
-      });
+    // Check if this is a cron job call (all_users mode)
+    if (allUsers) {
+      console.log('CRON MODE: Syncing orders for all users with integrations');
+      
+      // Get all unique user_ids with integrations
+      const { data: integrations, error: intError } = await supabase
+        .from('integrations')
+        .select('user_id')
+        .not('access_token', 'is', null);
+      
+      if (intError) {
+        console.error('Error fetching users with integrations:', intError);
+        return new Response(JSON.stringify({ error: 'Failed to fetch users' }), {
+          status: 500,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+        });
+      }
+      
+      // Get unique user IDs
+      const uniqueUserIds = [...new Set(integrations?.map(i => i.user_id) || [])];
+      usersToSync = uniqueUserIds.map(id => ({ id }));
+      
+      console.log(`Found ${usersToSync.length} users with integrations`);
+    } else {
+      // Single user mode - require authentication
+      const authHeader = req.headers.get('Authorization');
+      if (!authHeader) {
+        return new Response(JSON.stringify({ error: 'Unauthorized' }), {
+          status: 401,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+        });
+      }
+
+      const token = authHeader.replace('Bearer ', '');
+      const { data: { user }, error: authError } = await supabase.auth.getUser(token);
+      
+      if (authError || !user) {
+        return new Response(JSON.stringify({ error: 'Invalid token' }), {
+          status: 401,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+        });
+      }
+
+      usersToSync = [{ id: user.id }];
     }
 
-    if (!integrations || integrations.length === 0) {
-      return new Response(JSON.stringify({ 
-        message: 'No integrations found',
-        synced: 0,
-        new_orders: 0 
-      }), {
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' }
-      });
-    }
+    let grandTotalSynced = 0;
+    let grandNewOrders = 0;
+    const allResults: any[] = [];
 
-    let totalSynced = 0;
-    let newOrders = 0;
-    const results: any[] = [];
+    // Process each user
+    for (const user of usersToSync) {
+      console.log(`Syncing orders for user: ${user.id}`);
+
+      // Get user's integrations
+      const integrationsQuery = supabase
+        .from('integrations')
+        .select('*')
+        .eq('user_id', user.id);
+      
+      if (platform) {
+        integrationsQuery.eq('platform', platform);
+      }
+      
+      const { data: integrations, error: integrationError } = await integrationsQuery;
+
+      if (integrationError) {
+        console.error('Error fetching integrations:', integrationError);
+        continue;
+      }
+
+      if (!integrations || integrations.length === 0) {
+        continue;
+      }
+
+      let totalSynced = 0;
+      let newOrders = 0;
+      const results: any[] = [];
 
     // Process each integration
     for (const integration of integrations) {
@@ -526,11 +552,23 @@ serve(async (req) => {
       }
     }
 
-    return new Response(JSON.stringify({
-      message: 'Sync completed',
+    // Aggregate results for this user
+    grandTotalSynced += totalSynced;
+    grandNewOrders += newOrders;
+    allResults.push({
+      user_id: user.id,
       synced: totalSynced,
       new_orders: newOrders,
       results
+    });
+  }
+
+    return new Response(JSON.stringify({
+      message: 'Sync completed',
+      total_synced: grandTotalSynced,
+      new_orders: grandNewOrders,
+      users_processed: usersToSync.length,
+      results: allResults
     }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' }
     });
