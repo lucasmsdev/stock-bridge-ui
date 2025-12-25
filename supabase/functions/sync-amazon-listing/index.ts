@@ -108,28 +108,128 @@ serve(async (req) => {
 
     const marketplaceId = integration.marketplace_id || 'A2Q3Y263D00KWC'; // Brasil como padrão
     
-    // Obter seller ID
+    // Obter seller ID - CRÍTICO: precisa ser o ID real no formato AXXXXXXXXXXXX
     let sellerId = integration.selling_partner_id;
     
     if (!sellerId) {
-      console.log('📋 Buscando seller ID via getMarketplaceParticipations...');
+      console.log('📋 Seller ID não encontrado no banco, buscando via API...');
+      
+      // Método 1: Tentar obter via Reports API
       try {
-        const participations = await sellingPartner.callAPI({
-          operation: 'getMarketplaceParticipations',
-          endpoint: 'sellers',
+        console.log('🔍 Tentando obter Seller ID via Reports API...');
+        const reports = await sellingPartner.callAPI({
+          operation: 'getReports',
+          endpoint: 'reports',
+          query: {
+            reportTypes: ['GET_MERCHANT_LISTINGS_DATA'],
+            pageSize: 1,
+          },
         });
         
-        const payload = Array.isArray(participations) ? participations : participations?.payload;
-        if (payload && payload.length > 0) {
-          // Extrair seller ID do nome da loja (workaround)
-          const firstParticipation = payload[0];
-          sellerId = firstParticipation?.storeName || 'UNKNOWN';
-          console.log('📋 Store name encontrado:', sellerId);
+        console.log('📋 Reports response:', JSON.stringify(reports, null, 2));
+        
+        // Tentar extrair do campo sellerId ou da URL do documento
+        if (reports?.reports?.[0]?.sellerId) {
+          sellerId = reports.reports[0].sellerId;
+          console.log('✅ Seller ID encontrado via Reports:', sellerId);
         }
-      } catch (e) {
-        console.error('⚠️ Erro ao buscar participations:', e);
+      } catch (reportsError) {
+        console.log('⚠️ Reports API não retornou Seller ID:', reportsError.message);
+      }
+      
+      // Método 2: Tentar obter via Catalog API (search por um ASIN conhecido)
+      if (!sellerId) {
+        try {
+          console.log('🔍 Tentando obter Seller ID via Catalog API...');
+          
+          // Buscar produtos do seller para extrair o ID
+          const catalogResponse = await sellingPartner.callAPI({
+            operation: 'searchCatalogItems',
+            endpoint: 'catalogItems',
+            query: {
+              marketplaceIds: [marketplaceId],
+              sellerId: 'me', // Isso pode retornar o seller ID real
+              pageSize: 1,
+            },
+          });
+          
+          console.log('📋 Catalog response:', JSON.stringify(catalogResponse, null, 2));
+          
+          // Verificar se a resposta contém o seller ID
+          if (catalogResponse?.items?.[0]?.sellerId) {
+            sellerId = catalogResponse.items[0].sellerId;
+            console.log('✅ Seller ID encontrado via Catalog:', sellerId);
+          }
+        } catch (catalogError) {
+          console.log('⚠️ Catalog API não retornou Seller ID:', catalogError.message);
+        }
+      }
+      
+      // Método 3: Usar a SDK para obter o seller_id interno
+      if (!sellerId && sellingPartner.seller_id) {
+        sellerId = sellingPartner.seller_id;
+        console.log('✅ Seller ID encontrado via SDK internal:', sellerId);
+      }
+      
+      // Método 4: Fazer chamada direta à API para obter identity
+      if (!sellerId) {
+        try {
+          console.log('🔍 Tentando obter Seller ID via chamada direta...');
+          
+          // Obter access token para chamada direta
+          const accessToken = await sellingPartner.refreshAccessToken();
+          
+          // Tentar API de Notifications que retorna seller ID
+          const notificationsUrl = 'https://sellingpartnerapi-na.amazon.com/notifications/v1/destinations';
+          const notificationsResponse = await fetch(notificationsUrl, {
+            headers: {
+              'Authorization': `Bearer ${accessToken}`,
+              'x-amz-access-token': accessToken,
+            },
+          });
+          
+          if (notificationsResponse.ok) {
+            const notificationsData = await notificationsResponse.json();
+            console.log('📋 Notifications response:', JSON.stringify(notificationsData, null, 2));
+            
+            // Extrair seller ID se disponível
+            if (notificationsData?.payload?.[0]?.destinationId) {
+              // O destination ID às vezes contém o seller ID
+              const destId = notificationsData.payload[0].destinationId;
+              if (destId.startsWith('A')) {
+                sellerId = destId.split('_')[0];
+                console.log('✅ Seller ID extraído de destination:', sellerId);
+              }
+            }
+          }
+        } catch (directError) {
+          console.log('⚠️ Chamada direta não retornou Seller ID:', directError.message);
+        }
+      }
+      
+      // Se encontrou o Seller ID, salvar no banco para próximas vezes
+      if (sellerId && sellerId !== 'UNKNOWN' && sellerId.startsWith('A')) {
+        console.log('💾 Salvando Seller ID no banco:', sellerId);
+        
+        const adminClient = createClient(
+          Deno.env.get('SUPABASE_URL') ?? '',
+          Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '',
+        );
+        
+        await adminClient
+          .from('integrations')
+          .update({ selling_partner_id: sellerId })
+          .eq('id', integrationId);
       }
     }
+    
+    // Se ainda não temos o Seller ID, usar 'me' como fallback (a SDK pode resolver)
+    if (!sellerId || !sellerId.startsWith('A')) {
+      console.log('⚠️ Seller ID não encontrado, usando "me" como fallback');
+      sellerId = 'me'; // A Amazon SP-API aceita 'me' em algumas operações
+    }
+    
+    console.log('📋 Seller ID final para PATCH:', sellerId);
 
     // Construir patches para atualização
     const patches: any[] = [];
