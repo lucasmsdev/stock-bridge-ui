@@ -828,6 +828,133 @@ serve(async (req) => {
           throw parseError;
         }
 
+        // ========================================================
+        // PASSO 7: Buscar estoque real-time via FBA Inventory API
+        // ========================================================
+        if (productsToInsert.length > 0) {
+          console.log('📦 Buscando estoque em tempo real via FBA Inventory API...');
+          
+          try {
+            // Coletar todos os SKUs para buscar estoque
+            const skus = productsToInsert.map(p => p.sku).filter(Boolean);
+            const skuStockMap = new Map<string, number>();
+            
+            // Buscar estoque em lotes de 50 SKUs (limite da API)
+            const batchSize = 50;
+            for (let i = 0; i < skus.length; i += batchSize) {
+              const batchSkus = skus.slice(i, i + batchSize);
+              
+              // Construir query params para getInventorySummaries
+              const queryParams = new URLSearchParams({
+                details: 'true',
+                granularityType: 'Marketplace',
+                granularityId: marketplaceId,
+                marketplaceIds: marketplaceId,
+              });
+              
+              // Adicionar SKUs como sellerSkus
+              batchSkus.forEach(sku => queryParams.append('sellerSkus', sku));
+              
+              const inventoryUrl = `https://sellingpartnerapi-na.amazon.com/fba/inventory/v1/summaries?${queryParams.toString()}`;
+              
+              // Criar assinatura AWS para a requisição
+              const inventoryTimestamp = new Date().toISOString().replace(/[:-]|\.\d{3}/g, '');
+              const inventoryDate = inventoryTimestamp.slice(0, 8);
+              
+              const inventoryHeaders: Record<string, string> = {
+                'host': 'sellingpartnerapi-na.amazon.com',
+                'x-amz-access-token': spApiAccessToken,
+                'x-amz-date': inventoryTimestamp,
+                'content-type': 'application/json',
+              };
+              
+              // Criar canonical request para assinatura
+              const inventoryCanonicalUri = '/fba/inventory/v1/summaries';
+              const inventoryCanonicalQuerystring = queryParams.toString().split('&').sort().join('&');
+              const inventorySignedHeaders = 'content-type;host;x-amz-access-token;x-amz-date';
+              const inventoryPayloadHash = await sha256('');
+              
+              const inventoryCanonicalRequest = [
+                'GET',
+                inventoryCanonicalUri,
+                inventoryCanonicalQuerystring,
+                `content-type:application/json\nhost:sellingpartnerapi-na.amazon.com\nx-amz-access-token:${spApiAccessToken}\nx-amz-date:${inventoryTimestamp}\n`,
+                inventorySignedHeaders,
+                inventoryPayloadHash
+              ].join('\n');
+              
+              const inventoryCredentialScope = `${inventoryDate}/us-east-1/execute-api/aws4_request`;
+              const inventoryStringToSign = [
+                'AWS4-HMAC-SHA256',
+                inventoryTimestamp,
+                inventoryCredentialScope,
+                await sha256(inventoryCanonicalRequest)
+              ].join('\n');
+              
+              const inventorySigningKey = await getSignatureKey(awsSecretKey, inventoryDate, 'us-east-1', 'execute-api');
+              const inventorySignature = await hmacHex(inventorySigningKey, inventoryStringToSign);
+              
+              inventoryHeaders['Authorization'] = `AWS4-HMAC-SHA256 Credential=${awsAccessKeyId}/${inventoryCredentialScope}, SignedHeaders=${inventorySignedHeaders}, Signature=${inventorySignature}`;
+              
+              const inventoryResponse = await fetch(inventoryUrl, {
+                method: 'GET',
+                headers: inventoryHeaders,
+              });
+              
+              if (inventoryResponse.ok) {
+                const inventoryData = await inventoryResponse.json();
+                const summaries = inventoryData.payload?.inventorySummaries || [];
+                
+                console.log(`📊 FBA Inventory: ${summaries.length} itens encontrados no lote ${Math.floor(i / batchSize) + 1}`);
+                
+                for (const item of summaries) {
+                  const sku = item.sellerSku;
+                  // Estoque disponível = totalQuantity (soma de fulfillable + inbound + etc)
+                  const totalQty = item.totalQuantity || 0;
+                  const fulfillableQty = item.inventoryDetails?.fulfillableQuantity || 0;
+                  
+                  // Usar fulfillableQuantity se disponível, senão totalQuantity
+                  const availableStock = fulfillableQty > 0 ? fulfillableQty : totalQty;
+                  
+                  if (sku) {
+                    skuStockMap.set(sku, availableStock);
+                  }
+                }
+              } else {
+                const errorText = await inventoryResponse.text();
+                console.warn(`⚠️ FBA Inventory API erro (lote ${Math.floor(i / batchSize) + 1}):`, inventoryResponse.status, errorText.substring(0, 200));
+                // Continua sem atualizar estoque deste lote
+              }
+              
+              // Pequeno delay entre lotes para evitar rate limiting
+              if (i + batchSize < skus.length) {
+                await new Promise(resolve => setTimeout(resolve, 200));
+              }
+            }
+            
+            // Atualizar estoque dos produtos com dados em tempo real
+            if (skuStockMap.size > 0) {
+              console.log(`✅ Atualizando estoque de ${skuStockMap.size} produtos com dados FBA real-time`);
+              
+              for (const product of productsToInsert) {
+                if (skuStockMap.has(product.sku)) {
+                  const oldStock = product.stock;
+                  const newStock = skuStockMap.get(product.sku)!;
+                  
+                  if (oldStock !== newStock) {
+                    console.log(`📦 ${product.sku}: estoque ${oldStock} → ${newStock} (FBA real-time)`);
+                    product.stock = newStock;
+                  }
+                }
+              }
+            }
+            
+          } catch (inventoryError: any) {
+            console.warn('⚠️ Erro ao buscar FBA Inventory (continuando com estoque do relatório):', inventoryError.message);
+            // Não interrompe a importação, apenas continua com o estoque do relatório
+          }
+        }
+
         console.log(`📦 Preparados ${productsToInsert.length} produtos da Amazon para importação`);
 
       } catch (amazonError: any) {
