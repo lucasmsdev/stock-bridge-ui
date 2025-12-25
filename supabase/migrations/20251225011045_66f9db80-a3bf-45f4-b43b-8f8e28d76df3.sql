@@ -1,0 +1,6 @@
+-- Habilitar extensões necessárias para cron jobs
+CREATE EXTENSION IF NOT EXISTS pg_cron WITH SCHEMA pg_catalog;
+CREATE EXTENSION IF NOT EXISTS pg_net WITH SCHEMA extensions;
+
+-- Garantir que o schema extensions existe
+CREATE SCHEMA IF NOT EXISTS extensions;
