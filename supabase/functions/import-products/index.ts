@@ -467,10 +467,10 @@ serve(async (req) => {
             image_url: product.image?.src || null,
           };
 
-      productsToInsert.push(productData);
+          productsToInsert.push(productData);
         }
       }
-  } else if (platform === 'amazon') {
+    } else if (platform === 'amazon') {
       console.log('🛒 Importando produtos da Amazon SP-API via Reports API...');
 
       try {
@@ -723,6 +723,9 @@ serve(async (req) => {
         // ========================================================
         console.log('🔄 Parseando relatório TSV...');
 
+        // Map to store ASIN by SKU for later image fetch
+        const skuToAsinMap = new Map<string, string>();
+
         try {
           const lines = reportContent.split('\n').filter(line => line.trim());
           
@@ -756,8 +759,6 @@ serve(async (req) => {
             imageUrl: headers.findIndex(h => h === 'image_url' || h === 'image-url'),
           };
 
-          console.log('📋 Índices das colunas (inclui imagem):', columnIndexes);
-
           console.log('📋 Índices das colunas:', columnIndexes);
 
           // Parsear cada linha de produto
@@ -771,10 +772,16 @@ serve(async (req) => {
             const quantityStr = columnIndexes.quantity >= 0 ? values[columnIndexes.quantity]?.trim() : null;
             const status = columnIndexes.status >= 0 ? values[columnIndexes.status]?.trim() : null;
             const imageUrl = columnIndexes.imageUrl >= 0 ? values[columnIndexes.imageUrl]?.trim() : null;
+            const asin = columnIndexes.asin >= 0 ? values[columnIndexes.asin]?.trim() : null;
 
             // Validar SKU (obrigatório)
             if (!sellerSku || sellerSku === '') {
               continue;
+            }
+
+            // Guardar ASIN para buscar imagem depois se necessário
+            if (asin && asin !== '') {
+              skuToAsinMap.set(sellerSku, asin);
             }
 
             // Pular produtos inativos/fechados
@@ -806,7 +813,6 @@ serve(async (req) => {
             let processedImageUrl: string | null = null;
             if (imageUrl && imageUrl !== '') {
               processedImageUrl = imageUrl.replace('http://', 'https://');
-              console.log(`🖼️ Imagem encontrada para ${sellerSku}:`, processedImageUrl.substring(0, 80) + '...');
             }
 
             const productData = {
@@ -816,6 +822,7 @@ serve(async (req) => {
               stock: stock,
               selling_price: sellingPrice,
               image_url: processedImageUrl,
+              _asin: asin, // Temporary field for image fetch
             };
 
             productsToInsert.push(productData);
@@ -829,112 +836,203 @@ serve(async (req) => {
         }
 
         // ========================================================
-        // PASSO 7: Buscar estoque real-time via FBA Inventory API
+        // PASSO 7: Buscar imagens via Catalog Items API para produtos sem imagem
+        // ========================================================
+        if (productsToInsert.length > 0) {
+          const productsWithoutImage = productsToInsert.filter(p => !p.image_url && p._asin);
+          
+          if (productsWithoutImage.length > 0) {
+            console.log(`🖼️ Buscando imagens para ${productsWithoutImage.length} produtos via Catalog Items API...`);
+            
+            let imagesFound = 0;
+            
+            // Process in batches of 5 to avoid rate limiting
+            for (let i = 0; i < productsWithoutImage.length; i += 5) {
+              const batch = productsWithoutImage.slice(i, i + 5);
+              
+              await Promise.all(batch.map(async (product) => {
+                try {
+                  const catalogResponse = await sellingPartner.callAPI({
+                    operation: 'getCatalogItem',
+                    endpoint: 'catalogItems',
+                    path: { asin: product._asin },
+                    query: {
+                      marketplaceIds: [validatedMarketplaceId],
+                      includedData: 'images',
+                    },
+                  });
+                  
+                  // Extract main image
+                  const images = catalogResponse?.images || catalogResponse?.attributes?.images || [];
+                  let mainImage = null;
+                  
+                  // Try to find main image from response
+                  if (Array.isArray(images)) {
+                    for (const imgSet of images) {
+                      const imgArray = imgSet?.images || imgSet;
+                      if (Array.isArray(imgArray)) {
+                        const primaryImg = imgArray.find((img: any) => img.variant === 'MAIN');
+                        if (primaryImg?.link) {
+                          mainImage = primaryImg.link;
+                          break;
+                        }
+                        // Fallback to first image
+                        if (!mainImage && imgArray[0]?.link) {
+                          mainImage = imgArray[0].link;
+                        }
+                      }
+                    }
+                  }
+                  
+                  if (mainImage) {
+                    product.image_url = mainImage.replace('http://', 'https://');
+                    imagesFound++;
+                    console.log(`🖼️ Imagem encontrada via Catalog API para SKU ${product.sku}: ${product.image_url.substring(0, 60)}...`);
+                  }
+                  
+                } catch (catalogError: any) {
+                  console.warn(`⚠️ Erro ao buscar imagem para ASIN ${product._asin}:`, catalogError?.message);
+                }
+              }));
+              
+              // Small delay between batches
+              if (i + 5 < productsWithoutImage.length) {
+                await new Promise(resolve => setTimeout(resolve, 300));
+              }
+            }
+            
+            console.log(`✅ ${imagesFound} imagens encontradas via Catalog Items API`);
+          }
+        }
+
+        // ========================================================
+        // PASSO 8: Buscar estoque via FBA Inventory API (usando sellingPartner.callAPI)
         // ========================================================
         if (productsToInsert.length > 0) {
           console.log('📦 Buscando estoque em tempo real via FBA Inventory API...');
           
+          const skuStockMap = new Map<string, number>();
+          const skusWithFbaStock = new Set<string>();
+          
           try {
-            // Coletar todos os SKUs para buscar estoque
             const skus = productsToInsert.map(p => p.sku).filter(Boolean);
-            const skuStockMap = new Map<string, number>();
-            
-            // Buscar estoque em lotes de 50 SKUs (limite da API)
             const batchSize = 50;
+            
             for (let i = 0; i < skus.length; i += batchSize) {
               const batchSkus = skus.slice(i, i + batchSize);
               
-              // Construir query params para getInventorySummaries
-              const queryParams = new URLSearchParams({
-                details: 'true',
-                granularityType: 'Marketplace',
-                granularityId: marketplaceId,
-                marketplaceIds: marketplaceId,
-              });
-              
-              // Adicionar SKUs como sellerSkus
-              batchSkus.forEach(sku => queryParams.append('sellerSkus', sku));
-              
-              const inventoryUrl = `https://sellingpartnerapi-na.amazon.com/fba/inventory/v1/summaries?${queryParams.toString()}`;
-              
-              // Criar assinatura AWS para a requisição
-              const inventoryTimestamp = new Date().toISOString().replace(/[:-]|\.\d{3}/g, '');
-              const inventoryDate = inventoryTimestamp.slice(0, 8);
-              
-              const inventoryHeaders: Record<string, string> = {
-                'host': 'sellingpartnerapi-na.amazon.com',
-                'x-amz-access-token': spApiAccessToken,
-                'x-amz-date': inventoryTimestamp,
-                'content-type': 'application/json',
-              };
-              
-              // Criar canonical request para assinatura
-              const inventoryCanonicalUri = '/fba/inventory/v1/summaries';
-              const inventoryCanonicalQuerystring = queryParams.toString().split('&').sort().join('&');
-              const inventorySignedHeaders = 'content-type;host;x-amz-access-token;x-amz-date';
-              const inventoryPayloadHash = await sha256('');
-              
-              const inventoryCanonicalRequest = [
-                'GET',
-                inventoryCanonicalUri,
-                inventoryCanonicalQuerystring,
-                `content-type:application/json\nhost:sellingpartnerapi-na.amazon.com\nx-amz-access-token:${spApiAccessToken}\nx-amz-date:${inventoryTimestamp}\n`,
-                inventorySignedHeaders,
-                inventoryPayloadHash
-              ].join('\n');
-              
-              const inventoryCredentialScope = `${inventoryDate}/us-east-1/execute-api/aws4_request`;
-              const inventoryStringToSign = [
-                'AWS4-HMAC-SHA256',
-                inventoryTimestamp,
-                inventoryCredentialScope,
-                await sha256(inventoryCanonicalRequest)
-              ].join('\n');
-              
-              const inventorySigningKey = await getSignatureKey(awsSecretKey, inventoryDate, 'us-east-1', 'execute-api');
-              const inventorySignature = await hmacHex(inventorySigningKey, inventoryStringToSign);
-              
-              inventoryHeaders['Authorization'] = `AWS4-HMAC-SHA256 Credential=${awsAccessKeyId}/${inventoryCredentialScope}, SignedHeaders=${inventorySignedHeaders}, Signature=${inventorySignature}`;
-              
-              const inventoryResponse = await fetch(inventoryUrl, {
-                method: 'GET',
-                headers: inventoryHeaders,
-              });
-              
-              if (inventoryResponse.ok) {
-                const inventoryData = await inventoryResponse.json();
-                const summaries = inventoryData.payload?.inventorySummaries || [];
+              try {
+                // Use sellingPartner.callAPI instead of manual AWS signature
+                const inventoryResponse = await sellingPartner.callAPI({
+                  operation: 'getInventorySummaries',
+                  endpoint: 'fbaInventory',
+                  query: {
+                    details: true,
+                    granularityType: 'Marketplace',
+                    granularityId: validatedMarketplaceId,
+                    marketplaceIds: [validatedMarketplaceId],
+                    sellerSkus: batchSkus,
+                  },
+                });
+                
+                const summaries = inventoryResponse?.inventorySummaries || inventoryResponse?.payload?.inventorySummaries || [];
                 
                 console.log(`📊 FBA Inventory: ${summaries.length} itens encontrados no lote ${Math.floor(i / batchSize) + 1}`);
                 
                 for (const item of summaries) {
                   const sku = item.sellerSku;
-                  // Estoque disponível = totalQuantity (soma de fulfillable + inbound + etc)
                   const totalQty = item.totalQuantity || 0;
                   const fulfillableQty = item.inventoryDetails?.fulfillableQuantity || 0;
-                  
-                  // Usar fulfillableQuantity se disponível, senão totalQuantity
                   const availableStock = fulfillableQty > 0 ? fulfillableQty : totalQty;
                   
                   if (sku) {
                     skuStockMap.set(sku, availableStock);
+                    skusWithFbaStock.add(sku);
                   }
                 }
-              } else {
-                const errorText = await inventoryResponse.text();
-                console.warn(`⚠️ FBA Inventory API erro (lote ${Math.floor(i / batchSize) + 1}):`, inventoryResponse.status, errorText.substring(0, 200));
-                // Continua sem atualizar estoque deste lote
+                
+              } catch (batchError: any) {
+                console.warn(`⚠️ FBA Inventory API erro (lote ${Math.floor(i / batchSize) + 1}):`, batchError?.message);
               }
               
-              // Pequeno delay entre lotes para evitar rate limiting
+              // Small delay between batches
               if (i + batchSize < skus.length) {
                 await new Promise(resolve => setTimeout(resolve, 200));
               }
             }
             
-            // Atualizar estoque dos produtos com dados em tempo real
+            console.log(`✅ FBA Inventory retornou estoque para ${skuStockMap.size} SKUs`);
+            
+            // ========================================================
+            // PASSO 9: Buscar estoque FBM via Listings Items API para SKUs sem FBA
+            // ========================================================
+            const skusWithoutFbaStock = productsToInsert
+              .map(p => p.sku)
+              .filter(sku => !skusWithFbaStock.has(sku));
+            
+            if (skusWithoutFbaStock.length > 0) {
+              console.log(`📦 Buscando estoque FBM para ${skusWithoutFbaStock.length} SKUs via Listings Items API...`);
+              
+              // Get seller ID from marketplace participations
+              const sellerId = marketplaceParticipations.find((p: any) => 
+                p.marketplace?.id === validatedMarketplaceId && p.participation?.isParticipating
+              )?.sellerID || integration.selling_partner_id;
+              
+              if (sellerId) {
+                let listingsStockFound = 0;
+                
+                // Process in batches of 5 to avoid rate limiting
+                for (let i = 0; i < skusWithoutFbaStock.length; i += 5) {
+                  const batch = skusWithoutFbaStock.slice(i, i + 5);
+                  
+                  await Promise.all(batch.map(async (sku) => {
+                    try {
+                      const listingResponse = await sellingPartner.callAPI({
+                        operation: 'getListingsItem',
+                        endpoint: 'listingsItems',
+                        path: {
+                          sellerId: sellerId,
+                          sku: encodeURIComponent(sku),
+                        },
+                        query: {
+                          marketplaceIds: [validatedMarketplaceId],
+                          includedData: 'fulfillmentAvailability',
+                        },
+                      });
+                      
+                      // Extract fulfillment availability
+                      const fulfillmentAvailability = listingResponse?.fulfillmentAvailability || [];
+                      
+                      for (const fa of fulfillmentAvailability) {
+                        const qty = fa.quantity;
+                        if (typeof qty === 'number') {
+                          skuStockMap.set(sku, qty);
+                          listingsStockFound++;
+                          break;
+                        }
+                      }
+                      
+                    } catch (listingError: any) {
+                      // Ignore errors for individual SKUs
+                      console.warn(`⚠️ Listings Items API erro para SKU ${sku}:`, listingError?.message?.substring(0, 100));
+                    }
+                  }));
+                  
+                  // Small delay between batches
+                  if (i + 5 < skusWithoutFbaStock.length) {
+                    await new Promise(resolve => setTimeout(resolve, 300));
+                  }
+                }
+                
+                console.log(`✅ Listings Items API retornou estoque para ${listingsStockFound} SKUs`);
+              } else {
+                console.warn('⚠️ Seller ID não encontrado, pulando Listings Items API');
+              }
+            }
+            
+            // Update product stock with real-time data
             if (skuStockMap.size > 0) {
-              console.log(`✅ Atualizando estoque de ${skuStockMap.size} produtos com dados FBA real-time`);
+              let stockUpdated = 0;
               
               for (const product of productsToInsert) {
                 if (skuStockMap.has(product.sku)) {
@@ -942,17 +1040,26 @@ serve(async (req) => {
                   const newStock = skuStockMap.get(product.sku)!;
                   
                   if (oldStock !== newStock) {
-                    console.log(`📦 ${product.sku}: estoque ${oldStock} → ${newStock} (FBA real-time)`);
                     product.stock = newStock;
+                    stockUpdated++;
+                    if (stockUpdated <= 5) {
+                      console.log(`📦 ${product.sku}: estoque ${oldStock} → ${newStock} (real-time)`);
+                    }
                   }
                 }
               }
+              
+              console.log(`✅ Estoque atualizado para ${stockUpdated} produtos com dados real-time`);
             }
             
           } catch (inventoryError: any) {
-            console.warn('⚠️ Erro ao buscar FBA Inventory (continuando com estoque do relatório):', inventoryError.message);
-            // Não interrompe a importação, apenas continua com o estoque do relatório
+            console.warn('⚠️ Erro ao buscar estoque (continuando com estoque do relatório):', inventoryError?.message);
           }
+        }
+
+        // Clean up temporary _asin field
+        for (const product of productsToInsert) {
+          delete product._asin;
         }
 
         console.log(`📦 Preparados ${productsToInsert.length} produtos da Amazon para importação`);
@@ -1083,6 +1190,39 @@ serve(async (req) => {
 
     console.log(`✅ ${validProducts.length} produtos válidos para upsert`);
 
+    // ========================================================
+    // PASSO 10: Preservar imagens existentes antes do upsert
+    // ========================================================
+    const skusToCheck = validProducts.map(p => p.sku);
+    
+    const { data: existingProducts, error: existingError } = await supabaseClient
+      .from('products')
+      .select('sku, image_url')
+      .eq('user_id', user.id)
+      .in('sku', skusToCheck);
+    
+    if (!existingError && existingProducts && existingProducts.length > 0) {
+      const existingImageMap = new Map<string, string>();
+      
+      for (const existing of existingProducts) {
+        if (existing.image_url) {
+          existingImageMap.set(existing.sku, existing.image_url);
+        }
+      }
+      
+      let preservedImages = 0;
+      for (const product of validProducts) {
+        if (!product.image_url && existingImageMap.has(product.sku)) {
+          product.image_url = existingImageMap.get(product.sku);
+          preservedImages++;
+        }
+      }
+      
+      if (preservedImages > 0) {
+        console.log(`🖼️ ${preservedImages} imagens existentes preservadas`);
+      }
+    }
+
     // Step 5: Upsert products into database
     const { data: insertedProducts, error: insertError } = await supabaseClient
       .from('products')
@@ -1110,7 +1250,7 @@ serve(async (req) => {
     console.log(`✅ Successfully imported ${validProducts.length} products`);
 
     // ========================================================
-    // PASSO 7: Criar vínculos na tabela product_listings
+    // PASSO 11: Criar vínculos na tabela product_listings
     // ========================================================
     if (insertedProducts && insertedProducts.length > 0 && platform) {
       console.log('🔗 Criando vínculos em product_listings...');
