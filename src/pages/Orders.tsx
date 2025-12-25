@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { Search, Filter, Download, ShoppingCart, Loader2 } from "lucide-react";
+import { Search, Download, ShoppingCart, Loader2, RefreshCw } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -31,6 +31,10 @@ interface Order {
   total_value: number;
   order_date: string;
   items: any;
+  status: string | null;
+  customer_name: string | null;
+  customer_email: string | null;
+  last_sync_at: string | null;
   created_at: string;
   updated_at: string;
 }
@@ -46,8 +50,8 @@ interface FormattedOrder {
   statusColor: string;
 }
 
-const channels = ["Todos os Canais", "Mercado Livre", "Shopify"];
-const statuses = ["Todos os Status", "Processando", "Enviado", "Entregue", "Cancelado", "Aguardando Pagamento"];
+const channels = ["Todos os Canais", "mercadolivre", "shopify", "amazon"];
+const statuses = ["Todos os Status", "pending", "paid", "processing", "shipped", "delivered", "cancelled", "refunded"];
 
 const platformLogos: Record<string, { url: string; darkInvert?: boolean }> = {
   'mercadolivre': { url: "https://vectorseek.com/wp-content/uploads/2023/08/Mercado-Livre-Icon-Logo-Vector.svg-.png" },
@@ -57,15 +61,15 @@ const platformLogos: Record<string, { url: string; darkInvert?: boolean }> = {
   'shopee': { url: "https://www.freepnglogos.com/uploads/shopee-logo/shopee-bag-logo-free-transparent-icon-17.png" },
 };
 
-const getRandomStatus = () => {
-  const statusOptions = [
-    { status: "Processando", color: "bg-[#F59E0B] text-white" }, // Amarelo suave
-    { status: "Enviado", color: "bg-[#3B82F6] text-white" }, // Azul suave
-    { status: "Entregue", color: "bg-[#10B981] text-white" }, // Verde suave
-    { status: "Cancelado", color: "bg-[#EF4444] text-white" }, // Vermelho suave
-    { status: "Aguardando Pagamento", color: "bg-primary text-primary-foreground" } // Laranja (cor primária)
-  ];
-  return statusOptions[Math.floor(Math.random() * statusOptions.length)];
+// Status display configuration
+const statusConfig: Record<string, { label: string; color: string }> = {
+  'pending': { label: 'Aguardando Pagamento', color: 'bg-primary text-primary-foreground' },
+  'paid': { label: 'Pago', color: 'bg-[#10B981] text-white' },
+  'processing': { label: 'Processando', color: 'bg-[#F59E0B] text-white' },
+  'shipped': { label: 'Enviado', color: 'bg-[#3B82F6] text-white' },
+  'delivered': { label: 'Entregue', color: 'bg-[#10B981] text-white' },
+  'cancelled': { label: 'Cancelado', color: 'bg-[#EF4444] text-white' },
+  'refunded': { label: 'Reembolsado', color: 'bg-[#6B7280] text-white' },
 };
 
 const formatCurrency = (value: number) => {
@@ -81,7 +85,9 @@ export default function Orders() {
   const [selectedStatus, setSelectedStatus] = useState("Todos os Status");
   const [orders, setOrders] = useState<FormattedOrder[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [isSyncing, setIsSyncing] = useState(false);
   const [isEmpty, setIsEmpty] = useState(false);
+  const [lastSyncAt, setLastSyncAt] = useState<string | null>(null);
   const { user } = useAuth();
   const { toast } = useToast();
 
@@ -110,19 +116,29 @@ export default function Orders() {
         return;
       }
 
+      // Get most recent sync time
+      const latestSync = data.reduce((latest, order) => {
+        if (order.last_sync_at && (!latest || new Date(order.last_sync_at) > new Date(latest))) {
+          return order.last_sync_at;
+        }
+        return latest;
+      }, null as string | null);
+      setLastSyncAt(latestSync);
+
       // Format orders for display
-      const formattedOrders: FormattedOrder[] = data.map((order, index) => {
-        const statusInfo = getRandomStatus();
+      const formattedOrders: FormattedOrder[] = data.map((order) => {
+        const status = order.status || 'pending';
+        const statusInfo = statusConfig[status] || statusConfig['pending'];
         const itemsArray = Array.isArray(order.items) ? order.items : (order.items ? [order.items] : []);
         
         return {
           id: `#${order.order_id_channel}`,
           channel: order.platform,
           date: order.order_date,
-          customer: `Cliente ${index + 1}`, // Since we don't have customer names in the table yet
+          customer: order.customer_name || 'Cliente não identificado',
           items: itemsArray.length,
           total: formatCurrency(order.total_value),
-          status: statusInfo.status,
+          status: statusInfo.label,
           statusColor: statusInfo.color
         };
       });
@@ -141,6 +157,59 @@ export default function Orders() {
     }
   };
 
+  const handleSyncOrders = async () => {
+    if (!user) return;
+
+    try {
+      setIsSyncing(true);
+      
+      const { data: session } = await supabase.auth.getSession();
+      if (!session?.session) {
+        toast({
+          title: "Erro de autenticação",
+          description: "Faça login para sincronizar pedidos.",
+          variant: "destructive",
+        });
+        return;
+      }
+
+      toast({
+        title: "Sincronizando pedidos...",
+        description: "Buscando pedidos de todos os marketplaces conectados.",
+      });
+
+      const { data, error } = await supabase.functions.invoke('sync-orders', {
+        body: { days_since: 30 },
+        headers: {
+          Authorization: `Bearer ${session.session.access_token}`,
+        },
+      });
+
+      if (error) {
+        console.error('Error syncing orders:', error);
+        throw error;
+      }
+
+      toast({
+        title: "Sincronização concluída!",
+        description: `${data.synced} pedidos sincronizados, ${data.new_orders} novos.`,
+      });
+
+      // Reload orders
+      await loadOrders();
+
+    } catch (error) {
+      console.error('Error syncing orders:', error);
+      toast({
+        title: "Erro ao sincronizar",
+        description: "Não foi possível sincronizar os pedidos. Tente novamente.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsSyncing(false);
+    }
+  };
+
   useEffect(() => {
     if (user) {
       loadOrders();
@@ -151,7 +220,10 @@ export default function Orders() {
     const matchesSearch = order.id.toLowerCase().includes(searchTerm.toLowerCase()) ||
                          order.customer.toLowerCase().includes(searchTerm.toLowerCase());
     const matchesChannel = selectedChannel === "Todos os Canais" || order.channel === selectedChannel;
-    const matchesStatus = selectedStatus === "Todos os Status" || order.status === selectedStatus;
+    
+    // Map display status back to filter
+    const statusKey = Object.entries(statusConfig).find(([, v]) => v.label === order.status)?.[0];
+    const matchesStatus = selectedStatus === "Todos os Status" || statusKey === selectedStatus;
     
     return matchesSearch && matchesChannel && matchesStatus;
   });
@@ -182,10 +254,25 @@ export default function Orders() {
               Visualize e gerencie pedidos de todos os seus canais
             </p>
           </div>
-          <Button variant="outline" className="gap-2">
-            <Download className="h-4 w-4" />
-            Exportar
-          </Button>
+          <div className="flex gap-2">
+            <Button 
+              variant="default" 
+              className="gap-2"
+              onClick={handleSyncOrders}
+              disabled={isSyncing}
+            >
+              {isSyncing ? (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              ) : (
+                <RefreshCw className="h-4 w-4" />
+              )}
+              Sincronizar
+            </Button>
+            <Button variant="outline" className="gap-2">
+              <Download className="h-4 w-4" />
+              Exportar
+            </Button>
+          </div>
         </div>
 
         <div className="flex flex-col items-center justify-center min-h-[400px] text-center">
@@ -193,9 +280,22 @@ export default function Orders() {
           <h3 className="text-xl font-semibold text-foreground mb-2">
             Nenhum pedido encontrado
           </h3>
-          <p className="text-muted-foreground max-w-md">
-            Assim que as vendas forem sincronizadas, seus pedidos aparecerão aqui.
+          <p className="text-muted-foreground max-w-md mb-4">
+            Clique em "Sincronizar" para buscar pedidos dos marketplaces conectados.
           </p>
+          <Button onClick={handleSyncOrders} disabled={isSyncing}>
+            {isSyncing ? (
+              <>
+                <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                Sincronizando...
+              </>
+            ) : (
+              <>
+                <RefreshCw className="h-4 w-4 mr-2" />
+                Sincronizar Pedidos
+              </>
+            )}
+          </Button>
         </div>
       </div>
     );
@@ -209,12 +309,32 @@ export default function Orders() {
           <h1 className="text-2xl md:text-3xl font-bold">Todos os Pedidos</h1>
           <p className="text-muted-foreground">
             Visualize e gerencie pedidos de todos os seus canais
+            {lastSyncAt && (
+              <span className="ml-2 text-xs">
+                • Última sincronização: {new Date(lastSyncAt).toLocaleString('pt-BR')}
+              </span>
+            )}
           </p>
         </div>
-        <Button variant="outline" className="gap-2">
-          <Download className="h-4 w-4" />
-          Exportar
-        </Button>
+        <div className="flex gap-2">
+          <Button 
+            variant="default" 
+            className="gap-2"
+            onClick={handleSyncOrders}
+            disabled={isSyncing}
+          >
+            {isSyncing ? (
+              <Loader2 className="h-4 w-4 animate-spin" />
+            ) : (
+              <RefreshCw className="h-4 w-4" />
+            )}
+            Sincronizar
+          </Button>
+          <Button variant="outline" className="gap-2">
+            <Download className="h-4 w-4" />
+            Exportar
+          </Button>
+        </div>
       </div>
 
       {/* Summary Cards */}
@@ -266,7 +386,7 @@ export default function Orders() {
               <SelectContent>
                 {channels.map((channel) => (
                   <SelectItem key={channel} value={channel}>
-                    {channel}
+                    {channel === "Todos os Canais" ? channel : channel.charAt(0).toUpperCase() + channel.slice(1)}
                   </SelectItem>
                 ))}
               </SelectContent>
@@ -279,7 +399,7 @@ export default function Orders() {
               <SelectContent>
                 {statuses.map((status) => (
                   <SelectItem key={status} value={status}>
-                    {status}
+                    {status === "Todos os Status" ? status : (statusConfig[status]?.label || status)}
                   </SelectItem>
                 ))}
               </SelectContent>

@@ -117,6 +117,13 @@ serve(async (req) => {
       }
 
       return await processShopifyWebhook(supabase, notification);
+      
+    } else if (platform === 'amazon') {
+      // Validate Amazon webhook (SP-API notifications)
+      // Note: Amazon uses different signature methods based on notification type
+      console.log('Processing Amazon webhook notification');
+      
+      return await processAmazonWebhook(supabase, notification);
     }
 
     return new Response(JSON.stringify({ error: 'Unsupported platform' }), {
@@ -132,6 +139,44 @@ serve(async (req) => {
     });
   }
 });
+
+// Status mapping functions
+function mapMercadoLivreStatus(status: string): string {
+  const statusMap: Record<string, string> = {
+    'payment_required': 'pending',
+    'payment_in_process': 'processing',
+    'paid': 'paid',
+    'shipped': 'shipped',
+    'delivered': 'delivered',
+    'cancelled': 'cancelled',
+  };
+  return statusMap[status?.toLowerCase()] || 'pending';
+}
+
+function mapAmazonStatus(status: string): string {
+  const statusMap: Record<string, string> = {
+    'pending': 'pending',
+    'unshipped': 'paid',
+    'partiallyshipped': 'processing',
+    'shipped': 'shipped',
+    'canceled': 'cancelled',
+  };
+  return statusMap[status?.toLowerCase()] || 'pending';
+}
+
+function mapShopifyStatus(financialStatus: string, fulfillmentStatus: string | null): string {
+  if (fulfillmentStatus === 'fulfilled') return 'delivered';
+  if (fulfillmentStatus === 'partial') return 'shipped';
+  
+  const statusMap: Record<string, string> = {
+    'pending': 'pending',
+    'authorized': 'processing',
+    'paid': 'paid',
+    'refunded': 'refunded',
+    'voided': 'cancelled',
+  };
+  return statusMap[financialStatus?.toLowerCase()] || 'pending';
+}
 
 async function processMercadoLivreWebhook(supabase: any, notification: any) {
   // Extract order resource URL
@@ -165,12 +210,12 @@ async function processMercadoLivreWebhook(supabase: any, notification: any) {
     });
   }
 
-  // Find the user who owns this Mercado Livre integration (encrypted tokens not needed for webhooks)
+  // Find the user who owns this Mercado Livre integration
   const { data: integration, error: integrationError } = await supabase
     .from('integrations')
     .select('user_id')
     .eq('platform', 'mercadolivre')
-    .single();
+    .maybeSingle();
 
   if (integrationError || !integration) {
     console.error('No Mercado Livre integration found:', integrationError);
@@ -186,31 +231,69 @@ async function processMercadoLivreWebhook(supabase: any, notification: any) {
   const totalValue = orderDetails.order_items.reduce((sum, item) => 
     sum + (item.unit_price * item.quantity), 0);
 
-  // Create order record in our database
-  const { data: createdOrder, error: orderCreateError } = await supabase
-    .from('orders')
-    .insert({
-      user_id: integration.user_id,
-      order_id_channel: orderDetails.id,
-      platform: 'mercadolivre',
-      total_value: totalValue,
-      order_date: orderDetails.date_closed,
-      items: orderDetails.order_items
-    })
-    .select()
-    .single();
+  // Extract customer info
+  const customerName = orderDetails.buyer?.nickname || orderDetails.buyer?.first_name || null;
+  const customerEmail = orderDetails.buyer?.email || null;
 
-  if (orderCreateError) {
-    console.error('Error creating order record:', orderCreateError);
-    return new Response(JSON.stringify({ error: 'Failed to create order record' }), {
-      status: 500,
-      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-    });
+  // Check if order already exists
+  const { data: existingOrder } = await supabase
+    .from('orders')
+    .select('id')
+    .eq('user_id', integration.user_id)
+    .eq('order_id_channel', orderDetails.id.toString())
+    .eq('platform', 'mercadolivre')
+    .maybeSingle();
+
+  if (existingOrder) {
+    // Update existing order
+    const { error: updateError } = await supabase
+      .from('orders')
+      .update({
+        status: mapMercadoLivreStatus(orderDetails.status),
+        customer_name: customerName,
+        customer_email: customerEmail,
+        total_value: totalValue,
+        items: orderDetails.order_items,
+        last_sync_at: new Date().toISOString()
+      })
+      .eq('id', existingOrder.id);
+
+    if (updateError) {
+      console.error('Error updating order:', updateError);
+    } else {
+      console.log('Order updated successfully:', existingOrder.id);
+    }
+  } else {
+    // Create order record in our database
+    const { data: createdOrder, error: orderCreateError } = await supabase
+      .from('orders')
+      .insert({
+        user_id: integration.user_id,
+        order_id_channel: orderDetails.id.toString(),
+        platform: 'mercadolivre',
+        status: mapMercadoLivreStatus(orderDetails.status),
+        customer_name: customerName,
+        customer_email: customerEmail,
+        total_value: totalValue,
+        order_date: orderDetails.date_closed,
+        items: orderDetails.order_items,
+        last_sync_at: new Date().toISOString()
+      })
+      .select()
+      .single();
+
+    if (orderCreateError) {
+      console.error('Error creating order record:', orderCreateError);
+      return new Response(JSON.stringify({ error: 'Failed to create order record' }), {
+        status: 500,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
+
+    console.log('Order record created successfully:', createdOrder.id);
   }
 
-  console.log('Order record created successfully:', createdOrder.id);
-
-  // Process each item in the order
+  // Process each item in the order for stock updates
   for (const item of orderDetails.order_items) {
     if (!item.seller_sku) {
       console.log(`Skipping item ${item.id} - no seller_sku`);
@@ -223,7 +306,7 @@ async function processMercadoLivreWebhook(supabase: any, notification: any) {
       .select('*')
       .eq('sku', item.seller_sku)
       .eq('user_id', integration.user_id)
-      .single();
+      .maybeSingle();
 
     if (productError || !product) {
       console.log(`Product not found for SKU: ${item.seller_sku}`);
@@ -272,14 +355,6 @@ async function processShopifyWebhook(supabase: any, notification: any) {
     });
   }
 
-  // Process only paid orders
-  if (notification.financial_status !== 'paid') {
-    console.log(`Order status ${notification.financial_status} not processed`);
-    return new Response(JSON.stringify({ message: 'Order status not processed' }), {
-      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-    });
-  }
-
   // Extract shop domain from notification
   const shopDomain = notification.order_status_url ? 
     notification.order_status_url.match(/https:\/\/([^.]+)\.myshopify\.com/)?.[1] : null;
@@ -292,12 +367,13 @@ async function processShopifyWebhook(supabase: any, notification: any) {
     });
   }
 
-  // Find the user who owns this Shopify integration (encrypted tokens not needed for webhooks)
+  // Find the user who owns this Shopify integration
   const { data: integration, error: integrationError } = await supabase
     .from('integrations')
     .select('user_id')
     .eq('platform', 'shopify')
-    .single();
+    .eq('shop_domain', shopDomain)
+    .maybeSingle();
 
   if (integrationError || !integration) {
     console.error('No Shopify integration found:', integrationError);
@@ -313,31 +389,78 @@ async function processShopifyWebhook(supabase: any, notification: any) {
   const totalValue = notification.line_items.reduce((sum: number, item: any) => 
     sum + (parseFloat(item.price) * item.quantity), 0);
 
-  // Create order record in our database
-  const { data: createdOrder, error: orderCreateError } = await supabase
-    .from('orders')
-    .insert({
-      user_id: integration.user_id,
-      order_id_channel: notification.id.toString(),
-      platform: 'shopify',
-      total_value: totalValue,
-      order_date: notification.created_at,
-      items: notification.line_items
-    })
-    .select()
-    .single();
+  // Extract customer info
+  const customerName = notification.customer 
+    ? `${notification.customer.first_name || ''} ${notification.customer.last_name || ''}`.trim() 
+    : null;
+  const customerEmail = notification.customer?.email || notification.email || null;
 
-  if (orderCreateError) {
-    console.error('Error creating order record:', orderCreateError);
-    return new Response(JSON.stringify({ error: 'Failed to create order record' }), {
-      status: 500,
-      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-    });
+  // Check if order already exists
+  const { data: existingOrder } = await supabase
+    .from('orders')
+    .select('id')
+    .eq('user_id', integration.user_id)
+    .eq('order_id_channel', notification.id.toString())
+    .eq('platform', 'shopify')
+    .maybeSingle();
+
+  const orderStatus = mapShopifyStatus(
+    notification.financial_status, 
+    notification.fulfillment_status
+  );
+
+  if (existingOrder) {
+    // Update existing order
+    const { error: updateError } = await supabase
+      .from('orders')
+      .update({
+        status: orderStatus,
+        customer_name: customerName,
+        customer_email: customerEmail,
+        shipping_address: notification.shipping_address || null,
+        total_value: totalValue,
+        items: notification.line_items,
+        last_sync_at: new Date().toISOString()
+      })
+      .eq('id', existingOrder.id);
+
+    if (updateError) {
+      console.error('Error updating order:', updateError);
+    } else {
+      console.log('Order updated successfully:', existingOrder.id);
+    }
+  } else {
+    // Create order record in our database
+    const { data: createdOrder, error: orderCreateError } = await supabase
+      .from('orders')
+      .insert({
+        user_id: integration.user_id,
+        order_id_channel: notification.id.toString(),
+        platform: 'shopify',
+        status: orderStatus,
+        customer_name: customerName,
+        customer_email: customerEmail,
+        shipping_address: notification.shipping_address || null,
+        total_value: totalValue,
+        order_date: notification.created_at,
+        items: notification.line_items,
+        last_sync_at: new Date().toISOString()
+      })
+      .select()
+      .single();
+
+    if (orderCreateError) {
+      console.error('Error creating order record:', orderCreateError);
+      return new Response(JSON.stringify({ error: 'Failed to create order record' }), {
+        status: 500,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
+
+    console.log('Order record created successfully:', createdOrder.id);
   }
 
-  console.log('Order record created successfully:', createdOrder.id);
-
-  // Process each line item in the order
+  // Process each line item in the order for stock updates
   for (const lineItem of notification.line_items) {
     if (!lineItem.sku) {
       console.log(`Skipping item ${lineItem.id} - no SKU`);
@@ -350,7 +473,7 @@ async function processShopifyWebhook(supabase: any, notification: any) {
       .select('*')
       .eq('sku', lineItem.sku)
       .eq('user_id', integration.user_id)
-      .single();
+      .maybeSingle();
 
     if (productError || !product) {
       console.log(`Product not found for SKU: ${lineItem.sku}`);
@@ -383,6 +506,158 @@ async function processShopifyWebhook(supabase: any, notification: any) {
   return new Response(JSON.stringify({ 
     message: 'Shopify webhook processed successfully',
     orderId: notification.id
+  }), {
+    headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+  });
+}
+
+// ================= AMAZON WEBHOOK HANDLER =================
+async function processAmazonWebhook(supabase: any, notification: any) {
+  console.log('Processing Amazon order webhook:', notification);
+
+  // Amazon SP-API notifications have different structure
+  // Handle ORDER_CHANGE notification type
+  const notificationType = notification.notificationType;
+  
+  if (notificationType !== 'ORDER_CHANGE') {
+    console.log(`Ignoring Amazon notification type: ${notificationType}`);
+    return new Response(JSON.stringify({ message: 'Notification type not processed' }), {
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+    });
+  }
+
+  const orderPayload = notification.payload?.OrderChangeNotification;
+  if (!orderPayload) {
+    console.log('No order payload in notification');
+    return new Response(JSON.stringify({ message: 'No order payload' }), {
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+    });
+  }
+
+  const amazonOrderId = orderPayload.AmazonOrderId;
+  const orderStatus = orderPayload.OrderStatus;
+
+  // Find the user who owns this Amazon integration
+  const { data: integration, error: integrationError } = await supabase
+    .from('integrations')
+    .select('user_id')
+    .eq('platform', 'amazon')
+    .maybeSingle();
+
+  if (integrationError || !integration) {
+    console.error('No Amazon integration found:', integrationError);
+    return new Response(JSON.stringify({ error: 'No integration found' }), {
+      status: 404,
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+    });
+  }
+
+  console.log(`Processing Amazon order for user: ${integration.user_id}`);
+
+  // Map Amazon status
+  const mappedStatus = mapAmazonStatus(orderStatus);
+
+  // Extract customer and order info from payload
+  const totalValue = parseFloat(orderPayload.OrderTotal?.Amount || '0');
+  const customerName = orderPayload.BuyerInfo?.BuyerName || null;
+  const customerEmail = orderPayload.BuyerInfo?.BuyerEmail || null;
+
+  // Check if order already exists
+  const { data: existingOrder } = await supabase
+    .from('orders')
+    .select('id')
+    .eq('user_id', integration.user_id)
+    .eq('order_id_channel', amazonOrderId)
+    .eq('platform', 'amazon')
+    .maybeSingle();
+
+  if (existingOrder) {
+    // Update existing order
+    const { error: updateError } = await supabase
+      .from('orders')
+      .update({
+        status: mappedStatus,
+        customer_name: customerName,
+        customer_email: customerEmail,
+        shipping_address: orderPayload.ShippingAddress || null,
+        total_value: totalValue,
+        last_sync_at: new Date().toISOString()
+      })
+      .eq('id', existingOrder.id);
+
+    if (updateError) {
+      console.error('Error updating order:', updateError);
+    } else {
+      console.log('Amazon order updated successfully:', existingOrder.id);
+    }
+  } else {
+    // Create new order
+    const orderItems = orderPayload.OrderItems || [];
+    
+    const { data: createdOrder, error: orderCreateError } = await supabase
+      .from('orders')
+      .insert({
+        user_id: integration.user_id,
+        order_id_channel: amazonOrderId,
+        platform: 'amazon',
+        status: mappedStatus,
+        customer_name: customerName,
+        customer_email: customerEmail,
+        shipping_address: orderPayload.ShippingAddress || null,
+        total_value: totalValue,
+        order_date: orderPayload.PurchaseDate || new Date().toISOString(),
+        items: orderItems.map((item: any) => ({
+          id: item.OrderItemId,
+          seller_sku: item.SellerSKU,
+          title: item.Title,
+          quantity: item.QuantityOrdered,
+          unit_price: parseFloat(item.ItemPrice?.Amount || '0') / (item.QuantityOrdered || 1)
+        })),
+        last_sync_at: new Date().toISOString()
+      })
+      .select()
+      .single();
+
+    if (orderCreateError) {
+      console.error('Error creating Amazon order:', orderCreateError);
+      return new Response(JSON.stringify({ error: 'Failed to create order record' }), {
+        status: 500,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
+
+    console.log('Amazon order created successfully:', createdOrder.id);
+
+    // Process stock updates for new orders
+    for (const item of orderItems) {
+      if (!item.SellerSKU) continue;
+
+      const { data: product } = await supabase
+        .from('products')
+        .select('*')
+        .eq('sku', item.SellerSKU)
+        .eq('user_id', integration.user_id)
+        .maybeSingle();
+
+      if (product) {
+        const newStock = Math.max(0, product.stock - (item.QuantityOrdered || 0));
+        
+        await supabase
+          .from('products')
+          .update({ 
+            stock: newStock,
+            updated_at: new Date().toISOString()
+          })
+          .eq('id', product.id);
+
+        await propagateStockUpdate(supabase, integration.user_id, item.SellerSKU, newStock);
+      }
+    }
+  }
+
+  return new Response(JSON.stringify({ 
+    message: 'Amazon webhook processed successfully',
+    orderId: amazonOrderId
   }), {
     headers: { ...corsHeaders, 'Content-Type': 'application/json' },
   });

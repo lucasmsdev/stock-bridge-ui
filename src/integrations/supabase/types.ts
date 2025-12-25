@@ -205,33 +205,48 @@ export type Database = {
       orders: {
         Row: {
           created_at: string
+          customer_email: string | null
+          customer_name: string | null
           id: string
           items: Json
+          last_sync_at: string | null
           order_date: string
           order_id_channel: string
           platform: string
+          shipping_address: Json | null
+          status: string | null
           total_value: number
           updated_at: string
           user_id: string
         }
         Insert: {
           created_at?: string
+          customer_email?: string | null
+          customer_name?: string | null
           id?: string
           items?: Json
+          last_sync_at?: string | null
           order_date?: string
           order_id_channel: string
           platform: string
+          shipping_address?: Json | null
+          status?: string | null
           total_value: number
           updated_at?: string
           user_id: string
         }
         Update: {
           created_at?: string
+          customer_email?: string | null
+          customer_name?: string | null
           id?: string
           items?: Json
+          last_sync_at?: string | null
           order_date?: string
           order_id_channel?: string
           platform?: string
+          shipping_address?: Json | null
+          status?: string | null
           total_value?: number
           updated_at?: string
           user_id?: string
