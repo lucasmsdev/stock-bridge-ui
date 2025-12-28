@@ -368,6 +368,7 @@ serve(async (req) => {
     const patches: any[] = [];
 
     // Atualizar estoque se fornecido
+    // IMPORTANTE: fulfillment_availability NÃO leva marketplace_id no value (per Amazon spec)
     if (stock !== undefined && stock !== null) {
       console.log('📦 Atualizando estoque para:', stock);
       patches.push({
@@ -376,7 +377,6 @@ serve(async (req) => {
         value: [{
           fulfillment_channel_code: 'DEFAULT',
           quantity: stock,
-          marketplace_id: marketplaceId,
         }]
       });
     }
@@ -402,6 +402,9 @@ serve(async (req) => {
     }
 
     // Atualizar nome se fornecido
+    // NOTA: Muitos produtos têm nome gerenciado pelo catálogo Amazon (nameMayNotChange=true)
+    // Nesses casos, o PATCH vai ser ACCEPTED mas o nome não muda
+    // Vamos continuar tentando, mas o response vai indicar se mudou ou não
     if (name && typeof name === 'string' && name.trim().length > 0) {
       console.log('📝 Atualizando nome para:', name);
       patches.push({
@@ -443,8 +446,13 @@ serve(async (req) => {
     console.log('📋 ProductType:', productType);
     console.log('📋 Patches:', JSON.stringify(patches, null, 2));
 
+    // Guardar o preço enviado como string para diagnóstico
+    const priceStringSent = normalizedPrice !== null ? normalizedPrice.toFixed(2) : null;
+    console.log('📋 Preço enviado (string):', priceStringSent);
+
     try {
       // Usar Listings API para atualizar
+      // IMPORTANTE: Adicionamos issueLocale=pt_BR para mensagens em português
       const patchResult = await sellingPartner.callAPI({
         operation: 'patchListingsItem',
         endpoint: 'listingsItems',
@@ -454,6 +462,7 @@ serve(async (req) => {
         },
         query: {
           marketplaceIds: [marketplaceId],
+          issueLocale: 'pt_BR',
         },
         body: {
           productType: productType,
@@ -466,9 +475,12 @@ serve(async (req) => {
       // ========================================================
       // VERIFICAÇÃO PÓS-PATCH: Ler preço, título e imagem atuais
       // ========================================================
-      let observedPrice = null;
+      // Extrair dados - separando offer price e list price
+      let observedOfferPrice = null;
+      let observedListPrice = null;
       let observedAmazonTitle = null;
       let observedAmazonMainImage = null;
+      let observedStock = null;
       let observedIssues: any[] = [];
       
       try {
@@ -488,12 +500,26 @@ serve(async (req) => {
         
         console.log('📋 Verificação pós-PATCH:', JSON.stringify(verifyResponse, null, 2));
         
-        // Extrair preço observado dos attributes
+        // Extrair offer price (purchasable_offer) - é o preço de venda atual
         if (verifyResponse?.attributes?.purchasable_offer) {
           const offer = verifyResponse.attributes.purchasable_offer[0];
           if (offer?.our_price?.[0]?.schedule?.[0]?.value_with_tax) {
-            observedPrice = offer.our_price[0].schedule[0].value_with_tax;
+            observedOfferPrice = offer.our_price[0].schedule[0].value_with_tax;
           }
+        }
+
+        // Extrair list price - é o preço de "comparação" ou "de"
+        if (verifyResponse?.attributes?.list_price) {
+          const listPrice = verifyResponse.attributes.list_price[0];
+          if (listPrice?.value_with_tax) {
+            observedListPrice = listPrice.value_with_tax;
+          }
+        }
+
+        // Extrair estoque observado
+        if (verifyResponse?.attributes?.fulfillment_availability) {
+          const availability = verifyResponse.attributes.fulfillment_availability[0];
+          observedStock = availability?.quantity ?? null;
         }
         
         // Extrair título e imagem do summaries (o que realmente aparece na Amazon)
@@ -547,15 +573,21 @@ serve(async (req) => {
           amazonResponse: patchResult,
           submissionId: patchResult?.submissionId || null,
           issues: [...(patchResult?.issues || []), ...observedIssues],
+          // Dados enviados (para debug)
           sentData: {
-            price: normalizedPrice,
+            priceNumber: normalizedPrice,
+            priceString: priceStringSent,
+            stock: stock,
             name: name?.trim() || null,
             imageUrl: imageUrl || null,
             currency: currency,
             marketplace: marketplaceId,
             productType: productType,
           },
-          observedAmazonPrice: observedPrice,
+          // Dados observados na Amazon após PATCH
+          observedAmazonOfferPrice: observedOfferPrice,
+          observedAmazonListPrice: observedListPrice,
+          observedAmazonStock: observedStock,
           observedAmazonTitle: observedAmazonTitle,
           observedAmazonMainImage: observedAmazonMainImage,
           nameMayNotChange: nameMayNotChange,

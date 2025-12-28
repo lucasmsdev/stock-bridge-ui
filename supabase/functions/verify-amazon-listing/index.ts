@@ -146,19 +146,28 @@ serve(async (req) => {
 
     console.log('📋 Resposta getListingsItem:', JSON.stringify(listingResponse, null, 2));
 
-    // Extrair dados
-    let observedPrice = null;
+    // Extrair dados - separando offer price e list price
+    let observedOfferPrice = null;
+    let observedListPrice = null;
     let observedTitle = null;
     let observedMainImage = null;
     let observedStock = null;
     let productType = null;
     const issues: any[] = listingResponse?.issues || [];
 
-    // Preço dos attributes
+    // Offer Price (purchasable_offer) - preço de venda atual
     if (listingResponse?.attributes?.purchasable_offer) {
       const offer = listingResponse.attributes.purchasable_offer[0];
       if (offer?.our_price?.[0]?.schedule?.[0]?.value_with_tax) {
-        observedPrice = offer.our_price[0].schedule[0].value_with_tax;
+        observedOfferPrice = offer.our_price[0].schedule[0].value_with_tax;
+      }
+    }
+
+    // List Price - preço de comparação "de"
+    if (listingResponse?.attributes?.list_price) {
+      const listPrice = listingResponse.attributes.list_price[0];
+      if (listPrice?.value_with_tax) {
+        observedListPrice = listPrice.value_with_tax;
       }
     }
 
@@ -182,7 +191,11 @@ serve(async (req) => {
         sku: sku,
         marketplace: marketplaceId,
         currency: currency,
-        observedAmazonPrice: observedPrice,
+        // Dois preços separados para clareza
+        observedAmazonOfferPrice: observedOfferPrice,
+        observedAmazonListPrice: observedListPrice,
+        // Backwards compat (usar offer como padrão)
+        observedAmazonPrice: observedOfferPrice,
         observedAmazonTitle: observedTitle,
         observedAmazonMainImage: observedMainImage,
         observedAmazonStock: observedStock,

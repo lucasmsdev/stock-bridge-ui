@@ -140,9 +140,12 @@ serve(async (req) => {
                 platform: 'amazon',
                 success: true,
                 message: syncResult.message || 'Sincronizado com sucesso',
-                // Passar todos os dados de readback da Amazon
+                // Dados enviados
                 sentData: syncResult.sentData || null,
-                observedAmazonPrice: syncResult.observedAmazonPrice || null,
+                // Dados observados (separando offer e list price)
+                observedAmazonOfferPrice: syncResult.observedAmazonOfferPrice ?? syncResult.observedAmazonPrice ?? null,
+                observedAmazonListPrice: syncResult.observedAmazonListPrice ?? null,
+                observedAmazonStock: syncResult.observedAmazonStock ?? null,
                 observedAmazonTitle: syncResult.observedAmazonTitle || null,
                 observedAmazonMainImage: syncResult.observedAmazonMainImage || null,
                 submissionId: syncResult.submissionId || null,
