@@ -270,7 +270,7 @@ serve(async (req) => {
       const { error: updateListingError } = await supabaseClient
         .from('product_listings')
         .update({
-          sync_status: 'synced',
+          sync_status: 'active',
           last_sync_at: new Date().toISOString(),
           sync_error: null,
         })
