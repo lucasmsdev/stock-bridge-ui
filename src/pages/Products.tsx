@@ -162,8 +162,41 @@ export default function Products() {
     });
   };
 
+  // Normalize money input to number (supports BR format "1.234,56" and US format "1,234.56")
+  const normalizeMoneyToNumber = (input: string): number | null => {
+    if (!input || input.trim() === '') return null;
+    
+    let cleaned = input
+      .replace(/R\$\s*/gi, '')
+      .replace(/\s/g, '')
+      .trim();
+
+    // BR format (comma as decimal): "1.234,56" or "19,90"
+    const brPattern = /^[\d.]+,\d{1,2}$/;
+    if (brPattern.test(cleaned)) {
+      cleaned = cleaned.replace(/\./g, '').replace(',', '.');
+    } else {
+      cleaned = cleaned.replace(/,/g, '');
+    }
+
+    const parsed = parseFloat(cleaned);
+    if (isNaN(parsed) || parsed < 0) return null;
+    
+    return Math.round(parsed * 100) / 100;
+  };
+
   const handleSaveProduct = async () => {
     if (!editingProduct) return;
+    
+    const costPrice = normalizeMoneyToNumber(editForm.cost_price);
+    const sellingPrice = normalizeMoneyToNumber(editForm.selling_price);
+
+    console.log('Saving product with normalized prices:', {
+      costPriceInput: editForm.cost_price,
+      costPriceNormalized: costPrice,
+      sellingPriceInput: editForm.selling_price,
+      sellingPriceNormalized: sellingPrice
+    });
     
     try {
       console.log('Updating product:', editingProduct.id);
@@ -172,8 +205,8 @@ export default function Products() {
           productId: editingProduct.id,
           name: editForm.name,
           sku: editForm.sku,
-          cost_price: editForm.cost_price ? parseFloat(editForm.cost_price) : null,
-          selling_price: editForm.selling_price ? parseFloat(editForm.selling_price) : null,
+          cost_price: costPrice,
+          selling_price: sellingPrice,
           stock: parseInt(editForm.stock) || 0
         }
       });
@@ -190,9 +223,31 @@ export default function Products() {
         return;
       }
 
+      // Build success message with Amazon sync feedback
+      let description = "As alterações foram salvas com sucesso.";
+      const syncResults = data?.syncResults;
+
+      if (syncResults && Array.isArray(syncResults)) {
+        const amazonSync = syncResults.find((r: any) => r.platform === 'amazon');
+        if (amazonSync) {
+          if (amazonSync.success) {
+            const sentPrice = amazonSync.sentData?.price;
+            const observedPrice = amazonSync.observedAmazonPrice;
+            if (sentPrice && observedPrice) {
+              description += ` Amazon: Preço enviado R$ ${sentPrice}, atual R$ ${observedPrice}.`;
+            }
+            if (amazonSync.nameMayNotChange) {
+              description += " (Nome não pode ser alterado - catálogo Amazon)";
+            }
+          } else {
+            description += ` Amazon: ${amazonSync.error || 'Erro na sincronização'}`;
+          }
+        }
+      }
+
       toast({
         title: "✅ Produto atualizado!",
-        description: "As alterações foram salvas com sucesso.",
+        description,
       });
 
       setEditingProduct(null);
