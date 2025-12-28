@@ -382,8 +382,10 @@ serve(async (req) => {
     }
 
     // Atualizar preço se fornecido e válido
+    // IMPORTANTE: value_with_tax DEVE ser STRING com 2 casas decimais ("59.90", não 59.9)
     if (normalizedPrice !== null && normalizedPrice > 0) {
-      console.log('💰 Atualizando preço para:', normalizedPrice, currency);
+      const priceAsString = normalizedPrice.toFixed(2); // "59.90" (string)
+      console.log('💰 Atualizando preço para:', priceAsString, currency, '(string format required by Amazon)');
       patches.push({
         op: 'replace',
         path: '/attributes/purchasable_offer',
@@ -392,7 +394,7 @@ serve(async (req) => {
           currency: currency,
           our_price: [{
             schedule: [{
-              value_with_tax: normalizedPrice
+              value_with_tax: priceAsString // DEVE ser string, não número
             }]
           }]
         }]
