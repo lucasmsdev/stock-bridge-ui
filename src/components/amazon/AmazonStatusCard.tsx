@@ -17,6 +17,10 @@ interface VerifyResult {
   sku?: string;
   marketplace?: string;
   currency?: string;
+  // Dois preços separados: offer = preço de venda, list = preço de comparação
+  observedAmazonOfferPrice?: number | null;
+  observedAmazonListPrice?: number | null;
+  // Backwards compat
   observedAmazonPrice?: number | null;
   observedAmazonTitle?: string | null;
   observedAmazonMainImage?: string | null;
@@ -103,13 +107,23 @@ export function AmazonStatusCard({ productId, sku, integrationId }: AmazonStatus
           <div className="space-y-3">
             <div className="grid grid-cols-2 gap-3 text-sm">
               <div>
-                <span className="text-muted-foreground">Preço:</span>
+                <span className="text-muted-foreground">Preço de Venda:</span>
                 <p className="font-medium">
-                  {verifyResult.observedAmazonPrice !== null 
-                    ? `${verifyResult.currency} ${verifyResult.observedAmazonPrice?.toFixed(2)}`
+                  {(verifyResult.observedAmazonOfferPrice ?? verifyResult.observedAmazonPrice) !== null 
+                    ? `${verifyResult.currency} ${(verifyResult.observedAmazonOfferPrice ?? verifyResult.observedAmazonPrice)?.toFixed(2)}`
                     : 'N/A'}
                 </p>
               </div>
+              <div>
+                <span className="text-muted-foreground">Preço Lista:</span>
+                <p className="font-medium text-muted-foreground">
+                  {verifyResult.observedAmazonListPrice !== null && verifyResult.observedAmazonListPrice !== undefined
+                    ? `${verifyResult.currency} ${verifyResult.observedAmazonListPrice?.toFixed(2)}`
+                    : 'N/A'}
+                </p>
+              </div>
+            </div>
+            <div className="grid grid-cols-2 gap-3 text-sm">
               <div>
                 <span className="text-muted-foreground">Estoque:</span>
                 <p className="font-medium">
@@ -117,6 +131,10 @@ export function AmazonStatusCard({ productId, sku, integrationId }: AmazonStatus
                     ? verifyResult.observedAmazonStock 
                     : 'N/A'}
                 </p>
+              </div>
+              <div>
+                <span className="text-muted-foreground">SKU:</span>
+                <p className="font-medium font-mono text-xs">{verifyResult.sku || 'N/A'}</p>
               </div>
             </div>
             
