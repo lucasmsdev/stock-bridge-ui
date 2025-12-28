@@ -50,10 +50,18 @@ export function FinancialDataForm({ product, onUpdate }: FinancialDataFormProps)
         ad_spend: formData.ad_spend ? parseFloat(formData.ad_spend) : 0,
       };
 
-      const { error } = await supabase
-        .from('products')
-        .update(updateData)
-        .eq('id', product.id);
+      // Chama a Edge Function update-product para sincronizar com marketplaces
+      const { data, error } = await supabase.functions.invoke('update-product', {
+        body: {
+          productId: product.id,
+          name: product.name,
+          sku: product.sku,
+          cost_price: updateData.cost_price,
+          selling_price: updateData.selling_price,
+          ad_spend: updateData.ad_spend,
+          stock: product.stock,
+        }
+      });
 
       if (error) throw error;
 
@@ -64,16 +72,42 @@ export function FinancialDataForm({ product, onUpdate }: FinancialDataFormProps)
       };
       onUpdate(updatedProduct);
 
+      // Verifica resultado da sincronização
+      if (data?.syncResults && data.syncResults.length > 0) {
+        const amazonSync = data.syncResults.find((r: any) => r.platform === 'amazon');
+        if (amazonSync) {
+          if (amazonSync.success) {
+            toast({
+              title: "✅ Dados salvos e sincronizados!",
+              description: "Preço atualizado no UniStock e na Amazon.",
+            });
+          } else if (amazonSync.requiresSellerId) {
+            toast({
+              title: "⚠️ Dados salvos localmente",
+              description: "Configure o Seller ID em Integrações > Amazon para sincronizar.",
+              variant: "destructive",
+            });
+          } else {
+            toast({
+              title: "⚠️ Dados salvos localmente",
+              description: `Erro ao sincronizar com Amazon: ${amazonSync.error || 'Erro desconhecido'}`,
+              variant: "destructive",
+            });
+          }
+          return;
+        }
+      }
+
       toast({
         title: "✅ Dados salvos com sucesso!",
-        description: "Os dados financeiros foram atualizados com sucesso.",
+        description: "Os dados financeiros foram atualizados.",
       });
 
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error updating financial data:', error);
       toast({
         title: "❌ Erro ao salvar os dados",
-        description: "Não foi possível salvar os dados financeiros. Tente novamente.",
+        description: error.message || "Não foi possível salvar os dados financeiros. Tente novamente.",
         variant: "destructive",
       });
     } finally {
