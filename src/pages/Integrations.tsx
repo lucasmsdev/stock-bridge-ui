@@ -1,11 +1,12 @@
 import { useState, useEffect } from "react";
 import { useSearchParams } from "react-router-dom";
-import { Plus, Settings, Unlink, ExternalLink, CheckCircle2, Plug, Loader2, Lock, Download, Key, RefreshCw, Clock } from "lucide-react";
+import { Plus, Settings, Unlink, ExternalLink, CheckCircle2, Plug, Loader2, Lock, Download, Key, RefreshCw, Clock, AlertTriangle } from "lucide-react";
 import { useThemeProvider } from "@/components/layout/ThemeProvider";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
+import { Alert, AlertDescription } from "@/components/ui/alert";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -23,6 +24,7 @@ import { useToast } from "@/hooks/use-toast";
 import { usePlan } from "@/hooks/usePlan";
 import { UpgradeBanner } from "@/components/ui/upgrade-banner";
 import { AmazonSelfAuthDialog } from "@/components/integrations/AmazonSelfAuthDialog";
+import { AmazonSellerIdDialog } from "@/components/integrations/AmazonSellerIdDialog";
 import { TokenStatusBadge, getTimeUntilExpiry } from "@/components/integrations/TokenStatusBadge";
 
 // Mock data
@@ -67,6 +69,11 @@ export default function Integrations() {
   const [connectedIntegrations, setConnectedIntegrations] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [amazonSelfAuthOpen, setAmazonSelfAuthOpen] = useState(false);
+  const [amazonSellerIdDialog, setAmazonSellerIdDialog] = useState<{ open: boolean; integrationId: string; currentSellerId?: string | null }>({
+    open: false,
+    integrationId: "",
+    currentSellerId: null,
+  });
   const [lastSyncTimes, setLastSyncTimes] = useState<Record<string, string | null>>({});
   const { toast } = useToast();
   const { canAccess, getUpgradeRequiredMessage } = usePlan();
@@ -644,7 +651,54 @@ export default function Integrations() {
 
                         <Separator />
 
-                        {/* Sync Orders Button */}
+                        {/* Amazon Seller ID Warning */}
+                        {integration.platform === 'amazon' && !integration.selling_partner_id && (
+                          <Alert variant="destructive" className="border-destructive/50 bg-destructive/10">
+                            <AlertTriangle className="h-4 w-4" />
+                            <AlertDescription className="text-sm">
+                              <span className="font-medium">Seller ID não configurado.</span>
+                              <br />
+                              <span className="text-muted-foreground">Sincronização de preços/estoque desabilitada.</span>
+                            </AlertDescription>
+                            <Button 
+                              variant="outline" 
+                              size="sm" 
+                              className="mt-2 w-full border-destructive/50 text-destructive hover:bg-destructive/10"
+                              onClick={() => setAmazonSellerIdDialog({
+                                open: true,
+                                integrationId: integration.id,
+                                currentSellerId: integration.selling_partner_id,
+                              })}
+                            >
+                              <Key className="w-4 h-4 mr-2" />
+                              Configurar Seller ID
+                            </Button>
+                          </Alert>
+                        )}
+
+                        {/* Amazon Seller ID Configured */}
+                        {integration.platform === 'amazon' && integration.selling_partner_id && (
+                          <div className="flex items-center justify-between p-2 rounded-md bg-green-500/10 border border-green-500/20">
+                            <div className="flex items-center gap-2 text-sm text-green-600 dark:text-green-400">
+                              <CheckCircle2 className="w-4 h-4" />
+                              <span>Seller ID: {integration.selling_partner_id.slice(0, 4)}***{integration.selling_partner_id.slice(-4)}</span>
+                            </div>
+                            <Button 
+                              variant="ghost" 
+                              size="sm"
+                              className="h-7 text-xs"
+                              onClick={() => setAmazonSellerIdDialog({
+                                open: true,
+                                integrationId: integration.id,
+                                currentSellerId: integration.selling_partner_id,
+                              })}
+                            >
+                              Editar
+                            </Button>
+                          </div>
+                        )}
+
+                        <Separator />
                         <Button
                           variant="outline"
                           size="sm"
@@ -890,6 +944,15 @@ export default function Integrations() {
         open={amazonSelfAuthOpen}
         onOpenChange={setAmazonSelfAuthOpen}
         onSuccess={loadConnectedIntegrations}
+      />
+
+      {/* Amazon Seller ID Dialog */}
+      <AmazonSellerIdDialog
+        open={amazonSellerIdDialog.open}
+        onOpenChange={(open) => setAmazonSellerIdDialog(prev => ({ ...prev, open }))}
+        onSuccess={loadConnectedIntegrations}
+        integrationId={amazonSellerIdDialog.integrationId}
+        currentSellerId={amazonSellerIdDialog.currentSellerId}
       />
     </div>
   );
