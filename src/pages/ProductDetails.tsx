@@ -19,6 +19,7 @@ import { useToast } from "@/hooks/use-toast";
 import { FinancialDataForm } from "@/components/financial/FinancialDataForm";
 import { ProfitabilityAnalysis } from "@/components/financial/ProfitabilityAnalysis";
 import { ProfitabilityCalculator } from "@/components/financial/ProfitabilityCalculator";
+import { AmazonStatusCard } from "@/components/amazon/AmazonStatusCard";
 
 interface Product {
   id: string;
@@ -43,10 +44,18 @@ interface ChannelStock {
   errorMessage?: string;
 }
 
+interface ProductListing {
+  id: string;
+  platform: string;
+  integration_id: string;
+  platform_product_id: string;
+}
+
 interface ProductDetailsData {
   product: Product;
   centralStock: number;
   channelStocks: ChannelStock[];
+  listings?: ProductListing[];
 }
 
 const platformNames: Record<string, string> = {
@@ -106,6 +115,7 @@ export default function ProductDetails() {
   const { user } = useAuth();
   const { toast } = useToast();
   const [productDetails, setProductDetails] = useState<ProductDetailsData | null>(null);
+  const [listings, setListings] = useState<ProductListing[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
   const handleProductUpdate = (updatedProduct: Product) => {
@@ -168,6 +178,17 @@ export default function ProductDetails() {
 
       console.log('Product details received:', data);
       setProductDetails(data);
+
+      // Buscar listings para o card de status Amazon
+      const { data: listingsData } = await supabase
+        .from('product_listings')
+        .select('id, platform, integration_id, platform_product_id')
+        .eq('product_id', productData.id)
+        .eq('user_id', user.id);
+      
+      if (listingsData) {
+        setListings(listingsData);
+      }
 
       toast({
         title: "Detalhes carregados",
@@ -325,6 +346,16 @@ export default function ProductDetails() {
         product={product} 
         onUpdate={handleProductUpdate}
       />
+
+      {/* Amazon Status Card - se tiver listing Amazon */}
+      {listings.filter(l => l.platform === 'amazon').map((listing) => (
+        <AmazonStatusCard
+          key={listing.id}
+          productId={product.id}
+          sku={product.sku}
+          integrationId={listing.integration_id}
+        />
+      ))}
 
       {/* Profitability Analysis */}
       <ProfitabilityAnalysis 
