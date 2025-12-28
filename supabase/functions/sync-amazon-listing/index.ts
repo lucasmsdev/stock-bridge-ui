@@ -7,6 +7,78 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
+// Mapa de marketplaceId → currency
+const MARKETPLACE_CURRENCY_MAP: Record<string, string> = {
+  'A2Q3Y263D00KWC': 'BRL', // Brasil
+  'ATVPDKIKX0DER': 'USD',  // EUA
+  'A2EUQ1WTGCTBG2': 'CAD', // Canadá
+  'A1AM78C64UM0Y8': 'MXN', // México
+  'A1PA6795UKMFR9': 'EUR', // Alemanha
+  'A1F83G8C2ARO7P': 'GBP', // Reino Unido
+  'A1RKKUPIHCS9HS': 'EUR', // Espanha
+  'A13V1IB3VIYZZH': 'EUR', // França
+  'APJ6JRA9NG5V4': 'EUR',  // Itália
+  'A21TJRUUN4KGV': 'INR',  // Índia
+  'A1VC38T7YXB528': 'JPY', // Japão
+  'AAHKV2X7AFYLW': 'CNY',  // China
+};
+
+/**
+ * Normaliza valor monetário para número com 2 casas decimais
+ * Aceita: number, string BR ("1.234,56", "R$ 19,90"), string US ("1234.56")
+ */
+function normalizeMoneyToNumber(input: any): number | null {
+  if (input === null || input === undefined || input === '') {
+    return null;
+  }
+
+  // Se já é número, arredondar para 2 casas
+  if (typeof input === 'number') {
+    if (isNaN(input) || input <= 0) {
+      console.warn('⚠️ Preço inválido (número <= 0 ou NaN):', input);
+      return null;
+    }
+    return Math.round(input * 100) / 100;
+  }
+
+  // Se é string, normalizar
+  if (typeof input === 'string') {
+    let cleaned = input
+      .replace(/R\$\s*/gi, '')  // Remove "R$"
+      .replace(/\s/g, '')       // Remove espaços
+      .trim();
+
+    // Detectar formato BR (vírgula como decimal)
+    // Ex: "1.234,56" ou "19,90"
+    const brPattern = /^[\d.]+,\d{1,2}$/;
+    if (brPattern.test(cleaned)) {
+      // Formato BR: remove pontos de milhar, troca vírgula por ponto
+      cleaned = cleaned.replace(/\./g, '').replace(',', '.');
+    } else {
+      // Formato US ou sem separador de milhar: só remover vírgulas extras
+      cleaned = cleaned.replace(/,/g, '');
+    }
+
+    const parsed = parseFloat(cleaned);
+    if (isNaN(parsed) || parsed <= 0) {
+      console.warn('⚠️ Preço inválido após parse:', input, '→', cleaned, '→', parsed);
+      return null;
+    }
+
+    return Math.round(parsed * 100) / 100;
+  }
+
+  console.warn('⚠️ Tipo de preço não suportado:', typeof input, input);
+  return null;
+}
+
+/**
+ * Obtém currency baseado no marketplaceId
+ */
+function getCurrencyForMarketplace(marketplaceId: string): string {
+  return MARKETPLACE_CURRENCY_MAP[marketplaceId] || 'USD';
+}
+
 serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
@@ -35,7 +107,16 @@ serve(async (req) => {
 
     const { productId, sku, stock, sellingPrice, name, imageUrl, integrationId } = await req.json();
 
-    console.log('🔄 Sincronizando produto Amazon:', { productId, sku, stock, sellingPrice, name, imageUrl, integrationId });
+    console.log('🔄 Sincronizando produto Amazon:', { 
+      productId, 
+      sku, 
+      stock, 
+      sellingPrice, 
+      sellingPriceType: typeof sellingPrice,
+      name, 
+      imageUrl, 
+      integrationId 
+    });
 
     if (!productId || !sku || !integrationId) {
       return new Response(
@@ -106,8 +187,50 @@ serve(async (req) => {
       },
     });
 
-    const marketplaceId = integration.marketplace_id || 'A2Q3Y263D00KWC'; // Brasil como padrão
+    // ========================================================
+    // DETERMINAR MARKETPLACE CORRETO
+    // ========================================================
+    let marketplaceId = integration.marketplace_id;
     
+    // Se não tiver marketplace salvo ou for o padrão EUA, tentar detectar via participações
+    if (!marketplaceId || marketplaceId === 'ATVPDKIKX0DER') {
+      console.log('📋 Buscando marketplaces via getMarketplaceParticipations...');
+      try {
+        const participationsResponse = await sellingPartner.callAPI({
+          operation: 'getMarketplaceParticipations',
+          endpoint: 'sellers',
+        });
+        
+        let participations: any[] = [];
+        if (participationsResponse && Array.isArray(participationsResponse)) {
+          participations = participationsResponse;
+        } else if (participationsResponse?.payload && Array.isArray(participationsResponse.payload)) {
+          participations = participationsResponse.payload;
+        }
+        
+        // Preferir Brasil se disponível
+        const brParticipation = participations.find(p => p.marketplace?.id === 'A2Q3Y263D00KWC');
+        if (brParticipation) {
+          marketplaceId = 'A2Q3Y263D00KWC';
+          console.log('✅ Marketplace Brasil detectado');
+        } else if (participations.length > 0 && participations[0].marketplace?.id) {
+          marketplaceId = participations[0].marketplace.id;
+          console.log('✅ Marketplace detectado:', marketplaceId);
+        }
+      } catch (err: any) {
+        console.warn('⚠️ Erro ao buscar participações:', err?.message);
+      }
+    }
+    
+    // Fallback para Brasil se ainda não tiver
+    if (!marketplaceId) {
+      marketplaceId = 'A2Q3Y263D00KWC';
+    }
+    
+    // Determinar currency baseado no marketplace
+    const currency = getCurrencyForMarketplace(marketplaceId);
+    console.log('💱 Marketplace:', marketplaceId, '→ Currency:', currency);
+
     // ========================================================
     // OBTER SELLER ID - CRÍTICO: precisa ser o ID real (AXXXXXXXXXXXX)
     // A Listings Items API patchListingsItem NÃO aceita "me"
@@ -166,9 +289,9 @@ serve(async (req) => {
         console.log('✅ Seller ID do SDK interno:', sellerId);
       }
       
-      // Se encontrou o Seller ID, salvar no banco
+      // Se encontrou o Seller ID, salvar no banco junto com o marketplace correto
       if (sellerId && sellerId.startsWith('A')) {
-        console.log('💾 Salvando Seller ID no banco:', sellerId);
+        console.log('💾 Salvando Seller ID e Marketplace no banco:', sellerId, marketplaceId);
         
         const adminClient = createClient(
           Deno.env.get('SUPABASE_URL') ?? '',
@@ -177,7 +300,10 @@ serve(async (req) => {
         
         await adminClient
           .from('integrations')
-          .update({ selling_partner_id: sellerId })
+          .update({ 
+            selling_partner_id: sellerId,
+            marketplace_id: marketplaceId
+          })
           .eq('id', integrationId);
       }
     }
@@ -198,6 +324,46 @@ serve(async (req) => {
     
     console.log('📋 Seller ID validado para PATCH:', sellerId);
 
+    // ========================================================
+    // BUSCAR PRODUCT TYPE REAL VIA getListingsItem
+    // ========================================================
+    let productType = 'PRODUCT'; // fallback
+    
+    try {
+      console.log('🔍 Buscando productType via getListingsItem...');
+      const listingResponse = await sellingPartner.callAPI({
+        operation: 'getListingsItem',
+        endpoint: 'listingsItems',
+        path: {
+          sellerId: sellerId,
+          sku: sku,
+        },
+        query: {
+          marketplaceIds: [marketplaceId],
+          includedData: ['summaries'],
+        },
+      });
+      
+      console.log('📋 getListingsItem response:', JSON.stringify(listingResponse, null, 2));
+      
+      // Extrair productType do summaries
+      if (listingResponse?.summaries && listingResponse.summaries.length > 0) {
+        const summary = listingResponse.summaries[0];
+        if (summary.productType) {
+          productType = summary.productType;
+          console.log('✅ ProductType real encontrado:', productType);
+        }
+      }
+    } catch (listingError: any) {
+      console.warn('⚠️ Erro ao buscar productType (usando fallback PRODUCT):', listingError?.message);
+    }
+
+    // ========================================================
+    // NORMALIZAR PREÇO
+    // ========================================================
+    const normalizedPrice = normalizeMoneyToNumber(sellingPrice);
+    console.log('💰 Preço original:', sellingPrice, '→ Normalizado:', normalizedPrice);
+
     // Construir patches para atualização
     const patches: any[] = [];
 
@@ -215,18 +381,18 @@ serve(async (req) => {
       });
     }
 
-    // Atualizar preço se fornecido
-    if (sellingPrice !== undefined && sellingPrice !== null && sellingPrice > 0) {
-      console.log('💰 Atualizando preço para:', sellingPrice);
+    // Atualizar preço se fornecido e válido
+    if (normalizedPrice !== null && normalizedPrice > 0) {
+      console.log('💰 Atualizando preço para:', normalizedPrice, currency);
       patches.push({
         op: 'replace',
         path: '/attributes/purchasable_offer',
         value: [{
           marketplace_id: marketplaceId,
-          currency: 'BRL',
+          currency: currency,
           our_price: [{
             schedule: [{
-              value_with_tax: sellingPrice
+              value_with_tax: normalizedPrice
             }]
           }]
         }]
@@ -271,6 +437,8 @@ serve(async (req) => {
     console.log('🚀 Enviando PATCH para Amazon SP-API...');
     console.log('📋 SKU:', sku);
     console.log('📋 Marketplace:', marketplaceId);
+    console.log('📋 Currency:', currency);
+    console.log('📋 ProductType:', productType);
     console.log('📋 Patches:', JSON.stringify(patches, null, 2));
 
     try {
@@ -279,19 +447,58 @@ serve(async (req) => {
         operation: 'patchListingsItem',
         endpoint: 'listingsItems',
         path: {
-          sellerId: sellerId || 'me',
+          sellerId: sellerId,
           sku: sku,
         },
         query: {
           marketplaceIds: [marketplaceId],
         },
         body: {
-          productType: 'PRODUCT',
+          productType: productType,
           patches: patches,
         },
       });
 
       console.log('✅ Resposta Amazon PATCH:', JSON.stringify(patchResult, null, 2));
+
+      // ========================================================
+      // VERIFICAÇÃO PÓS-PATCH: Ler preço atual para confirmar
+      // ========================================================
+      let observedPrice = null;
+      let observedIssues: any[] = [];
+      
+      try {
+        console.log('🔍 Verificando preço pós-PATCH...');
+        const verifyResponse = await sellingPartner.callAPI({
+          operation: 'getListingsItem',
+          endpoint: 'listingsItems',
+          path: {
+            sellerId: sellerId,
+            sku: sku,
+          },
+          query: {
+            marketplaceIds: [marketplaceId],
+            includedData: ['attributes', 'issues'],
+          },
+        });
+        
+        console.log('📋 Verificação pós-PATCH:', JSON.stringify(verifyResponse, null, 2));
+        
+        // Extrair preço observado
+        if (verifyResponse?.attributes?.purchasable_offer) {
+          const offer = verifyResponse.attributes.purchasable_offer[0];
+          if (offer?.our_price?.[0]?.schedule?.[0]?.value_with_tax) {
+            observedPrice = offer.our_price[0].schedule[0].value_with_tax;
+          }
+        }
+        
+        // Extrair issues
+        if (verifyResponse?.issues && verifyResponse.issues.length > 0) {
+          observedIssues = verifyResponse.issues;
+        }
+      } catch (verifyError: any) {
+        console.warn('⚠️ Erro na verificação pós-PATCH:', verifyError?.message);
+      }
 
       // Atualizar status de sincronização na tabela product_listings
       const { error: updateListingError } = await supabaseClient
@@ -309,9 +516,9 @@ serve(async (req) => {
       }
 
       // Verificar se há issues na resposta
-      const hasIssues = patchResult?.issues && patchResult.issues.length > 0;
+      const hasIssues = (patchResult?.issues && patchResult.issues.length > 0) || observedIssues.length > 0;
       if (hasIssues) {
-        console.warn('⚠️ Amazon reportou issues:', JSON.stringify(patchResult.issues, null, 2));
+        console.warn('⚠️ Amazon reportou issues:', JSON.stringify([...(patchResult?.issues || []), ...observedIssues], null, 2));
       }
 
       return new Response(
@@ -322,7 +529,14 @@ serve(async (req) => {
             : 'Produto sincronizado com Amazon. Alterações podem levar até 15 minutos para refletir.',
           amazonResponse: patchResult,
           submissionId: patchResult?.submissionId || null,
-          issues: patchResult?.issues || [],
+          issues: [...(patchResult?.issues || []), ...observedIssues],
+          sentData: {
+            price: normalizedPrice,
+            currency: currency,
+            marketplace: marketplaceId,
+            productType: productType,
+          },
+          observedAmazonPrice: observedPrice,
         }),
         { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
