@@ -31,6 +31,7 @@ interface Product {
   cost_price?: number;
   selling_price?: number;
   ad_spend?: number;
+  image_url?: string;
 }
 
 interface ChannelStock {
