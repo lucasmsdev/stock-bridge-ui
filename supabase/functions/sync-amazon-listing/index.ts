@@ -108,107 +108,66 @@ serve(async (req) => {
 
     const marketplaceId = integration.marketplace_id || 'A2Q3Y263D00KWC'; // Brasil como padrão
     
-    // Obter seller ID - CRÍTICO: precisa ser o ID real no formato AXXXXXXXXXXXX
+    // ========================================================
+    // OBTER SELLER ID - CRÍTICO: precisa ser o ID real (AXXXXXXXXXXXX)
+    // A Listings Items API patchListingsItem NÃO aceita "me"
+    // ========================================================
     let sellerId = integration.selling_partner_id;
     
-    if (!sellerId) {
-      console.log('📋 Seller ID não encontrado no banco, buscando via API...');
+    if (!sellerId || !sellerId.startsWith('A')) {
+      console.log('📋 Seller ID não encontrado no banco, buscando via getMarketplaceParticipations...');
       
-      // Método 1: Tentar obter via Reports API
+      // Método principal: getMarketplaceParticipations (mais confiável)
       try {
-        console.log('🔍 Tentando obter Seller ID via Reports API...');
-        const reports = await sellingPartner.callAPI({
-          operation: 'getReports',
-          endpoint: 'reports',
-          query: {
-            reportTypes: ['GET_MERCHANT_LISTINGS_DATA'],
-            pageSize: 1,
-          },
+        const participationsResponse = await sellingPartner.callAPI({
+          operation: 'getMarketplaceParticipations',
+          endpoint: 'sellers',
         });
         
-        console.log('📋 Reports response:', JSON.stringify(reports, null, 2));
+        console.log('📋 getMarketplaceParticipations response:', JSON.stringify(participationsResponse, null, 2));
         
-        // Tentar extrair do campo sellerId ou da URL do documento
-        if (reports?.reports?.[0]?.sellerId) {
-          sellerId = reports.reports[0].sellerId;
-          console.log('✅ Seller ID encontrado via Reports:', sellerId);
+        // Extrair participations do response
+        let participations: any[] = [];
+        if (participationsResponse && Array.isArray(participationsResponse)) {
+          participations = participationsResponse;
+        } else if (participationsResponse?.payload && Array.isArray(participationsResponse.payload)) {
+          participations = participationsResponse.payload;
         }
-      } catch (reportsError) {
-        console.log('⚠️ Reports API não retornou Seller ID:', reportsError.message);
-      }
-      
-      // Método 2: Tentar obter via Catalog API (search por um ASIN conhecido)
-      if (!sellerId) {
-        try {
-          console.log('🔍 Tentando obter Seller ID via Catalog API...');
+        
+        // Tentar extrair Seller ID de cada participation
+        for (const participation of participations) {
+          const possibleSellerId = participation.sellerID || 
+                                   participation.sellerId || 
+                                   participation.seller_id ||
+                                   participation.participation?.sellerID ||
+                                   participation.participation?.sellerId;
           
-          // Buscar produtos do seller para extrair o ID
-          const catalogResponse = await sellingPartner.callAPI({
-            operation: 'searchCatalogItems',
-            endpoint: 'catalogItems',
-            query: {
-              marketplaceIds: [marketplaceId],
-              sellerId: 'me', // Isso pode retornar o seller ID real
-              pageSize: 1,
-            },
-          });
-          
-          console.log('📋 Catalog response:', JSON.stringify(catalogResponse, null, 2));
-          
-          // Verificar se a resposta contém o seller ID
-          if (catalogResponse?.items?.[0]?.sellerId) {
-            sellerId = catalogResponse.items[0].sellerId;
-            console.log('✅ Seller ID encontrado via Catalog:', sellerId);
+          if (possibleSellerId && typeof possibleSellerId === 'string' && possibleSellerId.startsWith('A')) {
+            sellerId = possibleSellerId;
+            console.log('✅ Seller ID extraído de getMarketplaceParticipations:', sellerId);
+            break;
           }
-        } catch (catalogError) {
-          console.log('⚠️ Catalog API não retornou Seller ID:', catalogError.message);
+        }
+      } catch (participationError: any) {
+        console.warn('⚠️ getMarketplaceParticipations falhou:', participationError?.message);
+        
+        // Tentar extrair do erro se disponível
+        const errorMsg = participationError?.message || '';
+        const merchantMatch = errorMsg.match(/Merchant[:\s]+([A-Z0-9]{10,})/i);
+        if (merchantMatch) {
+          sellerId = merchantMatch[1];
+          console.log('✅ Seller ID extraído do erro:', sellerId);
         }
       }
       
-      // Método 3: Usar a SDK para obter o seller_id interno
-      if (!sellerId && sellingPartner.seller_id) {
+      // Fallback: SDK interno
+      if ((!sellerId || !sellerId.startsWith('A')) && sellingPartner.seller_id) {
         sellerId = sellingPartner.seller_id;
-        console.log('✅ Seller ID encontrado via SDK internal:', sellerId);
+        console.log('✅ Seller ID do SDK interno:', sellerId);
       }
       
-      // Método 4: Fazer chamada direta à API para obter identity
-      if (!sellerId) {
-        try {
-          console.log('🔍 Tentando obter Seller ID via chamada direta...');
-          
-          // Obter access token para chamada direta
-          const accessToken = await sellingPartner.refreshAccessToken();
-          
-          // Tentar API de Notifications que retorna seller ID
-          const notificationsUrl = 'https://sellingpartnerapi-na.amazon.com/notifications/v1/destinations';
-          const notificationsResponse = await fetch(notificationsUrl, {
-            headers: {
-              'Authorization': `Bearer ${accessToken}`,
-              'x-amz-access-token': accessToken,
-            },
-          });
-          
-          if (notificationsResponse.ok) {
-            const notificationsData = await notificationsResponse.json();
-            console.log('📋 Notifications response:', JSON.stringify(notificationsData, null, 2));
-            
-            // Extrair seller ID se disponível
-            if (notificationsData?.payload?.[0]?.destinationId) {
-              // O destination ID às vezes contém o seller ID
-              const destId = notificationsData.payload[0].destinationId;
-              if (destId.startsWith('A')) {
-                sellerId = destId.split('_')[0];
-                console.log('✅ Seller ID extraído de destination:', sellerId);
-              }
-            }
-          }
-        } catch (directError) {
-          console.log('⚠️ Chamada direta não retornou Seller ID:', directError.message);
-        }
-      }
-      
-      // Se encontrou o Seller ID, salvar no banco para próximas vezes
-      if (sellerId && sellerId !== 'UNKNOWN' && sellerId.startsWith('A')) {
+      // Se encontrou o Seller ID, salvar no banco
+      if (sellerId && sellerId.startsWith('A')) {
         console.log('💾 Salvando Seller ID no banco:', sellerId);
         
         const adminClient = createClient(
@@ -223,13 +182,20 @@ serve(async (req) => {
       }
     }
     
-    // Se ainda não temos o Seller ID, usar 'me' como fallback (a SDK pode resolver)
+    // VALIDAÇÃO FINAL: patchListingsItem EXIGE Seller ID real
     if (!sellerId || !sellerId.startsWith('A')) {
-      console.log('⚠️ Seller ID não encontrado, usando "me" como fallback');
-      sellerId = 'me'; // A Amazon SP-API aceita 'me' em algumas operações
+      console.error('❌ ERRO CRÍTICO: Seller ID não encontrado. A Listings Items API requer o ID real.');
+      return new Response(
+        JSON.stringify({ 
+          success: false,
+          error: 'Seller ID da Amazon não encontrado. Reimporte seus produtos para capturar o ID.',
+          hint: 'Vá em Integrações > Amazon > Importar Produtos para resolver este problema.',
+        }),
+        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
     }
     
-    console.log('📋 Seller ID final para PATCH:', sellerId);
+    console.log('📋 Seller ID validado para PATCH:', sellerId);
 
     // Construir patches para atualização
     const patches: any[] = [];

@@ -508,11 +508,12 @@ serve(async (req) => {
         });
 
         // ========================================================
-        // PASSO 1: Descobrir marketplaces válidos
+        // PASSO 1: Descobrir marketplaces válidos e extrair Seller ID
         // ========================================================
         console.log('📊 Buscando getMarketplaceParticipations para validar conta...');
         
         let marketplaceParticipations: any[] = [];
+        let extractedSellerId: string | null = null;
         
         try {
           const participationsResponse = await sellingPartner.callAPI({
@@ -530,8 +531,40 @@ serve(async (req) => {
 
           console.log('✅ Marketplaces encontrados:', marketplaceParticipations.length);
           
+          // ========================================================
+          // EXTRAIR SELLER ID da resposta getMarketplaceParticipations
+          // ========================================================
+          for (const participation of marketplaceParticipations) {
+            // Tentar extrair do campo sellerID, seller_id, ou sellerId
+            const possibleSellerId = participation.sellerID || 
+                                     participation.sellerId || 
+                                     participation.seller_id ||
+                                     participation.participation?.sellerID ||
+                                     participation.participation?.sellerId;
+            
+            if (possibleSellerId && typeof possibleSellerId === 'string' && possibleSellerId.startsWith('A')) {
+              extractedSellerId = possibleSellerId;
+              console.log('✅ Seller ID extraído de getMarketplaceParticipations:', extractedSellerId);
+              break;
+            }
+          }
+          
+          // Se ainda não encontrou, tentar do SDK interno
+          if (!extractedSellerId && sellingPartner.seller_id) {
+            extractedSellerId = sellingPartner.seller_id;
+            console.log('✅ Seller ID extraído do SDK interno:', extractedSellerId);
+          }
+          
         } catch (participationError: any) {
           console.error('❌ Erro ao buscar getMarketplaceParticipations:', participationError);
+          
+          // Tentar extrair Seller ID do erro se disponível (ex: "Merchant: A251067YXRBAPB")
+          const errorMsg = participationError?.message || '';
+          const merchantMatch = errorMsg.match(/Merchant[:\s]+([A-Z0-9]{10,})/i);
+          if (merchantMatch) {
+            extractedSellerId = merchantMatch[1];
+            console.log('✅ Seller ID extraído do erro:', extractedSellerId);
+          }
           
           if (!integration.marketplace_id) {
             return new Response(
@@ -545,6 +578,31 @@ serve(async (req) => {
                 headers: { ...corsHeaders, 'Content-Type': 'application/json' },
               }
             );
+          }
+        }
+        
+        // ========================================================
+        // SALVAR SELLER ID NO BANCO se encontrado e não existia
+        // ========================================================
+        if (extractedSellerId && extractedSellerId.startsWith('A') && !integration.selling_partner_id) {
+          console.log('💾 Salvando Seller ID no banco:', extractedSellerId);
+          
+          const adminClient = createClient(
+            Deno.env.get('SUPABASE_URL') ?? '',
+            Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '',
+          );
+          
+          const { error: updateSellerIdError } = await adminClient
+            .from('integrations')
+            .update({ selling_partner_id: extractedSellerId })
+            .eq('id', integration.id);
+          
+          if (updateSellerIdError) {
+            console.warn('⚠️ Erro ao salvar Seller ID:', updateSellerIdError);
+          } else {
+            console.log('✅ Seller ID salvo com sucesso!');
+            // Atualizar objeto local para uso posterior
+            integration.selling_partner_id = extractedSellerId;
           }
         }
 
