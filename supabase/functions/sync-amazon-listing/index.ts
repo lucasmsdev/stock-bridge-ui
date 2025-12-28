@@ -381,44 +381,24 @@ serve(async (req) => {
       });
     }
 
-    // ========================================================
-    // ATUALIZAR PREÇO - FORMATO OFICIAL AMAZON Listings Items API v2021-08-01
-    // ========================================================
-    // IMPORTANTE: 
-    // - value_with_tax DEVE ser STRING com 2 casas decimais ("59.90", não 59.9)
-    // - currency DEVE estar DENTRO de our_price, não ao lado
-    // - marketplace_id FIXO: "A2Q3Y263D00KWC" (Brasil)
-    // - schedule é OBRIGATÓRIO mesmo sem datas
+    // Atualizar preço se fornecido e válido
+    // IMPORTANTE: value_with_tax DEVE ser STRING com 2 casas decimais ("59.90", não 59.9)
     if (normalizedPrice !== null && normalizedPrice > 0) {
-      const priceAsString = normalizedPrice.toFixed(2); // "59.90" (string, não number)
-      console.log('💰 PREÇO - Formato Amazon oficial:');
-      console.log('   → value_with_tax:', priceAsString, '(tipo:', typeof priceAsString, ')');
-      console.log('   → currency:', currency);
-      console.log('   → marketplace_id:', marketplaceId);
-      
-      // Estrutura EXATA que Amazon aceita para purchasable_offer
-      // Ref: https://developer-docs.amazon.com/sp-api/docs/listings-items-api-v2021-08-01-reference
+      const priceAsString = normalizedPrice.toFixed(2); // "59.90" (string)
+      console.log('💰 Atualizando preço para:', priceAsString, currency, '(string format required by Amazon)');
       patches.push({
         op: 'replace',
         path: '/attributes/purchasable_offer',
-        value: [
-          {
-            marketplace_id: marketplaceId, // "A2Q3Y263D00KWC"
-            our_price: [
-              {
-                currency: currency, // "BRL" - DEVE estar AQUI, não no nível acima
-                schedule: [
-                  {
-                    value_with_tax: priceAsString // "59.90" - DEVE ser STRING
-                  }
-                ]
-              }
-            ]
-          }
-        ]
+        value: [{
+          marketplace_id: marketplaceId,
+          currency: currency,
+          our_price: [{
+            schedule: [{
+              value_with_tax: priceAsString // DEVE ser string, não número
+            }]
+          }]
+        }]
       });
-      
-      console.log('💰 Patch purchasable_offer montado:', JSON.stringify(patches[patches.length - 1], null, 2));
     }
 
     // Atualizar nome se fornecido
