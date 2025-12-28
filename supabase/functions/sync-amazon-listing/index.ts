@@ -33,9 +33,9 @@ serve(async (req) => {
       );
     }
 
-    const { productId, sku, stock, sellingPrice, integrationId } = await req.json();
+    const { productId, sku, stock, sellingPrice, name, imageUrl, integrationId } = await req.json();
 
-    console.log('🔄 Sincronizando produto Amazon:', { productId, sku, stock, sellingPrice, integrationId });
+    console.log('🔄 Sincronizando produto Amazon:', { productId, sku, stock, sellingPrice, name, imageUrl, integrationId });
 
     if (!productId || !sku || !integrationId) {
       return new Response(
@@ -233,6 +233,33 @@ serve(async (req) => {
       });
     }
 
+    // Atualizar nome se fornecido
+    if (name && typeof name === 'string' && name.trim().length > 0) {
+      console.log('📝 Atualizando nome para:', name);
+      patches.push({
+        op: 'replace',
+        path: '/attributes/item_name',
+        value: [{
+          value: name.trim(),
+          marketplace_id: marketplaceId,
+          language_tag: 'pt_BR'
+        }]
+      });
+    }
+
+    // Atualizar imagem principal se fornecida
+    if (imageUrl && typeof imageUrl === 'string' && imageUrl.startsWith('http')) {
+      console.log('🖼️ Atualizando imagem para:', imageUrl);
+      patches.push({
+        op: 'replace',
+        path: '/attributes/main_product_image_locator',
+        value: [{
+          marketplace_id: marketplaceId,
+          media_location: imageUrl
+        }]
+      });
+    }
+
     if (patches.length === 0) {
       console.log('⚠️ Nenhuma alteração para sincronizar');
       return new Response(
@@ -281,11 +308,21 @@ serve(async (req) => {
         console.warn('⚠️ Erro ao atualizar status do listing:', updateListingError);
       }
 
+      // Verificar se há issues na resposta
+      const hasIssues = patchResult?.issues && patchResult.issues.length > 0;
+      if (hasIssues) {
+        console.warn('⚠️ Amazon reportou issues:', JSON.stringify(patchResult.issues, null, 2));
+      }
+
       return new Response(
         JSON.stringify({ 
           success: true, 
-          message: 'Produto sincronizado com Amazon',
+          message: hasIssues 
+            ? 'Produto enviado à Amazon, mas com avisos. Pode levar até 15 minutos para refletir.'
+            : 'Produto sincronizado com Amazon. Alterações podem levar até 15 minutos para refletir.',
           amazonResponse: patchResult,
+          submissionId: patchResult?.submissionId || null,
+          issues: patchResult?.issues || [],
         }),
         { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );

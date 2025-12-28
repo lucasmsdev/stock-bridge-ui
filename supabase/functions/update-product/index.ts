@@ -38,7 +38,7 @@ serve(async (req) => {
       )
     }
 
-    const { productId, name, sku, cost_price, selling_price, stock } = await req.json()
+    const { productId, name, sku, cost_price, selling_price, stock, image_url } = await req.json()
 
     if (!productId || !name || !sku) {
       return new Response(
@@ -50,19 +50,24 @@ serve(async (req) => {
       )
     }
 
-    console.log('📝 Atualizando produto:', { productId, name, sku, stock, selling_price });
+    console.log('📝 Atualizando produto:', { productId, name, sku, stock, selling_price, image_url });
+
+    // Build update object dynamically (only include fields that were provided)
+    const updateFields: Record<string, any> = {
+      name,
+      sku,
+      updated_at: new Date().toISOString(),
+    };
+
+    if (cost_price !== undefined) updateFields.cost_price = cost_price || null;
+    if (selling_price !== undefined) updateFields.selling_price = selling_price || null;
+    if (stock !== undefined) updateFields.stock = stock || 0;
+    if (image_url !== undefined) updateFields.image_url = image_url || null;
 
     // Update product in database
     const { data, error } = await supabaseClient
       .from('products')
-      .update({
-        name,
-        sku,
-        cost_price: cost_price || null,
-        selling_price: selling_price || null,
-        stock: stock || 0,
-        updated_at: new Date().toISOString(),
-      })
+      .update(updateFields)
       .eq('id', productId)
       .eq('user_id', user.id)
       .select()
@@ -119,6 +124,8 @@ serve(async (req) => {
                   sku: sku,
                   stock: stock,
                   sellingPrice: selling_price,
+                  name: name,
+                  imageUrl: image_url,
                   integrationId: listing.integration_id,
                 }),
               }
