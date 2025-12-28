@@ -135,10 +135,19 @@ serve(async (req) => {
             
             if (syncResponse.ok && syncResult.success) {
               console.log(`✅ Amazon sincronizado com sucesso`);
+              console.log(`📋 Amazon response details:`, JSON.stringify(syncResult, null, 2));
               syncResults.push({
                 platform: 'amazon',
                 success: true,
-                message: 'Sincronizado com sucesso',
+                message: syncResult.message || 'Sincronizado com sucesso',
+                // Passar todos os dados de readback da Amazon
+                sentData: syncResult.sentData || null,
+                observedAmazonPrice: syncResult.observedAmazonPrice || null,
+                observedAmazonTitle: syncResult.observedAmazonTitle || null,
+                observedAmazonMainImage: syncResult.observedAmazonMainImage || null,
+                submissionId: syncResult.submissionId || null,
+                issues: syncResult.issues || [],
+                nameMayNotChange: syncResult.nameMayNotChange || false,
               });
             } else {
               console.error(`❌ Erro ao sincronizar Amazon:`, syncResult);
@@ -146,6 +155,7 @@ serve(async (req) => {
                 platform: 'amazon',
                 success: false,
                 error: syncResult.error || 'Erro desconhecido',
+                requiresSellerId: syncResult.requiresSellerId || false,
               });
             }
           } catch (syncError: any) {

@@ -462,13 +462,15 @@ serve(async (req) => {
       console.log('✅ Resposta Amazon PATCH:', JSON.stringify(patchResult, null, 2));
 
       // ========================================================
-      // VERIFICAÇÃO PÓS-PATCH: Ler preço atual para confirmar
+      // VERIFICAÇÃO PÓS-PATCH: Ler preço, título e imagem atuais
       // ========================================================
       let observedPrice = null;
+      let observedAmazonTitle = null;
+      let observedAmazonMainImage = null;
       let observedIssues: any[] = [];
       
       try {
-        console.log('🔍 Verificando preço pós-PATCH...');
+        console.log('🔍 Verificando dados pós-PATCH (attributes, issues, summaries)...');
         const verifyResponse = await sellingPartner.callAPI({
           operation: 'getListingsItem',
           endpoint: 'listingsItems',
@@ -478,18 +480,27 @@ serve(async (req) => {
           },
           query: {
             marketplaceIds: [marketplaceId],
-            includedData: ['attributes', 'issues'],
+            includedData: ['attributes', 'issues', 'summaries'],
           },
         });
         
         console.log('📋 Verificação pós-PATCH:', JSON.stringify(verifyResponse, null, 2));
         
-        // Extrair preço observado
+        // Extrair preço observado dos attributes
         if (verifyResponse?.attributes?.purchasable_offer) {
           const offer = verifyResponse.attributes.purchasable_offer[0];
           if (offer?.our_price?.[0]?.schedule?.[0]?.value_with_tax) {
             observedPrice = offer.our_price[0].schedule[0].value_with_tax;
           }
+        }
+        
+        // Extrair título e imagem do summaries (o que realmente aparece na Amazon)
+        if (verifyResponse?.summaries && verifyResponse.summaries.length > 0) {
+          const summary = verifyResponse.summaries[0];
+          observedAmazonTitle = summary.itemName || null;
+          observedAmazonMainImage = summary.mainImage?.link || null;
+          console.log('📋 Summary - Título:', observedAmazonTitle);
+          console.log('📋 Summary - Imagem:', observedAmazonMainImage);
         }
         
         // Extrair issues
@@ -521,6 +532,10 @@ serve(async (req) => {
         console.warn('⚠️ Amazon reportou issues:', JSON.stringify([...(patchResult?.issues || []), ...observedIssues], null, 2));
       }
 
+      // Detectar se nome não foi alterado (limitação Amazon catalog)
+      const nameUpdateAttempted = name && typeof name === 'string' && name.trim().length > 0;
+      const nameMayNotChange = nameUpdateAttempted && observedAmazonTitle && observedAmazonTitle !== name.trim();
+
       return new Response(
         JSON.stringify({ 
           success: true, 
@@ -532,11 +547,16 @@ serve(async (req) => {
           issues: [...(patchResult?.issues || []), ...observedIssues],
           sentData: {
             price: normalizedPrice,
+            name: name?.trim() || null,
+            imageUrl: imageUrl || null,
             currency: currency,
             marketplace: marketplaceId,
             productType: productType,
           },
           observedAmazonPrice: observedPrice,
+          observedAmazonTitle: observedAmazonTitle,
+          observedAmazonMainImage: observedAmazonMainImage,
+          nameMayNotChange: nameMayNotChange,
         }),
         { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );

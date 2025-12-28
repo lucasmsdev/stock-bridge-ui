@@ -3,7 +3,8 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Loader2, DollarSign, Save, Package } from "lucide-react";
+import { Loader2, DollarSign, Save, Package, AlertTriangle, CheckCircle, Info } from "lucide-react";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 
@@ -26,6 +27,28 @@ interface FinancialDataFormProps {
   onUpdate: (updatedProduct: Product) => void;
 }
 
+interface AmazonSyncResult {
+  platform: string;
+  success: boolean;
+  message?: string;
+  error?: string;
+  requiresSellerId?: boolean;
+  sentData?: {
+    price: number | null;
+    name: string | null;
+    imageUrl: string | null;
+    currency: string;
+    marketplace: string;
+    productType: string;
+  };
+  observedAmazonPrice?: number | null;
+  observedAmazonTitle?: string | null;
+  observedAmazonMainImage?: string | null;
+  submissionId?: string | null;
+  issues?: any[];
+  nameMayNotChange?: boolean;
+}
+
 /**
  * Normaliza valor monetário para número
  * Aceita: "1.234,56" (BR), "1234.56" (US), "R$ 19,90", etc.
@@ -41,13 +64,10 @@ function normalizeMoneyToNumber(input: string): number | null {
     .trim();
 
   // Detectar formato BR (vírgula como decimal)
-  // Ex: "1.234,56" ou "19,90"
   const brPattern = /^[\d.]+,\d{1,2}$/;
   if (brPattern.test(cleaned)) {
-    // Formato BR: remove pontos de milhar, troca vírgula por ponto
     cleaned = cleaned.replace(/\./g, '').replace(',', '.');
   } else {
-    // Formato US ou sem separador de milhar: só remover vírgulas extras
     cleaned = cleaned.replace(/,/g, '');
   }
 
@@ -59,9 +79,6 @@ function normalizeMoneyToNumber(input: string): number | null {
   return Math.round(parsed * 100) / 100;
 }
 
-/**
- * Formata número para exibição BR (opcional)
- */
 function formatMoneyBR(value: number | null | undefined): string {
   if (value === null || value === undefined) return '';
   return value.toFixed(2);
@@ -70,6 +87,7 @@ function formatMoneyBR(value: number | null | undefined): string {
 export function FinancialDataForm({ product, onUpdate }: FinancialDataFormProps) {
   const { toast } = useToast();
   const [isLoading, setIsLoading] = useState(false);
+  const [syncFeedback, setSyncFeedback] = useState<AmazonSyncResult | null>(null);
   const [formData, setFormData] = useState({
     name: product.name || "",
     cost_price: formatMoneyBR(product.cost_price),
@@ -87,18 +105,16 @@ export function FinancialDataForm({ product, onUpdate }: FinancialDataFormProps)
 
   const handleSave = async () => {
     setIsLoading(true);
+    setSyncFeedback(null);
+    
     try {
-      // Normalizar preços antes de enviar
       const costPrice = normalizeMoneyToNumber(formData.cost_price);
       const sellingPrice = normalizeMoneyToNumber(formData.selling_price);
       const adSpend = normalizeMoneyToNumber(formData.ad_spend) || 0;
 
       console.log('📤 Enviando dados:', {
-        cost_price_original: formData.cost_price,
         cost_price_normalized: costPrice,
-        selling_price_original: formData.selling_price,
         selling_price_normalized: sellingPrice,
-        ad_spend_original: formData.ad_spend,
         ad_spend_normalized: adSpend,
       });
 
@@ -110,7 +126,6 @@ export function FinancialDataForm({ product, onUpdate }: FinancialDataFormProps)
         image_url: formData.image_url.trim() || null,
       };
 
-      // Chama a Edge Function update-product para sincronizar com marketplaces
       const { data, error } = await supabase.functions.invoke('update-product', {
         body: {
           productId: product.id,
@@ -126,40 +141,49 @@ export function FinancialDataForm({ product, onUpdate }: FinancialDataFormProps)
 
       if (error) throw error;
 
-      // Update the product object and notify parent
       const updatedProduct = {
         ...product,
         ...updateData
       };
       onUpdate(updatedProduct);
 
-      // Verifica resultado da sincronização
+      // Processar resultado da sincronização Amazon
       if (data?.syncResults && data.syncResults.length > 0) {
-        const amazonSync = data.syncResults.find((r: any) => r.platform === 'amazon');
+        const amazonSync = data.syncResults.find((r: AmazonSyncResult) => r.platform === 'amazon');
         if (amazonSync) {
+          setSyncFeedback(amazonSync);
+
           if (amazonSync.success) {
-            // Mostrar detalhes do que foi enviado
-            const sentInfo = amazonSync.sentData 
-              ? `Preço enviado: R$ ${amazonSync.sentData.price?.toFixed(2)} (${amazonSync.sentData.currency})`
+            const priceInfo = amazonSync.sentData?.price 
+              ? `R$ ${amazonSync.sentData.price.toFixed(2)}` 
               : '';
             const observedInfo = amazonSync.observedAmazonPrice 
-              ? ` | Amazon leu: R$ ${amazonSync.observedAmazonPrice.toFixed(2)}`
-              : '';
+              ? `R$ ${amazonSync.observedAmazonPrice.toFixed(2)}` 
+              : 'aguardando...';
             
             toast({
-              title: "✅ Dados salvos e enviados!",
-              description: `${sentInfo}${observedInfo}. Pode levar até 15 min para refletir.`,
+              title: "Dados enviados para Amazon",
+              description: `Preço enviado: ${priceInfo} | Lido: ${observedInfo}`,
             });
+
+            // Alertar sobre nome que pode não mudar
+            if (amazonSync.nameMayNotChange) {
+              toast({
+                title: "Título pode não mudar",
+                description: "A Amazon mantém o título do catálogo (ASIN). Edite no Seller Central se precisar.",
+                variant: "destructive",
+              });
+            }
           } else if (amazonSync.requiresSellerId) {
             toast({
-              title: "⚠️ Dados salvos localmente",
-              description: "Configure o Seller ID em Integrações > Amazon para sincronizar.",
+              title: "Seller ID necessário",
+              description: "Configure o Seller ID em Integrações > Amazon.",
               variant: "destructive",
             });
           } else {
             toast({
-              title: "⚠️ Dados salvos localmente",
-              description: `Erro ao sincronizar com Amazon: ${amazonSync.error || 'Erro desconhecido'}`,
+              title: "Erro na sincronização",
+              description: amazonSync.error || 'Erro desconhecido',
               variant: "destructive",
             });
           }
@@ -168,15 +192,15 @@ export function FinancialDataForm({ product, onUpdate }: FinancialDataFormProps)
       }
 
       toast({
-        title: "✅ Dados salvos com sucesso!",
-        description: "Os dados foram atualizados.",
+        title: "Dados salvos",
+        description: "Produto atualizado com sucesso.",
       });
 
     } catch (error: any) {
       console.error('Error updating financial data:', error);
       toast({
-        title: "❌ Erro ao salvar os dados",
-        description: error.message || "Não foi possível salvar os dados. Tente novamente.",
+        title: "Erro ao salvar",
+        description: error.message || "Tente novamente.",
         variant: "destructive",
       });
     } finally {
@@ -184,7 +208,6 @@ export function FinancialDataForm({ product, onUpdate }: FinancialDataFormProps)
     }
   };
 
-  // Preview do preço normalizado
   const previewSellingPrice = normalizeMoneyToNumber(formData.selling_price);
 
   return (
@@ -199,6 +222,70 @@ export function FinancialDataForm({ product, onUpdate }: FinancialDataFormProps)
         </p>
       </CardHeader>
       <CardContent className="space-y-6">
+        {/* Feedback de Sincronização Amazon */}
+        {syncFeedback && (
+          <Alert variant={syncFeedback.success ? "default" : "destructive"}>
+            {syncFeedback.success ? (
+              <CheckCircle className="h-4 w-4" />
+            ) : (
+              <AlertTriangle className="h-4 w-4" />
+            )}
+            <AlertTitle>
+              {syncFeedback.success ? "Amazon Sincronizado" : "Erro na Amazon"}
+            </AlertTitle>
+            <AlertDescription className="mt-2 space-y-2">
+              {syncFeedback.success ? (
+                <>
+                  <div className="grid grid-cols-2 gap-2 text-sm">
+                    {syncFeedback.sentData?.price && (
+                      <div>
+                        <span className="font-medium">Preço enviado:</span>{" "}
+                        R$ {syncFeedback.sentData.price.toFixed(2)} ({syncFeedback.sentData.currency})
+                      </div>
+                    )}
+                    {syncFeedback.observedAmazonPrice !== null && syncFeedback.observedAmazonPrice !== undefined && (
+                      <div>
+                        <span className="font-medium">Amazon leu:</span>{" "}
+                        R$ {syncFeedback.observedAmazonPrice.toFixed(2)}
+                      </div>
+                    )}
+                    {syncFeedback.observedAmazonTitle && (
+                      <div className="col-span-2">
+                        <span className="font-medium">Título na Amazon:</span>{" "}
+                        {syncFeedback.observedAmazonTitle}
+                      </div>
+                    )}
+                  </div>
+                  {syncFeedback.nameMayNotChange && (
+                    <Alert className="mt-2 border-yellow-500/50 bg-yellow-500/10">
+                      <Info className="h-4 w-4 text-yellow-600" />
+                      <AlertDescription className="text-sm text-yellow-700 dark:text-yellow-400">
+                        A Amazon está mantendo o título do catálogo (ASIN). Para alterar, você precisa 
+                        permissão de contribuição (Brand Registry) ou editar em "Detalhes da página do produto" no Seller Central.
+                      </AlertDescription>
+                    </Alert>
+                  )}
+                  {syncFeedback.issues && syncFeedback.issues.length > 0 && (
+                    <div className="mt-2 p-2 bg-yellow-500/10 rounded text-sm">
+                      <span className="font-medium text-yellow-700 dark:text-yellow-400">Avisos da Amazon:</span>
+                      <ul className="list-disc list-inside mt-1 text-yellow-600 dark:text-yellow-300">
+                        {syncFeedback.issues.slice(0, 3).map((issue: any, i: number) => (
+                          <li key={i}>{issue.message || JSON.stringify(issue)}</li>
+                        ))}
+                      </ul>
+                    </div>
+                  )}
+                  <p className="text-xs text-muted-foreground mt-2">
+                    Submission ID: {syncFeedback.submissionId || 'N/A'} • Pode levar até 15 min para refletir no Seller Central.
+                  </p>
+                </>
+              ) : (
+                <p>{syncFeedback.error}</p>
+              )}
+            </AlertDescription>
+          </Alert>
+        )}
+
         {/* Seção: Informações do Produto */}
         <div className="space-y-4">
           <h3 className="text-sm font-medium flex items-center gap-2 text-muted-foreground">
