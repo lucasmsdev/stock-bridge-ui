@@ -188,8 +188,9 @@ serve(async (req) => {
       return new Response(
         JSON.stringify({ 
           success: false,
-          error: 'Seller ID da Amazon não encontrado. Reimporte seus produtos para capturar o ID.',
-          hint: 'Vá em Integrações > Amazon > Importar Produtos para resolver este problema.',
+          error: 'Seller ID não configurado',
+          message: 'Configure o Seller ID em Integrações > Amazon para sincronizar preços e estoque.',
+          requiresSellerId: true,
         }),
         { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
