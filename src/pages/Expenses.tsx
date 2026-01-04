@@ -8,7 +8,9 @@ import { ExpenseForm } from "@/components/expenses/ExpenseForm";
 import { ExpensesList } from "@/components/expenses/ExpensesList";
 import { ProfitBreakdown } from "@/components/expenses/ProfitBreakdown";
 import { ProfitProjection } from "@/components/expenses/ProfitProjection";
-import { Receipt, PlusCircle, PieChart, TrendingUp } from "lucide-react";
+import { FinancialSettings, FinancialSettingsData } from "@/components/expenses/FinancialSettings";
+import { MonthlyHistoryChart } from "@/components/expenses/MonthlyHistoryChart";
+import { Receipt, PlusCircle, PieChart, TrendingUp, Settings, BarChart3 } from "lucide-react";
 
 export interface Expense {
   id: string;
@@ -31,6 +33,10 @@ export default function Expenses() {
   const [expenses, setExpenses] = useState<Expense[]>([]);
   const [loading, setLoading] = useState(true);
   const [editingExpense, setEditingExpense] = useState<Expense | null>(null);
+  const [financialSettings, setFinancialSettings] = useState<FinancialSettingsData>({
+    marketplaceFeePercent: 12,
+    targetMarginPercent: 30,
+  });
 
   const loadExpenses = async () => {
     if (!user) return;
@@ -129,7 +135,7 @@ export default function Expenses() {
       </div>
 
       <Tabs defaultValue="register" className="space-y-6">
-        <TabsList className="grid w-full grid-cols-3 max-w-[600px]">
+        <TabsList className="grid w-full grid-cols-5 max-w-[800px]">
           <TabsTrigger value="register" className="flex items-center gap-2">
             <PlusCircle className="h-4 w-4" />
             Registrar
@@ -138,9 +144,17 @@ export default function Expenses() {
             <PieChart className="h-4 w-4" />
             Visão Geral
           </TabsTrigger>
+          <TabsTrigger value="history" className="flex items-center gap-2">
+            <BarChart3 className="h-4 w-4" />
+            Histórico
+          </TabsTrigger>
           <TabsTrigger value="projection" className="flex items-center gap-2">
             <TrendingUp className="h-4 w-4" />
             Projeção
+          </TabsTrigger>
+          <TabsTrigger value="settings" className="flex items-center gap-2">
+            <Settings className="h-4 w-4" />
+            Taxas
           </TabsTrigger>
         </TabsList>
 
@@ -187,11 +201,31 @@ export default function Expenses() {
         </TabsContent>
 
         <TabsContent value="overview">
-          <ProfitBreakdown expenses={expenses} />
+          <ProfitBreakdown 
+            expenses={expenses} 
+            marketplaceFeePercent={financialSettings.marketplaceFeePercent}
+            targetMarginPercent={financialSettings.targetMarginPercent}
+          />
+        </TabsContent>
+
+        <TabsContent value="history">
+          <MonthlyHistoryChart 
+            expenses={expenses} 
+            marketplaceFeePercent={financialSettings.marketplaceFeePercent}
+          />
         </TabsContent>
 
         <TabsContent value="projection">
-          <ProfitProjection expenses={expenses} />
+          <ProfitProjection 
+            expenses={expenses} 
+            targetMarginPercent={financialSettings.targetMarginPercent}
+          />
+        </TabsContent>
+
+        <TabsContent value="settings">
+          <div className="max-w-md">
+            <FinancialSettings onSettingsChange={setFinancialSettings} />
+          </div>
         </TabsContent>
       </Tabs>
     </div>

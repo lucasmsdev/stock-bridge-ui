@@ -20,6 +20,8 @@ import { Separator } from "@/components/ui/separator";
 
 interface ProfitBreakdownProps {
   expenses: Expense[];
+  marketplaceFeePercent?: number;
+  targetMarginPercent?: number;
 }
 
 interface RevenueBreakdown {
@@ -51,7 +53,11 @@ const categoryLabels = {
   operational: 'Despesas Operacionais',
 };
 
-export function ProfitBreakdown({ expenses }: ProfitBreakdownProps) {
+export function ProfitBreakdown({ 
+  expenses, 
+  marketplaceFeePercent = 12,
+  targetMarginPercent = 30 
+}: ProfitBreakdownProps) {
   const { user } = useAuth();
   const [loading, setLoading] = useState(true);
   const [revenueBreakdown, setRevenueBreakdown] = useState<RevenueBreakdown>({
@@ -59,9 +65,9 @@ export function ProfitBreakdown({ expenses }: ProfitBreakdownProps) {
     marketplaceFees: 0,
     productCost: 0,
     grossProfit: 0,
-    marketplaceFeePercent: 12,
+    marketplaceFeePercent: marketplaceFeePercent,
     productCostPercent: 55,
-    grossMarginPercent: 33,
+    grossMarginPercent: targetMarginPercent,
   });
 
   useEffect(() => {
@@ -117,8 +123,7 @@ export function ProfitBreakdown({ expenses }: ProfitBreakdownProps) {
         // If no real data, use demo values
         if (revenue === 0) {
           const demoRevenue = 150000;
-          // Demo breakdown: 12% marketplace fees, 55% product cost = 33% gross margin
-          const demoMarketplaceFees = demoRevenue * 0.12;
+          const demoMarketplaceFees = demoRevenue * (marketplaceFeePercent / 100);
           const demoProductCost = demoRevenue * 0.55;
           const demoGrossProfit = demoRevenue - demoMarketplaceFees - demoProductCost;
           
@@ -127,13 +132,12 @@ export function ProfitBreakdown({ expenses }: ProfitBreakdownProps) {
             marketplaceFees: demoMarketplaceFees,
             productCost: demoProductCost,
             grossProfit: demoGrossProfit,
-            marketplaceFeePercent: 12,
+            marketplaceFeePercent: marketplaceFeePercent,
             productCostPercent: 55,
-            grossMarginPercent: 33,
+            grossMarginPercent: (demoGrossProfit / demoRevenue) * 100,
           });
         } else {
-          // Real data calculation
-          const marketplaceFeePercent = 12;
+          // Real data calculation using configurable marketplace fee
           const marketplaceFees = revenue * (marketplaceFeePercent / 100);
           
           let productCost: number;
@@ -143,7 +147,7 @@ export function ProfitBreakdown({ expenses }: ProfitBreakdownProps) {
             productCost = cost;
             productCostPercent = (cost / revenue) * 100;
           } else {
-            // Estimate product cost at 55% for healthy margin (~33% gross)
+            // Estimate product cost at 55% for healthy margin
             productCostPercent = 55;
             productCost = revenue * 0.55;
           }
@@ -156,7 +160,7 @@ export function ProfitBreakdown({ expenses }: ProfitBreakdownProps) {
             marketplaceFees,
             productCost,
             grossProfit,
-            marketplaceFeePercent,
+            marketplaceFeePercent: marketplaceFeePercent,
             productCostPercent,
             grossMarginPercent,
           });
@@ -169,7 +173,7 @@ export function ProfitBreakdown({ expenses }: ProfitBreakdownProps) {
     };
 
     fetchFinancialData();
-  }, [user]);
+  }, [user, marketplaceFeePercent]);
 
   // Calculate monthly expenses (proportional to current month)
   const calculateMonthlyExpense = (expense: Expense): number => {
