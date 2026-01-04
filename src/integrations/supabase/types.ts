@@ -175,6 +175,51 @@ export type Database = {
           },
         ]
       }
+      monthly_financial_history: {
+        Row: {
+          created_at: string
+          gross_profit: number
+          id: string
+          marketplace_fees: number
+          net_profit: number
+          product_costs: number
+          total_expenses: number
+          total_orders: number
+          total_revenue: number
+          updated_at: string
+          user_id: string
+          year_month: string
+        }
+        Insert: {
+          created_at?: string
+          gross_profit?: number
+          id?: string
+          marketplace_fees?: number
+          net_profit?: number
+          product_costs?: number
+          total_expenses?: number
+          total_orders?: number
+          total_revenue?: number
+          updated_at?: string
+          user_id: string
+          year_month: string
+        }
+        Update: {
+          created_at?: string
+          gross_profit?: number
+          id?: string
+          marketplace_fees?: number
+          net_profit?: number
+          product_costs?: number
+          total_expenses?: number
+          total_orders?: number
+          total_revenue?: number
+          updated_at?: string
+          user_id?: string
+          year_month?: string
+        }
+        Relationships: []
+      }
       notifications: {
         Row: {
           created_at: string
@@ -480,6 +525,33 @@ export type Database = {
           role?: string
           stripe_customer_id?: string | null
           updated_at?: string | null
+        }
+        Relationships: []
+      }
+      user_financial_settings: {
+        Row: {
+          created_at: string
+          id: string
+          marketplace_fee_percent: number
+          target_margin_percent: number
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          marketplace_fee_percent?: number
+          target_margin_percent?: number
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          marketplace_fee_percent?: number
+          target_margin_percent?: number
+          updated_at?: string
+          user_id?: string
         }
         Relationships: []
       }

@@ -23,6 +23,7 @@ import { cn } from "@/lib/utils";
 
 interface ProfitProjectionProps {
   expenses: Expense[];
+  targetMarginPercent?: number;
 }
 
 interface SalesMetrics {
@@ -33,7 +34,7 @@ interface SalesMetrics {
   avgDailyOrders: number;
 }
 
-export function ProfitProjection({ expenses }: ProfitProjectionProps) {
+export function ProfitProjection({ expenses, targetMarginPercent = 30 }: ProfitProjectionProps) {
   const { user } = useAuth();
   const [loading, setLoading] = useState(true);
   const [salesMetrics, setSalesMetrics] = useState<SalesMetrics>({
@@ -121,14 +122,15 @@ export function ProfitProjection({ expenses }: ProfitProjectionProps) {
       ? parseFloat(customMonthlyRevenue) || 0
       : baseMonthlyRevenue * (salesMultiplier / 100);
     
-    // Assume 30% gross margin (can be adjusted based on actual product data)
-    const estimatedGrossProfit = simulatedRevenue * 0.30;
+    // Use configurable target margin
+    const marginDecimal = targetMarginPercent / 100;
+    const estimatedGrossProfit = simulatedRevenue * marginDecimal;
     const netProfit = estimatedGrossProfit - totalMonthlyExpenses;
     const netMargin = simulatedRevenue > 0 ? (netProfit / simulatedRevenue) * 100 : 0;
     
     // Break-even calculation
-    const breakEvenRevenue = totalMonthlyExpenses / 0.30; // Revenue needed to cover expenses at 30% margin
-    const avgOrderValue = hasRealSalesData ? salesMetrics.avgOrderValue : 250; // Default ticket médio
+    const breakEvenRevenue = totalMonthlyExpenses / marginDecimal;
+    const avgOrderValue = hasRealSalesData ? salesMetrics.avgOrderValue : 250;
     const breakEvenOrders = avgOrderValue > 0 
       ? Math.ceil(breakEvenRevenue / avgOrderValue)
       : 0;
