@@ -60,6 +60,7 @@ interface Product {
   cost_price: number | null;
   selling_price: number | null;
   stock: number;
+  image_url: string | null;
 }
 
 const parseAddress = (address: Json): Record<string, string> => {
@@ -112,7 +113,7 @@ const SupplierDetails = () => {
       // Carregar produtos vinculados
       const { data: productsData, error: productsError } = await supabase
         .from("products")
-        .select("id, name, sku, cost_price, selling_price, stock")
+        .select("id, name, sku, cost_price, selling_price, stock, image_url")
         .eq("supplier_id", id)
         .eq("user_id", user.id);
 
@@ -178,7 +179,7 @@ const SupplierDetails = () => {
 
     const { data, error } = await supabase
       .from("products")
-      .select("id, name, sku, cost_price, selling_price, stock")
+      .select("id, name, sku, cost_price, selling_price, stock, image_url")
       .eq("user_id", user.id)
       .or(`supplier_id.is.null,supplier_id.neq.${id}`);
 
@@ -632,6 +633,17 @@ const SupplierDetails = () => {
                       checked={selectedProducts.includes(product.id)}
                       onCheckedChange={() => toggleProductSelection(product.id)}
                     />
+                    <div className="h-10 w-10 rounded-md bg-muted flex items-center justify-center overflow-hidden shrink-0">
+                      {product.image_url ? (
+                        <img
+                          src={product.image_url}
+                          alt={product.name}
+                          className="h-full w-full object-cover"
+                        />
+                      ) : (
+                        <Package className="h-5 w-5 text-muted-foreground" />
+                      )}
+                    </div>
                     <div className="flex-1 min-w-0">
                       <p className="font-medium text-foreground truncate">{product.name}</p>
                       <p className="text-sm text-muted-foreground">
