@@ -14,11 +14,14 @@ import {
   TrendingUp,
   Plus,
   MoreHorizontal,
+  Link,
+  Unlink,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Checkbox } from "@/components/ui/checkbox";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -79,6 +82,10 @@ const SupplierDetails = () => {
   const [isEditOpen, setIsEditOpen] = useState(false);
   const [isDeleteOpen, setIsDeleteOpen] = useState(false);
   const [isOrderFormOpen, setIsOrderFormOpen] = useState(false);
+  const [isLinkProductOpen, setIsLinkProductOpen] = useState(false);
+  const [availableProducts, setAvailableProducts] = useState<Product[]>([]);
+  const [selectedProducts, setSelectedProducts] = useState<string[]>([]);
+  const [linkingProducts, setLinkingProducts] = useState(false);
 
   useEffect(() => {
     if (user && id) {
@@ -164,6 +171,90 @@ const SupplierDetails = () => {
 
   const formatDate = (dateString: string) => {
     return new Date(dateString).toLocaleDateString("pt-BR");
+  };
+
+  const loadAvailableProducts = async () => {
+    if (!user) return;
+
+    const { data, error } = await supabase
+      .from("products")
+      .select("id, name, sku, cost_price, selling_price, stock")
+      .eq("user_id", user.id)
+      .or(`supplier_id.is.null,supplier_id.neq.${id}`);
+
+    if (!error && data) {
+      setAvailableProducts(data);
+    }
+  };
+
+  const handleOpenLinkDialog = () => {
+    setSelectedProducts([]);
+    loadAvailableProducts();
+    setIsLinkProductOpen(true);
+  };
+
+  const handleLinkProducts = async () => {
+    if (selectedProducts.length === 0) return;
+
+    setLinkingProducts(true);
+    try {
+      const { error } = await supabase
+        .from("products")
+        .update({ supplier_id: id })
+        .in("id", selectedProducts);
+
+      if (error) throw error;
+
+      toast({
+        title: "Produtos vinculados",
+        description: `${selectedProducts.length} produto(s) vinculado(s) com sucesso.`,
+      });
+      setIsLinkProductOpen(false);
+      loadSupplierData();
+    } catch (error) {
+      console.error("Error linking products:", error);
+      toast({
+        title: "Erro",
+        description: "Não foi possível vincular os produtos.",
+        variant: "destructive",
+      });
+    } finally {
+      setLinkingProducts(false);
+    }
+  };
+
+  const handleUnlinkProduct = async (productId: string, e: React.MouseEvent) => {
+    e.stopPropagation();
+    
+    try {
+      const { error } = await supabase
+        .from("products")
+        .update({ supplier_id: null })
+        .eq("id", productId);
+
+      if (error) throw error;
+
+      toast({
+        title: "Produto desvinculado",
+        description: "O produto foi removido deste fornecedor.",
+      });
+      loadSupplierData();
+    } catch (error) {
+      console.error("Error unlinking product:", error);
+      toast({
+        title: "Erro",
+        description: "Não foi possível desvincular o produto.",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const toggleProductSelection = (productId: string) => {
+    setSelectedProducts((prev) =>
+      prev.includes(productId)
+        ? prev.filter((id) => id !== productId)
+        : [...prev, productId]
+    );
   };
 
   const totalSpent = purchaseOrders
@@ -402,8 +493,15 @@ const SupplierDetails = () => {
 
         <TabsContent value="products">
           <Card className="bg-card border-border shadow-soft">
-            <CardHeader>
-              <CardTitle className="text-foreground">Produtos Vinculados</CardTitle>
+            <CardHeader className="flex flex-row items-center justify-between">
+              <div>
+                <CardTitle className="text-foreground">Produtos Vinculados</CardTitle>
+                <CardDescription>Produtos fornecidos por este fornecedor</CardDescription>
+              </div>
+              <Button onClick={handleOpenLinkDialog} variant="outline" size="sm">
+                <Link className="h-4 w-4 mr-2" />
+                Vincular Produto
+              </Button>
             </CardHeader>
             <CardContent>
               {products.length === 0 ? (
@@ -415,9 +513,10 @@ const SupplierDetails = () => {
                   <Button
                     variant="outline"
                     className="mt-4"
-                    onClick={() => navigate("/app/products")}
+                    onClick={handleOpenLinkDialog}
                   >
-                    Ver Produtos
+                    <Link className="h-4 w-4 mr-2" />
+                    Vincular Produtos
                   </Button>
                 </div>
               ) : (
@@ -425,22 +524,33 @@ const SupplierDetails = () => {
                   {products.map((product) => (
                     <div
                       key={product.id}
-                      className="flex items-center justify-between p-4 rounded-lg bg-muted/50 hover:bg-muted cursor-pointer"
+                      className="flex items-center justify-between p-4 rounded-lg bg-muted/50 hover:bg-muted cursor-pointer group"
                       onClick={() => navigate(`/app/products/${product.id}`)}
                     >
                       <div>
                         <p className="font-medium text-foreground">{product.name}</p>
                         <p className="text-sm text-muted-foreground">SKU: {product.sku}</p>
                       </div>
-                      <div className="text-right">
-                        <p className="text-foreground font-medium">
-                          {product.selling_price
-                            ? formatCurrency(product.selling_price)
-                            : "-"}
-                        </p>
-                        <p className="text-sm text-muted-foreground">
-                          Estoque: {product.stock}
-                        </p>
+                      <div className="flex items-center gap-4">
+                        <div className="text-right">
+                          <p className="text-foreground font-medium">
+                            {product.selling_price
+                              ? formatCurrency(product.selling_price)
+                              : "-"}
+                          </p>
+                          <p className="text-sm text-muted-foreground">
+                            Estoque: {product.stock}
+                          </p>
+                        </div>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="opacity-0 group-hover:opacity-100 transition-opacity"
+                          onClick={(e) => handleUnlinkProduct(product.id, e)}
+                          title="Desvincular produto"
+                        >
+                          <Unlink className="h-4 w-4 text-muted-foreground hover:text-destructive" />
+                        </Button>
                       </div>
                     </div>
                   ))}
@@ -490,6 +600,60 @@ const SupplierDetails = () => {
             }}
             onCancel={() => setIsOrderFormOpen(false)}
           />
+        </DialogContent>
+      </Dialog>
+
+      {/* Link Products Dialog */}
+      <Dialog open={isLinkProductOpen} onOpenChange={setIsLinkProductOpen}>
+        <DialogContent className="max-w-lg bg-card border-border">
+          <DialogHeader>
+            <DialogTitle className="text-foreground">Vincular Produtos</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4">
+            <p className="text-sm text-muted-foreground">
+              Selecione os produtos que deseja vincular a este fornecedor:
+            </p>
+            {availableProducts.length === 0 ? (
+              <div className="text-center py-8">
+                <Package className="h-10 w-10 text-muted-foreground mx-auto mb-3" />
+                <p className="text-muted-foreground text-sm">
+                  Todos os produtos já estão vinculados a este fornecedor.
+                </p>
+              </div>
+            ) : (
+              <div className="max-h-80 overflow-y-auto space-y-2">
+                {availableProducts.map((product) => (
+                  <div
+                    key={product.id}
+                    className="flex items-center gap-3 p-3 rounded-lg bg-muted/50 hover:bg-muted cursor-pointer"
+                    onClick={() => toggleProductSelection(product.id)}
+                  >
+                    <Checkbox
+                      checked={selectedProducts.includes(product.id)}
+                      onCheckedChange={() => toggleProductSelection(product.id)}
+                    />
+                    <div className="flex-1 min-w-0">
+                      <p className="font-medium text-foreground truncate">{product.name}</p>
+                      <p className="text-sm text-muted-foreground">
+                        SKU: {product.sku} • Estoque: {product.stock}
+                      </p>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+            <div className="flex justify-end gap-2 pt-4 border-t border-border">
+              <Button variant="outline" onClick={() => setIsLinkProductOpen(false)}>
+                Cancelar
+              </Button>
+              <Button
+                onClick={handleLinkProducts}
+                disabled={selectedProducts.length === 0 || linkingProducts}
+              >
+                {linkingProducts ? "Vinculando..." : `Vincular (${selectedProducts.length})`}
+              </Button>
+            </div>
+          </div>
         </DialogContent>
       </Dialog>
 
