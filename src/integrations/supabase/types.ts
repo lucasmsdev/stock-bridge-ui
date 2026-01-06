@@ -435,6 +435,7 @@ export type Database = {
           selling_price: number | null
           sku: string
           stock: number
+          supplier_id: string | null
           updated_at: string
           user_id: string
           weight: number | null
@@ -455,6 +456,7 @@ export type Database = {
           selling_price?: number | null
           sku: string
           stock?: number
+          supplier_id?: string | null
           updated_at?: string
           user_id: string
           weight?: number | null
@@ -475,11 +477,19 @@ export type Database = {
           selling_price?: number | null
           sku?: string
           stock?: number
+          supplier_id?: string | null
           updated_at?: string
           user_id?: string
           weight?: number | null
         }
         Relationships: [
+          {
+            foreignKeyName: "products_supplier_id_fkey"
+            columns: ["supplier_id"]
+            isOneToOne: false
+            referencedRelation: "suppliers"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "products_user_id_fkey"
             columns: ["user_id"]
@@ -525,6 +535,110 @@ export type Database = {
           role?: string
           stripe_customer_id?: string | null
           updated_at?: string | null
+        }
+        Relationships: []
+      }
+      purchase_orders: {
+        Row: {
+          created_at: string
+          expected_delivery: string | null
+          id: string
+          items: Json
+          notes: string | null
+          order_number: string
+          received_at: string | null
+          status: string
+          supplier_id: string
+          total_value: number
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          expected_delivery?: string | null
+          id?: string
+          items?: Json
+          notes?: string | null
+          order_number: string
+          received_at?: string | null
+          status?: string
+          supplier_id: string
+          total_value?: number
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          expected_delivery?: string | null
+          id?: string
+          items?: Json
+          notes?: string | null
+          order_number?: string
+          received_at?: string | null
+          status?: string
+          supplier_id?: string
+          total_value?: number
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "purchase_orders_supplier_id_fkey"
+            columns: ["supplier_id"]
+            isOneToOne: false
+            referencedRelation: "suppliers"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      suppliers: {
+        Row: {
+          address: Json | null
+          cnpj_cpf: string | null
+          contact_name: string | null
+          created_at: string
+          email: string | null
+          id: string
+          is_active: boolean
+          name: string
+          notes: string | null
+          payment_terms: string | null
+          phone: string | null
+          updated_at: string
+          user_id: string
+          website: string | null
+        }
+        Insert: {
+          address?: Json | null
+          cnpj_cpf?: string | null
+          contact_name?: string | null
+          created_at?: string
+          email?: string | null
+          id?: string
+          is_active?: boolean
+          name: string
+          notes?: string | null
+          payment_terms?: string | null
+          phone?: string | null
+          updated_at?: string
+          user_id: string
+          website?: string | null
+        }
+        Update: {
+          address?: Json | null
+          cnpj_cpf?: string | null
+          contact_name?: string | null
+          created_at?: string
+          email?: string | null
+          id?: string
+          is_active?: boolean
+          name?: string
+          notes?: string | null
+          payment_terms?: string | null
+          phone?: string | null
+          updated_at?: string
+          user_id?: string
+          website?: string | null
         }
         Relationships: []
       }
