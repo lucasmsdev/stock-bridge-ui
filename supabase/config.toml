@@ -107,3 +107,6 @@ verify_jwt = true
 
 [functions.verify-amazon-listing]
 verify_jwt = true
+
+[functions.send-scheduled-reports]
+verify_jwt = false
