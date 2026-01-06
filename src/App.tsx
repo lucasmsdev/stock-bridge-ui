@@ -19,6 +19,8 @@ import Finance from "./pages/Finance";
 import Expenses from "./pages/Expenses";
 import Integrations from "./pages/Integrations";
 import MarketAnalysis from "./pages/MarketAnalysis";
+import Suppliers from "./pages/Suppliers";
+import SupplierDetails from "./pages/SupplierDetails";
 import Help from "./pages/Help";
 import FAQ from "./pages/FAQ";
 import Profile from "./pages/Profile";
@@ -56,6 +58,8 @@ const App = () => (
                 <Route path="orders" element={<Orders />} />
                 <Route path="finance" element={<Finance />} />
                 <Route path="expenses" element={<Expenses />} />
+                <Route path="suppliers" element={<Suppliers />} />
+                <Route path="suppliers/:id" element={<SupplierDetails />} />
                 <Route path="integrations" element={<Integrations />} />
                 <Route path="market-analysis" element={<MarketAnalysis />} />
                 <Route path="help" element={<Help />} />

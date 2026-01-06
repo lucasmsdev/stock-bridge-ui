@@ -15,7 +15,8 @@ import {
   Target,
   FileText,
   Sparkles,
-  Receipt
+  Receipt,
+  Truck
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
@@ -49,6 +50,12 @@ const navItems = [
     title: "Centro de Custos", 
     href: "/app/expenses", 
     icon: Receipt, 
+    requiresFeature: FeatureName.FINANCIAL_CALCULATOR
+  },
+  { 
+    title: "Fornecedores", 
+    href: "/app/suppliers", 
+    icon: Truck, 
     requiresFeature: FeatureName.FINANCIAL_CALCULATOR
   },
   { 
