@@ -64,6 +64,7 @@ serve(async (req) => {
         brand: productData.brand || null,
         condition: productData.condition || 'new',
         image_url: productData.images?.[0] || null,
+        supplier_id: productData.supplier_id || null,
       })
       .select()
       .single()

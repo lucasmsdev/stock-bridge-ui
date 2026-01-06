@@ -38,7 +38,7 @@ serve(async (req) => {
       )
     }
 
-    const { productId, name, sku, cost_price, selling_price, stock, image_url } = await req.json()
+    const { productId, name, sku, cost_price, selling_price, stock, image_url, supplier_id } = await req.json()
 
     if (!productId || !name || !sku) {
       return new Response(
@@ -50,7 +50,7 @@ serve(async (req) => {
       )
     }
 
-    console.log('📝 Atualizando produto:', { productId, name, sku, stock, selling_price, image_url });
+    console.log('📝 Atualizando produto:', { productId, name, sku, stock, selling_price, image_url, supplier_id });
 
     // Build update object dynamically (only include fields that were provided)
     const updateFields: Record<string, any> = {
@@ -63,6 +63,7 @@ serve(async (req) => {
     if (selling_price !== undefined) updateFields.selling_price = selling_price || null;
     if (stock !== undefined) updateFields.stock = stock || 0;
     if (image_url !== undefined) updateFields.image_url = image_url || null;
+    if (supplier_id !== undefined) updateFields.supplier_id = supplier_id || null;
 
     // Update product in database
     const { data, error } = await supabaseClient
