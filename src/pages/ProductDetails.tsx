@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { useParams, Link } from "react-router-dom";
-import { ArrowLeft, Package, CheckCircle, AlertTriangle, XCircle, Loader2, Calculator } from "lucide-react";
+import { ArrowLeft, Package, CheckCircle, AlertTriangle, XCircle, Loader2, Calculator, Truck } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -33,6 +33,15 @@ interface Product {
   selling_price?: number;
   ad_spend?: number;
   image_url?: string;
+  supplier_id?: string;
+}
+
+interface Supplier {
+  id: string;
+  name: string;
+  contact_name: string | null;
+  email: string | null;
+  phone: string | null;
 }
 
 interface ChannelStock {
@@ -116,6 +125,7 @@ export default function ProductDetails() {
   const { toast } = useToast();
   const [productDetails, setProductDetails] = useState<ProductDetailsData | null>(null);
   const [listings, setListings] = useState<ProductListing[]>([]);
+  const [supplier, setSupplier] = useState<Supplier | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
   const handleProductUpdate = (updatedProduct: Product) => {
@@ -188,6 +198,21 @@ export default function ProductDetails() {
       
       if (listingsData) {
         setListings(listingsData);
+      }
+
+      // Buscar fornecedor vinculado
+      if (productData.supplier_id) {
+        const { data: supplierData } = await supabase
+          .from('suppliers')
+          .select('id, name, contact_name, email, phone')
+          .eq('id', productData.supplier_id)
+          .single();
+        
+        if (supplierData) {
+          setSupplier(supplierData);
+        }
+      } else {
+        setSupplier(null);
       }
 
       toast({
@@ -312,6 +337,39 @@ export default function ProductDetails() {
           </p>
         </CardContent>
       </Card>
+
+      {/* Supplier Card */}
+      {supplier && (
+        <Card className="shadow-soft">
+          <CardHeader>
+            <CardTitle className="flex items-center gap-3">
+              <Truck className="h-6 w-6 text-primary" />
+              Fornecedor
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="flex items-center justify-between">
+              <div className="space-y-1">
+                <p className="font-semibold text-lg">{supplier.name}</p>
+                {supplier.contact_name && (
+                  <p className="text-sm text-muted-foreground">Contato: {supplier.contact_name}</p>
+                )}
+                {supplier.email && (
+                  <p className="text-sm text-muted-foreground">{supplier.email}</p>
+                )}
+                {supplier.phone && (
+                  <p className="text-sm text-muted-foreground">{supplier.phone}</p>
+                )}
+              </div>
+              <Link to={`/app/suppliers/${supplier.id}`}>
+                <Button variant="outline" size="sm">
+                  Ver Detalhes
+                </Button>
+              </Link>
+            </div>
+          </CardContent>
+        </Card>
+      )}
 
       {/* Product Images Card */}
       {channelStocks.some(cs => cs.images && cs.images.length > 0) && (

@@ -9,14 +9,22 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Checkbox } from "@/components/ui/checkbox";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
-import { Loader2, Package, ShoppingCart } from "lucide-react";
+import { Loader2, Package, ShoppingCart, Truck, Plus } from "lucide-react";
 import { PlatformLogo } from "@/components/ui/platform-logo";
 import { MercadoLivreCategorySelector } from "@/components/products/MercadoLivreCategorySelector";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { SupplierForm } from "@/components/suppliers/SupplierForm";
 
 interface Integration {
   id: string;
   platform: string;
   account_name: string | null;
+}
+
+interface Supplier {
+  id: string;
+  name: string;
+  contact_name: string | null;
 }
 
 export default function CreateProduct() {
@@ -25,6 +33,9 @@ export default function CreateProduct() {
   const [loading, setLoading] = useState(false);
   const [integrations, setIntegrations] = useState<Integration[]>([]);
   const [loadingIntegrations, setLoadingIntegrations] = useState(true);
+  const [suppliers, setSuppliers] = useState<Supplier[]>([]);
+  const [loadingSuppliers, setLoadingSuppliers] = useState(true);
+  const [showSupplierDialog, setShowSupplierDialog] = useState(false);
 
   // Product data
   const [name, setName] = useState("");
@@ -40,6 +51,7 @@ export default function CreateProduct() {
   const [width, setWidth] = useState("");
   const [height, setHeight] = useState("");
   const [imageUrls, setImageUrls] = useState("");
+  const [supplierId, setSupplierId] = useState<string>("");
 
   // Amazon-specific fields
   const [amazonProductType, setAmazonProductType] = useState("");
@@ -56,6 +68,7 @@ export default function CreateProduct() {
 
   useEffect(() => {
     loadIntegrations();
+    loadSuppliers();
   }, []);
 
   const loadIntegrations = async () => {
@@ -78,6 +91,33 @@ export default function CreateProduct() {
     } finally {
       setLoadingIntegrations(false);
     }
+  };
+
+  const loadSuppliers = async () => {
+    try {
+      const { data, error } = await supabase
+        .from("suppliers")
+        .select("id, name, contact_name")
+        .eq("is_active", true)
+        .order("name");
+
+      if (error) throw error;
+
+      setSuppliers(data || []);
+    } catch (error) {
+      console.error("Error loading suppliers:", error);
+    } finally {
+      setLoadingSuppliers(false);
+    }
+  };
+
+  const handleSupplierCreated = () => {
+    setShowSupplierDialog(false);
+    loadSuppliers();
+    toast({
+      title: "Fornecedor cadastrado!",
+      description: "Você pode selecioná-lo agora.",
+    });
   };
 
   const handlePlatformToggle = (platform: string) => {
@@ -159,6 +199,7 @@ export default function CreateProduct() {
         condition: 'new',
         amazon_product_type: amazonProductType || null, // Amazon-specific
         mercadolivre_category_id: mercadoLivreCategory || null, // Mercado Livre-specific
+        supplier_id: supplierId || null, // Fornecedor vinculado
       };
 
       const platforms = selectedPlatformsList.map(platform => ({
@@ -425,6 +466,67 @@ export default function CreateProduct() {
             </CardContent>
           </Card>
         )}
+
+        {/* Fornecedor */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Truck className="h-5 w-5" />
+              Fornecedor
+            </CardTitle>
+            <CardDescription>Vincule este produto a um fornecedor (opcional)</CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="flex gap-3 items-end">
+              <div className="flex-1">
+                <Label>Selecionar Fornecedor</Label>
+                {loadingSuppliers ? (
+                  <div className="flex items-center gap-2 py-2">
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                    <span className="text-sm text-muted-foreground">Carregando...</span>
+                  </div>
+                ) : (
+                  <Select value={supplierId || "none"} onValueChange={(value) => setSupplierId(value === "none" ? "" : value)}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Nenhum fornecedor" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="none">Nenhum fornecedor</SelectItem>
+                      {suppliers.map(supplier => (
+                        <SelectItem key={supplier.id} value={supplier.id}>
+                          {supplier.name}
+                          {supplier.contact_name && ` (${supplier.contact_name})`}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                )}
+              </div>
+              <Dialog open={showSupplierDialog} onOpenChange={setShowSupplierDialog}>
+                <DialogTrigger asChild>
+                  <Button variant="outline" type="button">
+                    <Plus className="h-4 w-4 mr-2" />
+                    Novo
+                  </Button>
+                </DialogTrigger>
+                <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+                  <DialogHeader>
+                    <DialogTitle>Cadastrar Fornecedor</DialogTitle>
+                  </DialogHeader>
+                  <SupplierForm 
+                    onSaved={handleSupplierCreated} 
+                    onCancel={() => setShowSupplierDialog(false)} 
+                  />
+                </DialogContent>
+              </Dialog>
+            </div>
+            {suppliers.length === 0 && !loadingSuppliers && (
+              <p className="text-sm text-muted-foreground">
+                Nenhum fornecedor cadastrado. Clique em "Novo" para adicionar.
+              </p>
+            )}
+          </CardContent>
+        </Card>
 
         {/* Shipping Information */}
         <Card>

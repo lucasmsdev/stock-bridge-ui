@@ -62,6 +62,12 @@ interface Product {
   user_id: string;
   created_at: string;
   updated_at: string;
+  supplier_id: string | null;
+}
+
+interface Supplier {
+  id: string;
+  name: string;
 }
 
 interface ProductListing {
@@ -100,6 +106,7 @@ export default function Products() {
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedProducts, setSelectedProducts] = useState<string[]>([]);
   const [products, setProducts] = useState<Product[]>([]);
+  const [suppliers, setSuppliers] = useState<Supplier[]>([]);
   const [integrations, setIntegrations] = useState<Integration[]>([]);
   const [selectedChannel, setSelectedChannel] = useState<string>("all");
   const [isLoading, setIsLoading] = useState(true);
@@ -112,7 +119,8 @@ export default function Products() {
     sku: "",
     cost_price: "",
     selling_price: "",
-    stock: ""
+    stock: "",
+    supplier_id: ""
   });
 
   // Load products and integrations from Supabase
@@ -121,6 +129,7 @@ export default function Products() {
       loadProducts();
       loadIntegrations();
       loadProductListings();
+      loadSuppliers();
     }
   }, [user]);
 
@@ -151,6 +160,25 @@ export default function Products() {
     }
   };
 
+  const loadSuppliers = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('suppliers')
+        .select('id, name')
+        .eq('is_active', true)
+        .order('name');
+
+      if (error) {
+        console.error('Error loading suppliers:', error);
+        return;
+      }
+
+      setSuppliers(data || []);
+    } catch (error) {
+      console.error('Unexpected error loading suppliers:', error);
+    }
+  };
+
   const handleEditProduct = (product: Product) => {
     setEditingProduct(product);
     setEditForm({
@@ -158,7 +186,8 @@ export default function Products() {
       sku: product.sku,
       cost_price: product.cost_price?.toString() || "",
       selling_price: product.selling_price?.toString() || "",
-      stock: product.stock.toString()
+      stock: product.stock.toString(),
+      supplier_id: product.supplier_id || ""
     });
   };
 
@@ -207,7 +236,8 @@ export default function Products() {
           sku: editForm.sku,
           cost_price: costPrice,
           selling_price: sellingPrice,
-          stock: parseInt(editForm.stock) || 0
+          stock: parseInt(editForm.stock) || 0,
+          supplier_id: editForm.supplier_id || null
         }
       });
 
@@ -916,6 +946,26 @@ export default function Products() {
                 onChange={(e) => setEditForm({...editForm, stock: e.target.value})}
                 placeholder="0"
               />
+            </div>
+
+            <div>
+              <Label htmlFor="edit-supplier">Fornecedor</Label>
+              <Select 
+                value={editForm.supplier_id || "none"} 
+                onValueChange={(value) => setEditForm({...editForm, supplier_id: value === "none" ? "" : value})}
+              >
+                <SelectTrigger id="edit-supplier">
+                  <SelectValue placeholder="Nenhum fornecedor" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="none">Nenhum fornecedor</SelectItem>
+                  {suppliers.map(supplier => (
+                    <SelectItem key={supplier.id} value={supplier.id}>
+                      {supplier.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
           </div>
           
