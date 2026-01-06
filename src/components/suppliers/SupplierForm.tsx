@@ -127,171 +127,177 @@ export const SupplierForm = ({ supplier, onSaved, onCancel }: SupplierFormProps)
   };
 
   return (
-    <form onSubmit={handleSubmit} className="space-y-6">
+    <form onSubmit={handleSubmit} className="space-y-4 sm:space-y-6 max-w-3xl mx-auto">
       {/* Basic Info */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        <div className="space-y-2">
-          <Label htmlFor="name" className="text-foreground">Nome do Fornecedor *</Label>
-          <Input
-            id="name"
-            value={formData.name}
-            onChange={(e) => handleChange("name", e.target.value)}
-            placeholder="Ex: Atacado China Brasil"
-            className="bg-background border-input"
-          />
-        </div>
-        <div className="space-y-2">
-          <Label htmlFor="contact_name" className="text-foreground">Nome do Contato</Label>
-          <Input
-            id="contact_name"
-            value={formData.contact_name}
-            onChange={(e) => handleChange("contact_name", e.target.value)}
-            placeholder="Ex: João Silva"
-            className="bg-background border-input"
-          />
-        </div>
-        <div className="space-y-2">
-          <Label htmlFor="email" className="text-foreground">Email</Label>
-          <Input
-            id="email"
-            type="email"
-            value={formData.email}
-            onChange={(e) => handleChange("email", e.target.value)}
-            placeholder="contato@fornecedor.com"
-            className="bg-background border-input"
-          />
-        </div>
-        <div className="space-y-2">
-          <Label htmlFor="phone" className="text-foreground">Telefone/WhatsApp</Label>
-          <Input
-            id="phone"
-            value={formData.phone}
-            onChange={(e) => handleChange("phone", e.target.value)}
-            placeholder="(11) 99999-9999"
-            className="bg-background border-input"
-          />
-        </div>
-        <div className="space-y-2">
-          <Label htmlFor="cnpj_cpf" className="text-foreground">CNPJ/CPF</Label>
-          <Input
-            id="cnpj_cpf"
-            value={formData.cnpj_cpf}
-            onChange={(e) => handleChange("cnpj_cpf", e.target.value)}
-            placeholder="00.000.000/0001-00"
-            className="bg-background border-input"
-          />
-        </div>
-        <div className="space-y-2">
-          <Label htmlFor="website" className="text-foreground">Website</Label>
-          <Input
-            id="website"
-            value={formData.website}
-            onChange={(e) => handleChange("website", e.target.value)}
-            placeholder="https://fornecedor.com.br"
-            className="bg-background border-input"
-          />
+      <div className="space-y-4">
+        <h3 className="text-sm font-medium text-foreground">Informações Básicas</h3>
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
+          <div className="space-y-1.5 sm:space-y-2">
+            <Label htmlFor="name" className="text-foreground text-sm">Nome do Fornecedor *</Label>
+            <Input
+              id="name"
+              value={formData.name}
+              onChange={(e) => handleChange("name", e.target.value)}
+              placeholder="Ex: Atacado China Brasil"
+              className="bg-background border-input h-9 sm:h-10"
+            />
+          </div>
+          <div className="space-y-1.5 sm:space-y-2">
+            <Label htmlFor="contact_name" className="text-foreground text-sm">Nome do Contato</Label>
+            <Input
+              id="contact_name"
+              value={formData.contact_name}
+              onChange={(e) => handleChange("contact_name", e.target.value)}
+              placeholder="Ex: João Silva"
+              className="bg-background border-input h-9 sm:h-10"
+            />
+          </div>
+          <div className="space-y-1.5 sm:space-y-2">
+            <Label htmlFor="email" className="text-foreground text-sm">Email</Label>
+            <Input
+              id="email"
+              type="email"
+              value={formData.email}
+              onChange={(e) => handleChange("email", e.target.value)}
+              placeholder="contato@fornecedor.com"
+              className="bg-background border-input h-9 sm:h-10"
+            />
+          </div>
+          <div className="space-y-1.5 sm:space-y-2">
+            <Label htmlFor="phone" className="text-foreground text-sm">Telefone/WhatsApp</Label>
+            <Input
+              id="phone"
+              value={formData.phone}
+              onChange={(e) => handleChange("phone", e.target.value)}
+              placeholder="(11) 99999-9999"
+              className="bg-background border-input h-9 sm:h-10"
+            />
+          </div>
+          <div className="space-y-1.5 sm:space-y-2">
+            <Label htmlFor="cnpj_cpf" className="text-foreground text-sm">CNPJ/CPF</Label>
+            <Input
+              id="cnpj_cpf"
+              value={formData.cnpj_cpf}
+              onChange={(e) => handleChange("cnpj_cpf", e.target.value)}
+              placeholder="00.000.000/0001-00"
+              className="bg-background border-input h-9 sm:h-10"
+            />
+          </div>
+          <div className="space-y-1.5 sm:space-y-2">
+            <Label htmlFor="website" className="text-foreground text-sm">Website</Label>
+            <Input
+              id="website"
+              value={formData.website}
+              onChange={(e) => handleChange("website", e.target.value)}
+              placeholder="https://fornecedor.com.br"
+              className="bg-background border-input h-9 sm:h-10"
+            />
+          </div>
         </div>
       </div>
 
       {/* Address */}
-      <div className="space-y-4">
+      <div className="space-y-3 sm:space-y-4">
         <h3 className="text-sm font-medium text-foreground">Endereço</h3>
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          <div className="md:col-span-2 space-y-2">
-            <Label htmlFor="street" className="text-foreground">Rua</Label>
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4">
+          <div className="sm:col-span-2 lg:col-span-2 space-y-1.5 sm:space-y-2">
+            <Label htmlFor="street" className="text-foreground text-sm">Rua</Label>
             <Input
               id="street"
               value={formData.address.street}
               onChange={(e) => handleAddressChange("street", e.target.value)}
               placeholder="Rua das Flores"
-              className="bg-background border-input"
+              className="bg-background border-input h-9 sm:h-10"
             />
           </div>
-          <div className="space-y-2">
-            <Label htmlFor="number" className="text-foreground">Número</Label>
+          <div className="space-y-1.5 sm:space-y-2">
+            <Label htmlFor="number" className="text-foreground text-sm">Número</Label>
             <Input
               id="number"
               value={formData.address.number}
               onChange={(e) => handleAddressChange("number", e.target.value)}
               placeholder="123"
-              className="bg-background border-input"
+              className="bg-background border-input h-9 sm:h-10"
             />
           </div>
-          <div className="space-y-2">
-            <Label htmlFor="complement" className="text-foreground">Complemento</Label>
+          <div className="space-y-1.5 sm:space-y-2">
+            <Label htmlFor="complement" className="text-foreground text-sm">Complemento</Label>
             <Input
               id="complement"
               value={formData.address.complement}
               onChange={(e) => handleAddressChange("complement", e.target.value)}
               placeholder="Sala 10"
-              className="bg-background border-input"
+              className="bg-background border-input h-9 sm:h-10"
             />
           </div>
-          <div className="space-y-2">
-            <Label htmlFor="neighborhood" className="text-foreground">Bairro</Label>
+          <div className="space-y-1.5 sm:space-y-2">
+            <Label htmlFor="neighborhood" className="text-foreground text-sm">Bairro</Label>
             <Input
               id="neighborhood"
               value={formData.address.neighborhood}
               onChange={(e) => handleAddressChange("neighborhood", e.target.value)}
               placeholder="Centro"
-              className="bg-background border-input"
+              className="bg-background border-input h-9 sm:h-10"
             />
           </div>
-          <div className="space-y-2">
-            <Label htmlFor="zip_code" className="text-foreground">CEP</Label>
+          <div className="space-y-1.5 sm:space-y-2">
+            <Label htmlFor="zip_code" className="text-foreground text-sm">CEP</Label>
             <Input
               id="zip_code"
               value={formData.address.zip_code}
               onChange={(e) => handleAddressChange("zip_code", e.target.value)}
               placeholder="00000-000"
-              className="bg-background border-input"
+              className="bg-background border-input h-9 sm:h-10"
             />
           </div>
-          <div className="space-y-2">
-            <Label htmlFor="city" className="text-foreground">Cidade</Label>
+          <div className="space-y-1.5 sm:space-y-2">
+            <Label htmlFor="city" className="text-foreground text-sm">Cidade</Label>
             <Input
               id="city"
               value={formData.address.city}
               onChange={(e) => handleAddressChange("city", e.target.value)}
               placeholder="São Paulo"
-              className="bg-background border-input"
+              className="bg-background border-input h-9 sm:h-10"
             />
           </div>
-          <div className="space-y-2">
-            <Label htmlFor="state" className="text-foreground">Estado</Label>
+          <div className="space-y-1.5 sm:space-y-2">
+            <Label htmlFor="state" className="text-foreground text-sm">Estado</Label>
             <Input
               id="state"
               value={formData.address.state}
               onChange={(e) => handleAddressChange("state", e.target.value)}
               placeholder="SP"
-              className="bg-background border-input"
+              className="bg-background border-input h-9 sm:h-10"
             />
           </div>
         </div>
       </div>
 
       {/* Payment Terms and Notes */}
-      <div className="space-y-4">
-        <div className="space-y-2">
-          <Label htmlFor="payment_terms" className="text-foreground">Condições de Pagamento</Label>
-          <Input
-            id="payment_terms"
-            value={formData.payment_terms}
-            onChange={(e) => handleChange("payment_terms", e.target.value)}
-            placeholder="Ex: 30/60/90 dias, PIX, Boleto"
-            className="bg-background border-input"
-          />
-        </div>
-        <div className="space-y-2">
-          <Label htmlFor="notes" className="text-foreground">Observações</Label>
-          <Textarea
-            id="notes"
-            value={formData.notes}
-            onChange={(e) => handleChange("notes", e.target.value)}
-            placeholder="Anotações sobre o fornecedor..."
-            rows={3}
-            className="bg-background border-input resize-none"
-          />
+      <div className="space-y-3 sm:space-y-4">
+        <h3 className="text-sm font-medium text-foreground">Pagamento e Observações</h3>
+        <div className="grid grid-cols-1 gap-3 sm:gap-4">
+          <div className="space-y-1.5 sm:space-y-2">
+            <Label htmlFor="payment_terms" className="text-foreground text-sm">Condições de Pagamento</Label>
+            <Input
+              id="payment_terms"
+              value={formData.payment_terms}
+              onChange={(e) => handleChange("payment_terms", e.target.value)}
+              placeholder="Ex: 30/60/90 dias, PIX, Boleto"
+              className="bg-background border-input h-9 sm:h-10"
+            />
+          </div>
+          <div className="space-y-1.5 sm:space-y-2">
+            <Label htmlFor="notes" className="text-foreground text-sm">Observações</Label>
+            <Textarea
+              id="notes"
+              value={formData.notes}
+              onChange={(e) => handleChange("notes", e.target.value)}
+              placeholder="Anotações sobre o fornecedor..."
+              rows={2}
+              className="bg-background border-input resize-none text-sm"
+            />
+          </div>
         </div>
       </div>
 
@@ -302,18 +308,24 @@ export const SupplierForm = ({ supplier, onSaved, onCancel }: SupplierFormProps)
           checked={formData.is_active}
           onCheckedChange={(checked) => handleChange("is_active", checked)}
         />
-        <Label htmlFor="is_active" className="text-foreground">Fornecedor ativo</Label>
+        <Label htmlFor="is_active" className="text-foreground text-sm">Fornecedor ativo</Label>
       </div>
 
       {/* Actions */}
-      <div className="flex justify-end gap-3 pt-4 border-t border-border">
-        <Button type="button" variant="outline" onClick={onCancel} disabled={loading}>
+      <div className="flex flex-col-reverse sm:flex-row justify-end gap-2 sm:gap-3 pt-4 border-t border-border">
+        <Button 
+          type="button" 
+          variant="outline" 
+          onClick={onCancel} 
+          disabled={loading}
+          className="w-full sm:w-auto"
+        >
           Cancelar
         </Button>
         <Button
           type="submit"
           disabled={loading}
-          className="bg-gradient-primary text-primary-foreground"
+          className="bg-gradient-primary text-primary-foreground w-full sm:w-auto"
         >
           {loading && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
           {supplier ? "Salvar Alterações" : "Cadastrar Fornecedor"}
