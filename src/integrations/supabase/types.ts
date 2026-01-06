@@ -591,6 +591,45 @@ export type Database = {
           },
         ]
       }
+      scheduled_reports: {
+        Row: {
+          created_at: string
+          format: string
+          frequency: string
+          id: string
+          is_active: boolean
+          last_sent_at: string | null
+          next_run_at: string
+          report_type: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          format?: string
+          frequency: string
+          id?: string
+          is_active?: boolean
+          last_sent_at?: string | null
+          next_run_at: string
+          report_type: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          format?: string
+          frequency?: string
+          id?: string
+          is_active?: boolean
+          last_sent_at?: string | null
+          next_run_at?: string
+          report_type?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       suppliers: {
         Row: {
           address: Json | null

@@ -1,9 +1,9 @@
-import { useState } from "react";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { useState, useEffect } from "react";
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { FileText, Download, Calendar, Crown, TrendingUp, BarChart3, Package, Target } from "lucide-react";
+import { FileText, Download, Calendar, Crown, TrendingUp, BarChart3, Package, Target, Clock, Bell, Trash2, Plus } from "lucide-react";
 import { usePlan, FeatureName } from "@/hooks/usePlan";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
@@ -14,17 +14,207 @@ import { Calendar as CalendarComponent } from "@/components/ui/calendar";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { DateRange } from "react-day-picker";
+import { Switch } from "@/components/ui/switch";
+import { useAuthSession } from "@/hooks/useAuthSession";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+} from "@/components/ui/dialog";
+
+interface ScheduledReport {
+  id: string;
+  report_type: string;
+  frequency: string;
+  format: string;
+  is_active: boolean;
+  last_sent_at: string | null;
+  next_run_at: string;
+}
+
+const FREQUENCY_OPTIONS = [
+  { value: "daily", label: "Diário" },
+  { value: "weekly", label: "Semanal" },
+  { value: "monthly", label: "Mensal" },
+  { value: "quarterly", label: "Trimestral" },
+  { value: "semiannual", label: "Semestral" },
+  { value: "annual", label: "Anual" },
+];
+
+const FREQUENCY_LABELS: Record<string, string> = {
+  daily: "Diário",
+  weekly: "Semanal",
+  monthly: "Mensal",
+  quarterly: "Trimestral",
+  semiannual: "Semestral",
+  annual: "Anual",
+};
+
+const REPORT_TYPE_LABELS: Record<string, string> = {
+  sales: "Vendas",
+  profitability: "Lucratividade",
+  marketplace_performance: "Performance por Marketplace",
+  trends: "Tendências",
+  stock_forecast: "Previsão de Estoque",
+  roi_by_channel: "ROI por Canal",
+};
+
+function calculateNextRun(frequency: string): Date {
+  const now = new Date();
+  const intervals: Record<string, number> = {
+    daily: 1,
+    weekly: 7,
+    monthly: 30,
+    quarterly: 90,
+    semiannual: 180,
+    annual: 365,
+  };
+  now.setDate(now.getDate() + (intervals[frequency] || 30));
+  return now;
+}
 
 export default function Reports() {
   const { hasFeature, isLoading: planLoading } = usePlan();
   const { toast } = useToast();
+  const { user } = useAuthSession();
   const [reportType, setReportType] = useState("");
   const [period, setPeriod] = useState("");
   const [formatType, setFormatType] = useState("");
   const [isGenerating, setIsGenerating] = useState(false);
   const [customDateRange, setCustomDateRange] = useState<DateRange | undefined>();
+  
+  // Scheduling states
+  const [scheduledReports, setScheduledReports] = useState<ScheduledReport[]>([]);
+  const [isScheduleDialogOpen, setIsScheduleDialogOpen] = useState(false);
+  const [scheduleReportType, setScheduleReportType] = useState("");
+  const [scheduleFrequency, setScheduleFrequency] = useState("");
+  const [scheduleFormat, setScheduleFormat] = useState("PDF");
+  const [isCreatingSchedule, setIsCreatingSchedule] = useState(false);
+  const [loadingSchedules, setLoadingSchedules] = useState(true);
 
   const hasAdvancedReports = hasFeature(FeatureName.ADVANCED_REPORTS);
+
+  // Load scheduled reports
+  useEffect(() => {
+    if (user) {
+      loadScheduledReports();
+    }
+  }, [user]);
+
+  const loadScheduledReports = async () => {
+    if (!user) return;
+    
+    setLoadingSchedules(true);
+    try {
+      const { data, error } = await supabase
+        .from("scheduled_reports")
+        .select("*")
+        .eq("user_id", user.id)
+        .order("created_at", { ascending: false });
+
+      if (error) throw error;
+      setScheduledReports(data || []);
+    } catch (error) {
+      console.error("Error loading scheduled reports:", error);
+    } finally {
+      setLoadingSchedules(false);
+    }
+  };
+
+  const handleCreateSchedule = async () => {
+    if (!scheduleReportType || !scheduleFrequency || !user) {
+      toast({
+        title: "Erro",
+        description: "Preencha todos os campos.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setIsCreatingSchedule(true);
+    try {
+      const nextRun = calculateNextRun(scheduleFrequency);
+      
+      const { error } = await supabase.from("scheduled_reports").insert({
+        user_id: user.id,
+        report_type: scheduleReportType,
+        frequency: scheduleFrequency,
+        format: scheduleFormat,
+        next_run_at: nextRun.toISOString(),
+      });
+
+      if (error) throw error;
+
+      toast({
+        title: "Agendamento criado",
+        description: `Relatório ${REPORT_TYPE_LABELS[scheduleReportType]} será enviado ${FREQUENCY_LABELS[scheduleFrequency].toLowerCase()}.`,
+      });
+      
+      setIsScheduleDialogOpen(false);
+      setScheduleReportType("");
+      setScheduleFrequency("");
+      setScheduleFormat("PDF");
+      loadScheduledReports();
+    } catch (error) {
+      console.error("Error creating schedule:", error);
+      toast({
+        title: "Erro",
+        description: "Não foi possível criar o agendamento.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsCreatingSchedule(false);
+    }
+  };
+
+  const handleToggleSchedule = async (id: string, isActive: boolean) => {
+    try {
+      const { error } = await supabase
+        .from("scheduled_reports")
+        .update({ is_active: isActive })
+        .eq("id", id);
+
+      if (error) throw error;
+
+      setScheduledReports((prev) =>
+        prev.map((r) => (r.id === id ? { ...r, is_active: isActive } : r))
+      );
+
+      toast({
+        title: isActive ? "Agendamento ativado" : "Agendamento pausado",
+      });
+    } catch (error) {
+      console.error("Error toggling schedule:", error);
+      toast({
+        title: "Erro",
+        description: "Não foi possível atualizar o agendamento.",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const handleDeleteSchedule = async (id: string) => {
+    try {
+      const { error } = await supabase
+        .from("scheduled_reports")
+        .delete()
+        .eq("id", id);
+
+      if (error) throw error;
+
+      setScheduledReports((prev) => prev.filter((r) => r.id !== id));
+      toast({ title: "Agendamento removido" });
+    } catch (error) {
+      console.error("Error deleting schedule:", error);
+      toast({
+        title: "Erro",
+        description: "Não foi possível remover o agendamento.",
+        variant: "destructive",
+      });
+    }
+  };
 
   // Check access - wait for plan to load
   if (planLoading) {
@@ -387,6 +577,163 @@ export default function Reports() {
           </CardContent>
         </Card>
       </div>
+
+      {/* Scheduled Reports Section */}
+      <Card>
+        <CardHeader className="flex flex-row items-center justify-between">
+          <div>
+            <CardTitle className="flex items-center">
+              <Clock className="h-5 w-5 mr-2" />
+              Relatórios Agendados
+            </CardTitle>
+            <CardDescription>
+              Receba relatórios automaticamente no seu email
+            </CardDescription>
+          </div>
+          <Button onClick={() => setIsScheduleDialogOpen(true)} size="sm">
+            <Plus className="h-4 w-4 mr-2" />
+            Novo Agendamento
+          </Button>
+        </CardHeader>
+        <CardContent>
+          {loadingSchedules ? (
+            <div className="text-center py-8 text-muted-foreground">Carregando...</div>
+          ) : scheduledReports.length === 0 ? (
+            <div className="text-center py-8">
+              <Bell className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
+              <p className="text-muted-foreground">
+                Nenhum relatório agendado. Crie um agendamento para receber relatórios automaticamente.
+              </p>
+            </div>
+          ) : (
+            <div className="space-y-3">
+              {scheduledReports.map((schedule) => (
+                <div
+                  key={schedule.id}
+                  className="flex items-center justify-between p-4 rounded-lg bg-muted/50 border border-border"
+                >
+                  <div className="flex items-center gap-4">
+                    <div className={`p-2 rounded-lg ${schedule.is_active ? 'bg-primary/10' : 'bg-muted'}`}>
+                      <FileText className={`h-5 w-5 ${schedule.is_active ? 'text-primary' : 'text-muted-foreground'}`} />
+                    </div>
+                    <div>
+                      <p className="font-medium">
+                        {REPORT_TYPE_LABELS[schedule.report_type] || schedule.report_type}
+                      </p>
+                      <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                        <Badge variant="secondary" className="text-xs">
+                          {FREQUENCY_LABELS[schedule.frequency] || schedule.frequency}
+                        </Badge>
+                        <span>•</span>
+                        <span>{schedule.format}</span>
+                        {schedule.last_sent_at && (
+                          <>
+                            <span>•</span>
+                            <span>Último envio: {format(new Date(schedule.last_sent_at), "dd/MM/yyyy", { locale: ptBR })}</span>
+                          </>
+                        )}
+                      </div>
+                      <p className="text-xs text-muted-foreground mt-1">
+                        Próximo envio: {format(new Date(schedule.next_run_at), "dd/MM/yyyy 'às' HH:mm", { locale: ptBR })}
+                      </p>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-3">
+                    <div className="flex items-center gap-2">
+                      <Label htmlFor={`toggle-${schedule.id}`} className="text-sm text-muted-foreground">
+                        {schedule.is_active ? "Ativo" : "Pausado"}
+                      </Label>
+                      <Switch
+                        id={`toggle-${schedule.id}`}
+                        checked={schedule.is_active}
+                        onCheckedChange={(checked) => handleToggleSchedule(schedule.id, checked)}
+                      />
+                    </div>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      onClick={() => handleDeleteSchedule(schedule.id)}
+                      className="text-muted-foreground hover:text-destructive"
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </Button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </CardContent>
+      </Card>
+
+      {/* Schedule Dialog */}
+      <Dialog open={isScheduleDialogOpen} onOpenChange={setIsScheduleDialogOpen}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Agendar Relatório</DialogTitle>
+            <DialogDescription>
+              Configure um relatório para ser enviado automaticamente para seu email.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 pt-4">
+            <div>
+              <Label>Tipo de Relatório</Label>
+              <Select value={scheduleReportType} onValueChange={setScheduleReportType}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Selecione o tipo" />
+                </SelectTrigger>
+                <SelectContent>
+                  {reportTypeOptions.map((option) => (
+                    <SelectItem key={option.value} value={option.value}>
+                      <div className="flex items-center gap-2">
+                        <option.icon className="h-4 w-4 text-muted-foreground" />
+                        <span>{option.label}</span>
+                      </div>
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div>
+              <Label>Frequência</Label>
+              <Select value={scheduleFrequency} onValueChange={setScheduleFrequency}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Selecione a frequência" />
+                </SelectTrigger>
+                <SelectContent>
+                  {FREQUENCY_OPTIONS.map((option) => (
+                    <SelectItem key={option.value} value={option.value}>
+                      {option.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div>
+              <Label>Formato</Label>
+              <Select value={scheduleFormat} onValueChange={setScheduleFormat}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Selecione o formato" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="PDF">PDF</SelectItem>
+                  <SelectItem value="CSV">CSV</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="flex justify-end gap-2 pt-4">
+              <Button variant="outline" onClick={() => setIsScheduleDialogOpen(false)}>
+                Cancelar
+              </Button>
+              <Button onClick={handleCreateSchedule} disabled={isCreatingSchedule}>
+                {isCreatingSchedule ? "Criando..." : "Criar Agendamento"}
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
