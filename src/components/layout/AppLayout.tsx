@@ -8,6 +8,7 @@ import { useAuthSession } from "@/hooks/useAuthSession";
 import { useThemeProvider } from "@/components/layout/ThemeProvider";
 import { usePlan } from "@/hooks/usePlan";
 import { NotificationsPopover } from "@/components/notifications/NotificationsPopover";
+import { PushNotificationPrompt } from "@/components/notifications/PushNotificationPrompt";
 import { supabase } from "@/integrations/supabase/client";
 import { useIsMobile } from "@/hooks/use-mobile";
 
@@ -158,6 +159,9 @@ export const AppLayout = () => {
           <Outlet />
         </main>
       </div>
+
+      {/* Push Notification Prompt */}
+      <PushNotificationPrompt />
     </div>
   );
 };

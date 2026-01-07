@@ -6,6 +6,7 @@ import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Separator } from "@/components/ui/separator";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -27,12 +28,14 @@ import {
   Camera, 
   Save,
   Loader2,
-  Database
+  Database,
+  Bell
 } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import { usePlan } from "@/hooks/usePlan";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
+import { NotificationPreferences } from "@/components/notifications/NotificationPreferences";
 
 interface ProfileData {
   full_name: string;
@@ -437,11 +440,24 @@ export default function Profile() {
         </p>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* Profile Information */}
-        <div className="lg:col-span-2 space-y-6">
-          <Card>
-            <CardHeader>
+      <Tabs defaultValue="profile" className="space-y-6">
+        <TabsList>
+          <TabsTrigger value="profile" className="gap-2">
+            <User className="h-4 w-4" />
+            Perfil
+          </TabsTrigger>
+          <TabsTrigger value="notifications" className="gap-2">
+            <Bell className="h-4 w-4" />
+            Notificações
+          </TabsTrigger>
+        </TabsList>
+
+        <TabsContent value="profile">
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            {/* Profile Information */}
+            <div className="lg:col-span-2 space-y-6">
+              <Card>
+                <CardHeader>
               <CardTitle className="flex items-center gap-2">
                 <User className="h-5 w-5 text-primary" />
                 Informações do Perfil
@@ -803,6 +819,12 @@ export default function Profile() {
           </Card>
         </div>
       </div>
+        </TabsContent>
+
+        <TabsContent value="notifications">
+          <NotificationPreferences />
+        </TabsContent>
+      </Tabs>
     </div>
   );
 }

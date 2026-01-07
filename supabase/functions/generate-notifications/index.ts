@@ -1,5 +1,6 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { Resend } from "npm:resend@4.0.0";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -12,6 +13,8 @@ interface NotificationData {
   message: string;
   type: string;
 }
+
+const resend = new Resend(Deno.env.get("RESEND_API_KEY"));
 
 serve(async (req) => {
   if (req.method === "OPTIONS") {
@@ -41,10 +44,56 @@ serve(async (req) => {
 
     // Insert all notifications (avoiding duplicates)
     let insertedCount = 0;
+    const notificationsToSend: Array<{ notification: NotificationData; preferences: any; email: string }> = [];
+
     for (const notification of notifications) {
       const inserted = await insertNotificationIfNotExists(supabase, notification);
-      if (inserted) insertedCount++;
+      if (inserted) {
+        insertedCount++;
+        
+        // Fetch user preferences and email for sending
+        const { data: profile } = await supabase
+          .from("profiles")
+          .select("email")
+          .eq("id", notification.user_id)
+          .single();
+
+        const { data: preferences } = await supabase
+          .from("notification_preferences")
+          .select("*")
+          .eq("user_id", notification.user_id)
+          .single();
+
+        if (profile?.email) {
+          notificationsToSend.push({
+            notification,
+            preferences: preferences || { email_enabled: true, push_enabled: true },
+            email: profile.email,
+          });
+        }
+      }
     }
+
+    // Send emails and push notifications in background
+    const sendPromises = notificationsToSend.map(async ({ notification, preferences, email }) => {
+      // Check notification type preferences
+      const shouldNotify = checkNotificationTypePreference(preferences, notification.type);
+      
+      if (!shouldNotify) {
+        console.log(`🔕 Notificação ${notification.type} desabilitada para usuário`);
+        return;
+      }
+
+      // Send email if enabled
+      if (preferences.email_enabled) {
+        await sendEmailNotification(email, notification);
+      }
+
+      // Push notification is handled via real-time subscription
+      // The client receives the notification automatically
+    });
+
+    await Promise.allSettled(sendPromises);
 
     console.log(`📊 Resumo: ${notifications.length} alertas detectados, ${insertedCount} notificações criadas`);
 
@@ -53,6 +102,7 @@ serve(async (req) => {
         success: true,
         detected: notifications.length,
         created: insertedCount,
+        emails_sent: notificationsToSend.filter(n => n.preferences.email_enabled).length,
       }),
       { headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
@@ -64,6 +114,70 @@ serve(async (req) => {
     );
   }
 });
+
+function checkNotificationTypePreference(preferences: any, type: string): boolean {
+  if (!preferences) return true;
+  
+  switch (type) {
+    case "low_stock":
+      return preferences.low_stock_alerts !== false;
+    case "token_expiring":
+      return preferences.token_expiring_alerts !== false;
+    case "sync_error":
+      return preferences.sync_error_alerts !== false;
+    default:
+      return true;
+  }
+}
+
+async function sendEmailNotification(email: string, notification: NotificationData) {
+  try {
+    console.log(`📧 Enviando email para ${email}: ${notification.title}`);
+    
+    const { data, error } = await resend.emails.send({
+      from: "UNISTOCK <notificacoes@resend.dev>",
+      to: [email],
+      subject: notification.title.replace(/[🚨⚠️⏰❌]/g, "").trim(),
+      html: `
+        <!DOCTYPE html>
+        <html>
+        <head>
+          <meta charset="utf-8">
+          <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        </head>
+        <body style="font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; margin: 0; padding: 0; background-color: #f1f1f1;">
+          <div style="max-width: 600px; margin: 0 auto; padding: 20px;">
+            <div style="background-color: #121212; padding: 20px; border-radius: 8px 8px 0 0; text-align: center;">
+              <h1 style="color: #ffffff; margin: 0; font-size: 24px;">UNISTOCK</h1>
+            </div>
+            <div style="background-color: #ffffff; padding: 30px; border-radius: 0 0 8px 8px;">
+              <h2 style="color: #121212; margin: 0 0 20px 0; font-size: 20px;">${notification.title}</h2>
+              <p style="color: #666666; line-height: 1.6; margin: 0 0 20px 0;">${notification.message}</p>
+              <a href="https://fcvwogaqarkuqvumyqqm.lovable.app/app/dashboard" 
+                 style="display: inline-block; background-color: #DF8F06; color: #ffffff; padding: 12px 24px; text-decoration: none; border-radius: 6px; font-weight: 600;">
+                Ver no Dashboard
+              </a>
+              <hr style="border: none; border-top: 1px solid #eeeeee; margin: 30px 0;">
+              <p style="color: #999999; font-size: 12px; margin: 0;">
+                Você recebeu este email porque tem notificações ativas na sua conta UNISTOCK.
+                <br>Para gerenciar suas preferências de notificação, acesse as configurações do seu perfil.
+              </p>
+            </div>
+          </div>
+        </body>
+        </html>
+      `,
+    });
+
+    if (error) {
+      console.error("Erro ao enviar email:", error);
+    } else {
+      console.log("✅ Email enviado com sucesso:", data?.id);
+    }
+  } catch (error) {
+    console.error("Erro ao enviar email:", error);
+  }
+}
 
 async function checkLowStock(supabase: any): Promise<NotificationData[]> {
   const notifications: NotificationData[] = [];
