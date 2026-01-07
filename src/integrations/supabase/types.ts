@@ -817,6 +817,15 @@ export type Database = {
           migrated_count: number
         }[]
       }
+      notify_user: {
+        Args: {
+          p_message: string
+          p_title: string
+          p_type: string
+          p_user_id: string
+        }
+        Returns: undefined
+      }
     }
     Enums: {
       app_role: "admin" | "user"
