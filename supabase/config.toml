@@ -110,3 +110,9 @@ verify_jwt = true
 
 [functions.send-scheduled-reports]
 verify_jwt = false
+
+[functions.generate-notifications]
+verify_jwt = false
+
+[functions.send-push-notification]
+verify_jwt = true
