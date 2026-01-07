@@ -79,6 +79,30 @@ const formatCurrency = (value: number) => {
   }).format(value);
 };
 
+const exportOrdersToCSV = (orders: FormattedOrder[]) => {
+  const headers = ['ID do Pedido', 'Canal', 'Data', 'Cliente', 'Itens', 'Valor Total', 'Status'];
+  
+  const csvContent = [
+    headers.join(';'),
+    ...orders.map(order => [
+      order.id,
+      order.channel,
+      new Date(order.date).toLocaleDateString('pt-BR'),
+      order.customer,
+      order.items,
+      order.total,
+      order.status
+    ].join(';'))
+  ].join('\n');
+
+  const blob = new Blob(['\uFEFF' + csvContent], { type: 'text/csv;charset=utf-8;' });
+  const link = document.createElement('a');
+  link.href = URL.createObjectURL(blob);
+  link.download = `pedidos_${new Date().toISOString().split('T')[0]}.csv`;
+  link.click();
+  URL.revokeObjectURL(link.href);
+};
+
 export default function Orders() {
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedChannel, setSelectedChannel] = useState("Todos os Canais");
@@ -268,7 +292,12 @@ export default function Orders() {
               )}
               Sincronizar
             </Button>
-            <Button variant="outline" className="gap-2">
+            <Button 
+              variant="outline" 
+              className="gap-2"
+              onClick={() => exportOrdersToCSV(filteredOrders)}
+              disabled={filteredOrders.length === 0}
+            >
               <Download className="h-4 w-4" />
               Exportar
             </Button>
@@ -330,7 +359,12 @@ export default function Orders() {
             )}
             Sincronizar
           </Button>
-          <Button variant="outline" className="gap-2">
+          <Button 
+            variant="outline" 
+            className="gap-2"
+            onClick={() => exportOrdersToCSV(filteredOrders)}
+            disabled={filteredOrders.length === 0}
+          >
             <Download className="h-4 w-4" />
             Exportar
           </Button>
