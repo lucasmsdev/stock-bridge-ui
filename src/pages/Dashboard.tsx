@@ -1,7 +1,8 @@
-import { TrendingUp, Package, ShoppingCart, Plug2, DollarSign, Loader2, TrendingDown, Users, Receipt, Target, Percent, Store, Calendar, Wallet, AlertTriangle, Sparkles, Trash2 } from "lucide-react";
+import { TrendingUp, Package, ShoppingCart, Plug2, DollarSign, Loader2, Receipt, Target, Store, Calendar, Wallet, AlertTriangle, Sparkles, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import DashboardFilters, { DashboardFiltersState } from "@/components/dashboard/DashboardFilters";
 import { useEffect, useState, useCallback } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
@@ -81,10 +82,54 @@ const formatDate = (dateStr: string) => {
   return date.toLocaleDateString('pt-BR', { month: 'short', day: 'numeric' });
 };
 
+// Helper para calcular range de datas baseado no período
+const calculateDateRange = (period: string, customStart?: Date, customEnd?: Date) => {
+  const now = new Date();
+  let startDate: Date;
+  let endDate = now;
+
+  switch (period) {
+    case 'today':
+      startDate = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+      break;
+    case '7days':
+      startDate = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+      break;
+    case '30days':
+      startDate = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
+      break;
+    case '90days':
+      startDate = new Date(now.getTime() - 90 * 24 * 60 * 60 * 1000);
+      break;
+    case '180days':
+      startDate = new Date(now.getTime() - 180 * 24 * 60 * 60 * 1000);
+      break;
+    case 'this_month':
+      startDate = new Date(now.getFullYear(), now.getMonth(), 1);
+      break;
+    case 'last_month':
+      startDate = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+      endDate = new Date(now.getFullYear(), now.getMonth(), 0);
+      break;
+    case 'custom':
+      startDate = customStart || new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
+      endDate = customEnd || now;
+      break;
+    default:
+      startDate = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+  }
+
+  return { startDate, endDate };
+};
+
 export default function Dashboard() {
   const [dashboardData, setDashboardData] = useState<DashboardMetrics>(emptyMetrics);
   const [isLoading, setIsLoading] = useState(true);
   const [hasData, setHasData] = useState(false);
+  const [activeFilters, setActiveFilters] = useState<DashboardFiltersState>({
+    marketplace: "all",
+    period: "30days",
+  });
   const [expenses, setExpenses] = useState<Expense[]>([]);
   const [totalMonthlyExpenses, setTotalMonthlyExpenses] = useState(0);
   const [monthlyProfitData, setMonthlyProfitData] = useState<MonthlyProfitData[]>([]);
@@ -111,7 +156,7 @@ export default function Dashboard() {
       });
       
       // Recarregar dados
-      loadAllData();
+      loadAllData(activeFilters);
     } catch (error: any) {
       console.error('Erro ao gerar dados demo:', error);
       toast({
@@ -144,7 +189,7 @@ export default function Dashboard() {
       });
       
       // Recarregar dados
-      loadAllData();
+      loadAllData(activeFilters);
     } catch (error: any) {
       console.error('Erro ao apagar dados:', error);
       toast({
@@ -188,7 +233,7 @@ export default function Dashboard() {
   };
 
   // Carregar todos os dados diretamente do banco
-  const loadAllData = useCallback(async () => {
+  const loadAllData = useCallback(async (filters: DashboardFiltersState) => {
     if (!user?.id) {
       setIsLoading(false);
       return;
@@ -199,8 +244,14 @@ export default function Dashboard() {
     try {
       const now = new Date();
       const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate()).toISOString();
-      const thirtyDaysAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000).toISOString();
       const sixMonthsAgo = new Date(now.getFullYear(), now.getMonth() - 5, 1).toISOString();
+      
+      // Calcular range baseado no filtro
+      const { startDate: periodStart, endDate: periodEnd } = calculateDateRange(
+        filters.period,
+        filters.startDate,
+        filters.endDate
+      );
 
       // Queries paralelas - sem Edge Function!
       const [productsRes, todayOrdersRes, periodOrdersRes, allOrdersRes, expensesRes] = await Promise.all([
@@ -217,12 +268,13 @@ export default function Dashboard() {
           .eq('user_id', user.id)
           .gte('order_date', todayStart),
         
-        // Pedidos dos últimos 30 dias (para gráfico)
+        // Pedidos do período selecionado (para gráfico)
         supabase
           .from('orders')
-          .select('order_date, total_value')
+          .select('order_date, total_value, platform')
           .eq('user_id', user.id)
-          .gte('order_date', thirtyDaysAgo)
+          .gte('order_date', periodStart.toISOString())
+          .lte('order_date', periodEnd.toISOString())
           .order('order_date', { ascending: true }),
         
         // Pedidos dos últimos 6 meses (para evolução)
@@ -250,13 +302,23 @@ export default function Dashboard() {
       const todayOrdersCount = todayOrders.length;
       const todayRevenue = todayOrders.reduce((sum, o) => sum + Number(o.total_value || 0), 0);
 
-      // Processar pedidos do período para gráfico
-      const periodOrders = periodOrdersRes.data || [];
+      // Processar pedidos do período para gráfico (com filtro de marketplace)
+      let periodOrders = periodOrdersRes.data || [];
+      
+      // Aplicar filtro de marketplace se não for "all"
+      if (filters.marketplace !== 'all') {
+        periodOrders = periodOrders.filter(order => 
+          order.platform?.toLowerCase() === filters.marketplace.toLowerCase()
+        );
+      }
+
+      // Calcular número de dias no período
+      const daysDiff = Math.ceil((periodEnd.getTime() - periodStart.getTime()) / (1000 * 60 * 60 * 24));
       const salesByDay: Record<string, number> = {};
       
-      // Inicializar últimos 30 dias
-      for (let i = 29; i >= 0; i--) {
-        const date = new Date(now.getTime() - i * 24 * 60 * 60 * 1000);
+      // Inicializar dias do período
+      for (let i = daysDiff; i >= 0; i--) {
+        const date = new Date(periodEnd.getTime() - i * 24 * 60 * 60 * 1000);
         const key = date.toISOString().split('T')[0];
         salesByDay[key] = 0;
       }
@@ -345,10 +407,50 @@ export default function Dashboard() {
     }
   }, [user]);
 
+  // Handlers de filtros
+  const handleApplyFilters = (filters: DashboardFiltersState) => {
+    setActiveFilters(filters);
+    loadAllData(filters);
+  };
+
+  const handleClearFilters = () => {
+    const defaultFilters: DashboardFiltersState = {
+      marketplace: "all",
+      period: "30days",
+    };
+    setActiveFilters(defaultFilters);
+    loadAllData(defaultFilters);
+  };
+
+  const getPeriodLabel = () => {
+    const labels: Record<string, string> = {
+      today: "Hoje",
+      "7days": "Últimos 7 dias",
+      "30days": "Últimos 30 dias",
+      "90days": "Últimos 90 dias",
+      "180days": "Últimos 180 dias",
+      this_month: "Este mês",
+      last_month: "Mês passado",
+      custom: "Período personalizado",
+    };
+    return labels[activeFilters.period] || "Últimos 30 dias";
+  };
+
+  const getMarketplaceLabel = () => {
+    const labels: Record<string, string> = {
+      all: "Todos os Marketplaces",
+      mercadolivre: "Mercado Livre",
+      shopee: "Shopee",
+      amazon: "Amazon",
+      shopify: "Shopify",
+    };
+    return labels[activeFilters.marketplace] || "Todos os Marketplaces";
+  };
+
   // Carregar dados ao montar
   useEffect(() => {
-    loadAllData();
-  }, [loadAllData]);
+    loadAllData(activeFilters);
+  }, []);
 
   // Loading state
   if (isLoading) {
@@ -455,6 +557,29 @@ export default function Dashboard() {
         </div>
       </div>
 
+      {/* Filtros */}
+      <DashboardFilters
+        onApply={handleApplyFilters}
+        onClear={handleClearFilters}
+        isLoading={isLoading}
+      />
+
+      {/* Badges informativos dos filtros ativos */}
+      {(activeFilters.marketplace !== "all" || activeFilters.period !== "30days") && (
+        <div className="flex flex-wrap gap-2">
+          {activeFilters.marketplace !== "all" && (
+            <Badge variant="secondary" className="gap-1">
+              <Store className="h-3 w-3" />
+              {getMarketplaceLabel()}
+            </Badge>
+          )}
+          <Badge variant="secondary" className="gap-1">
+            <Calendar className="h-3 w-3" />
+            {getPeriodLabel()}
+          </Badge>
+        </div>
+      )}
+
       {!hasData && (
         <div className="p-8 text-center border border-dashed border-border rounded-lg bg-muted/20">
           <Package className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
@@ -503,7 +628,7 @@ export default function Dashboard() {
                     <Wallet className={`h-7 w-7 ${netProfit >= 0 ? 'text-emerald-500' : 'text-red-500'}`} />
                   </div>
                   <div>
-                    <p className="text-sm font-medium text-muted-foreground">LUCRO LÍQUIDO REAL</p>
+                    <p className="text-sm font-medium text-muted-foreground">LUCRO LÍQUIDO ({getPeriodLabel()})</p>
                     <p className={`text-3xl font-bold ${
                       netProfit >= 0 
                         ? 'text-emerald-600 dark:text-emerald-400' 
@@ -569,7 +694,7 @@ export default function Dashboard() {
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
                   <TrendingUp className="h-5 w-5 text-primary" />
-                  Vendas - Últimos 30 dias
+                  Vendas - {getPeriodLabel()}
                 </CardTitle>
               </CardHeader>
               <CardContent className="pb-8">
@@ -708,13 +833,13 @@ export default function Dashboard() {
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
                 <Target className="h-5 w-5 text-primary" />
-                Resumo do Período
+                Resumo do Período - {getPeriodLabel()}
               </CardTitle>
             </CardHeader>
             <CardContent>
               <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                 <div className="text-center p-4 rounded-lg bg-muted/50">
-                  <p className="text-xs text-muted-foreground mb-1">Faturamento (30 dias)</p>
+                  <p className="text-xs text-muted-foreground mb-1">Faturamento</p>
                   <p className="text-xl font-bold text-foreground">{formatCurrency(dashboardData.periodRevenue)}</p>
                 </div>
                 <div className="text-center p-4 rounded-lg bg-muted/50">
