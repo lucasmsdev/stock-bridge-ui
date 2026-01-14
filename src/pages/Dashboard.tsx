@@ -1,4 +1,5 @@
-import { TrendingUp, Package, ShoppingCart, Plug2, DollarSign, Loader2, TrendingDown, Users, Receipt, Target, Percent, Store, Calendar, Wallet, AlertTriangle } from "lucide-react";
+import { TrendingUp, Package, ShoppingCart, Plug2, DollarSign, Loader2, TrendingDown, Users, Receipt, Target, Percent, Store, Calendar, Wallet, AlertTriangle, Sparkles, Trash2 } from "lucide-react";
+import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import DashboardFilters, { DashboardFiltersState } from "@/components/dashboard/DashboardFilters";
@@ -123,10 +124,78 @@ export default function Dashboard() {
   const [totalMonthlyExpenses, setTotalMonthlyExpenses] = useState(0);
   const [monthlyProfitData, setMonthlyProfitData] = useState<MonthlyProfitData[]>([]);
   const [isAdmin, setIsAdmin] = useState(false);
+  const [isGeneratingDemo, setIsGeneratingDemo] = useState(false);
+  const [isDeletingDemo, setIsDeletingDemo] = useState(false);
   
   const { user } = useAuth();
   const { toast } = useToast();
   const { currentPlan } = usePlan();
+
+  // Gerar dados demo para screenshots
+  const handleGenerateDemoData = async () => {
+    if (!user?.id) return;
+    
+    setIsGeneratingDemo(true);
+    try {
+      const { data, error } = await supabase.functions.invoke('seed-demo-data');
+      
+      if (error) throw error;
+      
+      toast({
+        title: "🎉 Dados gerados com sucesso!",
+        description: `${data.summary.pedidos} pedidos, ${data.summary.produtos} produtos criados. Recarregando...`,
+      });
+      
+      // Recarregar dashboard
+      setTimeout(() => {
+        window.location.reload();
+      }, 1500);
+    } catch (error: any) {
+      console.error('Erro ao gerar dados demo:', error);
+      toast({
+        variant: "destructive",
+        title: "Erro ao gerar dados",
+        description: error.message || "Tente novamente",
+      });
+    } finally {
+      setIsGeneratingDemo(false);
+    }
+  };
+
+  // Limpar dados demo
+  const handleDeleteDemoData = async () => {
+    if (!user?.id) return;
+    
+    if (!confirm('Tem certeza que deseja apagar TODOS os dados do dashboard? Esta ação não pode ser desfeita.')) {
+      return;
+    }
+    
+    setIsDeletingDemo(true);
+    try {
+      const { data, error } = await supabase.functions.invoke('reset-admin-data');
+      
+      if (error) throw error;
+      
+      toast({
+        title: "✅ Dados apagados!",
+        description: "Todos os dados demo foram removidos.",
+      });
+      
+      // Recarregar dashboard
+      setTimeout(() => {
+        window.location.reload();
+      }, 1000);
+    } catch (error: any) {
+      console.error('Erro ao apagar dados:', error);
+      toast({
+        variant: "destructive",
+        title: "Erro ao apagar dados",
+        description: error.message || "Tente novamente",
+      });
+    } finally {
+      setIsDeletingDemo(false);
+    }
+  };
 
   // Check if user is admin
   useEffect(() => {
@@ -439,16 +508,49 @@ export default function Dashboard() {
   return (
     <div className="space-y-4 md:space-y-6 animate-fade-in">
       <div>
-        <div className="flex items-center justify-between mb-2">
-          <h1 className="text-2xl md:text-3xl font-bold font-heading">Dashboard</h1>
-          <Badge variant="outline" className="capitalize">
-            Plano {currentPlan}
-          </Badge>
-        </div>
-        <div className="flex items-center gap-2">
-          <p className="text-muted-foreground font-body">
-            Visão geral das suas vendas e métricas
-          </p>
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-2">
+          <div>
+            <h1 className="text-2xl md:text-3xl font-bold font-heading">Dashboard</h1>
+            <p className="text-muted-foreground font-body">
+              Visão geral das suas vendas e métricas
+            </p>
+          </div>
+          <div className="flex items-center gap-2 flex-wrap">
+            <Badge variant="outline" className="capitalize">
+              Plano {currentPlan}
+            </Badge>
+            {/* Botões para gerar/limpar dados demo - visível para todos */}
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={handleGenerateDemoData}
+              disabled={isGeneratingDemo || isDeletingDemo}
+              className="gap-1.5"
+            >
+              {isGeneratingDemo ? (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              ) : (
+                <Sparkles className="h-4 w-4" />
+              )}
+              {isGeneratingDemo ? 'Gerando...' : 'Gerar Demo'}
+            </Button>
+            {hasData && (
+              <Button
+                variant="destructive"
+                size="sm"
+                onClick={handleDeleteDemoData}
+                disabled={isGeneratingDemo || isDeletingDemo}
+                className="gap-1.5"
+              >
+                {isDeletingDemo ? (
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                ) : (
+                  <Trash2 className="h-4 w-4" />
+                )}
+                {isDeletingDemo ? 'Apagando...' : 'Limpar'}
+              </Button>
+            )}
+          </div>
         </div>
       </div>
 
