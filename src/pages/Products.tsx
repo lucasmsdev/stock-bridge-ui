@@ -80,7 +80,7 @@ interface ProductListing {
 interface Integration {
   id: string;
   platform: string;
-  access_token: string;
+  encrypted_access_token: string | null;
   user_id: string;
 }
 
@@ -336,18 +336,18 @@ export default function Products() {
     try {
       const { data, error } = await supabase
         .from('integrations')
-        .select('id, platform, access_token, user_id')
+        .select('id, platform, encrypted_access_token, user_id')
         .eq('user_id', user?.id)
-        .not('access_token', 'is', null);
+        .not('encrypted_access_token', 'is', null);
 
       if (error) {
         console.error('Error loading integrations:', error);
         return;
       }
 
-      // Filter only integrations with valid access tokens
+      // Filter only integrations with valid encrypted access tokens
       const activeIntegrations = (data || []).filter(
-        integration => integration.access_token && integration.access_token.trim() !== ''
+        integration => integration.encrypted_access_token != null
       );
       
       setIntegrations(activeIntegrations);

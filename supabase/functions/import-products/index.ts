@@ -143,7 +143,7 @@ serve(async (req) => {
     // Get the specific integration (by id when provided, otherwise latest by platform)
     let integrationQuery = supabaseClient
       .from('integrations')
-      .select('id, platform, access_token, refresh_token, encrypted_access_token, encrypted_refresh_token, encryption_migrated, shop_domain, selling_partner_id, marketplace_id, account_name')
+      .select('id, platform, encrypted_access_token, encrypted_refresh_token, shop_domain, selling_partner_id, marketplace_id, account_name')
       .eq('user_id', user.id);
 
     if (integrationId) {
@@ -167,36 +167,26 @@ serve(async (req) => {
 
     console.log('Found integration:', integration.id, 'for platform:', integration.platform, 'account:', integration.account_name);
 
-    // Determine which tokens to use (encrypted preferred, plain as fallback)
+    // Decrypt tokens
     let accessToken = null;
     let refreshToken = null;
 
-    if (integration.encrypted_access_token && integration.encryption_migrated) {
-      // Try to decrypt tokens
-      console.log('🔐 Usando tokens criptografados...');
-      const { data: decryptedAccess, error: decryptAccessError } = await supabaseClient.rpc('decrypt_token', {
-        encrypted_token: integration.encrypted_access_token
-      });
-      
-      if (!decryptAccessError && decryptedAccess) {
-        accessToken = decryptedAccess;
-      } else {
-        console.error('Failed to decrypt access token:', decryptAccessError);
-      }
-
-      if (integration.encrypted_refresh_token) {
-        const { data: decryptedRefresh } = await supabaseClient.rpc('decrypt_token', {
-          encrypted_token: integration.encrypted_refresh_token
-        });
-        refreshToken = decryptedRefresh;
-      }
-    }
+    console.log('🔐 Descriptografando tokens...');
+    const { data: decryptedAccess, error: decryptAccessError } = await supabaseClient.rpc('decrypt_token', {
+      encrypted_token: integration.encrypted_access_token
+    });
     
-    // Fallback to plain tokens if decryption failed or not migrated
-    if (!accessToken && integration.access_token && integration.access_token !== 'encrypted') {
-      console.log('⚠️ Usando tokens não criptografados (fallback)...');
-      accessToken = integration.access_token;
-      refreshToken = integration.refresh_token;
+    if (!decryptAccessError && decryptedAccess) {
+      accessToken = decryptedAccess;
+    } else {
+      console.error('Failed to decrypt access token:', decryptAccessError);
+    }
+
+    if (integration.encrypted_refresh_token) {
+      const { data: decryptedRefresh } = await supabaseClient.rpc('decrypt_token', {
+        encrypted_token: integration.encrypted_refresh_token
+      });
+      refreshToken = decryptedRefresh;
     }
 
     if (!accessToken) {

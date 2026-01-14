@@ -91,9 +91,9 @@ serve(async (req) => {
     // Get user's integrations
     const { data: integrations, error: integrationsError } = await supabase
       .from('integrations')
-      .select('id, platform, access_token, refresh_token')
+      .select('id, platform, encrypted_access_token, encrypted_refresh_token')
       .eq('user_id', user.id)
-      .not('access_token', 'is', null);
+      .not('encrypted_access_token', 'is', null);
 
     if (integrationsError) {
       console.error('Error fetching integrations:', integrationsError);
@@ -108,20 +108,44 @@ serve(async (req) => {
     // For each integration, fetch stock data from the respective platform
     for (const integration of integrations || []) {
       try {
+        // Decrypt tokens
+        const { data: accessToken, error: decryptAccessError } = await supabase.rpc('decrypt_token', {
+          encrypted_token: integration.encrypted_access_token
+        });
+        
+        if (decryptAccessError || !accessToken) {
+          console.error(`Failed to decrypt token for ${integration.platform}:`, decryptAccessError);
+          channelStocks.push({
+            channel: integration.platform,
+            channelId: '-',
+            stock: 0,
+            status: 'token_expired' as const
+          });
+          continue;
+        }
+        
+        let refreshToken = null;
+        if (integration.encrypted_refresh_token) {
+          const { data: decryptedRefresh } = await supabase.rpc('decrypt_token', {
+            encrypted_token: integration.encrypted_refresh_token
+          });
+          refreshToken = decryptedRefresh;
+        }
+        
         let channelStock: ChannelStock;
 
         if (integration.platform === 'mercadolivre') {
           channelStock = await getMercadoLivreStock(
-            integration.access_token, 
+            accessToken, 
             sku, 
-            integration.refresh_token,
+            refreshToken,
             integration.id,
             supabase
           );
         } else if (integration.platform === 'shopify') {
-          channelStock = await getShopifyStock(integration.access_token, sku);
+          channelStock = await getShopifyStock(accessToken, sku);
         } else if (integration.platform === 'shopee') {
-          channelStock = await getShopeeStock(integration.access_token, sku);
+          channelStock = await getShopeeStock(accessToken, sku);
         } else {
           // Unknown platform - mark as not published
           channelStock = {
@@ -209,12 +233,15 @@ async function refreshMercadoLivreToken(refreshToken: string, integrationId: str
       return null;
     }
 
-    // Update the integration with new tokens
+    // Encrypt and update the integration with new tokens
+    const { data: encryptedAccessToken } = await supabase.rpc('encrypt_token', { token: tokenData.access_token });
+    const { data: encryptedRefreshToken } = await supabase.rpc('encrypt_token', { token: tokenData.refresh_token || refreshToken });
+    
     const { error: updateError } = await supabase
       .from('integrations')
       .update({
-        access_token: tokenData.access_token,
-        refresh_token: tokenData.refresh_token || refreshToken,
+        encrypted_access_token: encryptedAccessToken,
+        encrypted_refresh_token: encryptedRefreshToken,
         updated_at: new Date().toISOString(),
       })
       .eq('id', integrationId);

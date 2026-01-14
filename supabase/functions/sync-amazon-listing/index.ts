@@ -128,7 +128,7 @@ serve(async (req) => {
     // Buscar integração Amazon
     const { data: integration, error: integrationError } = await supabaseClient
       .from('integrations')
-      .select('id, platform, access_token, refresh_token, encrypted_access_token, encrypted_refresh_token, encryption_migrated, marketplace_id, selling_partner_id, account_name')
+      .select('id, platform, encrypted_access_token, encrypted_refresh_token, marketplace_id, selling_partner_id, account_name')
       .eq('id', integrationId)
       .eq('user_id', user.id)
       .single();
@@ -148,10 +148,10 @@ serve(async (req) => {
       );
     }
 
-    // Obter tokens (descriptografar se necessário)
+    // Descriptografar refresh token
     let refreshToken = null;
 
-    if (integration.encrypted_refresh_token && integration.encryption_migrated) {
+    if (integration.encrypted_refresh_token) {
       console.log('🔐 Descriptografando refresh token...');
       const { data: decryptedRefresh, error: decryptError } = await supabaseClient.rpc('decrypt_token', {
         encrypted_token: integration.encrypted_refresh_token
@@ -160,11 +160,6 @@ serve(async (req) => {
       if (!decryptError && decryptedRefresh) {
         refreshToken = decryptedRefresh;
       }
-    }
-    
-    if (!refreshToken && integration.refresh_token) {
-      console.log('⚠️ Usando refresh token não criptografado (fallback)');
-      refreshToken = integration.refresh_token;
     }
 
     if (!refreshToken) {

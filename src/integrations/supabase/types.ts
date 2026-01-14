@@ -112,17 +112,14 @@ export type Database = {
       }
       integrations: {
         Row: {
-          access_token: string
           account_name: string | null
           account_nickname: string | null
           created_at: string
-          encrypted_access_token: string | null
+          encrypted_access_token: string
           encrypted_refresh_token: string | null
-          encryption_migrated: boolean | null
           id: string
           marketplace_id: string | null
           platform: string
-          refresh_token: string | null
           selling_partner_id: string | null
           shop_domain: string | null
           token_expires_at: string | null
@@ -130,17 +127,14 @@ export type Database = {
           user_id: string
         }
         Insert: {
-          access_token: string
           account_name?: string | null
           account_nickname?: string | null
           created_at?: string
-          encrypted_access_token?: string | null
+          encrypted_access_token: string
           encrypted_refresh_token?: string | null
-          encryption_migrated?: boolean | null
           id?: string
           marketplace_id?: string | null
           platform: string
-          refresh_token?: string | null
           selling_partner_id?: string | null
           shop_domain?: string | null
           token_expires_at?: string | null
@@ -148,17 +142,14 @@ export type Database = {
           user_id: string
         }
         Update: {
-          access_token?: string
           account_name?: string | null
           account_nickname?: string | null
           created_at?: string
-          encrypted_access_token?: string | null
+          encrypted_access_token?: string
           encrypted_refresh_token?: string | null
-          encryption_migrated?: boolean | null
           id?: string
           marketplace_id?: string | null
           platform?: string
-          refresh_token?: string | null
           selling_partner_id?: string | null
           shop_domain?: string | null
           token_expires_at?: string | null
