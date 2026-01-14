@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { useThemeProvider } from '@/components/layout/ThemeProvider';
 
 interface PlatformLogoProps {
@@ -53,6 +53,7 @@ export const PlatformLogo: React.FC<PlatformLogoProps> = ({
 }) => {
   const { theme } = useThemeProvider();
   const isDark = theme === 'dark';
+  const [imageFailed, setImageFailed] = useState(false);
   
   const sizeClasses = {
     sm: 'w-4 h-4',
@@ -79,25 +80,19 @@ export const PlatformLogo: React.FC<PlatformLogoProps> = ({
     lg: 'w-10 h-10',
   } : sizeClasses;
 
-  if (logoUrl) {
+  // If logo URL exists and hasn't failed, render the image
+  if (logoUrl && !imageFailed) {
     return (
       <img
         src={logoUrl}
         alt={`${platform} logo`}
         className={`${adjustedSizeClasses[size]} ${className} object-contain transition-all duration-200 ${shouldInvert ? 'dark-invert' : ''}`}
-        onError={(e) => {
-          // Fallback to emoji/color background if image fails to load
-          const target = e.target as HTMLImageElement;
-          const parent = target.parentElement;
-          if (parent) {
-            parent.innerHTML = `<div class="${adjustedSizeClasses[size]} ${colorClass} rounded flex items-center justify-center text-white text-xs font-bold ${className}">${fallback}</div>`;
-          }
-        }}
+        onError={() => setImageFailed(true)}
       />
     );
   }
 
-  // Fallback to colored div with emoji
+  // Fallback to colored div with emoji (safe React rendering, no innerHTML)
   return (
     <div className={`${adjustedSizeClasses[size]} ${colorClass} rounded flex items-center justify-center text-white text-xs font-bold ${className}`}>
       {fallback}
