@@ -365,11 +365,8 @@ serve(async (req) => {
       .insert({
         user_id: user.id,
         platform: 'amazon',
-        access_token: encryptedAccessToken ? 'encrypted' : tokenData.access_token,
-        refresh_token: encryptedRefreshToken ? null : refresh_token,
         encrypted_access_token: encryptedAccessToken,
         encrypted_refresh_token: encryptedRefreshToken,
-        encryption_migrated: !!encryptedAccessToken && !!encryptedRefreshToken,
         selling_partner_id: null,
         marketplace_id: finalMarketplaceId,
         account_name: sellerName,

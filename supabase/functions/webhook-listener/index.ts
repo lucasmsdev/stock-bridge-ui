@@ -715,10 +715,20 @@ async function propagateStockUpdate(
     // Update stock in each platform
     for (const integration of integrations) {
       try {
+        // Decrypt access token
+        const { data: accessToken, error: decryptError } = await supabase.rpc('decrypt_token', {
+          encrypted_token: integration.encrypted_access_token
+        });
+        
+        if (decryptError || !accessToken) {
+          console.error(`Failed to decrypt token for ${integration.platform}:`, decryptError);
+          continue;
+        }
+        
         if (integration.platform === 'shopify') {
-          await updateShopifyStock(integration.access_token, sku, newStock);
+          await updateShopifyStock(accessToken, sku, newStock);
         } else if (integration.platform === 'shopee') {
-          await updateShopeeStock(integration.access_token, sku, newStock);
+          await updateShopeeStock(accessToken, sku, newStock);
         }
         // Add more platforms as needed
         

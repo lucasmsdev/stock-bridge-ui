@@ -132,9 +132,9 @@ export default function Integrations() {
         return;
       }
 
-      // Only show integrations that have valid access tokens
+      // Only show integrations that have valid encrypted access tokens
       const validIntegrations = (integrations || []).filter(
-        (integration) => integration.access_token && integration.access_token.trim() !== "",
+        (integration) => integration.encrypted_access_token != null,
       );
 
       // Update account names for integrations that don't have it
@@ -142,31 +142,26 @@ export default function Integrations() {
         if (!integration.account_name || integration.account_name.trim() === "") {
           try {
             if (integration.platform === "mercadolivre") {
-              // Fetch Mercado Livre account name
-              const response = await fetch("https://api.mercadolibre.com/users/me", {
-                headers: {
-                  Authorization: `Bearer ${integration.access_token}`,
-                },
-              });
-
-              if (response.ok) {
-                const userData = await response.json();
-                const accountName = userData.nickname || userData.first_name || "Conta Mercado Livre";
-
-                // Update in database
+              // For encrypted tokens, we can't fetch account name from client-side
+              // The account name should have been set during OAuth callback
+              // Set a default if missing
+              if (!integration.account_name) {
+                const accountName = "Conta Mercado Livre";
                 await supabase.from("integrations").update({ account_name: accountName }).eq("id", integration.id);
-
                 integration.account_name = accountName;
               }
             } else if (integration.platform === "amazon") {
               // For Amazon, we'll set a default name for now
-              const accountName = "Conta Amazon";
+              const accountName = integration.selling_partner_id || "Conta Amazon";
               await supabase.from("integrations").update({ account_name: accountName }).eq("id", integration.id);
-
+              integration.account_name = accountName;
+            } else if (integration.platform === "shopify") {
+              const accountName = integration.shop_domain || "Loja Shopify";
+              await supabase.from("integrations").update({ account_name: accountName }).eq("id", integration.id);
               integration.account_name = accountName;
             }
           } catch (err) {
-            console.error(`Error fetching account name for ${integration.platform}:`, err);
+            console.error(`Error updating account name for ${integration.platform}:`, err);
           }
         }
       }

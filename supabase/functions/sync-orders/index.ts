@@ -338,28 +338,19 @@ async function refreshTokensForIntegration(
 ): Promise<{ success: boolean; accessToken: string | null; error?: string }> {
   const platform = integration.platform;
   
+  // Decrypt access token
+  const { data: accessToken, error: decryptError } = await supabase.rpc('decrypt_token', { 
+    encrypted_token: integration.encrypted_access_token 
+  });
+  
   // Shopify tokens don't expire
   if (platform === 'shopify') {
-    let accessToken = integration.access_token;
-    if (integration.encrypted_access_token) {
-      const { data: decrypted } = await supabase.rpc('decrypt_token', { 
-        encrypted_token: integration.encrypted_access_token 
-      });
-      if (decrypted) accessToken = decrypted;
-    }
-    return { success: true, accessToken };
+    return { success: !!accessToken, accessToken, error: accessToken ? undefined : 'Failed to decrypt token' };
   }
   
   // Check if we have a refresh token
   if (!integration.encrypted_refresh_token) {
     console.log(`⚠️ ${platform}: No refresh token available`);
-    let accessToken = integration.access_token;
-    if (integration.encrypted_access_token) {
-      const { data: decrypted } = await supabase.rpc('decrypt_token', { 
-        encrypted_token: integration.encrypted_access_token 
-      });
-      if (decrypted) accessToken = decrypted;
-    }
     return { success: !!accessToken, accessToken, error: accessToken ? undefined : 'No tokens available' };
   }
   
