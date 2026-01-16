@@ -192,10 +192,8 @@ serve(async (req) => {
       .insert({
         user_id: user.id,
         platform: 'mercadolivre',
-        access_token: 'encrypted',
         encrypted_access_token: encryptedAccessToken,
         encrypted_refresh_token: encryptedRefreshToken,
-        encryption_migrated: true,
         account_name: accountName,
         token_expires_at: tokenExpiresAt.toISOString(),
       });
