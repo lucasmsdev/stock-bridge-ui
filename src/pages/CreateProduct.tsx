@@ -40,6 +40,7 @@ export default function CreateProduct() {
   // Product data
   const [name, setName] = useState("");
   const [sku, setSku] = useState("");
+  const [ean, setEan] = useState("");
   const [costPrice, setCostPrice] = useState("");
   const [sellingPrice, setSellingPrice] = useState("");
   const [stock, setStock] = useState("");
@@ -292,7 +293,7 @@ export default function CreateProduct() {
               />
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
               <div>
                 <Label htmlFor="sku">SKU *</Label>
                 <Input
@@ -302,6 +303,19 @@ export default function CreateProduct() {
                   placeholder="MOUSE-001"
                   required
                 />
+              </div>
+              <div>
+                <Label htmlFor="ean">Código EAN/GTIN</Label>
+                <Input
+                  id="ean"
+                  value={ean}
+                  onChange={(e) => setEan(e.target.value)}
+                  placeholder="7891234567890"
+                  maxLength={13}
+                />
+                <p className="text-xs text-muted-foreground mt-1">
+                  Código de barras. Obrigatório para eletrônicos na Shopee.
+                </p>
               </div>
               <div>
                 <Label htmlFor="costPrice">Preço de Custo</Label>
