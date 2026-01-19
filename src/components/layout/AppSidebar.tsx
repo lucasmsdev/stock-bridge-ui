@@ -16,7 +16,8 @@ import {
   FileText,
   Sparkles,
   Receipt,
-  Truck
+  Truck,
+  Tag
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
@@ -39,6 +40,7 @@ interface AppSidebarProps {
 const navItems = [
   { title: "Dashboard", href: "/app/dashboard", icon: LayoutDashboard },
   { title: "Produtos", href: "/app/products", icon: Package },
+  { title: "Etiquetas", href: "/app/labels", icon: Tag },
   { title: "Pedidos", href: "/app/orders", icon: ShoppingCart },
   { 
     title: "Financeiro", 

@@ -31,7 +31,7 @@ import Reports from "./pages/Reports";
 import Checkout from "./pages/Checkout";
 import AIAssistant from "./pages/AIAssistant";
 import Contact from "./pages/Contact";
-
+import Labels from "./pages/Labels";
 const App = () => (
   <QueryClientProvider client={queryClient}>
     <ThemeProvider>
@@ -68,6 +68,7 @@ const App = () => (
                 <Route path="billing" element={<Billing />} />
                 <Route path="reports" element={<Reports />} />
                 <Route path="ai-assistant" element={<AIAssistant />} />
+                <Route path="labels" element={<Labels />} />
               </Route>
 
               {/* Landing page as root */}
