@@ -17,6 +17,7 @@ import {
   Sparkles,
   Receipt,
   Truck,
+  TrendingUp,
   Tag
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -84,6 +85,12 @@ const navItems = [
     title: "Assistente de IA", 
     href: "/app/ai-assistant", 
     icon: Sparkles, 
+    requiresFeature: FeatureName.AI_ASSISTANT
+  },
+  { 
+    title: "Previsão de Estoque", 
+    href: "/app/stock-forecast", 
+    icon: TrendingUp, 
     requiresFeature: FeatureName.AI_ASSISTANT
   },
   { title: "Ajuda", href: "/app/help", icon: HelpCircle },

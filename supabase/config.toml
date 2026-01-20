@@ -117,5 +117,8 @@ verify_jwt = false
 [functions.send-push-notification]
 verify_jwt = true
 
+[functions.stock-forecast]
+verify_jwt = true
+
 [functions.seed-demo-data]
 verify_jwt = true
