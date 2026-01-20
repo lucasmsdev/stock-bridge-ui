@@ -20,7 +20,7 @@ import {
   Tag
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import {
   DropdownMenu,
@@ -32,6 +32,8 @@ import {
 import { useAuthSession } from "@/hooks/useAuthSession";
 import { usePlan, FeatureName } from "@/hooks/usePlan";
 import { useToast } from "@/hooks/use-toast";
+import { useQuery } from "@tanstack/react-query";
+import { supabase } from "@/integrations/supabase/client";
 
 interface AppSidebarProps {
   isCollapsed: boolean;
@@ -92,6 +94,22 @@ export const AppSidebar = ({ isCollapsed }: AppSidebarProps) => {
   const { hasFeature, currentPlan, isAdmin, isLoading } = usePlan();
   const { toast } = useToast();
   const navigate = useNavigate();
+
+  // Buscar avatar_url do perfil
+  const { data: profile } = useQuery({
+    queryKey: ['profile-avatar', user?.id],
+    queryFn: async () => {
+      if (!user?.id) return null;
+      const { data } = await supabase
+        .from('profiles')
+        .select('avatar_url')
+        .eq('id', user.id)
+        .single();
+      return data;
+    },
+    enabled: !!user?.id,
+    staleTime: 5 * 60 * 1000, // 5 minutos
+  });
 
   const handleLogout = async () => {
     toast({
@@ -185,6 +203,7 @@ export const AppSidebar = ({ isCollapsed }: AppSidebarProps) => {
                 <Button variant="ghost" className="w-full justify-start p-0 h-auto hover:bg-muted/70">
                   <div className="flex items-center space-x-3 w-full">
                     <Avatar className="h-8 w-8">
+                      <AvatarImage src={profile?.avatar_url || undefined} alt="Avatar" />
                       <AvatarFallback className="bg-primary text-primary-foreground">
                         {user?.email ? getUserInitials(user.email) : 'US'}
                       </AvatarFallback>
@@ -234,6 +253,7 @@ export const AppSidebar = ({ isCollapsed }: AppSidebarProps) => {
                 className="w-full h-8 text-muted-foreground hover:text-foreground"
               >
                 <Avatar className="h-6 w-6">
+                  <AvatarImage src={profile?.avatar_url || undefined} alt="Avatar" />
                   <AvatarFallback className="bg-primary text-primary-foreground text-xs">
                     {user?.email ? getUserInitials(user.email) : 'US'}
                   </AvatarFallback>
