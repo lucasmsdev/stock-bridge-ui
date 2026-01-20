@@ -42,8 +42,8 @@ interface ForecastResponse {
   cachedUntil: string;
 }
 
-// Cache em KV para evitar chamadas repetidas
-const kv = await Deno.openKv();
+// Cache em memória (persiste entre warm invocations)
+const cache = new Map<string, { data: ForecastResponse; expiry: number }>();
 const CACHE_TTL_MS = 6 * 60 * 60 * 1000; // 6 horas
 
 serve(async (req) => {
@@ -77,14 +77,14 @@ serve(async (req) => {
 
     const { forceRefresh = false, maxProducts = 20 } = await req.json().catch(() => ({}));
 
-    // Verificar cache
-    const cacheKey = ['stock-forecast', user.id];
+    // Verificar cache em memória
+    const cacheKey = `stock-forecast-${user.id}`;
     if (!forceRefresh) {
-      const cached = await kv.get<ForecastResponse>(cacheKey);
-      if (cached.value) {
+      const cached = cache.get(cacheKey);
+      if (cached && cached.expiry > Date.now()) {
         console.log('Returning cached forecast');
         return new Response(
-          JSON.stringify(cached.value),
+          JSON.stringify(cached.data),
           { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
         );
       }
@@ -93,7 +93,7 @@ serve(async (req) => {
     // Buscar produtos do usuário
     const { data: products, error: productsError } = await supabase
       .from('products')
-      .select('id, name, sku, category, stock, cost_price, sale_price')
+      .select('id, name, sku, category, stock, cost_price, selling_price')
       .eq('user_id', user.id)
       .order('stock', { ascending: true })
       .limit(100);
@@ -121,9 +121,9 @@ serve(async (req) => {
     
     const { data: orders, error: ordersError } = await supabase
       .from('orders')
-      .select('id, product_id, quantity, created_at')
+      .select('id, items, order_date')
       .eq('user_id', user.id)
-      .gte('created_at', ninetyDaysAgo.toISOString());
+      .gte('order_date', ninetyDaysAgo.toISOString());
 
     if (ordersError) {
       console.error('Error fetching orders:', ordersError);
@@ -135,16 +135,24 @@ serve(async (req) => {
     const thirtyDaysAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
     const sixtyDaysAgo = new Date(now.getTime() - 60 * 24 * 60 * 60 * 1000);
 
+    // Processar itens dos pedidos
     (orders || []).forEach(order => {
-      if (!productVelocity[order.product_id]) {
-        productVelocity[order.product_id] = { total30: 0, total60: 0, total90: 0 };
-      }
-      const orderDate = new Date(order.created_at);
-      const qty = order.quantity || 1;
+      const orderDate = new Date(order.order_date);
+      const items = order.items as Array<{ product_id?: string; quantity?: number }> || [];
       
-      productVelocity[order.product_id].total90 += qty;
-      if (orderDate >= sixtyDaysAgo) productVelocity[order.product_id].total60 += qty;
-      if (orderDate >= thirtyDaysAgo) productVelocity[order.product_id].total30 += qty;
+      items.forEach(item => {
+        const productId = item.product_id;
+        if (!productId) return;
+        
+        if (!productVelocity[productId]) {
+          productVelocity[productId] = { total30: 0, total60: 0, total90: 0 };
+        }
+        
+        const qty = item.quantity || 1;
+        productVelocity[productId].total90 += qty;
+        if (orderDate >= sixtyDaysAgo) productVelocity[productId].total60 += qty;
+        if (orderDate >= thirtyDaysAgo) productVelocity[productId].total30 += qty;
+      });
     });
 
     // Filtrar produtos com estoque baixo ou vendas frequentes
@@ -377,7 +385,7 @@ Gere previsões para cada produto no formato JSON:
         .filter(f => f.urgency === 'CRITICO')
         .reduce((sum, f) => {
           const product = products.find(p => p.id === f.productId);
-          return sum + (product?.sale_price || 0) * f.currentStock;
+          return sum + (product?.selling_price || 0) * f.currentStock;
         }, 0)
     };
 
@@ -388,8 +396,11 @@ Gere previsões para cada produto no formato JSON:
       cachedUntil: new Date(Date.now() + CACHE_TTL_MS).toISOString()
     };
 
-    // Salvar no cache
-    await kv.set(cacheKey, response, { expireIn: CACHE_TTL_MS });
+    // Salvar no cache em memória
+    cache.set(cacheKey, { 
+      data: response, 
+      expiry: Date.now() + CACHE_TTL_MS 
+    });
 
     return new Response(
       JSON.stringify(response),
