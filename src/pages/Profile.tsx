@@ -36,6 +36,7 @@ import { usePlan } from "@/hooks/usePlan";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { NotificationPreferences } from "@/components/notifications/NotificationPreferences";
+import { AvatarUpload } from "@/components/profile/AvatarUpload";
 
 interface ProfileData {
   full_name: string;
@@ -465,23 +466,12 @@ export default function Profile() {
             </CardHeader>
             <CardContent className="space-y-6">
               {/* Avatar Section */}
-              <div className="flex items-center gap-4">
-                <Avatar className="h-20 w-20">
-                  <AvatarImage src={profileData.avatar_url || undefined} />
-                  <AvatarFallback className="bg-primary text-primary-foreground text-lg">
-                    {user?.email ? getUserInitials(user.email) : 'US'}
-                  </AvatarFallback>
-                </Avatar>
-                <div className="space-y-2">
-                  <Button variant="outline" size="sm" disabled>
-                    <Camera className="h-4 w-4 mr-2" />
-                    Alterar Foto
-                  </Button>
-                  <p className="text-xs text-muted-foreground">
-                    JPG, PNG até 2MB (Em breve)
-                  </p>
-                </div>
-              </div>
+              <AvatarUpload
+                userId={user?.id || ''}
+                currentAvatarUrl={profileData.avatar_url}
+                userEmail={user?.email || ''}
+                onAvatarUpdated={(newUrl) => setProfileData(prev => ({ ...prev, avatar_url: newUrl }))}
+              />
 
               <Separator />
 
