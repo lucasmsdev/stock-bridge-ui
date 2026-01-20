@@ -227,7 +227,7 @@ export const CriticalStockCard = () => {
               );
             })}
 
-            <Link to="/app/stock-forecast" className="block pt-2">
+            <Link to="/app/products?tab=forecast" className="block pt-2">
               <Button variant="ghost" size="sm" className="w-full text-primary hover:text-primary/80">
                 Ver previsão completa
                 <ChevronRight className="h-4 w-4 ml-1" />

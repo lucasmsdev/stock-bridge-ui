@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
-import { Link, useNavigate } from "react-router-dom";
-import { Plus, Search, MoreHorizontal, Edit, ExternalLink, Package, Download, Loader2, ChevronDown, Trash2, X } from "lucide-react";
+import { Link, useNavigate, useSearchParams } from "react-router-dom";
+import { Plus, Search, MoreHorizontal, Edit, ExternalLink, Package, Download, Loader2, ChevronDown, Trash2, X, TrendingUp } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -44,12 +44,14 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Label } from "@/components/ui/label";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { useToast } from "@/hooks/use-toast";
-import { usePlan } from "@/hooks/usePlan";
+import { usePlan, FeatureName } from "@/hooks/usePlan";
 import { UpgradeBanner } from "@/components/ui/upgrade-banner";
+import { StockForecastAI } from "@/components/stock/StockForecastAI";
 
 interface Product {
   id: string;
@@ -100,9 +102,10 @@ const platformLogos: Record<string, { url: string; darkInvert?: boolean }> = {
 
 export default function Products() {
   const navigate = useNavigate();
+  const [searchParams, setSearchParams] = useSearchParams();
   const { user } = useAuth();
   const { toast } = useToast();
-  const { canImportProducts, getMaxSkus, getUpgradeRequiredMessage } = usePlan();
+  const { canImportProducts, getMaxSkus, getUpgradeRequiredMessage, hasFeature } = usePlan();
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedProducts, setSelectedProducts] = useState<string[]>([]);
   const [products, setProducts] = useState<Product[]>([]);
@@ -122,6 +125,14 @@ export default function Products() {
     stock: "",
     supplier_id: ""
   });
+
+  // Tab control from URL
+  const activeTab = searchParams.get('tab') || 'catalog';
+  const setActiveTab = (tab: string) => {
+    setSearchParams({ tab });
+  };
+
+  const hasForecastAccess = hasFeature(FeatureName.AI_ASSISTANT);
 
   // Load products and integrations from Supabase
   useEffect(() => {
@@ -562,7 +573,7 @@ export default function Products() {
         <div>
           <h1 className="text-2xl md:text-3xl font-bold">Meus Produtos</h1>
           <p className="text-muted-foreground">
-            Gerencie seu catálogo centralizado de produtos
+            Gerencie seu catálogo e previsões de estoque
           </p>
         </div>
         <div className="flex gap-2">
@@ -573,7 +584,7 @@ export default function Products() {
             <Plus className="mr-2 h-4 w-4" />
             Criar Produto
           </Button>
-          {integrations.length > 0 ? (
+          {integrations.length > 0 && activeTab === 'catalog' ? (
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <Button 
@@ -605,6 +616,27 @@ export default function Products() {
           ) : null}
         </div>
       </div>
+
+      {/* Tabs */}
+      <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
+        <TabsList className="grid w-full max-w-md grid-cols-2">
+          <TabsTrigger value="catalog" className="flex items-center gap-2">
+            <Package className="h-4 w-4" />
+            Catálogo
+          </TabsTrigger>
+          <TabsTrigger 
+            value="forecast" 
+            className="flex items-center gap-2"
+            disabled={!hasForecastAccess}
+          >
+            <TrendingUp className="h-4 w-4" />
+            Previsão de Estoque
+            {!hasForecastAccess && <Badge variant="secondary" className="text-xs ml-1">Pro</Badge>}
+          </TabsTrigger>
+        </TabsList>
+
+        {/* Catalog Tab */}
+        <TabsContent value="catalog" className="space-y-6 mt-6">
 
       {/* Inventory Summary */}
       {products.length > 0 && (
@@ -883,6 +915,28 @@ export default function Products() {
           </CardContent>
         </Card>
       )}
+        </TabsContent>
+
+        {/* Forecast Tab */}
+        <TabsContent value="forecast" className="mt-6">
+          {hasForecastAccess ? (
+            <StockForecastAI />
+          ) : (
+            <Card>
+              <CardContent className="py-12 text-center">
+                <TrendingUp className="h-12 w-12 mx-auto mb-4 text-muted-foreground" />
+                <h3 className="text-lg font-semibold mb-2">Previsão Inteligente de Estoque</h3>
+                <p className="text-muted-foreground mb-4">
+                  Faça upgrade para o plano Profissional ou superior para acessar previsões de estoque baseadas em IA.
+                </p>
+                <Button onClick={() => navigate('/app/billing')}>
+                  Ver Planos
+                </Button>
+              </CardContent>
+            </Card>
+          )}
+        </TabsContent>
+      </Tabs>
 
       {/* Edit Product Modal */}
       <Dialog open={!!editingProduct} onOpenChange={() => setEditingProduct(null)}>
