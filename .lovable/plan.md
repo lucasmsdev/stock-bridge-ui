@@ -1,155 +1,146 @@
 
-# Implementar Sincronização de Produtos com Mercado Livre
 
-## Resumo
+# Corrigir Sincronização do Mercado Livre para Produtos de Catálogo
 
-Quando você atualiza um produto na UNISTOCK (preço, nome, estoque, imagem), a alteração será automaticamente enviada para o Mercado Livre via API, mantendo os dados sincronizados em ambas as plataformas.
+## O Problema Identificado
 
----
+Os logs mostram que a sincronização está acontecendo, mas o Mercado Livre está rejeitando a requisição:
 
-## O que será sincronizado
+```
+"code": "item.title.not_modifiable"
+"references": ["title", "item.catalog_listing"]
+```
 
-| Campo UNISTOCK | Campo Mercado Livre | Observação |
-|----------------|---------------------|------------|
-| `selling_price` | `price` | Preço de venda |
-| `stock` | `available_quantity` | Quantidade disponível |
-| `name` | `title` | Só funciona se o item não tiver vendas |
-| `image_url` | `pictures` | Imagem principal |
+O produto `MLB4193807241` está vinculado ao **Catálogo do Mercado Livre**. Produtos de catálogo têm o título controlado pelo ML e nunca podem ser alterados. O código atual não detecta essa situação corretamente.
 
 ---
 
-## Fluxo de Sincronização
+## Solução
+
+Implementar duas correções na Edge Function `sync-mercadolivre-listing`:
+
+### 1. Detectar Produtos de Catálogo
+Verificar se o item tem `catalog_listing: true` ou `catalog_product_id` na resposta da API, além da verificação de vendas.
+
+### 2. Fallback Inteligente
+Se a requisição falhar por causa do título, tentar novamente automaticamente **sem o título**, garantindo que preço e estoque sejam atualizados.
+
+---
+
+## Fluxo Corrigido
 
 ```text
-┌──────────────────┐     ┌──────────────────────┐     ┌────────────────────────────┐
-│  Editar Produto  │────>│  update-product      │────>│  sync-mercadolivre-listing │
-│  (Products.tsx)  │     │  (Edge Function)     │     │  (Nova Edge Function)      │
-└──────────────────┘     └──────────────────────┘     └────────────────────────────┘
-                                   │                              │
-                                   │                              │
-                              Salva local                   PUT /items/{ID}
-                              no Supabase                   na API ML
+┌─────────────────────────┐
+│  Enviar: price, stock,  │
+│  title (se permitido)   │
+└───────────┬─────────────┘
+            │
+            v
+      ┌───────────┐
+      │ Sucesso?  │───Sim───> ✅ Atualizado
+      └─────┬─────┘
+            │ Não
+            v
+   ┌────────────────────┐
+   │ Erro é de título?  │───Não───> ❌ Erro real
+   └─────────┬──────────┘
+             │ Sim
+             v
+  ┌──────────────────────┐
+  │ Tentar novamente SEM │
+  │ o campo "title"      │
+  └──────────┬───────────┘
+             │
+             v
+       ┌───────────┐
+       │ Sucesso?  │───Sim───> ✅ Preço/Estoque OK
+       └─────┬─────┘          ⚠️ Aviso: título não alterado
+             │ Não
+             v
+        ❌ Erro real
 ```
 
 ---
 
-## Etapas de Implementação
+## Mudancas Tecnicas
 
-### Etapa 1: Criar Edge Function `sync-mercadolivre-listing`
+### Arquivo: `supabase/functions/sync-mercadolivre-listing/index.ts`
 
-Nova função que receberá os dados do produto e enviará para a API do Mercado Livre:
+**1. Melhorar deteccao de produtos de catalogo (linhas 238-260)**
 
-**Responsabilidades:**
-- Buscar integração e descriptografar token
-- Verificar se token é válido (renovar se expirado)
-- Chamar `PUT https://api.mercadolibre.com/items/{ITEM_ID}` com os campos atualizados
-- Tratar erros da API (ex: título não pode ser alterado se já teve vendas)
-- Atualizar status de sincronização no `product_listings`
-
-**Campos que a API do Mercado Livre aceita para atualização:**
-- `price` - Preço de venda
-- `available_quantity` - Estoque (se 0, o item é pausado automaticamente)
-- `title` - Nome (apenas se não tiver vendas)
-- `pictures` - Array de imagens
-
-### Etapa 2: Integrar no `update-product`
-
-Modificar a Edge Function existente para chamar `sync-mercadolivre-listing` quando detectar listings da plataforma `mercadolivre`.
-
-### Etapa 3: Feedback Visual no Frontend
-
-Mostrar resultado da sincronização para o usuário:
-- Sucesso: "Produto atualizado no Mercado Livre"
-- Erro de título: "Nome não pode ser alterado (produto já teve vendas)"
-- Token expirado: "Reconecte sua conta do Mercado Livre"
-
----
-
-## Comportamentos Especiais
-
-### Estoque Zero
-Quando estoque = 0, o Mercado Livre automaticamente pausa o anúncio com status `out_of_stock`. Quando estoque > 0, o anúncio é reativado.
-
-### Alteração de Título
-O Mercado Livre **não permite** alterar o título de produtos que já tiveram vendas (`sold_quantity > 0`). A função detectará isso e informará ao usuário.
-
-### Token Expirado
-Se o token de acesso estiver expirado, a função tentará renovar automaticamente usando o refresh token antes de falhar.
-
----
-
-## Seção Técnica
-
-### Arquivos a Criar
-
-**`supabase/functions/sync-mercadolivre-listing/index.ts`**
+Verificar `catalog_listing` e `catalog_product_id` na resposta da API:
 
 ```typescript
-// Parâmetros de entrada:
-interface SyncRequest {
-  productId: string;
-  integrationId: string;
-  platformProductId: string; // MLB123...
-  sellingPrice?: number;
-  stock?: number;
-  name?: string;
-  imageUrl?: string;
+if (itemResponse.ok) {
+  const itemData = await itemResponse.json();
+  soldQuantity = itemData.sold_quantity || 0;
+  itemStatus = itemData.status || 'unknown';
+  
+  // Produtos de catálogo NÃO podem ter título alterado
+  if (itemData.catalog_listing || itemData.catalog_product_id) {
+    canChangeTitle = false;
+    console.log('📦 Produto de catálogo - título controlado pelo ML');
+  } else if (soldQuantity > 0) {
+    canChangeTitle = false;
+    console.log(`⚠️ Produto tem ${soldQuantity} vendas - título não pode ser alterado`);
+  }
 }
-
-// Payload para API Mercado Livre:
-const mlPayload = {
-  price: sellingPrice,
-  available_quantity: stock,
-  title: name, // se permitido
-  pictures: imageUrl ? [{ source: imageUrl }] : undefined
-};
-
-// Chamada API:
-PUT https://api.mercadolibre.com/items/{platformProductId}
-Headers: Authorization: Bearer {access_token}
 ```
 
-### Arquivos a Modificar
+**2. Adicionar fallback quando titulo falha (apos linha 304)**
 
-**`supabase/functions/update-product/index.ts`**
-- Linhas 173-180: Substituir o TODO por chamada real à `sync-mercadolivre-listing`
-- Passar `platform_product_id` do listing para a função de sincronização
+Se a requisicao falhar com erro de titulo, tentar novamente sem o titulo:
 
-### Tratamento de Erros da API ML
-
-| Erro | Causa | Ação |
-|------|-------|------|
-| 401 Unauthorized | Token expirado | Renovar token e tentar novamente |
-| 403 Forbidden | Sem permissão | Informar reconexão necessária |
-| 400 "title cannot be changed" | Produto tem vendas | Sincronizar apenas preço/estoque |
-
-### Atualização do Banco de Dados
-
-Após sincronização bem-sucedida:
-```sql
-UPDATE product_listings 
-SET 
-  sync_status = 'active',
-  last_sync_at = NOW(),
-  sync_error = NULL
-WHERE id = {listing_id}
+```typescript
+// Se falhou por causa do título, tentar sem ele
+if (!mlResponse.ok && mlPayload.title) {
+  const mlError = mlResult as MercadoLivreError;
+  const isTitleError = mlError.cause?.some(c => 
+    c.code?.includes('title') || 
+    c.message?.includes('title')
+  );
+  
+  if (isTitleError) {
+    console.log('🔄 Título rejeitado, tentando novamente sem ele...');
+    delete mlPayload.title;
+    
+    if (Object.keys(mlPayload).length > 0) {
+      // Fazer nova requisição sem o título
+      const retryResponse = await fetch(...);
+      // Processar resposta...
+    }
+  }
+}
 ```
 
-Após falha:
-```sql
-UPDATE product_listings 
-SET 
-  sync_status = 'error',
-  sync_error = {mensagem_erro}
-WHERE id = {listing_id}
+**3. Mensagem de feedback mais clara**
+
+Quando o titulo nao puder ser alterado mas preco/estoque foram:
+
+```typescript
+response.warnings = [{
+  code: 'title_not_modifiable',
+  message: 'Nome não foi alterado (produto de catálogo ou com vendas). Preço e estoque foram atualizados.',
+}];
 ```
 
 ---
 
-## Resultado Final
+## Resultado Esperado
 
-- Editar produto na UNISTOCK atualiza automaticamente no Mercado Livre
-- Preço e estoque sempre sincronizados
-- Nome sincronizado quando possível (sem vendas)
-- Feedback claro sobre sucesso ou erros
-- Status de sincronização visível na página do produto
+| Cenario | Antes | Depois |
+|---------|-------|--------|
+| Produto de catalogo | ❌ Falha total | ✅ Preco/estoque OK + aviso |
+| Produto com vendas | ❌ Falha total | ✅ Preco/estoque OK + aviso |
+| Produto normal | ✅ Tudo OK | ✅ Tudo OK |
+
+---
+
+## Testes
+
+Apos a implementacao, voce podera testar alterando:
+1. **Apenas preco** - Deve funcionar
+2. **Apenas estoque** - Deve funcionar  
+3. **Preco + nome** - Preco atualiza, nome mostra aviso
+4. **Tudo junto** - Preco e estoque atualizam, nome mostra aviso
+
