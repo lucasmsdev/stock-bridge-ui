@@ -128,7 +128,6 @@ serve(async (req) => {
         user_id: userId,
         platform: 'shopify',
         encrypted_access_token: encryptedAccessToken,
-        encryption_migrated: true,
         shop_domain: shopDomain,
         account_name: accountName,
       });
