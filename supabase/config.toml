@@ -122,3 +122,6 @@ verify_jwt = true
 
 [functions.seed-demo-data]
 verify_jwt = true
+
+[functions.sync-mercadolivre-listing]
+verify_jwt = false
