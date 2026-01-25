@@ -1,146 +1,124 @@
 
 
-# Corrigir Sincronização do Mercado Livre para Produtos de Catálogo
+# Corrigir Erro de Integração Shopify
 
-## O Problema Identificado
+## Problema Identificado
 
-Os logs mostram que a sincronização está acontecendo, mas o Mercado Livre está rejeitando a requisição:
-
+Os logs mostram claramente o erro:
 ```
-"code": "item.title.not_modifiable"
-"references": ["title", "item.catalog_listing"]
+Could not find the 'encryption_migrated' column of 'integrations' in the schema cache
 ```
 
-O produto `MLB4193807241` está vinculado ao **Catálogo do Mercado Livre**. Produtos de catálogo têm o título controlado pelo ML e nunca podem ser alterados. O código atual não detecta essa situação corretamente.
+A coluna `encryption_migrated` foi removida do banco de dados durante a atualização de segurança, mas a Edge Function `shopify-callback` ainda tenta inserir um valor nela.
+
+---
+
+## O que está acontecendo
+
+```text
+┌───────────────────────┐
+│   Shopify OAuth OK    │
+│   Token obtido ✅     │
+└──────────┬────────────┘
+           │
+           v
+┌───────────────────────────────────────┐
+│ INSERT INTO integrations (            │
+│   ...                                 │
+│   encryption_migrated: true  ← ERRO!  │
+│ )                                     │
+└───────────────────────────────────────┘
+           │
+           v
+    ❌ Coluna não existe
+```
 
 ---
 
 ## Solução
 
-Implementar duas correções na Edge Function `sync-mercadolivre-listing`:
-
-### 1. Detectar Produtos de Catálogo
-Verificar se o item tem `catalog_listing: true` ou `catalog_product_id` na resposta da API, além da verificação de vendas.
-
-### 2. Fallback Inteligente
-Se a requisição falhar por causa do título, tentar novamente automaticamente **sem o título**, garantindo que preço e estoque sejam atualizados.
+Remover o campo `encryption_migrated` do INSERT nas Edge Functions afetadas:
+- `shopify-callback`
+- `amazon-callback`
 
 ---
 
-## Fluxo Corrigido
+## Mudanças Necessárias
 
-```text
-┌─────────────────────────┐
-│  Enviar: price, stock,  │
-│  title (se permitido)   │
-└───────────┬─────────────┘
-            │
-            v
-      ┌───────────┐
-      │ Sucesso?  │───Sim───> ✅ Atualizado
-      └─────┬─────┘
-            │ Não
-            v
-   ┌────────────────────┐
-   │ Erro é de título?  │───Não───> ❌ Erro real
-   └─────────┬──────────┘
-             │ Sim
-             v
-  ┌──────────────────────┐
-  │ Tentar novamente SEM │
-  │ o campo "title"      │
-  └──────────┬───────────┘
-             │
-             v
-       ┌───────────┐
-       │ Sucesso?  │───Sim───> ✅ Preço/Estoque OK
-       └─────┬─────┘          ⚠️ Aviso: título não alterado
-             │ Não
-             v
-        ❌ Erro real
-```
+### Arquivo 1: `supabase/functions/shopify-callback/index.ts`
 
----
-
-## Mudancas Tecnicas
-
-### Arquivo: `supabase/functions/sync-mercadolivre-listing/index.ts`
-
-**1. Melhorar deteccao de produtos de catalogo (linhas 238-260)**
-
-Verificar `catalog_listing` e `catalog_product_id` na resposta da API:
+**Linha 131** - Remover `encryption_migrated: true`:
 
 ```typescript
-if (itemResponse.ok) {
-  const itemData = await itemResponse.json();
-  soldQuantity = itemData.sold_quantity || 0;
-  itemStatus = itemData.status || 'unknown';
-  
-  // Produtos de catálogo NÃO podem ter título alterado
-  if (itemData.catalog_listing || itemData.catalog_product_id) {
-    canChangeTitle = false;
-    console.log('📦 Produto de catálogo - título controlado pelo ML');
-  } else if (soldQuantity > 0) {
-    canChangeTitle = false;
-    console.log(`⚠️ Produto tem ${soldQuantity} vendas - título não pode ser alterado`);
-  }
-}
+// ANTES
+const { error: insertError } = await supabase
+  .from('integrations')
+  .insert({
+    user_id: userId,
+    platform: 'shopify',
+    encrypted_access_token: encryptedAccessToken,
+    encryption_migrated: true,  // ← REMOVER ESTA LINHA
+    shop_domain: shopDomain,
+    account_name: accountName,
+  });
+
+// DEPOIS
+const { error: insertError } = await supabase
+  .from('integrations')
+  .insert({
+    user_id: userId,
+    platform: 'shopify',
+    encrypted_access_token: encryptedAccessToken,
+    shop_domain: shopDomain,
+    account_name: accountName,
+  });
 ```
 
-**2. Adicionar fallback quando titulo falha (apos linha 304)**
+### Arquivo 2: `supabase/functions/amazon-callback/index.ts`
 
-Se a requisicao falhar com erro de titulo, tentar novamente sem o titulo:
-
-```typescript
-// Se falhou por causa do título, tentar sem ele
-if (!mlResponse.ok && mlPayload.title) {
-  const mlError = mlResult as MercadoLivreError;
-  const isTitleError = mlError.cause?.some(c => 
-    c.code?.includes('title') || 
-    c.message?.includes('title')
-  );
-  
-  if (isTitleError) {
-    console.log('🔄 Título rejeitado, tentando novamente sem ele...');
-    delete mlPayload.title;
-    
-    if (Object.keys(mlPayload).length > 0) {
-      // Fazer nova requisição sem o título
-      const retryResponse = await fetch(...);
-      // Processar resposta...
-    }
-  }
-}
-```
-
-**3. Mensagem de feedback mais clara**
-
-Quando o titulo nao puder ser alterado mas preco/estoque foram:
+**Linha 123** - Remover `encryption_migrated: true`:
 
 ```typescript
-response.warnings = [{
-  code: 'title_not_modifiable',
-  message: 'Nome não foi alterado (produto de catálogo ou com vendas). Preço e estoque foram atualizados.',
-}];
+// ANTES
+const { data: integration, error: insertError } = await supabaseClient
+  .from('integrations')
+  .insert({
+    user_id: state,
+    platform: 'amazon',
+    encrypted_access_token: encryptedAccessToken,
+    encrypted_refresh_token: encryptedRefreshToken,
+    encryption_migrated: true,  // ← REMOVER ESTA LINHA
+    selling_partner_id: sellingPartnerId,
+    marketplace_id: 'ATVPDKIKX0DER',
+    account_name: sellingPartnerId || 'Amazon Seller',
+  })
+
+// DEPOIS
+const { data: integration, error: insertError } = await supabaseClient
+  .from('integrations')
+  .insert({
+    user_id: state,
+    platform: 'amazon',
+    encrypted_access_token: encryptedAccessToken,
+    encrypted_refresh_token: encryptedRefreshToken,
+    selling_partner_id: sellingPartnerId,
+    marketplace_id: 'ATVPDKIKX0DER',
+    account_name: sellingPartnerId || 'Amazon Seller',
+  })
 ```
 
 ---
 
 ## Resultado Esperado
 
-| Cenario | Antes | Depois |
-|---------|-------|--------|
-| Produto de catalogo | ❌ Falha total | ✅ Preco/estoque OK + aviso |
-| Produto com vendas | ❌ Falha total | ✅ Preco/estoque OK + aviso |
-| Produto normal | ✅ Tudo OK | ✅ Tudo OK |
+Após a correção:
+1. Conectar loja Shopify funcionará normalmente
+2. Conectar conta Amazon funcionará normalmente
+3. Tokens continuarão sendo salvos criptografados
 
 ---
 
-## Testes
+## Próximos Passos
 
-Apos a implementacao, voce podera testar alterando:
-1. **Apenas preco** - Deve funcionar
-2. **Apenas estoque** - Deve funcionar  
-3. **Preco + nome** - Preco atualiza, nome mostra aviso
-4. **Tudo junto** - Preco e estoque atualizam, nome mostra aviso
+Após implementar, basta tentar conectar a loja Shopify novamente - o OAuth já funcionou corretamente, só falhou ao salvar no banco.
 
