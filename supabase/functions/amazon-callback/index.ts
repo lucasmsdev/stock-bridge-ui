@@ -120,7 +120,6 @@ serve(async (req) => {
         platform: 'amazon',
         encrypted_access_token: encryptedAccessToken,
         encrypted_refresh_token: encryptedRefreshToken,
-        encryption_migrated: true,
         selling_partner_id: sellingPartnerId,
         marketplace_id: 'ATVPDKIKX0DER', // US marketplace por padrão
         account_name: sellingPartnerId || 'Amazon Seller',
