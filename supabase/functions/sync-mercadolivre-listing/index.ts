@@ -235,8 +235,10 @@ serve(async (req) => {
     let itemStatus = 'unknown';
     let soldQuantity = 0;
 
-    if (name) {
-      // Buscar informações do item para verificar se tem vendas
+  let isCatalogProduct = false;
+  
+  if (name) {
+      // Buscar informações do item para verificar se tem vendas ou é de catálogo
       const itemResponse = await fetch(
         `https://api.mercadolibre.com/items/${platformProductId}`,
         {
@@ -251,8 +253,12 @@ serve(async (req) => {
         soldQuantity = itemData.sold_quantity || 0;
         itemStatus = itemData.status || 'unknown';
         
-        // Mercado Livre não permite alterar título se teve vendas
-        if (soldQuantity > 0) {
+        // Produtos de catálogo NÃO podem ter título alterado
+        if (itemData.catalog_listing || itemData.catalog_product_id) {
+          canChangeTitle = false;
+          isCatalogProduct = true;
+          console.log('📦 Produto de catálogo - título controlado pelo ML');
+        } else if (soldQuantity > 0) {
           canChangeTitle = false;
           console.log(`⚠️ Produto tem ${soldQuantity} vendas - título não pode ser alterado`);
         }
@@ -331,11 +337,13 @@ serve(async (req) => {
         },
       };
 
-      // Avisar se título não foi alterado por causa de vendas
+      // Avisar se título não foi alterado
       if (name && !canChangeTitle) {
         response.warnings = [{
-          code: 'title_not_changed',
-          message: `Nome não foi alterado porque o produto já teve ${soldQuantity} venda(s)`,
+          code: 'title_not_modifiable',
+          message: isCatalogProduct 
+            ? 'Nome não foi alterado (produto de catálogo). Preço e estoque foram atualizados.'
+            : `Nome não foi alterado (${soldQuantity} venda(s)). Preço e estoque foram atualizados.`,
         }];
       }
 
@@ -350,20 +358,87 @@ serve(async (req) => {
       let errorMessage = mlError.message || 'Erro ao atualizar no Mercado Livre';
       let requiresReconnect = false;
 
+      // Verificar se é erro de título - tentar novamente sem o título
+      const isTitleError = mlError.cause?.some(c => 
+        c.code?.includes('title') || 
+        c.message?.toLowerCase().includes('title')
+      );
+
+      if (isTitleError && mlPayload.title) {
+        console.log('🔄 Título rejeitado, tentando novamente sem ele...');
+        delete mlPayload.title;
+
+        if (Object.keys(mlPayload).length > 0) {
+          // Nova tentativa sem o título
+          const retryResponse = await fetch(
+            `https://api.mercadolibre.com/items/${platformProductId}`,
+            {
+              method: 'PUT',
+              headers: {
+                'Authorization': `Bearer ${currentAccessToken}`,
+                'Content-Type': 'application/json',
+              },
+              body: JSON.stringify(mlPayload),
+            }
+          );
+
+          const retryText = await retryResponse.text();
+          let retryResult: any;
+          try {
+            retryResult = JSON.parse(retryText);
+          } catch {
+            retryResult = { raw: retryText };
+          }
+
+          console.log('📥 Resposta retry (sem título):', retryResponse.status, JSON.stringify(retryResult, null, 2));
+
+          if (retryResponse.ok) {
+            // Sucesso! Atualizar status
+            updateListingData.sync_status = 'active';
+            updateListingData.last_sync_at = new Date().toISOString();
+            updateListingData.sync_error = null;
+
+            await supabaseAdmin
+              .from('product_listings')
+              .update(updateListingData)
+              .eq('id', listingId);
+
+            return new Response(
+              JSON.stringify({
+                success: true,
+                message: 'Produto atualizado no Mercado Livre',
+                platformProductId,
+                updatedFields: Object.keys(mlPayload),
+                mlResponse: {
+                  id: retryResult.id,
+                  status: retryResult.status,
+                  price: retryResult.price,
+                  available_quantity: retryResult.available_quantity,
+                },
+                warnings: [{
+                  code: 'title_not_modifiable',
+                  message: 'Nome não foi alterado (produto de catálogo ou com vendas). Preço e estoque foram atualizados.',
+                }],
+              }),
+              { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+            );
+          }
+          
+          // Se retry também falhou, usar o erro do retry
+          errorMessage = retryResult.message || 'Erro ao atualizar no Mercado Livre';
+        }
+      }
+
       if (mlResponse.status === 401) {
         errorMessage = 'Token expirado. Reconecte sua conta do Mercado Livre.';
         requiresReconnect = true;
       } else if (mlResponse.status === 403) {
         errorMessage = 'Sem permissão para atualizar este anúncio. Verifique se a conta conectada é a correta.';
         requiresReconnect = true;
-      } else if (mlError.cause && mlError.cause.length > 0) {
-        // Mensagens de erro específicas
+      } else if (mlError.cause && mlError.cause.length > 0 && !isTitleError) {
+        // Mensagens de erro específicas (exceto título que já foi tratado)
         const firstCause = mlError.cause[0];
-        if (firstCause.code === 'item.title.not.allowed.change') {
-          errorMessage = 'Título não pode ser alterado - produto já possui vendas';
-        } else {
-          errorMessage = firstCause.message || errorMessage;
-        }
+        errorMessage = firstCause.message || errorMessage;
       }
 
       updateListingData.sync_status = 'error';
