@@ -1,124 +1,189 @@
 
+# Implementar Sincronização de Produtos com Shopify
 
-# Corrigir Erro de Integração Shopify
+## Resumo
 
-## Problema Identificado
-
-Os logs mostram claramente o erro:
-```
-Could not find the 'encryption_migrated' column of 'integrations' in the schema cache
-```
-
-A coluna `encryption_migrated` foi removida do banco de dados durante a atualização de segurança, mas a Edge Function `shopify-callback` ainda tenta inserir um valor nela.
+Quando você atualiza um produto na UNISTOCK (preço, nome, estoque, imagem), a alteração será automaticamente enviada para a Shopify via API REST Admin, mantendo os dados sincronizados em ambas as plataformas.
 
 ---
 
-## O que está acontecendo
+## O Problema Atual
+
+O código atual em `update-product` tem a sincronização Shopify marcada como "TODO":
+
+```typescript
+} else if (listing.platform === 'shopify') {
+  // TODO: Implementar sincronização Shopify
+  console.log('⏭️ Sincronização Shopify não implementada ainda');
+  syncResults.push({
+    platform: 'shopify',
+    success: false,
+    error: 'Sincronização não implementada',
+  });
+}
+```
+
+---
+
+## O que será sincronizado
+
+| Campo UNISTOCK | Campo Shopify | API |
+|----------------|---------------|-----|
+| `selling_price` | `variants[].price` | PUT /products/{id}.json |
+| `stock` | `inventory_levels.set` | POST /inventory_levels/set.json |
+| `name` | `title` | PUT /products/{id}.json |
+| `image_url` | `images` | PUT /products/{id}.json |
+
+---
+
+## Fluxo de Sincronização
 
 ```text
-┌───────────────────────┐
-│   Shopify OAuth OK    │
-│   Token obtido ✅     │
-└──────────┬────────────┘
-           │
-           v
-┌───────────────────────────────────────┐
-│ INSERT INTO integrations (            │
-│   ...                                 │
-│   encryption_migrated: true  ← ERRO!  │
-│ )                                     │
-└───────────────────────────────────────┘
-           │
-           v
-    ❌ Coluna não existe
+┌──────────────────┐     ┌──────────────────────┐     ┌─────────────────────────┐
+│  Editar Produto  │────>│  update-product      │────>│  sync-shopify-listing   │
+│  (Products.tsx)  │     │  (Edge Function)     │     │  (Nova Edge Function)   │
+└──────────────────┘     └──────────────────────┘     └─────────────────────────┘
+                                   │                              │
+                                   │                              │
+                              Salva local                   PUT /products/{id}
+                              no Supabase                   POST /inventory_levels/set
 ```
 
 ---
 
-## Solução
+## Etapas de Implementação
 
-Remover o campo `encryption_migrated` do INSERT nas Edge Functions afetadas:
-- `shopify-callback`
-- `amazon-callback`
+### Etapa 1: Criar Edge Function `sync-shopify-listing`
+
+Nova funcao que recebera os dados do produto e enviara para a API da Shopify:
+
+**Responsabilidades:**
+- Buscar integracao e descriptografar token
+- Chamar `PUT /admin/api/2024-01/products/{id}.json` para atualizar titulo, preco e imagem
+- Chamar `POST /admin/api/2024-01/inventory_levels/set.json` para atualizar estoque
+- Buscar location_id da loja (necessario para atualizar estoque)
+- Atualizar status de sincronizacao no `product_listings`
+
+### Etapa 2: Integrar no `update-product`
+
+Substituir o TODO por chamada real a `sync-shopify-listing`, similar ao que ja existe para Mercado Livre.
 
 ---
 
-## Mudanças Necessárias
+## Particularidades da API Shopify
 
-### Arquivo 1: `supabase/functions/shopify-callback/index.ts`
-
-**Linha 131** - Remover `encryption_migrated: true`:
-
-```typescript
-// ANTES
-const { error: insertError } = await supabase
-  .from('integrations')
-  .insert({
-    user_id: userId,
-    platform: 'shopify',
-    encrypted_access_token: encryptedAccessToken,
-    encryption_migrated: true,  // ← REMOVER ESTA LINHA
-    shop_domain: shopDomain,
-    account_name: accountName,
-  });
-
-// DEPOIS
-const { error: insertError } = await supabase
-  .from('integrations')
-  .insert({
-    user_id: userId,
-    platform: 'shopify',
-    encrypted_access_token: encryptedAccessToken,
-    shop_domain: shopDomain,
-    account_name: accountName,
-  });
+### Atualizacao de Produto (titulo, preco, imagem)
+```text
+PUT /admin/api/2024-01/products/{product_id}.json
+{
+  "product": {
+    "id": 123456789,
+    "title": "Novo nome do produto",
+    "variants": [
+      {
+        "id": 987654321,
+        "price": "99.90"
+      }
+    ],
+    "images": [
+      { "src": "https://..." }
+    ]
+  }
+}
 ```
 
-### Arquivo 2: `supabase/functions/amazon-callback/index.ts`
+### Atualizacao de Estoque (requer chamada separada)
+O estoque no Shopify eh gerenciado pelo sistema de Inventory Levels, que requer:
+1. `inventory_item_id` - obtido do variant
+2. `location_id` - obtido da loja
 
-**Linha 123** - Remover `encryption_migrated: true`:
+```text
+POST /admin/api/2024-01/inventory_levels/set.json
+{
+  "location_id": 123456,
+  "inventory_item_id": 789012,
+  "available": 50
+}
+```
+
+---
+
+## Secao Tecnica
+
+### Arquivos a Criar
+
+**`supabase/functions/sync-shopify-listing/index.ts`**
 
 ```typescript
-// ANTES
-const { data: integration, error: insertError } = await supabaseClient
-  .from('integrations')
-  .insert({
-    user_id: state,
-    platform: 'amazon',
-    encrypted_access_token: encryptedAccessToken,
-    encrypted_refresh_token: encryptedRefreshToken,
-    encryption_migrated: true,  // ← REMOVER ESTA LINHA
-    selling_partner_id: sellingPartnerId,
-    marketplace_id: 'ATVPDKIKX0DER',
-    account_name: sellingPartnerId || 'Amazon Seller',
-  })
+// Parametros de entrada:
+interface SyncRequest {
+  productId: string;
+  listingId: string;
+  integrationId: string;
+  platformProductId: string;      // ID do produto Shopify
+  platformVariantId?: string;     // ID da variant (para preco)
+  sellingPrice?: number;
+  stock?: number;
+  name?: string;
+  imageUrl?: string;
+}
 
-// DEPOIS
-const { data: integration, error: insertError } = await supabaseClient
-  .from('integrations')
-  .insert({
-    user_id: state,
-    platform: 'amazon',
-    encrypted_access_token: encryptedAccessToken,
-    encrypted_refresh_token: encryptedRefreshToken,
-    selling_partner_id: sellingPartnerId,
-    marketplace_id: 'ATVPDKIKX0DER',
-    account_name: sellingPartnerId || 'Amazon Seller',
-  })
+// Fluxo:
+// 1. Descriptografar token
+// 2. Buscar location_id da loja (GET /locations.json)
+// 3. Buscar inventory_item_id do variant (GET /variants/{id}.json)
+// 4. Atualizar produto (PUT /products/{id}.json)
+// 5. Atualizar estoque (POST /inventory_levels/set.json)
+// 6. Atualizar product_listings com status
+```
+
+### Arquivos a Modificar
+
+**`supabase/functions/update-product/index.ts`**
+- Linhas 225-232: Substituir TODO por chamada a `sync-shopify-listing`
+- Passar `platform_product_id` e `platform_variant_id` do listing
+
+**`supabase/config.toml`**
+- Adicionar entrada para `sync-shopify-listing`
+
+### Tratamento de Erros
+
+| Erro | Causa | Acao |
+|------|-------|------|
+| 401 Unauthorized | Token invalido | Informar reconexao necessaria |
+| 404 Not Found | Produto deletado na Shopify | Marcar listing como `error` |
+| 422 Unprocessable | Dados invalidos | Retornar detalhes do erro |
+
+### Atualizacao do Banco de Dados
+
+Apos sincronizacao bem-sucedida:
+```sql
+UPDATE product_listings 
+SET 
+  sync_status = 'active',
+  last_sync_at = NOW(),
+  sync_error = NULL
+WHERE id = {listing_id}
 ```
 
 ---
 
 ## Resultado Esperado
 
-Após a correção:
-1. Conectar loja Shopify funcionará normalmente
-2. Conectar conta Amazon funcionará normalmente
-3. Tokens continuarão sendo salvos criptografados
+| Cenario | Status |
+|---------|--------|
+| Alterar preco | Atualiza na Shopify |
+| Alterar estoque | Atualiza na Shopify |
+| Alterar nome | Atualiza na Shopify |
+| Alterar imagem | Atualiza na Shopify |
+| Token expirado | Mostra erro claro |
 
 ---
 
-## Próximos Passos
+## Testes
 
-Após implementar, basta tentar conectar a loja Shopify novamente - o OAuth já funcionou corretamente, só falhou ao salvar no banco.
-
+Apos implementacao:
+1. Conectar loja Shopify
+2. Publicar produto na Shopify
+3. Alterar preco/estoque na UNISTOCK
+4. Verificar se alterou na Shopify
