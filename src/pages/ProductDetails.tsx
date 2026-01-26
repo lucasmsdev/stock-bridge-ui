@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { useParams, Link } from "react-router-dom";
 import { ArrowLeft, Package, CheckCircle, AlertTriangle, XCircle, Loader2, Calculator, Truck, RefreshCw } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -139,8 +139,11 @@ export default function ProductDetails() {
   const [isLoading, setIsLoading] = useState(true);
   const [isRepublishing, setIsRepublishing] = useState<string | null>(null);
 
-  // Check for disconnected listings that need republishing
-  const disconnectedListings = listings.filter(l => l.sync_status === 'disconnected');
+  // ✅ Recalcular sempre que listings mudar usando useMemo
+  const disconnectedListings = useMemo(() => {
+    console.log('🔍 Recalculando disconnectedListings, listings:', listings);
+    return listings.filter(l => l.sync_status === 'disconnected');
+  }, [listings]);
 
   const handleRepublish = async (listing: ProductListing) => {
     if (!productDetails || !user) return;

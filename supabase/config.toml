@@ -128,3 +128,6 @@ verify_jwt = false
 
 [functions.sync-shopify-listing]
 verify_jwt = true
+
+[functions.fix-shopify-listings]
+verify_jwt = true

@@ -60,10 +60,17 @@ serve(async (req) => {
       );
     }
 
+    // ✅ VALIDAÇÃO: Alertar se platformProductId parece ser um variant ID (muito longo)
+    if (platformProductId && platformProductId.length > 12) {
+      console.warn('⚠️ platformProductId parece ser um variant ID (muito longo):', platformProductId);
+      console.warn('⚠️ Isso pode causar erro 404. Verifique se o product_listing foi salvo corretamente.');
+    }
+
     console.log('🔄 Sincronizando produto com Shopify:', {
       productId,
-      platformProductId,
-      platformVariantId,
+      listingId,
+      platformProductId,      // ← Deve ser o product.id (ex: 9876543210)
+      platformVariantId,      // ← Deve ser o variant.id (ex: 53299378323740)
       sellingPrice,
       stock,
       name: name?.substring(0, 30) + '...',
@@ -184,7 +191,9 @@ serve(async (req) => {
         // Tratamento especial para 404 - produto não existe mais na Shopify
         if (productResponse.status === 404) {
           console.log('⚠️ Produto não encontrado na Shopify (404) - marcando como desconectado');
+          console.log('⚠️ ListingId para atualizar:', listingId);
           
+          // ✅ MELHORADO: Usar .select().single() e capturar erro explicitamente
           const { data: updateData, error: updateError } = await supabaseAdmin
             .from('product_listings')
             .update({
@@ -193,12 +202,31 @@ serve(async (req) => {
               last_sync_at: new Date().toISOString(),
               updated_at: new Date().toISOString(),
             })
-            .eq('id', listingId);
+            .eq('id', listingId)
+            .select()
+            .single();
           
           if (updateError) {
-            console.error('❌ Erro ao atualizar status para disconnected:', updateError);
+            console.error('❌ CRÍTICO: Erro ao atualizar status para disconnected:', updateError);
+            console.error('❌ Detalhes do erro:', JSON.stringify(updateError, null, 2));
+            
+            // Tentar novamente sem .single() como fallback
+            const { error: retryError } = await supabaseAdmin
+              .from('product_listings')
+              .update({
+                sync_status: 'disconnected',
+                sync_error: 'Produto não encontrado na Shopify. Clique em "Republicar" para criar novamente.',
+                last_sync_at: new Date().toISOString(),
+              })
+              .eq('id', listingId);
+            
+            if (retryError) {
+              console.error('❌ RETRY TAMBÉM FALHOU:', retryError);
+            } else {
+              console.log('✅ Retry bem-sucedido - status atualizado para disconnected');
+            }
           } else {
-            console.log('✅ Status atualizado para disconnected com sucesso:', updateData);
+            console.log('✅ Status atualizado para disconnected:', JSON.stringify(updateData, null, 2));
           }
 
           return new Response(
