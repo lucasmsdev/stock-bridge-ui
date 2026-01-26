@@ -1,9 +1,10 @@
 import { useState, useEffect } from "react";
 import { useParams, Link } from "react-router-dom";
-import { ArrowLeft, Package, CheckCircle, AlertTriangle, XCircle, Loader2, Calculator, Truck } from "lucide-react";
+import { ArrowLeft, Package, CheckCircle, AlertTriangle, XCircle, Loader2, Calculator, Truck, RefreshCw } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import {
   Table,
   TableBody,
@@ -48,9 +49,10 @@ interface ChannelStock {
   channel: string;
   channelId: string;
   stock: number;
-  status: 'synchronized' | 'divergent' | 'not_published' | 'synced' | 'error' | 'not_found' | 'token_expired';
+  status: 'synchronized' | 'divergent' | 'not_published' | 'synced' | 'error' | 'not_found' | 'token_expired' | 'disconnected';
   images?: string[];
   errorMessage?: string;
+  requiresRepublish?: boolean;
 }
 
 interface ProductListing {
@@ -58,6 +60,8 @@ interface ProductListing {
   platform: string;
   integration_id: string;
   platform_product_id: string;
+  sync_status?: string;
+  sync_error?: string;
 }
 
 interface ProductDetailsData {
@@ -117,6 +121,12 @@ const statusConfig = {
     color: "text-red-600",
     bgColor: "bg-red-100 dark:bg-red-900/30",
   },
+  disconnected: {
+    icon: AlertTriangle,
+    label: "Desconectado",
+    color: "text-amber-600",
+    bgColor: "bg-amber-100 dark:bg-amber-900/30",
+  },
 };
 
 export default function ProductDetails() {
@@ -127,6 +137,68 @@ export default function ProductDetails() {
   const [listings, setListings] = useState<ProductListing[]>([]);
   const [supplier, setSupplier] = useState<Supplier | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [isRepublishing, setIsRepublishing] = useState<string | null>(null);
+
+  // Check for disconnected listings that need republishing
+  const disconnectedListings = listings.filter(l => l.sync_status === 'disconnected');
+
+  const handleRepublish = async (listing: ProductListing) => {
+    if (!productDetails || !user) return;
+    
+    const platformName = listing.platform === 'shopify' ? 'Shopify' : listing.platform;
+    
+    try {
+      setIsRepublishing(listing.id);
+      
+      // 1. Delete the broken listing
+      const { error: deleteError } = await supabase
+        .from('product_listings')
+        .delete()
+        .eq('id', listing.id);
+      
+      if (deleteError) {
+        throw new Error('Erro ao remover vínculo antigo');
+      }
+      
+      // 2. Republish to the platform
+      const { data, error } = await supabase.functions.invoke(`create-${listing.platform}-product`, {
+        body: {
+          product_id: productDetails.product.id,
+          integration_id: listing.integration_id,
+          productData: {
+            name: productDetails.product.name,
+            sku: productDetails.product.sku,
+            selling_price: productDetails.product.selling_price,
+            stock: productDetails.product.stock,
+            image_url: productDetails.product.image_url,
+          }
+        }
+      });
+      
+      if (error) {
+        console.error('Republish error:', error);
+        throw new Error(error.message || 'Erro ao republicar produto');
+      }
+      
+      toast({
+        title: "✅ Produto republicado!",
+        description: `O produto foi recriado na ${platformName} com sucesso.`,
+      });
+      
+      // Reload data
+      loadProductDetails();
+      
+    } catch (error: any) {
+      console.error('Error republishing:', error);
+      toast({
+        title: "❌ Erro ao republicar",
+        description: error.message || `Não foi possível republicar na ${platformName}.`,
+        variant: "destructive",
+      });
+    } finally {
+      setIsRepublishing(null);
+    }
+  };
 
   const handleProductUpdate = (updatedProduct: Product) => {
     if (productDetails) {
@@ -189,10 +261,10 @@ export default function ProductDetails() {
       console.log('Product details received:', data);
       setProductDetails(data);
 
-      // Buscar listings para o card de status Amazon
+      // Buscar listings para o card de status Amazon e Shopify
       const { data: listingsData } = await supabase
         .from('product_listings')
-        .select('id, platform, integration_id, platform_product_id')
+        .select('id, platform, integration_id, platform_product_id, sync_status, sync_error')
         .eq('product_id', productData.id)
         .eq('user_id', user.id);
       
@@ -397,6 +469,53 @@ export default function ProductDetails() {
             ))}
           </CardContent>
         </Card>
+      )}
+
+      {/* Alert for disconnected products */}
+      {disconnectedListings.length > 0 && (
+        <Alert className="border-destructive/50 bg-destructive/10">
+          <AlertTriangle className="h-4 w-4 text-destructive" />
+          <AlertTitle className="text-destructive">
+            Produto desconectado
+          </AlertTitle>
+          <AlertDescription className="text-destructive/80">
+            <div className="space-y-3">
+              <p>
+                Este produto foi deletado ou não existe mais em algumas plataformas. 
+                Clique em "Republicar" para criar novamente.
+              </p>
+              <div className="flex flex-wrap gap-2">
+                {disconnectedListings.map((listing) => {
+                  const platformName = listing.platform === 'shopify' ? 'Shopify' : 
+                                       listing.platform === 'mercadolivre' ? 'Mercado Livre' : 
+                                       listing.platform;
+                  return (
+                    <Button
+                      key={listing.id}
+                      variant="outline"
+                      size="sm"
+                      disabled={isRepublishing === listing.id}
+                      onClick={() => handleRepublish(listing)}
+                      className="border-destructive/50 text-destructive hover:bg-destructive/10"
+                    >
+                      {isRepublishing === listing.id ? (
+                        <>
+                          <Loader2 className="h-3 w-3 mr-1 animate-spin" />
+                          Republicando...
+                        </>
+                      ) : (
+                        <>
+                          <RefreshCw className="h-3 w-3 mr-1" />
+                          Republicar na {platformName}
+                        </>
+                      )}
+                    </Button>
+                  );
+                })}
+              </div>
+            </div>
+          </AlertDescription>
+        </Alert>
       )}
 
       {/* Financial Data Form */}

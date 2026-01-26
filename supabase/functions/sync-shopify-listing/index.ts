@@ -181,6 +181,31 @@ serve(async (req) => {
       console.log('📥 Resposta Shopify (produto):', productResponse.status, JSON.stringify(productResult, null, 2));
 
       if (!productResponse.ok) {
+        // Tratamento especial para 404 - produto não existe mais na Shopify
+        if (productResponse.status === 404) {
+          console.log('⚠️ Produto não encontrado na Shopify (404) - marcando como desconectado');
+          
+          await supabaseAdmin
+            .from('product_listings')
+            .update({
+              sync_status: 'disconnected',
+              sync_error: 'Produto não encontrado na Shopify. Clique em "Republicar" para criar novamente.',
+              last_sync_at: new Date().toISOString(),
+              updated_at: new Date().toISOString(),
+            })
+            .eq('id', listingId);
+
+          return new Response(
+            JSON.stringify({ 
+              success: false, 
+              error: 'Produto não encontrado na Shopify',
+              shopifyStatus: 404,
+              requiresRepublish: true,
+            }),
+            { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+          );
+        }
+
         const errorMessage = productResult.errors 
           ? (typeof productResult.errors === 'string' ? productResult.errors : JSON.stringify(productResult.errors))
           : 'Erro ao atualizar produto';
