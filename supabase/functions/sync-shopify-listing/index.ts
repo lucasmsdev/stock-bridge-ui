@@ -185,7 +185,7 @@ serve(async (req) => {
         if (productResponse.status === 404) {
           console.log('⚠️ Produto não encontrado na Shopify (404) - marcando como desconectado');
           
-          await supabaseAdmin
+          const { data: updateData, error: updateError } = await supabaseAdmin
             .from('product_listings')
             .update({
               sync_status: 'disconnected',
@@ -194,6 +194,12 @@ serve(async (req) => {
               updated_at: new Date().toISOString(),
             })
             .eq('id', listingId);
+          
+          if (updateError) {
+            console.error('❌ Erro ao atualizar status para disconnected:', updateError);
+          } else {
+            console.log('✅ Status atualizado para disconnected com sucesso:', updateData);
+          }
 
           return new Response(
             JSON.stringify({ 
