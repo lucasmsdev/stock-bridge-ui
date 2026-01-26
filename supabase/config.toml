@@ -125,3 +125,6 @@ verify_jwt = true
 
 [functions.sync-mercadolivre-listing]
 verify_jwt = false
+
+[functions.sync-shopify-listing]
+verify_jwt = true
