@@ -116,11 +116,22 @@ export const useAuthSession = (options: UseAuthSessionOptions = {}) => {
       return;
     }
 
-    // Verificar imediatamente
+    // Verificar imediatamente, mas com grace period para evitar race condition
+    const sessionStart = getSessionStartTime();
+    const now = Date.now();
+    
     if (isSessionExpired()) {
-      console.log("🔐 useAuthSession: Sessão expirada detectada na verificação inicial");
-      forceLogout(true, "expired");
-      return;
+      // Grace period: se a sessão foi criada há menos de 5 segundos, aguardar
+      // Isso previne logout imediato durante a transição de login
+      const isRecentLogin = sessionStart && (now - sessionStart) < 5000;
+      
+      if (!isRecentLogin) {
+        console.log("🔐 useAuthSession: Sessão expirada detectada na verificação inicial");
+        forceLogout(true, "expired");
+        return;
+      } else {
+        console.log("🔐 useAuthSession: Login recente detectado, ignorando verificação inicial");
+      }
     }
 
     // Configurar verificação periódica

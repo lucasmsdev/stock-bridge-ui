@@ -84,8 +84,7 @@ export default function Login() {
       }
 
       if (data.user) {
-        // Registrar início da sessão de 6 horas
-        registerLogin();
+        // ✅ Sessão de 6h registrada automaticamente pelo AuthProvider (evento SIGNED_IN)
         
         // Primeiro verificar se é admin
         const { data: roleData } = await supabase

@@ -61,8 +61,16 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
           clearAllSessionData();
         }
         
-        // Se login/signup, invalida queries relacionadas ao usuário
-        if (event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED') {
+        // IMPORTANTE: Registrar início de sessão automaticamente no login
+        // Isso elimina a race condition onde useAuthSession verificava antes do registro
+        if (event === 'SIGNED_IN') {
+          const sessionStart = Date.now().toString();
+          localStorage.setItem(SESSION_START_KEY, sessionStart);
+          console.log('🔐 useAuth: Sessão de 6h registrada automaticamente');
+          queryClient.invalidateQueries({ queryKey: queryKeys.profile.all });
+        }
+        
+        if (event === 'TOKEN_REFRESHED') {
           queryClient.invalidateQueries({ queryKey: queryKeys.profile.all });
         }
       }
