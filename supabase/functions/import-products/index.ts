@@ -201,6 +201,7 @@ serve(async (req) => {
     const platform = integration.platform;
 
     let productsToInsert = [];
+    let globalShopifyMappings: Map<string, any> | null = null; // Para armazenar mapeamentos Shopify
 
     if (platform === 'mercadolivre') {
       try {
@@ -468,15 +469,14 @@ serve(async (req) => {
             stock: variant.inventory_quantity || 0,
             selling_price: variant.price ? parseFloat(variant.price) : null,
             image_url: product.image?.src || null,
-            _shopifyMapping: shopifyMappings.get(sku), // Anexar para uso posterior
           };
 
           productsToInsert.push(productData);
         }
       }
       
-      // Anexar mapeamentos ao array para uso na criação de listings
-      (productsToInsert as any)._shopifyMappings = shopifyMappings;
+      // Guardar mapeamentos em variável global para uso posterior
+      globalShopifyMappings = shopifyMappings;
     } else if (platform === 'amazon') {
       console.log('🛒 Importando produtos da Amazon SP-API via Reports API...');
 
@@ -1321,7 +1321,7 @@ serve(async (req) => {
       console.log('🔗 Criando vínculos em product_listings...');
       
       const listingsToInsert = [];
-      const shopifyMappings = (productsToInsert as any)._shopifyMappings;
+      const shopifyMappings = globalShopifyMappings;
 
       if (platform === 'shopify' && shopifyMappings) {
         // ✅ SHOPIFY: Usar IDs corretos do mapeamento
