@@ -200,12 +200,15 @@ export default function ProductDetails() {
     }
   };
 
-  const handleProductUpdate = (updatedProduct: Product) => {
+  const handleProductUpdate = async (updatedProduct: Product) => {
     if (productDetails) {
       setProductDetails({
         ...productDetails,
         product: updatedProduct
       });
+      
+      // Recarregar listings para capturar mudanças de sync_status (ex: disconnected)
+      await loadProductDetails();
     }
   };
 
