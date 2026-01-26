@@ -444,22 +444,39 @@ serve(async (req) => {
 
       console.log(`Found ${products.length} products to import from Shopify`);
 
+      // ✅ NOVA ABORDAGEM: Manter referência ao product.id original da Shopify
+      // Map<sku, {shopifyProductId, shopifyVariantId, fullProductData}>
+      const shopifyMappings = new Map();
+
       // Step 2: Map Shopify products to our format
       for (const product of products) {
         // Shopify products can have multiple variants
         for (const variant of product.variants || []) {
+          const sku = variant.sku || variant.id.toString();
+          
+          // Armazenar mapeamento para criar listings depois com IDs corretos
+          shopifyMappings.set(sku, {
+            shopifyProductId: product.id.toString(),      // ← ID do produto Shopify
+            shopifyVariantId: variant.id.toString(),       // ← ID da variante Shopify
+            fullProductData: product,                       // Dados completos para metadata
+          });
+
           const productData = {
             user_id: user.id,
             name: `${product.title}${variant.title !== 'Default Title' ? ` - ${variant.title}` : ''}`,
-            sku: variant.sku || variant.id.toString(),
+            sku: sku,
             stock: variant.inventory_quantity || 0,
             selling_price: variant.price ? parseFloat(variant.price) : null,
             image_url: product.image?.src || null,
+            _shopifyMapping: shopifyMappings.get(sku), // Anexar para uso posterior
           };
 
           productsToInsert.push(productData);
         }
       }
+      
+      // Anexar mapeamentos ao array para uso na criação de listings
+      (productsToInsert as any)._shopifyMappings = shopifyMappings;
     } else if (platform === 'amazon') {
       console.log('🛒 Importando produtos da Amazon SP-API via Reports API...');
 
@@ -1303,29 +1320,71 @@ serve(async (req) => {
     if (insertedProducts && insertedProducts.length > 0 && platform) {
       console.log('🔗 Criando vínculos em product_listings...');
       
-      const listingsToInsert = insertedProducts.map(product => ({
-        user_id: user.id,
-        product_id: product.id,
-        platform: platform,
-        platform_product_id: product.sku, // SKU é usado como identificador
-        integration_id: integration.id,
-        sync_status: 'active',
-        last_sync_at: new Date().toISOString(),
-      }));
+      const listingsToInsert = [];
+      const shopifyMappings = (productsToInsert as any)._shopifyMappings;
 
-      const { data: insertedListings, error: listingsError } = await supabaseClient
-        .from('product_listings')
-        .upsert(listingsToInsert, {
-          onConflict: 'product_id,integration_id',
-          ignoreDuplicates: false,
-        })
-        .select();
-
-      if (listingsError) {
-        console.warn('⚠️ Erro ao criar vínculos em product_listings:', listingsError);
-        // Não falhar a importação por causa disso
+      if (platform === 'shopify' && shopifyMappings) {
+        // ✅ SHOPIFY: Usar IDs corretos do mapeamento
+        for (const product of insertedProducts) {
+          const mapping = shopifyMappings.get(product.sku);
+          
+          if (mapping) {
+            listingsToInsert.push({
+              user_id: user.id,
+              product_id: product.id,
+              platform: 'shopify',
+              platform_product_id: mapping.shopifyProductId,     // ✅ product.id da Shopify
+              platform_variant_id: mapping.shopifyVariantId,     // ✅ variant.id da Shopify
+              platform_metadata: mapping.fullProductData,        // ✅ Dados completos
+              integration_id: integration.id,
+              sync_status: 'active',
+              last_sync_at: new Date().toISOString(),
+            });
+            console.log(`📦 Mapeando SKU ${product.sku}: productId=${mapping.shopifyProductId}, variantId=${mapping.shopifyVariantId}`);
+          } else {
+            console.warn(`⚠️ Mapeamento Shopify não encontrado para SKU: ${product.sku}`);
+            // Fallback: criar listing sem IDs corretos
+            listingsToInsert.push({
+              user_id: user.id,
+              product_id: product.id,
+              platform: 'shopify',
+              platform_product_id: product.sku,
+              integration_id: integration.id,
+              sync_status: 'active',
+              last_sync_at: new Date().toISOString(),
+            });
+          }
+        }
       } else {
-        console.log(`✅ ${insertedListings?.length || 0} vínculos criados em product_listings`);
+        // Outras plataformas (Mercado Livre, Amazon) - comportamento original
+        for (const product of insertedProducts) {
+          listingsToInsert.push({
+            user_id: user.id,
+            product_id: product.id,
+            platform: platform,
+            platform_product_id: product.sku, // SKU é usado como identificador
+            integration_id: integration.id,
+            sync_status: 'active',
+            last_sync_at: new Date().toISOString(),
+          });
+        }
+      }
+
+      if (listingsToInsert.length > 0) {
+        const { data: insertedListings, error: listingsError } = await supabaseClient
+          .from('product_listings')
+          .upsert(listingsToInsert, {
+            onConflict: 'product_id,integration_id',
+            ignoreDuplicates: false,
+          })
+          .select();
+
+        if (listingsError) {
+          console.warn('⚠️ Erro ao criar vínculos em product_listings:', listingsError);
+          // Não falhar a importação por causa disso
+        } else {
+          console.log(`✅ ${insertedListings?.length || 0} vínculos criados em product_listings`);
+        }
       }
     }
 
