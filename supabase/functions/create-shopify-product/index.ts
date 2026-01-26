@@ -101,8 +101,11 @@ serve(async (req) => {
     console.log('Creating Shopify product:', shopifyPayload)
 
     // Create product on Shopify
+    const shopUrl = integration.shop_domain.includes('.myshopify.com') 
+      ? integration.shop_domain 
+      : `${integration.shop_domain}.myshopify.com`;
     const shopifyResponse = await fetch(
-      `https://${integration.shop_domain}/admin/api/2024-01/products.json`,
+      `https://${shopUrl}/admin/api/2024-01/products.json`,
       {
         method: 'POST',
         headers: {
@@ -126,7 +129,7 @@ serve(async (req) => {
       )
     }
 
-    const productUrl = `https://${integration.shop_domain}/admin/products/${shopifyData.product.id}`
+    const productUrl = `https://${shopUrl}/admin/products/${shopifyData.product.id}`
 
     // Save listing in database
     const { data: listing, error: listingError } = await supabaseClient

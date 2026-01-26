@@ -127,7 +127,10 @@ serve(async (req) => {
     }
 
     const shopDomain = integration.shop_domain;
-    const baseUrl = `https://${shopDomain}/admin/api/${SHOPIFY_API_VERSION}`;
+    const shopUrl = shopDomain.includes('.myshopify.com') 
+      ? shopDomain 
+      : `${shopDomain}.myshopify.com`;
+    const baseUrl = `https://${shopUrl}/admin/api/${SHOPIFY_API_VERSION}`;
     
     const headers = {
       'X-Shopify-Access-Token': accessToken,
