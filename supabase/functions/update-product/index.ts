@@ -95,7 +95,7 @@ serve(async (req) => {
     // Buscar listings vinculados a este produto
     const { data: listings, error: listingsError } = await supabaseClient
       .from('product_listings')
-      .select('id, platform, platform_product_id, integration_id, sync_status')
+      .select('id, platform, platform_product_id, platform_variant_id, integration_id, sync_status')
       .eq('product_id', productId)
       .eq('user_id', user.id);
 
@@ -223,13 +223,58 @@ serve(async (req) => {
             });
           }
         } else if (listing.platform === 'shopify') {
-          // TODO: Implementar sincronização Shopify
-          console.log('⏭️ Sincronização Shopify não implementada ainda');
-          syncResults.push({
-            platform: 'shopify',
-            success: false,
-            error: 'Sincronização não implementada',
-          });
+          try {
+            // Chamar função de sincronização Shopify
+            const syncResponse = await fetch(
+              `${Deno.env.get('SUPABASE_URL')}/functions/v1/sync-shopify-listing`,
+              {
+                method: 'POST',
+                headers: {
+                  'Authorization': req.headers.get('Authorization')!,
+                  'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                  productId: productId,
+                  listingId: listing.id,
+                  integrationId: listing.integration_id,
+                  platformProductId: listing.platform_product_id,
+                  platformVariantId: listing.platform_variant_id,
+                  sellingPrice: selling_price,
+                  stock: stock,
+                  name: name,
+                  imageUrl: image_url,
+                }),
+              }
+            );
+
+            const syncResult = await syncResponse.json();
+            
+            if (syncResponse.ok && syncResult.success) {
+              console.log(`✅ Shopify sincronizado com sucesso`);
+              syncResults.push({
+                platform: 'shopify',
+                success: true,
+                message: syncResult.message || 'Sincronizado com sucesso',
+                updatedFields: syncResult.updatedFields || [],
+                warnings: syncResult.warnings || [],
+              });
+            } else {
+              console.error(`❌ Erro ao sincronizar Shopify:`, syncResult);
+              syncResults.push({
+                platform: 'shopify',
+                success: false,
+                error: syncResult.error || 'Erro desconhecido',
+                requiresReconnect: syncResult.requiresReconnect || false,
+              });
+            }
+          } catch (syncError: any) {
+            console.error(`💥 Exceção ao sincronizar Shopify:`, syncError);
+            syncResults.push({
+              platform: 'shopify',
+              success: false,
+              error: syncError.message,
+            });
+          }
         }
       }
     } else {
