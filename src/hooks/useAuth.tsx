@@ -1,9 +1,10 @@
-import { useEffect, createContext, useContext, useCallback } from "react";
+import { useEffect, createContext, useContext, useCallback, type ReactNode } from "react";
 import { User, Session } from "@supabase/supabase-js";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { queryKeys } from "@/lib/queryClient";
 
+// Constante para localStorage - tempo de início da sessão de 6h
 const SESSION_START_KEY = "unistock_session_start";
 
 interface AuthContextType {
@@ -16,7 +17,7 @@ interface AuthContextType {
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
-export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
+export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const queryClient = useQueryClient();
 
   // React Query para gerenciar a sessão com cache otimista
