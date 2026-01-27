@@ -25,8 +25,6 @@ serve(async (req) => {
       );
     }
 
-    const token = authHeader.replace('Bearer ', '');
-
     const supabaseClient = createClient(
       Deno.env.get('SUPABASE_URL') ?? '',
       Deno.env.get('SUPABASE_ANON_KEY') ?? '',
@@ -34,11 +32,15 @@ serve(async (req) => {
         global: {
           headers: { Authorization: authHeader },
         },
+        // Edge runtime doesn't have browser storage; disable session persistence
+        auth: {
+          persistSession: false,
+        },
       }
     );
 
-    // Get the user from the request (explicit token is required in Edge runtime)
-    const { data: { user }, error: userError } = await supabaseClient.auth.getUser(token);
+    // Get the user from the request (reads Authorization header)
+    const { data: { user }, error: userError } = await supabaseClient.auth.getUser();
     
     if (userError || !user) {
       console.error('Authentication error:', userError);
