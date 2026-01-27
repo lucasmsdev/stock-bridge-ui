@@ -401,16 +401,18 @@ export default function ProductDetails() {
         </p>
       </div>
 
-      {/* Product Images Gallery - Local Management */}
+      {/* Product Images Gallery - Local Management + Marketplace Sync */}
       <ProductImagesGallery
         productId={product.id}
         initialImages={(product.images as string[]) || []}
+        listings={listings}
         onUpdate={(images) => {
           setProductDetails({
             ...productDetails,
             product: { ...product, images, image_url: images[0] || null }
           });
         }}
+        onSyncComplete={loadProductDetails}
       />
 
       {/* Central Stock Card */}

@@ -13,16 +13,28 @@ interface PendingUpload {
   status: 'pending' | 'uploading' | 'done' | 'error';
 }
 
+interface ProductListing {
+  id: string;
+  platform: string;
+  integration_id: string;
+  platform_product_id: string;
+  sync_status?: string;
+}
+
 interface ProductImagesGalleryProps {
   productId: string;
   initialImages: string[];
+  listings?: ProductListing[];
   onUpdate: (images: string[]) => void;
+  onSyncComplete?: () => void;
 }
 
 export function ProductImagesGallery({ 
   productId, 
   initialImages, 
-  onUpdate 
+  listings = [],
+  onUpdate,
+  onSyncComplete 
 }: ProductImagesGalleryProps) {
   const { toast } = useToast();
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -30,6 +42,7 @@ export function ProductImagesGallery({
   const [images, setImages] = useState<string[]>(initialImages || []);
   const [pendingUploads, setPendingUploads] = useState<PendingUpload[]>([]);
   const [urlInput, setUrlInput] = useState("");
+  const [isSyncingMarketplaces, setIsSyncingMarketplaces] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [isDraggingFile, setIsDraggingFile] = useState(false);
   const [hasChanges, setHasChanges] = useState(false);
@@ -196,6 +209,52 @@ export function ProductImagesGallery({
     setDragOverIndex(null);
   };
 
+  // Sync images to connected marketplaces
+  const syncToMarketplaces = async (imagesToSync: string[]) => {
+    // Filter only active/synced listings (exclude disconnected, error, etc.)
+    const activeListings = listings.filter(l => 
+      l.sync_status === 'active' || l.sync_status === 'synced' || !l.sync_status
+    );
+    
+    if (activeListings.length === 0) {
+      console.log('No active listings to sync images');
+      return { synced: 0, failed: 0 };
+    }
+
+    setIsSyncingMarketplaces(true);
+    let synced = 0;
+    let failed = 0;
+
+    for (const listing of activeListings) {
+      try {
+        console.log(`Syncing images to ${listing.platform}...`);
+        
+        const { error } = await supabase.functions.invoke('update-product-images', {
+          body: {
+            productId,
+            listingId: listing.id,
+            platform: listing.platform,
+            images: imagesToSync
+          }
+        });
+
+        if (error) {
+          console.error(`Error syncing to ${listing.platform}:`, error);
+          failed++;
+        } else {
+          console.log(`✅ Images synced to ${listing.platform}`);
+          synced++;
+        }
+      } catch (err) {
+        console.error(`Error syncing to ${listing.platform}:`, err);
+        failed++;
+      }
+    }
+
+    setIsSyncingMarketplaces(false);
+    return { synced, failed };
+  };
+
   const handleSave = async () => {
     try {
       setIsSaving(true);
@@ -203,6 +262,7 @@ export function ProductImagesGallery({
       const uploadedUrls = await uploadPendingFiles();
       const allImages = [...images, ...uploadedUrls];
       
+      // 1. Save to database
       const { error } = await supabase
         .from('products')
         .update({ 
@@ -219,10 +279,37 @@ export function ProductImagesGallery({
       
       onUpdate(allImages);
       
-      toast({
-        title: "✅ Imagens salvas",
-        description: `${allImages.length} imagem(ns) salva(s) com sucesso`,
-      });
+      // 2. Sync to marketplaces
+      const { synced, failed } = await syncToMarketplaces(allImages);
+      
+      // 3. Show appropriate toast
+      if (synced > 0 && failed === 0) {
+        toast({
+          title: "✅ Imagens atualizadas",
+          description: `${allImages.length} imagem(ns) salva(s) e sincronizada(s) com ${synced} marketplace(s)`,
+        });
+      } else if (synced > 0 && failed > 0) {
+        toast({
+          title: "⚠️ Sincronização parcial",
+          description: `Imagens salvas. ${synced} marketplace(s) sincronizado(s), ${failed} com erro.`,
+          variant: "default",
+        });
+      } else if (failed > 0) {
+        toast({
+          title: "⚠️ Erro ao sincronizar",
+          description: `Imagens salvas localmente, mas falhou ao sincronizar com ${failed} marketplace(s).`,
+          variant: "destructive",
+        });
+      } else {
+        toast({
+          title: "✅ Imagens salvas",
+          description: `${allImages.length} imagem(ns) salva(s) com sucesso`,
+        });
+      }
+      
+      // Trigger refresh of listings
+      onSyncComplete?.();
+      
     } catch (error: any) {
       console.error('Error saving images:', error);
       toast({
@@ -258,6 +345,11 @@ export function ProductImagesGallery({
   };
 
   const totalImages = images.length + pendingUploads.length;
+  
+  // Count active marketplaces for syncing
+  const activeMarketplaces = listings.filter(l => 
+    l.sync_status === 'active' || l.sync_status === 'synced' || !l.sync_status
+  ).length;
 
   return (
     <Card className="shadow-soft">
@@ -268,12 +360,17 @@ export function ProductImagesGallery({
           {totalImages > 0 && (
             <Badge variant="secondary">{totalImages} foto(s)</Badge>
           )}
+          {activeMarketplaces > 0 && (
+            <Badge variant="outline" className="text-xs">
+              {activeMarketplaces} marketplace(s) conectado(s)
+            </Badge>
+          )}
         </div>
         
         {hasChanges && (
           <Button 
             onClick={handleSave} 
-            disabled={isSaving}
+            disabled={isSaving || isSyncingMarketplaces}
             size="sm"
           >
             {isSaving ? (
@@ -281,10 +378,15 @@ export function ProductImagesGallery({
                 <Loader2 className="h-4 w-4 mr-2 animate-spin" />
                 Salvando...
               </>
+            ) : isSyncingMarketplaces ? (
+              <>
+                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                Sincronizando...
+              </>
             ) : (
               <>
                 <Save className="h-4 w-4 mr-2" />
-                Salvar Alterações
+                Salvar e Sincronizar
               </>
             )}
           </Button>
