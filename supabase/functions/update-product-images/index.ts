@@ -6,6 +6,314 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
+// Upload image to Mercado Livre via multipart
+async function uploadImageToMercadoLivre(
+  accessToken: string,
+  imageUrl: string
+): Promise<{ success: boolean; pictureId?: string; error?: string }> {
+  try {
+    console.log(`Downloading image from: ${imageUrl}`);
+    
+    // Download the image
+    const imageResponse = await fetch(imageUrl);
+    if (!imageResponse.ok) {
+      console.log(`Failed to download image: ${imageResponse.status}`);
+      return { success: false, error: `Não foi possível baixar a imagem (${imageResponse.status})` };
+    }
+    
+    const imageBuffer = await imageResponse.arrayBuffer();
+    const contentType = imageResponse.headers.get('content-type') || 'image/jpeg';
+    
+    // Determine file extension from content type
+    let extension = 'jpg';
+    if (contentType.includes('png')) extension = 'png';
+    else if (contentType.includes('webp')) extension = 'webp';
+    else if (contentType.includes('gif')) extension = 'gif';
+    
+    console.log(`Image downloaded: ${imageBuffer.byteLength} bytes, type: ${contentType}`);
+    
+    // Create FormData for multipart upload
+    const formData = new FormData();
+    const blob = new Blob([imageBuffer], { type: contentType });
+    formData.append('file', blob, `image.${extension}`);
+    
+    // Upload to ML
+    console.log('Uploading to Mercado Livre pictures API...');
+    const uploadResponse = await fetch(
+      'https://api.mercadolibre.com/pictures/items/upload',
+      {
+        method: 'POST',
+        headers: { 'Authorization': `Bearer ${accessToken}` },
+        body: formData,
+      }
+    );
+    
+    const uploadText = await uploadResponse.text();
+    console.log('ML upload response:', uploadText);
+    
+    if (!uploadResponse.ok) {
+      let errorData;
+      try {
+        errorData = JSON.parse(uploadText);
+      } catch {
+        errorData = { message: uploadText };
+      }
+      return { success: false, error: errorData.message || 'Erro no upload para ML' };
+    }
+    
+    const uploadData = JSON.parse(uploadText);
+    if (uploadData.id) {
+      console.log(`Image uploaded successfully: ${uploadData.id}`);
+      return { success: true, pictureId: uploadData.id };
+    }
+    
+    return { success: false, error: 'ML não retornou ID da imagem' };
+    
+  } catch (error) {
+    console.error('Upload error:', error);
+    return { success: false, error: error.message || 'Erro desconhecido no upload' };
+  }
+}
+
+// Extract picture ID from ML URL
+function extractMlPictureId(url: string): string | null {
+  // Match patterns like: 123456-MLA12345678901_012025 or D_NQ_NP_123456-MLA12345678901_012025
+  const patterns = [
+    /(\d+-MLA\d+[_-]\d+)/i,
+    /(\d+-MLB\d+[_-]\d+)/i,
+    /(\d+-MLM\d+[_-]\d+)/i,
+    /(\d+-MLC\d+[_-]\d+)/i,
+    /D_NQ_NP_(\d+-ML[A-Z]\d+[_-]\d+)/i,
+  ];
+  
+  for (const pattern of patterns) {
+    const match = url.match(pattern);
+    if (match) {
+      return match[1];
+    }
+  }
+  
+  return null;
+}
+
+// Check if URL is from Mercado Livre
+function isMlUrl(url: string): boolean {
+  return url.includes('mlstatic.com') || url.includes('mercadolibre.com') || url.includes('mercadolivre.com');
+}
+
+async function updateMercadoLivreImages(
+  accessToken: string, 
+  itemId: string, 
+  images: string[]
+): Promise<{ success: boolean; error?: string; details?: string }> {
+  try {
+    console.log(`Updating Mercado Livre images for item: ${itemId}`);
+    console.log(`Images to process: ${images.length}`);
+    
+    // Filter and validate URLs - ML only accepts HTTPS URLs
+    const validImages = images.filter(url => {
+      try {
+        const parsed = new URL(url);
+        return parsed.protocol === 'https:';
+      } catch {
+        console.log(`Invalid URL skipped: ${url}`);
+        return false;
+      }
+    });
+
+    if (validImages.length === 0) {
+      return { success: false, error: 'Nenhuma imagem válida para enviar (apenas HTTPS é aceito)' };
+    }
+
+    console.log(`Valid images count: ${validImages.length}`);
+    
+    // Check if item is a catalog listing (pictures not modifiable)
+    const itemCheck = await fetch(
+      `https://api.mercadolibre.com/items/${itemId}`,
+      { headers: { 'Authorization': `Bearer ${accessToken}` } }
+    );
+    const itemData = await itemCheck.json();
+    
+    console.log(`Item check - catalog_listing: ${itemData.catalog_listing}, catalog_product_id: ${itemData.catalog_product_id}`);
+    
+    if (itemData.catalog_listing || itemData.catalog_product_id) {
+      return { 
+        success: false, 
+        error: 'Este anúncio é de catálogo. As imagens são gerenciadas pelo Mercado Livre e não podem ser alteradas.',
+        details: 'catalog_listing'
+      };
+    }
+    
+    // Process each image - either extract existing ML ID or upload new
+    const pictureIds: string[] = [];
+    const errors: string[] = [];
+    
+    for (const imageUrl of validImages) {
+      // If it's already a ML URL, try to extract the picture ID
+      if (isMlUrl(imageUrl)) {
+        const existingId = extractMlPictureId(imageUrl);
+        if (existingId) {
+          console.log(`Reusing existing ML picture ID: ${existingId}`);
+          pictureIds.push(existingId);
+          continue;
+        }
+      }
+      
+      // Upload external images via multipart
+      const result = await uploadImageToMercadoLivre(accessToken, imageUrl);
+      if (result.success && result.pictureId) {
+        pictureIds.push(result.pictureId);
+      } else {
+        console.log(`Failed to upload: ${imageUrl} - ${result.error}`);
+        errors.push(result.error || 'Erro desconhecido');
+      }
+    }
+    
+    console.log(`Processed images: ${pictureIds.length} success, ${errors.length} failed`);
+    
+    if (pictureIds.length === 0) {
+      return { 
+        success: false, 
+        error: 'Nenhuma imagem foi processada com sucesso.',
+        details: errors.join('; ')
+      };
+    }
+    
+    // Update item with picture IDs (using { id } format, not { source })
+    const updatePayload = {
+      pictures: pictureIds.map(id => ({ id }))
+    };
+    
+    console.log('Updating item with pictures:', JSON.stringify(updatePayload));
+    
+    const updateResponse = await fetch(
+      `https://api.mercadolibre.com/items/${itemId}`,
+      {
+        method: 'PUT',
+        headers: {
+          'Authorization': `Bearer ${accessToken}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(updatePayload),
+      }
+    );
+
+    const responseText = await updateResponse.text();
+    console.log(`ML update response status: ${updateResponse.status}`);
+    console.log(`ML update response: ${responseText}`);
+
+    if (!updateResponse.ok) {
+      let errorData;
+      try {
+        errorData = JSON.parse(responseText);
+      } catch {
+        errorData = { message: responseText };
+      }
+      
+      console.error('Mercado Livre API error:', errorData);
+      
+      // Handle specific ML errors
+      if (updateResponse.status === 401 || updateResponse.status === 403) {
+        return { success: false, error: 'Token expirado. Reconecte sua conta do Mercado Livre.' };
+      }
+      
+      // Detect catalog/locked errors
+      if (errorData.cause?.some((c: any) => 
+        c.code === 'field_not_updatable' || 
+        c.code === 'item.pictures.error' ||
+        c.message?.includes('pictures is not modifiable')
+      )) {
+        return { 
+          success: false, 
+          error: 'As imagens deste anúncio não podem ser alteradas (anúncio de catálogo ou bloqueado).',
+          details: JSON.stringify(errorData.cause)
+        };
+      }
+      
+      return { 
+        success: false, 
+        error: errorData.message || `Erro ao atualizar imagens: ${updateResponse.status}`,
+        details: JSON.stringify(errorData)
+      };
+    }
+
+    const successMsg = errors.length > 0 
+      ? `${pictureIds.length} imagens atualizadas, ${errors.length} falharam`
+      : `${pictureIds.length} imagens atualizadas com sucesso`;
+      
+    console.log(successMsg);
+    return { success: true, details: successMsg };
+  } catch (error) {
+    console.error('Error updating Mercado Livre images:', error);
+    return { success: false, error: 'Falha ao conectar com Mercado Livre' };
+  }
+}
+
+async function updateShopifyImages(
+  accessToken: string,
+  productId: string,
+  images: string[],
+  shopDomain: string | null
+): Promise<{ success: boolean; error?: string }> {
+  try {
+    if (!shopDomain) {
+      return { success: false, error: 'Shop domain not configured' };
+    }
+
+    // Ensure proper shop URL format
+    const shopUrl = shopDomain.includes('.myshopify.com') 
+      ? shopDomain 
+      : `${shopDomain}.myshopify.com`;
+
+    console.log(`Updating Shopify images for product: ${productId} on ${shopUrl}`);
+
+    // Shopify expects images as array of objects with src
+    const shopifyImages = images.map((url, index) => ({
+      src: url,
+      position: index + 1,
+    }));
+
+    const response = await fetch(
+      `https://${shopUrl}/admin/api/2024-01/products/${productId}.json`,
+      {
+        method: 'PUT',
+        headers: {
+          'X-Shopify-Access-Token': accessToken,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          product: { images: shopifyImages }
+        }),
+      }
+    );
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      console.error('Shopify API error:', errorText);
+
+      if (response.status === 401) {
+        return { success: false, error: 'Token expirado. Reconecte sua loja Shopify.' };
+      }
+      if (response.status === 404) {
+        return { success: false, error: 'Produto não encontrado na Shopify.' };
+      }
+
+      return { 
+        success: false, 
+        error: `Erro ao atualizar imagens: ${response.status}` 
+      };
+    }
+
+    const data = await response.json();
+    console.log('Shopify images updated:', data.product?.images?.length);
+
+    return { success: true };
+  } catch (error) {
+    console.error('Error updating Shopify images:', error);
+    return { success: false, error: 'Falha ao conectar com Shopify' };
+  }
+}
+
 serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
@@ -119,7 +427,7 @@ serve(async (req) => {
         })
         .eq('id', listingId);
 
-      return new Response(JSON.stringify({ error: result.error }), {
+      return new Response(JSON.stringify({ error: result.error, details: result.details }), {
         status: 400,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
@@ -139,6 +447,7 @@ serve(async (req) => {
     return new Response(JSON.stringify({ 
       success: true, 
       message: `Images updated successfully on ${platform}`,
+      details: result.details,
       updatedImages: images.length
     }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
@@ -152,149 +461,3 @@ serve(async (req) => {
     });
   }
 });
-
-async function updateMercadoLivreImages(
-  accessToken: string, 
-  itemId: string, 
-  images: string[]
-): Promise<{ success: boolean; error?: string }> {
-  try {
-    console.log(`Updating Mercado Livre images for item: ${itemId}`);
-    console.log(`Images to send: ${JSON.stringify(images)}`);
-    
-    // Filter and validate URLs - ML only accepts HTTPS URLs
-    const validImages = images.filter(url => {
-      try {
-        const parsed = new URL(url);
-        return parsed.protocol === 'https:';
-      } catch {
-        console.log(`Invalid URL skipped: ${url}`);
-        return false;
-      }
-    });
-
-    if (validImages.length === 0) {
-      return { success: false, error: 'Nenhuma imagem válida para enviar (apenas HTTPS é aceito)' };
-    }
-
-    console.log(`Valid images count: ${validImages.length}`);
-    
-    // Mercado Livre expects pictures as array of objects with source URL
-    const pictures = validImages.map(url => ({ source: url }));
-
-    const response = await fetch(`https://api.mercadolibre.com/items/${itemId}`, {
-      method: 'PUT',
-      headers: {
-        'Authorization': `Bearer ${accessToken}`,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({ pictures }),
-    });
-
-    const responseText = await response.text();
-    console.log(`ML API response status: ${response.status}`);
-    console.log(`ML API response: ${responseText}`);
-
-    if (!response.ok) {
-      let errorData;
-      try {
-        errorData = JSON.parse(responseText);
-      } catch {
-        errorData = { message: responseText };
-      }
-      
-      console.error('Mercado Livre API error:', errorData);
-      
-      // Handle specific ML errors
-      if (response.status === 401 || response.status === 403) {
-        return { success: false, error: 'Token expirado. Reconecte sua conta do Mercado Livre.' };
-      }
-      
-      // Handle image processing errors
-      if (errorData.cause?.some((c: any) => c.code === 'item.pictures.error')) {
-        return { 
-          success: false, 
-          error: 'ML não conseguiu processar as imagens. Verifique se as URLs são públicas e acessíveis.' 
-        };
-      }
-      
-      return { 
-        success: false, 
-        error: errorData.message || `Erro ao atualizar imagens: ${response.status}` 
-      };
-    }
-
-    const data = JSON.parse(responseText);
-    console.log('Mercado Livre images updated successfully:', data.pictures?.length);
-    
-    return { success: true };
-  } catch (error) {
-    console.error('Error updating Mercado Livre images:', error);
-    return { success: false, error: 'Falha ao conectar com Mercado Livre' };
-  }
-}
-
-async function updateShopifyImages(
-  accessToken: string,
-  productId: string,
-  images: string[],
-  shopDomain: string | null
-): Promise<{ success: boolean; error?: string }> {
-  try {
-    if (!shopDomain) {
-      return { success: false, error: 'Shop domain not configured' };
-    }
-
-    // Ensure proper shop URL format
-    const shopUrl = shopDomain.includes('.myshopify.com') 
-      ? shopDomain 
-      : `${shopDomain}.myshopify.com`;
-
-    console.log(`Updating Shopify images for product: ${productId} on ${shopUrl}`);
-
-    // Shopify expects images as array of objects with src
-    const shopifyImages = images.map((url, index) => ({
-      src: url,
-      position: index + 1,
-    }));
-
-    const response = await fetch(
-      `https://${shopUrl}/admin/api/2024-01/products/${productId}.json`,
-      {
-        method: 'PUT',
-        headers: {
-          'X-Shopify-Access-Token': accessToken,
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          product: { images: shopifyImages }
-        }),
-      }
-    );
-
-    if (!response.ok) {
-      const errorText = await response.text();
-      console.error('Shopify API error:', errorText);
-
-      if (response.status === 401) {
-        return { success: false, error: 'Token expirado. Reconecte sua loja Shopify.' };
-      }
-      if (response.status === 404) {
-        return { success: false, error: 'Produto não encontrado na Shopify.' };
-      }
-
-      return { 
-        success: false, 
-        error: `Erro ao atualizar imagens: ${response.status}` 
-      };
-    }
-
-    const data = await response.json();
-    console.log('Shopify images updated:', data.product?.images?.length);
-
-    return { success: true };
-  } catch (error) {
-    console.error('Error updating Shopify images:', error);
-    return { success: false, error: 'Falha ao conectar com Shopify' };
-  }
-}
