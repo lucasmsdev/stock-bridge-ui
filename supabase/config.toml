@@ -22,7 +22,7 @@ verify_jwt = true
 verify_jwt = true
 
 [functions.import-products]
-verify_jwt = true
+verify_jwt = false
 
 [functions.get-product-details]
 verify_jwt = true
@@ -118,7 +118,7 @@ verify_jwt = false
 verify_jwt = true
 
 [functions.stock-forecast]
-verify_jwt = true
+verify_jwt = false
 
 [functions.seed-demo-data]
 verify_jwt = true

@@ -25,6 +25,8 @@ serve(async (req) => {
       );
     }
 
+    const token = authHeader.replace('Bearer ', '');
+
     const supabaseClient = createClient(
       Deno.env.get('SUPABASE_URL') ?? '',
       Deno.env.get('SUPABASE_ANON_KEY') ?? '',
@@ -39,11 +41,12 @@ serve(async (req) => {
       }
     );
 
-    // Get the user from the request (reads Authorization header)
-    const { data: { user }, error: userError } = await supabaseClient.auth.getUser();
-    
-    if (userError || !user) {
-      console.error('Authentication error:', userError);
+    // ✅ Validate JWT explicitly (verify_jwt is disabled in config.toml)
+    const { data: claimsData, error: claimsError } = await supabaseClient.auth.getClaims(token);
+    const userId = claimsData?.claims?.sub;
+
+    if (claimsError || !userId) {
+      console.error('Authentication error:', claimsError);
       return new Response(
         JSON.stringify({ error: 'User not authenticated' }), 
         { 
@@ -53,6 +56,7 @@ serve(async (req) => {
       );
     }
 
+    const user = { id: userId };
     console.log('Authenticated user:', user.id);
 
     // Get user's plan and current product count to check SKU limits
