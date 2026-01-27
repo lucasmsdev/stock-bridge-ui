@@ -1,5 +1,5 @@
 import { useState, useRef, useCallback } from "react";
-import { Upload, X, Link as LinkIcon, Plus, ChevronLeft, ChevronRight, Loader2, Save, ImageIcon } from "lucide-react";
+import { Upload, X, Link as LinkIcon, Plus, Loader2, Save, ImageIcon, GripVertical } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -31,8 +31,12 @@ export function ProductImagesGallery({
   const [pendingUploads, setPendingUploads] = useState<PendingUpload[]>([]);
   const [urlInput, setUrlInput] = useState("");
   const [isSaving, setIsSaving] = useState(false);
-  const [isDragging, setIsDragging] = useState(false);
+  const [isDraggingFile, setIsDraggingFile] = useState(false);
   const [hasChanges, setHasChanges] = useState(false);
+  
+  // Drag-and-drop reorder state
+  const [draggedIndex, setDraggedIndex] = useState<number | null>(null);
+  const [dragOverIndex, setDragOverIndex] = useState<number | null>(null);
 
   const handleFileSelect = useCallback(async (files: FileList | null) => {
     if (!files || files.length === 0) return;
@@ -40,7 +44,6 @@ export function ProductImagesGallery({
     const validFiles: PendingUpload[] = [];
     
     for (const file of Array.from(files)) {
-      // Validate file type
       if (!['image/jpeg', 'image/png', 'image/webp'].includes(file.type)) {
         toast({
           title: "Formato inválido",
@@ -50,7 +53,6 @@ export function ProductImagesGallery({
         continue;
       }
       
-      // Validate file size (10MB max)
       if (file.size > 10 * 1024 * 1024) {
         toast({
           title: "Arquivo muito grande",
@@ -120,7 +122,6 @@ export function ProductImagesGallery({
   const handleAddUrl = () => {
     if (!urlInput.trim()) return;
     
-    // Basic URL validation
     try {
       new URL(urlInput);
     } catch {
@@ -152,27 +153,56 @@ export function ProductImagesGallery({
     });
   };
 
-  const handleMove = (fromIndex: number, direction: 'left' | 'right') => {
-    const toIndex = direction === 'left' ? fromIndex - 1 : fromIndex + 1;
-    if (toIndex < 0 || toIndex >= images.length) return;
+  // Drag-and-drop reorder handlers
+  const handleDragStart = (e: React.DragEvent, index: number) => {
+    setDraggedIndex(index);
+    e.dataTransfer.effectAllowed = 'move';
+    e.dataTransfer.setData('text/plain', index.toString());
+    // Add a slight delay to show the drag effect
+    setTimeout(() => {
+      (e.target as HTMLElement).style.opacity = '0.5';
+    }, 0);
+  };
+
+  const handleDragEnd = (e: React.DragEvent) => {
+    (e.target as HTMLElement).style.opacity = '1';
+    setDraggedIndex(null);
+    setDragOverIndex(null);
+  };
+
+  const handleDragOverImage = (e: React.DragEvent, index: number) => {
+    e.preventDefault();
+    e.dataTransfer.dropEffect = 'move';
+    if (draggedIndex !== null && draggedIndex !== index) {
+      setDragOverIndex(index);
+    }
+  };
+
+  const handleDropOnImage = (e: React.DragEvent, dropIndex: number) => {
+    e.preventDefault();
+    
+    if (draggedIndex === null || draggedIndex === dropIndex) {
+      setDragOverIndex(null);
+      return;
+    }
     
     const newImages = [...images];
-    [newImages[fromIndex], newImages[toIndex]] = [newImages[toIndex], newImages[fromIndex]];
+    const [draggedImage] = newImages.splice(draggedIndex, 1);
+    newImages.splice(dropIndex, 0, draggedImage);
+    
     setImages(newImages);
     setHasChanges(true);
+    setDraggedIndex(null);
+    setDragOverIndex(null);
   };
 
   const handleSave = async () => {
     try {
       setIsSaving(true);
       
-      // Upload pending files first
       const uploadedUrls = await uploadPendingFiles();
-      
-      // Combine existing images with newly uploaded ones
       const allImages = [...images, ...uploadedUrls];
       
-      // Save to database
       const { error } = await supabase
         .from('products')
         .update({ 
@@ -183,12 +213,10 @@ export function ProductImagesGallery({
       
       if (error) throw error;
       
-      // Update local state
       setImages(allImages);
       setPendingUploads([]);
       setHasChanges(false);
       
-      // Notify parent
       onUpdate(allImages);
       
       toast({
@@ -207,20 +235,26 @@ export function ProductImagesGallery({
     }
   };
 
-  const handleDragOver = (e: React.DragEvent) => {
+  // File drop zone handlers
+  const handleFileDragOver = (e: React.DragEvent) => {
     e.preventDefault();
-    setIsDragging(true);
+    // Only trigger file drag if no image is being reordered
+    if (draggedIndex === null) {
+      setIsDraggingFile(true);
+    }
   };
 
-  const handleDragLeave = (e: React.DragEvent) => {
+  const handleFileDragLeave = (e: React.DragEvent) => {
     e.preventDefault();
-    setIsDragging(false);
+    setIsDraggingFile(false);
   };
 
-  const handleDrop = (e: React.DragEvent) => {
+  const handleFileDrop = (e: React.DragEvent) => {
     e.preventDefault();
-    setIsDragging(false);
-    handleFileSelect(e.dataTransfer.files);
+    setIsDraggingFile(false);
+    if (draggedIndex === null && e.dataTransfer.files.length > 0) {
+      handleFileSelect(e.dataTransfer.files);
+    }
   };
 
   const totalImages = images.length + pendingUploads.length;
@@ -258,63 +292,65 @@ export function ProductImagesGallery({
       </CardHeader>
       
       <CardContent className="space-y-4">
+        {/* Drag hint */}
+        {images.length > 1 && (
+          <p className="text-xs text-muted-foreground flex items-center gap-1">
+            <GripVertical className="h-3 w-3" />
+            Arraste e solte para reordenar. A primeira imagem será a principal.
+          </p>
+        )}
+
         {/* Images Grid */}
         <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-3">
           {/* Existing Images */}
           {images.map((url, index) => (
             <div 
               key={`img-${index}`} 
-              className="relative group aspect-square rounded-lg overflow-hidden border border-border bg-muted"
+              draggable
+              onDragStart={(e) => handleDragStart(e, index)}
+              onDragEnd={handleDragEnd}
+              onDragOver={(e) => handleDragOverImage(e, index)}
+              onDrop={(e) => handleDropOnImage(e, index)}
+              className={`relative group aspect-square rounded-lg overflow-hidden border-2 bg-muted cursor-grab active:cursor-grabbing transition-all duration-200 ${
+                draggedIndex === index 
+                  ? 'opacity-50 scale-95' 
+                  : dragOverIndex === index 
+                    ? 'border-primary ring-2 ring-primary/50 scale-105' 
+                    : 'border-border hover:border-primary/50'
+              }`}
             >
               <img 
                 src={url} 
                 alt={`Imagem ${index + 1}`}
-                className="w-full h-full object-cover"
+                className="w-full h-full object-cover pointer-events-none"
                 onError={(e) => {
                   e.currentTarget.src = '/placeholder.svg';
                 }}
               />
               
-              {/* Overlay with controls */}
-              <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-1">
-                {/* Move left */}
-                {index > 0 && (
-                  <Button 
-                    size="icon" 
-                    variant="secondary" 
-                    className="h-7 w-7"
-                    onClick={() => handleMove(index, 'left')}
-                  >
-                    <ChevronLeft className="h-4 w-4" />
-                  </Button>
-                )}
-                
-                {/* Delete */}
-                <Button 
-                  size="icon" 
-                  variant="destructive" 
-                  className="h-7 w-7"
-                  onClick={() => handleRemoveImage(index)}
-                >
-                  <X className="h-4 w-4" />
-                </Button>
-                
-                {/* Move right */}
-                {index < images.length - 1 && (
-                  <Button 
-                    size="icon" 
-                    variant="secondary" 
-                    className="h-7 w-7"
-                    onClick={() => handleMove(index, 'right')}
-                  >
-                    <ChevronRight className="h-4 w-4" />
-                  </Button>
-                )}
+              {/* Drag handle indicator */}
+              <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none">
+                <div className="bg-background/80 rounded-full p-2 shadow-md">
+                  <GripVertical className="h-5 w-5 text-muted-foreground" />
+                </div>
               </div>
+              
+              {/* Delete button */}
+              <Button 
+                size="icon" 
+                variant="destructive" 
+                className="absolute top-2 right-2 h-6 w-6 opacity-0 group-hover:opacity-100 transition-opacity"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  handleRemoveImage(index);
+                }}
+              >
+                <X className="h-3 w-3" />
+              </Button>
               
               {/* Position badge */}
               <Badge 
-                className="absolute top-2 left-2 text-xs"
+                className="absolute top-2 left-2 text-xs pointer-events-none"
                 variant={index === 0 ? "default" : "secondary"}
               >
                 {index === 0 ? "Principal" : index + 1}
@@ -372,14 +408,14 @@ export function ProductImagesGallery({
           {/* Upload Area */}
           <div 
             className={`aspect-square rounded-lg border-2 border-dashed flex flex-col items-center justify-center cursor-pointer transition-colors ${
-              isDragging 
+              isDraggingFile 
                 ? 'border-primary bg-primary/10' 
                 : 'border-muted-foreground/30 hover:border-primary hover:bg-muted/50'
             }`}
             onClick={() => fileInputRef.current?.click()}
-            onDragOver={handleDragOver}
-            onDragLeave={handleDragLeave}
-            onDrop={handleDrop}
+            onDragOver={handleFileDragOver}
+            onDragLeave={handleFileDragLeave}
+            onDrop={handleFileDrop}
           >
             <Upload className="h-8 w-8 text-muted-foreground mb-2" />
             <span className="text-xs text-muted-foreground text-center px-2">
