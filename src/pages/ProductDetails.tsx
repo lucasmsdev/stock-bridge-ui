@@ -22,6 +22,7 @@ import { ProfitabilityAnalysis } from "@/components/financial/ProfitabilityAnaly
 import { ProfitabilityCalculator } from "@/components/financial/ProfitabilityCalculator";
 import { AmazonStatusCard } from "@/components/amazon/AmazonStatusCard";
 import { MarketplaceImagesCard } from "@/components/products/MarketplaceImagesCard";
+import { ProductImagesGallery } from "@/components/products/ProductImagesGallery";
 
 interface Product {
   id: string;
@@ -36,6 +37,7 @@ interface Product {
   ad_spend?: number;
   image_url?: string;
   supplier_id?: string;
+  images?: string[];
 }
 
 interface Supplier {
@@ -398,6 +400,18 @@ export default function ProductDetails() {
           SKU: <code className="text-sm bg-muted px-2 py-1 rounded">{product.sku}</code>
         </p>
       </div>
+
+      {/* Product Images Gallery - Local Management */}
+      <ProductImagesGallery
+        productId={product.id}
+        initialImages={(product.images as string[]) || []}
+        onUpdate={(images) => {
+          setProductDetails({
+            ...productDetails,
+            product: { ...product, images, image_url: images[0] || null }
+          });
+        }}
+      />
 
       {/* Central Stock Card */}
       <Card className="shadow-soft">
