@@ -53,27 +53,34 @@ serve(async (req) => {
 
   try {
     const authHeader = req.headers.get('Authorization');
-    if (!authHeader) {
+    if (!authHeader?.startsWith('Bearer ')) {
       return new Response(
         JSON.stringify({ error: 'Unauthorized' }),
         { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
+
+    const token = authHeader.replace('Bearer ', '');
 
     const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
     const supabaseKey = Deno.env.get('SUPABASE_ANON_KEY')!;
     const supabase = createClient(supabaseUrl, supabaseKey, {
-      global: { headers: { Authorization: authHeader } }
+      global: { headers: { Authorization: authHeader } },
+      auth: { persistSession: false },
     });
 
-    // Verificar usuário autenticado
-    const { data: { user }, error: authError } = await supabase.auth.getUser();
-    if (authError || !user) {
+    // ✅ Validar JWT explicitamente (verify_jwt desabilitado no config.toml)
+    const { data: claimsData, error: claimsError } = await supabase.auth.getClaims(token);
+    const userId = claimsData?.claims?.sub;
+
+    if (claimsError || !userId) {
       return new Response(
         JSON.stringify({ error: 'Unauthorized' }),
         { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
+
+    const user = { id: userId };
 
     const { forceRefresh = false, maxProducts = 20 } = await req.json().catch(() => ({}));
 
