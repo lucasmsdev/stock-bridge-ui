@@ -1,275 +1,246 @@
 
-# Plano: Galeria de Imagens na Página de Detalhes do Produto
+# Plano: Corrigir Sincronização de Imagens com Mercado Livre
 
-## Resumo
+## Problema Identificado
 
-Criar uma seção de galeria de imagens na página de detalhes do produto que exiba **todas as fotos armazenadas** no campo `images` do produto, com funcionalidades para **adicionar** e **excluir** fotos.
+Os logs mostram dois cenários de falha:
 
----
-
-## Situação Atual
-
-| O que existe | Comportamento |
-|--------------|---------------|
-| Campo `images` (JSON) | Existe na tabela `products` mas **não é exibido** na UI |
-| `MarketplaceImagesCard` | Só aparece se o produto está **publicado em marketplaces** |
-| `image_url` (string) | Usada como thumbnail em listagens |
-
-### Problema
-
-Quando o usuário clica em um produto, ele **não consegue ver todas as fotos** nem gerenciá-las localmente, pois o `MarketplaceImagesCard` só funciona para produtos publicados.
+| Erro | Causa | Solução |
+|------|-------|---------|
+| `"Processing image..."` | ML não consegue baixar imagem do Supabase (erro 403/timeout) | Upload direto via multipart para API do ML |
+| `"pictures is not modifiable"` | Anúncio de catálogo tem imagens bloqueadas | Detectar e informar usuário |
 
 ---
 
 ## Arquitetura da Solução
 
 ```text
-┌─────────────────────────────────────────────────────────────────┐
-│                 PÁGINA DE DETALHES DO PRODUTO                   │
-│                                                                  │
-│  ┌─────────────────────────────────────────────────────────┐   │
-│  │           NOVO: ProductImagesGallery                     │   │
-│  │                                                          │   │
-│  │  • Exibe todas as fotos do campo products.images        │   │
-│  │  • Permite adicionar fotos via upload ou URL            │   │
-│  │  • Permite excluir fotos individuais                    │   │
-│  │  • Permite reordenar (primeira = principal)             │   │
-│  │  • Salva diretamente no banco (não no marketplace)      │   │
-│  └─────────────────────────────────────────────────────────┘   │
-│                                                                  │
-│  ┌─────────────────────────────────────────────────────────┐   │
-│  │           EXISTENTE: MarketplaceImagesCard               │   │
-│  │                                                          │   │
-│  │  • Gerencia imagens por marketplace                      │   │
-│  │  • Sincroniza com API externa                            │   │
-│  │  • Só aparece se produto está publicado                 │   │
-│  └─────────────────────────────────────────────────────────┘   │
-│                                                                  │
-└─────────────────────────────────────────────────────────────────┘
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                    FLUXO ATUAL (FALHA)                                      │
+│                                                                              │
+│  Supabase Storage URL ─────► ML tenta baixar ─────► 403/Timeout ─────► ❌   │
+│                              (servidores bloqueados)                         │
+└─────────────────────────────────────────────────────────────────────────────┘
+
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                    FLUXO NOVO (FUNCIONA)                                    │
+│                                                                              │
+│  1. Baixar imagem do Supabase Storage (servidor → servidor)                 │
+│  2. Upload multipart para /pictures/items/upload                            │
+│  3. Receber picture_id do ML                                                │
+│  4. Atualizar item com { pictures: [{ id: "picture_id" }] }                 │
+│                                                                              │
+│  Imagem ──► Edge Function ──► ML Multipart API ──► picture_id ──► ✅        │
+└─────────────────────────────────────────────────────────────────────────────┘
 ```
 
 ---
 
 ## Implementação
 
-### Arquivo 1: Novo Componente - `ProductImagesGallery.tsx`
+### Arquivo: `supabase/functions/update-product-images/index.ts`
 
-Criar: `src/components/products/ProductImagesGallery.tsx`
-
-#### Funcionalidades
-
-| Feature | Descrição |
-|---------|-----------|
-| Exibir galeria | Grid com todas as imagens do campo `images` |
-| Upload local | Drag-and-drop ou seleção de arquivos |
-| URL externa | Input para colar URLs de imagens |
-| Excluir | Botão de lixeira em cada imagem |
-| Reordenar | Setas para mover posição (primeira = principal) |
-| Salvar | Atualiza `products.images` e `products.image_url` |
-
-#### Estrutura do Componente
+#### Mudança 1: Nova função para upload multipart
 
 ```typescript
-interface ProductImagesGalleryProps {
-  productId: string;
-  initialImages: string[];
-  onUpdate: (images: string[]) => void;
-}
-
-export function ProductImagesGallery({ 
-  productId, 
-  initialImages, 
-  onUpdate 
-}: ProductImagesGalleryProps) {
-  const [images, setImages] = useState<string[]>(initialImages);
-  const [pendingUploads, setPendingUploads] = useState<PendingUpload[]>([]);
-  const [isSaving, setIsSaving] = useState(false);
-  
-  // Upload files to Supabase Storage
-  const handleFileUpload = async (files: FileList) => { ... };
-  
-  // Add image by URL
-  const handleAddUrl = (url: string) => { ... };
-  
-  // Remove image
-  const handleRemove = (index: number) => { ... };
-  
-  // Reorder images
-  const handleMove = (fromIndex: number, toIndex: number) => { ... };
-  
-  // Save to database
-  const handleSave = async () => {
-    const { error } = await supabase
-      .from('products')
-      .update({ 
-        images: images,
-        image_url: images[0] || null  // Primeira = principal
-      })
-      .eq('id', productId);
+async function uploadImageToMercadoLivre(
+  accessToken: string,
+  imageUrl: string
+): Promise<{ success: boolean; pictureId?: string; error?: string }> {
+  try {
+    // 1. Baixar a imagem
+    const imageResponse = await fetch(imageUrl);
+    if (!imageResponse.ok) {
+      return { success: false, error: `Não foi possível baixar: ${imageUrl}` };
+    }
     
-    if (!error) onUpdate(images);
-  };
+    const imageBlob = await imageResponse.blob();
+    
+    // 2. Criar FormData para multipart upload
+    const formData = new FormData();
+    formData.append('file', imageBlob, 'image.jpg');
+    
+    // 3. Upload para ML
+    const uploadResponse = await fetch(
+      'https://api.mercadolibre.com/pictures/items/upload',
+      {
+        method: 'POST',
+        headers: { 'Authorization': `Bearer ${accessToken}` },
+        body: formData,
+      }
+    );
+    
+    if (!uploadResponse.ok) {
+      const errorData = await uploadResponse.json();
+      return { success: false, error: errorData.message || 'Erro no upload' };
+    }
+    
+    const data = await uploadResponse.json();
+    return { success: true, pictureId: data.id };
+    
+  } catch (error) {
+    return { success: false, error: error.message };
+  }
+}
+```
+
+#### Mudança 2: Refatorar `updateMercadoLivreImages`
+
+```typescript
+async function updateMercadoLivreImages(
+  accessToken: string, 
+  itemId: string, 
+  images: string[]
+): Promise<{ success: boolean; error?: string }> {
+  console.log(`Updating ML images for item: ${itemId}`);
+  
+  // 1. Verificar se item é de catálogo (não permite edição de fotos)
+  const itemCheck = await fetch(
+    `https://api.mercadolibre.com/items/${itemId}`,
+    { headers: { 'Authorization': `Bearer ${accessToken}` } }
+  );
+  const itemData = await itemCheck.json();
+  
+  if (itemData.catalog_listing) {
+    return { 
+      success: false, 
+      error: 'Este anúncio é de catálogo. Imagens não podem ser alteradas pelo vendedor.' 
+    };
+  }
+  
+  // 2. Para cada imagem, fazer upload multipart e coletar IDs
+  const pictureIds: string[] = [];
+  
+  for (const imageUrl of images) {
+    // Se já é uma URL do ML (mlstatic.com), extrair o ID existente
+    if (imageUrl.includes('mlstatic.com') || imageUrl.includes('mercadolibre.com')) {
+      const match = imageUrl.match(/(\d+-[A-Z]{3}\d+)/);
+      if (match) {
+        pictureIds.push(match[1]);
+        continue;
+      }
+    }
+    
+    // Upload de imagens externas via multipart
+    const result = await uploadImageToMercadoLivre(accessToken, imageUrl);
+    if (result.success && result.pictureId) {
+      pictureIds.push(result.pictureId);
+    } else {
+      console.log(`Falha ao fazer upload: ${imageUrl} - ${result.error}`);
+    }
+  }
+  
+  if (pictureIds.length === 0) {
+    return { success: false, error: 'Nenhuma imagem foi processada com sucesso.' };
+  }
+  
+  // 3. Atualizar item com os IDs das imagens
+  const updateResponse = await fetch(
+    `https://api.mercadolibre.com/items/${itemId}`,
+    {
+      method: 'PUT',
+      headers: {
+        'Authorization': `Bearer ${accessToken}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        pictures: pictureIds.map(id => ({ id }))
+      }),
+    }
+  );
+  
+  if (!updateResponse.ok) {
+    const errorData = await updateResponse.json();
+    
+    // Detectar erro de catálogo
+    if (errorData.cause?.some(c => c.code === 'field_not_updatable')) {
+      return { 
+        success: false, 
+        error: 'As imagens deste anúncio não podem ser alteradas (anúncio de catálogo ou com vendas).' 
+      };
+    }
+    
+    return { success: false, error: errorData.message || 'Erro ao atualizar imagens' };
+  }
+  
+  console.log(`ML images updated: ${pictureIds.length} imagens`);
+  return { success: true };
 }
 ```
 
 ---
 
-### Arquivo 2: Atualizar Interface do Product
-
-Modificar: `src/pages/ProductDetails.tsx`
-
-#### Mudança 1: Adicionar campo `images` na interface
-
-```typescript
-interface Product {
-  id: string;
-  name: string;
-  sku: string;
-  stock: number;
-  user_id: string;
-  created_at: string;
-  updated_at: string;
-  cost_price?: number;
-  selling_price?: number;
-  ad_spend?: number;
-  image_url?: string;
-  supplier_id?: string;
-  images?: string[];  // ← NOVO
-}
-```
-
----
-
-### Arquivo 3: Adicionar Galeria na Página
-
-Modificar: `src/pages/ProductDetails.tsx`
-
-#### Mudança 2: Importar o novo componente
-
-```typescript
-import { ProductImagesGallery } from "@/components/products/ProductImagesGallery";
-```
-
-#### Mudança 3: Adicionar galeria logo após o título
-
-Inserir entre o título do produto e o card de estoque central:
-
-```tsx
-{/* Product Images Gallery - NEW */}
-<ProductImagesGallery
-  productId={product.id}
-  initialImages={product.images || []}
-  onUpdate={(images) => {
-    setProductDetails({
-      ...productDetails,
-      product: { ...product, images, image_url: images[0] || null }
-    });
-  }}
-/>
-```
-
----
-
-## Layout Visual
+## Fluxo de Dados Atualizado
 
 ```text
-┌─────────────────────────────────────────────────────────────────┐
-│  ← Voltar                              [Calculadora de Lucro]   │
-├─────────────────────────────────────────────────────────────────┤
-│  Camiseta Polo Azul                                             │
-│  SKU: SKU-0001                                                  │
-├─────────────────────────────────────────────────────────────────┤
-│  📷 Galeria de Imagens                                [Salvar]  │
-│  ┌─────────────────────────────────────────────────────────┐   │
-│  │  ┌─────┐  ┌─────┐  ┌─────┐  ┌─────────────────────┐    │   │
-│  │  │     │  │     │  │     │  │  + Arrastar fotos   │    │   │
-│  │  │ 🖼️  │  │ 🖼️  │  │ 🖼️  │  │    ou clicar       │    │   │
-│  │  │ ✖️  │  │ ✖️  │  │ ✖️  │  │                     │    │   │
-│  │  └─────┘  └─────┘  └─────┘  └─────────────────────┘    │   │
-│  │  Principal  2       3                                   │   │
-│  │                                                         │   │
-│  │  [🔗 Adicionar por URL...                    ] [Add]    │   │
-│  └─────────────────────────────────────────────────────────┘   │
-├─────────────────────────────────────────────────────────────────┤
-│  📦 Estoque Central (UniStock)                                  │
-│  ...                                                            │
-└─────────────────────────────────────────────────────────────────┘
+┌────────────────────┐
+│  Usuário clica     │
+│  "Salvar e Sync"   │
+└─────────┬──────────┘
+          │
+          ▼
+┌────────────────────┐
+│  Salva no banco    │
+│  products.images   │
+└─────────┬──────────┘
+          │
+          ▼
+┌────────────────────────────────────────────────────────────┐
+│  Edge Function: update-product-images                       │
+│                                                              │
+│  Para cada imagem:                                          │
+│  ┌──────────────────────────────────────────────────────┐  │
+│  │ É URL do ML (mlstatic.com)?                          │  │
+│  │ ├─ SIM: Extrair picture_id existente                 │  │
+│  │ └─ NÃO: Fazer upload multipart → obter novo ID       │  │
+│  └──────────────────────────────────────────────────────┘  │
+│                                                              │
+│  PUT /items/{id} com { pictures: [{ id: "..." }, ...] }    │
+└─────────┬──────────────────────────────────────────────────┘
+          │
+          ▼
+┌────────────────────┐
+│  ✅ Imagens        │
+│  atualizadas no ML │
+└────────────────────┘
 ```
 
 ---
 
-## Fluxo de Dados
+## Tratamento de Erros Específicos
 
-```text
-┌──────────────┐     ┌──────────────────┐     ┌─────────────────┐
-│  Upload/URL  │ ──► │  Supabase        │ ──► │  products.images│
-│              │     │  Storage         │     │  (JSON array)   │
-└──────────────┘     │  (product-images)│     └─────────────────┘
-                     └──────────────────┘              │
-                                                       ▼
-                                               products.image_url
-                                               (primeira imagem)
-```
+| Situação | Mensagem ao Usuário |
+|----------|---------------------|
+| Anúncio de catálogo | "Este anúncio é de catálogo. As imagens são gerenciadas pelo Mercado Livre." |
+| Anúncio com vendas (título bloqueado) | "As imagens deste anúncio não podem ser alteradas." |
+| URL inacessível | "Não foi possível processar a imagem: [URL]. Verifique se é uma URL pública." |
+| Token expirado | "Token expirado. Reconecte sua conta do Mercado Livre." |
 
 ---
 
-## Detalhes Técnicos
+## Arquivos a Modificar
 
-### Upload de Arquivos
-
-O componente reutilizará a lógica existente do `MarketplaceImagesCard`:
-
-- Upload para bucket `product-images` do Supabase
-- Caminho: `{productId}/local/{timestamp}-{random}.{ext}`
-- Formatos: JPEG, PNG, WebP
-- Tamanho máximo: 10MB por arquivo
-
-### Salvamento no Banco
-
-```typescript
-// Salvar array de imagens
-await supabase
-  .from('products')
-  .update({ 
-    images: newImagesArray,
-    image_url: newImagesArray[0] || null  // Sincroniza thumbnail
-  })
-  .eq('id', productId);
-```
-
-### Exclusão de Imagem
-
-1. Remove da array local
-2. Se era do Storage, deleta o arquivo
-3. Atualiza banco de dados
-
----
-
-## Arquivos a Criar/Modificar
-
-| Arquivo | Ação | Descrição |
-|---------|------|-----------|
-| `src/components/products/ProductImagesGallery.tsx` | Criar | Novo componente de galeria |
-| `src/pages/ProductDetails.tsx` | Modificar | Adicionar campo `images` na interface e incluir galeria |
-
----
-
-## Comportamento Esperado
-
-| Cenário | Resultado |
+| Arquivo | Descrição |
 |---------|-----------|
-| Produto sem imagens | Área de upload vazia com "Adicione fotos" |
-| Produto com imagens importadas | Grid exibindo todas as fotos |
-| Adicionar foto via upload | Preview imediato, salva no Storage e atualiza banco |
-| Adicionar foto via URL | Adiciona à array e salva no banco |
-| Excluir foto | Remove da galeria e atualiza banco |
-| Reordenar fotos | Move posição, primeira vira `image_url` principal |
+| `supabase/functions/update-product-images/index.ts` | Implementar upload multipart e detecção de anúncios bloqueados |
 
 ---
 
 ## Benefícios
 
-1. **Visibilidade completa** - Usuário vê todas as fotos importadas
-2. **Gestão local** - Pode editar fotos sem precisar publicar
-3. **Independência** - Funciona mesmo sem marketplaces conectados
-4. **Sincronização** - Primeira imagem sempre reflete em `image_url`
+1. **Funciona com qualquer URL**: Upload passa pela Edge Function, não depende de ML acessar URLs externas
+2. **Feedback claro**: Mensagens específicas para cada tipo de erro
+3. **Reutiliza IDs existentes**: Se imagem já é do ML, não faz upload desnecessário
+4. **Compatível com catálogo**: Detecta e informa quando imagens são bloqueadas
+
+---
+
+## Testes Esperados
+
+| Cenário | Resultado Esperado |
+|---------|-------------------|
+| Upload de imagem local (Supabase) | Imagem aparece corretamente no anúncio |
+| Upload de URL externa (HTTP/HTTPS) | Imagem processada e exibida |
+| Anúncio de catálogo | Toast informando bloqueio |
+| Exclusão de imagem | Imagem removida do anúncio |
+| Reordenação | Nova ordem refletida no ML |
