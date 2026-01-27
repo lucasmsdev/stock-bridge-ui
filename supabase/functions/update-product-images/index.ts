@@ -160,9 +160,27 @@ async function updateMercadoLivreImages(
 ): Promise<{ success: boolean; error?: string }> {
   try {
     console.log(`Updating Mercado Livre images for item: ${itemId}`);
+    console.log(`Images to send: ${JSON.stringify(images)}`);
+    
+    // Filter and validate URLs - ML only accepts HTTPS URLs
+    const validImages = images.filter(url => {
+      try {
+        const parsed = new URL(url);
+        return parsed.protocol === 'https:';
+      } catch {
+        console.log(`Invalid URL skipped: ${url}`);
+        return false;
+      }
+    });
+
+    if (validImages.length === 0) {
+      return { success: false, error: 'Nenhuma imagem válida para enviar (apenas HTTPS é aceito)' };
+    }
+
+    console.log(`Valid images count: ${validImages.length}`);
     
     // Mercado Livre expects pictures as array of objects with source URL
-    const pictures = images.map(url => ({ source: url }));
+    const pictures = validImages.map(url => ({ source: url }));
 
     const response = await fetch(`https://api.mercadolibre.com/items/${itemId}`, {
       method: 'PUT',
@@ -173,13 +191,31 @@ async function updateMercadoLivreImages(
       body: JSON.stringify({ pictures }),
     });
 
+    const responseText = await response.text();
+    console.log(`ML API response status: ${response.status}`);
+    console.log(`ML API response: ${responseText}`);
+
     if (!response.ok) {
-      const errorData = await response.json();
+      let errorData;
+      try {
+        errorData = JSON.parse(responseText);
+      } catch {
+        errorData = { message: responseText };
+      }
+      
       console.error('Mercado Livre API error:', errorData);
       
       // Handle specific ML errors
       if (response.status === 401 || response.status === 403) {
         return { success: false, error: 'Token expirado. Reconecte sua conta do Mercado Livre.' };
+      }
+      
+      // Handle image processing errors
+      if (errorData.cause?.some((c: any) => c.code === 'item.pictures.error')) {
+        return { 
+          success: false, 
+          error: 'ML não conseguiu processar as imagens. Verifique se as URLs são públicas e acessíveis.' 
+        };
       }
       
       return { 
@@ -188,8 +224,8 @@ async function updateMercadoLivreImages(
       };
     }
 
-    const data = await response.json();
-    console.log('Mercado Livre images updated:', data.pictures?.length);
+    const data = JSON.parse(responseText);
+    console.log('Mercado Livre images updated successfully:', data.pictures?.length);
     
     return { success: true };
   } catch (error) {
