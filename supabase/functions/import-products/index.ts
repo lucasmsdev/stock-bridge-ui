@@ -329,13 +329,19 @@ serve(async (req) => {
               }
             }
 
+            // Extrair todas as imagens do Mercado Livre
+            const allImages = item.pictures?.map((pic: any) => 
+              (pic.secure_url || pic.url || '').replace('http://', 'https://')
+            ).filter(Boolean) || [];
+
             return {
               user_id: user.id,
               name: item.title,
               sku: String(item.seller_custom_field || item.id), // Ensure SKU is always string
               stock: item.available_quantity || 0,
               selling_price: selling_price,
-              image_url: item.thumbnail ? item.thumbnail.replace('http://', 'https://') : null,
+              image_url: allImages[0] || (item.thumbnail ? item.thumbnail.replace('http://', 'https://') : null),
+              images: allImages.length > 0 ? allImages : null,
             };
           });
 
@@ -462,13 +468,17 @@ serve(async (req) => {
             fullProductData: product,                       // Dados completos para metadata
           });
 
+          // Extrair todas as imagens do Shopify
+          const allImages = product.images?.map((img: any) => img.src).filter(Boolean) || [];
+
           const productData = {
             user_id: user.id,
             name: `${product.title}${variant.title !== 'Default Title' ? ` - ${variant.title}` : ''}`,
             sku: sku,
             stock: variant.inventory_quantity || 0,
             selling_price: variant.price ? parseFloat(variant.price) : null,
-            image_url: product.image?.src || null,
+            image_url: allImages[0] || product.image?.src || null,
+            images: allImages.length > 0 ? allImages : null,
           };
 
           productsToInsert.push(productData);
@@ -887,6 +897,7 @@ serve(async (req) => {
               stock: stock,
               selling_price: sellingPrice,
               image_url: processedImageUrl,
+              images: processedImageUrl ? [processedImageUrl] : null,
               _asin: asin, // Temporary field for image fetch
             };
 
@@ -1262,29 +1273,38 @@ serve(async (req) => {
     
     const { data: existingProducts, error: existingError } = await supabaseClient
       .from('products')
-      .select('sku, image_url')
+      .select('sku, image_url, images')
       .eq('user_id', user.id)
       .in('sku', skusToCheck);
     
     if (!existingError && existingProducts && existingProducts.length > 0) {
       const existingImageMap = new Map<string, string>();
+      const existingImagesArrayMap = new Map<string, any>();
       
       for (const existing of existingProducts) {
         if (existing.image_url) {
           existingImageMap.set(existing.sku, existing.image_url);
         }
+        if (existing.images) {
+          existingImagesArrayMap.set(existing.sku, existing.images);
+        }
       }
       
       let preservedImages = 0;
+      let preservedImagesArrays = 0;
       for (const product of validProducts) {
         if (!product.image_url && existingImageMap.has(product.sku)) {
           product.image_url = existingImageMap.get(product.sku);
           preservedImages++;
         }
+        if (!product.images && existingImagesArrayMap.has(product.sku)) {
+          product.images = existingImagesArrayMap.get(product.sku);
+          preservedImagesArrays++;
+        }
       }
       
-      if (preservedImages > 0) {
-        console.log(`🖼️ ${preservedImages} imagens existentes preservadas`);
+      if (preservedImages > 0 || preservedImagesArrays > 0) {
+        console.log(`🖼️ ${preservedImages} imagens principais e ${preservedImagesArrays} arrays de imagens preservados`);
       }
     }
 
