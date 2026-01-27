@@ -21,6 +21,7 @@ import { FinancialDataForm } from "@/components/financial/FinancialDataForm";
 import { ProfitabilityAnalysis } from "@/components/financial/ProfitabilityAnalysis";
 import { ProfitabilityCalculator } from "@/components/financial/ProfitabilityCalculator";
 import { AmazonStatusCard } from "@/components/amazon/AmazonStatusCard";
+import { MarketplaceImagesCard } from "@/components/products/MarketplaceImagesCard";
 
 interface Product {
   id: string;
@@ -449,33 +450,13 @@ export default function ProductDetails() {
         </Card>
       )}
 
-      {/* Product Images Card */}
-      {channelStocks.some(cs => cs.images && cs.images.length > 0) && (
-        <Card className="shadow-soft">
-          <CardHeader>
-            <CardTitle>Imagens do Produto</CardTitle>
-            <p className="text-sm text-muted-foreground">
-              Imagens puxadas dos canais de venda (ex: Mercado Livre)
-            </p>
-          </CardHeader>
-          <CardContent className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
-            {channelStocks.map(channelStock => (
-              channelStock.images && channelStock.images.map((image, imgIndex) => (
-                <div key={`${channelStock.channel}-${imgIndex}`} className="relative group">
-                  <img
-                    src={image}
-                    alt={`${channelStock.channel} Product Image ${imgIndex + 1}`}
-                    className="w-full h-32 object-cover rounded-lg shadow-md transition-transform duration-200 group-hover:scale-105"
-                  />
-                  <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/70 to-transparent p-2 text-white text-xs rounded-b-lg opacity-0 group-hover:opacity-100 transition-opacity duration-200">
-                    {platformNames[channelStock.channel] || channelStock.channel}
-                  </div>
-                </div>
-              ))
-            ))}
-          </CardContent>
-        </Card>
-      )}
+      {/* Marketplace Images Card - New Component */}
+      <MarketplaceImagesCard
+        productId={product.id}
+        listings={listings}
+        channelStocks={channelStocks}
+        onImagesUpdated={loadProductDetails}
+      />
 
       {/* Alert for disconnected products */}
       {disconnectedListings.length > 0 && (

@@ -91,7 +91,7 @@ serve(async (req) => {
     // Get user's integrations
     const { data: integrations, error: integrationsError } = await supabase
       .from('integrations')
-      .select('id, platform, encrypted_access_token, encrypted_refresh_token')
+      .select('id, platform, encrypted_access_token, encrypted_refresh_token, shop_domain')
       .eq('user_id', user.id)
       .not('encrypted_access_token', 'is', null);
 
@@ -102,6 +102,13 @@ serve(async (req) => {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
     }
+
+    // Get product listings for Shopify
+    const { data: productListings } = await supabase
+      .from('product_listings')
+      .select('id, platform, platform_product_id, platform_variant_id, integration_id')
+      .eq('product_id', product.id)
+      .eq('user_id', user.id);
 
     const channelStocks: ChannelStock[] = [];
 
@@ -143,7 +150,16 @@ serve(async (req) => {
             supabase
           );
         } else if (integration.platform === 'shopify') {
-          channelStock = await getShopifyStock(accessToken, sku);
+          // Find the product listing for this integration
+          const shopifyListing = productListings?.find(
+            l => l.platform === 'shopify' && l.integration_id === integration.id
+          );
+          channelStock = await getShopifyStock(
+            accessToken, 
+            sku,
+            integration.shop_domain,
+            shopifyListing?.platform_product_id || null
+          );
         } else if (integration.platform === 'shopee') {
           channelStock = await getShopeeStock(accessToken, sku);
         } else {
@@ -401,15 +417,111 @@ async function getMercadoLivreStock(
   };
 }
 
-async function getShopifyStock(accessToken: string, sku: string): Promise<ChannelStock> {
-  // TODO: Implement Shopify stock fetching
-  // This is a placeholder - will need Shopify store domain and proper API integration
-  return {
-    channel: 'shopify',
-    channelId: 'SHO987654321',
-    stock: 5,
-    status: 'synchronized' // Will be recalculated in main function
-  };
+async function getShopifyStock(
+  accessToken: string, 
+  sku: string,
+  shopDomain: string | null,
+  platformProductId: string | null
+): Promise<ChannelStock> {
+  try {
+    if (!shopDomain) {
+      console.log('No shop domain configured for Shopify');
+      return {
+        channel: 'shopify',
+        channelId: '-',
+        stock: 0,
+        status: 'not_published',
+        images: []
+      };
+    }
+
+    if (!platformProductId) {
+      console.log('No product listing found for Shopify');
+      return {
+        channel: 'shopify',
+        channelId: '-',
+        stock: 0,
+        status: 'not_published',
+        images: []
+      };
+    }
+
+    // Ensure proper shop URL format
+    const shopUrl = shopDomain.includes('.myshopify.com') 
+      ? shopDomain 
+      : `${shopDomain}.myshopify.com`;
+
+    console.log(`Fetching Shopify product ${platformProductId} from ${shopUrl}`);
+
+    const response = await fetch(
+      `https://${shopUrl}/admin/api/2024-01/products/${platformProductId}.json`,
+      {
+        headers: {
+          'X-Shopify-Access-Token': accessToken,
+          'Content-Type': 'application/json',
+        }
+      }
+    );
+
+    if (!response.ok) {
+      console.error(`Shopify API error: ${response.status}`);
+      if (response.status === 404) {
+        return {
+          channel: 'shopify',
+          channelId: platformProductId,
+          stock: 0,
+          status: 'not_found' as const,
+          images: []
+        };
+      }
+      if (response.status === 401) {
+        return {
+          channel: 'shopify',
+          channelId: platformProductId,
+          stock: 0,
+          status: 'token_expired' as const,
+          images: []
+        };
+      }
+      return {
+        channel: 'shopify',
+        channelId: platformProductId,
+        stock: 0,
+        status: 'error' as const,
+        images: []
+      };
+    }
+
+    const data = await response.json();
+    const product = data.product;
+    
+    // Get stock from first variant
+    const variant = product?.variants?.[0];
+    const stock = variant?.inventory_quantity || 0;
+    
+    // Get all images
+    const images = product?.images?.map((img: any) => img.src) || [];
+    
+    console.log(`Shopify product found - stock: ${stock}, images: ${images.length}`);
+
+    return {
+      channel: 'shopify',
+      channelId: platformProductId,
+      stock,
+      status: 'synced' as const,
+      images
+    };
+
+  } catch (error) {
+    console.error('Error fetching Shopify stock:', error);
+    return {
+      channel: 'shopify',
+      channelId: platformProductId || '-',
+      stock: 0,
+      status: 'error' as const,
+      images: []
+    };
+  }
 }
 
 async function getShopeeStock(accessToken: string, sku: string): Promise<ChannelStock> {
