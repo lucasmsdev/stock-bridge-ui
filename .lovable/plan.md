@@ -1,72 +1,118 @@
 
-# Plano: Corrigir Extração de IDs de Imagens do Mercado Livre
+# Plano: Corrigir Sincronização de Imagens com Mercado Livre
 
-## Problema Identificado
+## Diagnóstico
 
-A função `extractMlPictureId` não consegue extrair corretamente o ID das URLs de imagens do ML, fazendo com que **todas as imagens sejam re-uploadadas** a cada sincronização, gerando novos IDs e perdendo a ordem original.
-
-### Exemplo do Problema
+Os logs revelam o problema com clareza:
 
 ```text
-URL: https://http2.mlstatic.com/D_868544-MLA83755569527_042025-O.jpg
-                                   └─────────────────────────────┘
-                                   ID esperado: 868544-MLA83755569527_042025
-
-Regex atual: (\d+-MLA\d+[_-]\d+)
-→ Não captura porque a URL tem "D_" antes do número
+sync_status: "error"
+sync_error: "pictures is not modifiable."
+→ No active listings to sync images
 ```
 
-### Comportamento Atual (Incorreto)
+### Causa Raiz
+
+| Problema | Descrição |
+|----------|-----------|
+| **Filtro muito restritivo** | O código ignora listings com `sync_status: 'error'`, então não tenta re-sincronizar |
+| **Erro do ML não tratado** | O Mercado Livre retorna "pictures is not modifiable" mas não sabemos se é temporário ou permanente |
+
+---
+
+## Arquitetura da Solução
 
 ```text
-Imagem 1 (mlstatic.com) → Regex falha → Faz upload → NOVO ID gerado
-Imagem 2 (mlstatic.com) → Regex falha → Faz upload → NOVO ID gerado
-```
+┌─────────────────────────────────────────────────────────────────┐
+│  ANTES (problema)                                                │
+│                                                                   │
+│  Listing com sync_status = 'error'                               │
+│         ↓                                                         │
+│  Filtro: sync_status === 'active' || 'synced'                    │
+│         ↓                                                         │
+│  IGNORADO → "No active listings to sync"                         │
+└─────────────────────────────────────────────────────────────────┘
 
-### Comportamento Esperado (Correto)
-
-```text
-Imagem 1 (mlstatic.com) → Regex extrai ID → Reutiliza ID existente → Ordem mantida
-Imagem 2 (mlstatic.com) → Regex extrai ID → Reutiliza ID existente → Ordem mantida
+┌─────────────────────────────────────────────────────────────────┐
+│  DEPOIS (corrigido)                                              │
+│                                                                   │
+│  Listing com sync_status = 'error'                               │
+│         ↓                                                         │
+│  Filtro: sync_status !== 'disconnected'                          │
+│         ↓                                                         │
+│  TENTA SYNC → Verifica se é catálogo → Mensagem clara            │
+└─────────────────────────────────────────────────────────────────┘
 ```
 
 ---
 
-## Solução
+## Implementação
 
-Atualizar a função `extractMlPictureId` para capturar corretamente os padrões de URLs do ML, incluindo o prefixo `D_`.
+### Arquivo 1: `src/components/products/ProductImagesGallery.tsx`
 
-### Arquivo: `supabase/functions/update-product-images/index.ts`
+#### Mudança: Ajustar filtro para permitir retry em listings com erro
 
-#### Mudança: Corrigir regex para extrair IDs
+**Antes (linha ~215):**
+```typescript
+const activeListings = listings.filter(l => 
+  l.sync_status === 'active' || l.sync_status === 'synced' || !l.sync_status
+);
+```
+
+**Depois:**
+```typescript
+// Include error listings so user can retry sync
+// Only exclude explicitly disconnected ones
+const syncableListings = listings.filter(l => 
+  l.sync_status !== 'disconnected'
+);
+```
+
+#### Mudança: Adicionar log para debugging
 
 ```typescript
-function extractMlPictureId(url: string): string | null {
-  // Patterns for ML image URLs
-  // Format 1: D_XXXXXX-MLB00000000000_MMYYYY-X.jpg
-  // Format 2: XXXXXX-MLB00000000000_MMYYYY
-  // Format 3: D_NQ_NP_XXXXXX-MLB00000000000_MMYYYY
-  
-  const patterns = [
-    // Match D_XXXXXX-MLx format (most common)
-    /D_(\d+-ML[A-Z]\d+[_-]\d+)/i,
-    // Match D_NQ_NP_XXXXXX-MLx format  
-    /D_NQ_NP_(\d+-ML[A-Z]\d+[_-]\d+)/i,
-    // Match D_Q_NP_XXXXXX-MLx format
-    /D_Q_NP_(\d+-ML[A-Z]\d+[_-]\d+)/i,
-    // Match direct XXXXXX-MLx format (fallback)
-    /(\d{6,}-ML[A-Z]\d+[_-]\d+)/i,
-  ];
-  
-  for (const pattern of patterns) {
-    const match = url.match(pattern);
-    if (match) {
-      return match[1];
-    }
-  }
-  
-  return null;
+console.log(`Listings to sync: ${syncableListings.length}`, 
+  syncableListings.map(l => ({ platform: l.platform, status: l.sync_status }))
+);
+```
+
+---
+
+### Arquivo 2: `supabase/functions/update-product-images/index.ts`
+
+#### Mudança: Melhorar detecção de anúncios de catálogo
+
+A função `updateMercadoLivreImages` já verifica `catalog_listing` e `catalog_product_id`, mas o erro "pictures is not modifiable" pode ocorrer por outros motivos. Precisamos:
+
+1. Verificar na API do ML se o item tem restrições
+2. Fornecer mensagem mais específica ao usuário
+
+```typescript
+// Após obter itemData
+if (itemData.catalog_listing || itemData.catalog_product_id) {
+  return { 
+    success: false, 
+    error: 'Este anúncio é de catálogo. As imagens são gerenciadas pelo Mercado Livre.',
+    details: 'catalog_listing'
+  };
 }
+
+// Verificar se há restrições adicionais (anúncios com vendas)
+if (itemData.health?.aces_status === 'mandatory' || itemData.health?.pictures?.length > 0) {
+  console.log('Item has health/pictures restrictions:', itemData.health);
+}
+```
+
+---
+
+### Arquivo 3: Limpar status de erro anterior
+
+Quando o usuário tenta sincronizar novamente, devemos primeiro limpar o erro anterior para dar uma chance de funcionar:
+
+```typescript
+// No início de updateMercadoLivreImages, antes de tentar sync
+// (já logamos que estamos tentando novamente)
+console.log(`Attempting to sync images to ${platform}, current status: ${listing.sync_status}`);
 ```
 
 ---
@@ -74,46 +120,62 @@ function extractMlPictureId(url: string): string | null {
 ## Fluxo Corrigido
 
 ```text
-┌────────────────────────────────────────────────────────────────┐
-│  ANTES (problema)                                               │
-│                                                                  │
-│  URL: D_868544-MLA83755569527_042025-O.jpg                      │
-│  Regex: (\d+-MLA\d+[_-]\d+) → NÃO CAPTURA                       │
-│  Resultado: Faz upload → NOVO ID → ORDEM PERDIDA                │
-└────────────────────────────────────────────────────────────────┘
-
-┌────────────────────────────────────────────────────────────────┐
-│  DEPOIS (corrigido)                                             │
-│                                                                  │
-│  URL: D_868544-MLA83755569527_042025-O.jpg                      │
-│  Regex: D_(\d+-ML[A-Z]\d+[_-]\d+) → CAPTURA "868544-MLA..."    │
-│  Resultado: Reutiliza ID → ORDEM MANTIDA ✅                     │
-└────────────────────────────────────────────────────────────────┘
+┌────────────────────┐
+│  Usuário reordena  │
+│  imagens           │
+└─────────┬──────────┘
+          │
+          ▼
+┌────────────────────┐
+│  Clica "Salvar e   │
+│  Sincronizar"      │
+└─────────┬──────────┘
+          │
+          ▼
+┌────────────────────────────────────────────┐
+│  Filtra listings !== 'disconnected'         │
+│  (inclui 'error' para retry)               │
+└─────────┬──────────────────────────────────┘
+          │
+          ▼
+┌────────────────────────────────────────────┐
+│  Edge Function verifica:                    │
+│  1. É catálogo? → Mensagem específica       │
+│  2. Tem restrições? → Log detalhado         │
+│  3. OK? → Faz sync com IDs                  │
+└─────────┬──────────────────────────────────┘
+          │
+          ├── Sucesso → sync_status = 'active'
+          │
+          └── Erro → sync_status = 'error' + mensagem clara
+                     (mostra toast explicando o motivo)
 ```
-
----
-
-## Testes Esperados
-
-| URL de Teste | ID Extraído |
-|--------------|-------------|
-| `D_868544-MLA83755569527_042025-O.jpg` | `868544-MLA83755569527_042025` |
-| `D_NQ_NP_654616-MLA100052373945_122025-O.jpg` | `654616-MLA100052373945_122025` |
-| `D_Q_NP_745762-MLA88339485001_072025-V.jpg` | `745762-MLA88339485001_072025` |
-| `782129-MLB105943089361_012026` | `782129-MLB105943089361_012026` |
 
 ---
 
 ## Arquivos a Modificar
 
-| Arquivo | Descrição |
-|---------|-----------|
-| `supabase/functions/update-product-images/index.ts` | Corrigir função `extractMlPictureId` |
+| Arquivo | Mudança |
+|---------|---------|
+| `src/components/products/ProductImagesGallery.tsx` | Ajustar filtro para incluir listings com `error` |
+| `supabase/functions/update-product-images/index.ts` | Melhorar logs e detecção de restrições |
 
 ---
 
 ## Benefícios
 
-1. **Ordem preservada**: Imagens existentes do ML mantêm seus IDs, então a ordem definida no UNISTOCK é refletida corretamente no marketplace
-2. **Performance**: Evita uploads desnecessários de imagens que já existem no ML
-3. **Estabilidade**: Menos chamadas à API do ML = menor risco de erros
+1. **Retry automático**: Listings com erro anterior podem ser sincronizados novamente
+2. **Feedback claro**: Mensagem específica quando imagens são bloqueadas por catálogo
+3. **Debug facilitado**: Logs mais detalhados para identificar causa de falhas
+4. **Experiência melhor**: Usuário entende por que não consegue alterar imagens
+
+---
+
+## Testes Esperados
+
+| Cenário | Resultado |
+|---------|-----------|
+| Listing com `sync_status: 'error'` | Tenta sincronizar novamente |
+| Anúncio de catálogo | Toast: "Este anúncio é de catálogo..." |
+| Anúncio comum | Imagens sincronizadas com sucesso |
+| Listing desconectado | Ignorado (não tenta sync) |
