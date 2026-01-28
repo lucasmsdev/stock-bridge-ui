@@ -77,22 +77,32 @@ async function uploadImageToMercadoLivre(
 
 // Extract picture ID from ML URL
 function extractMlPictureId(url: string): string | null {
-  // Match patterns like: 123456-MLA12345678901_012025 or D_NQ_NP_123456-MLA12345678901_012025
+  // ML image URL formats:
+  // D_868544-MLA83755569527_042025-O.jpg (most common)
+  // D_NQ_NP_654616-MLA100052373945_122025-O.jpg
+  // D_Q_NP_745762-MLA88339485001_072025-V.jpg
+  // 782129-MLB105943089361_012026 (direct ID)
+  
   const patterns = [
-    /(\d+-MLA\d+[_-]\d+)/i,
-    /(\d+-MLB\d+[_-]\d+)/i,
-    /(\d+-MLM\d+[_-]\d+)/i,
-    /(\d+-MLC\d+[_-]\d+)/i,
+    // Match D_XXXXXX-MLx format (most common) - captures after D_
+    /D_(\d+-ML[A-Z]\d+[_-]\d+)/i,
+    // Match D_NQ_NP_XXXXXX-MLx format
     /D_NQ_NP_(\d+-ML[A-Z]\d+[_-]\d+)/i,
+    // Match D_Q_NP_XXXXXX-MLx format
+    /D_Q_NP_(\d+-ML[A-Z]\d+[_-]\d+)/i,
+    // Match direct XXXXXX-MLx format (fallback for IDs without prefix)
+    /(\d{6,}-ML[A-Z]\d+[_-]\d+)/i,
   ];
   
   for (const pattern of patterns) {
     const match = url.match(pattern);
     if (match) {
+      console.log(`Extracted ML picture ID: ${match[1]} from URL: ${url.substring(0, 80)}...`);
       return match[1];
     }
   }
   
+  console.log(`Could not extract ML picture ID from: ${url.substring(0, 80)}...`);
   return null;
 }
 
