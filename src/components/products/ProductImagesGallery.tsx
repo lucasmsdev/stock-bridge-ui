@@ -211,13 +211,18 @@ export function ProductImagesGallery({
 
   // Sync images to connected marketplaces
   const syncToMarketplaces = async (imagesToSync: string[]) => {
-    // Filter only active/synced listings (exclude disconnected, error, etc.)
-    const activeListings = listings.filter(l => 
-      l.sync_status === 'active' || l.sync_status === 'synced' || !l.sync_status
+    // Include error listings so user can retry sync
+    // Only exclude explicitly disconnected ones
+    const syncableListings = listings.filter(l => 
+      l.sync_status !== 'disconnected'
     );
     
-    if (activeListings.length === 0) {
-      console.log('No active listings to sync images');
+    console.log(`Listings to sync: ${syncableListings.length}`, 
+      syncableListings.map(l => ({ platform: l.platform, status: l.sync_status }))
+    );
+    
+    if (syncableListings.length === 0) {
+      console.log('No syncable listings found');
       return { synced: 0, failed: 0 };
     }
 
@@ -225,7 +230,7 @@ export function ProductImagesGallery({
     let synced = 0;
     let failed = 0;
 
-    for (const listing of activeListings) {
+    for (const listing of syncableListings) {
       try {
         console.log(`Syncing images to ${listing.platform}...`);
         
@@ -346,9 +351,9 @@ export function ProductImagesGallery({
 
   const totalImages = images.length + pendingUploads.length;
   
-  // Count active marketplaces for syncing
-  const activeMarketplaces = listings.filter(l => 
-    l.sync_status === 'active' || l.sync_status === 'synced' || !l.sync_status
+  // Count syncable marketplaces (includes error status for retry)
+  const syncableMarketplaces = listings.filter(l => 
+    l.sync_status !== 'disconnected'
   ).length;
 
   return (
@@ -360,9 +365,9 @@ export function ProductImagesGallery({
           {totalImages > 0 && (
             <Badge variant="secondary">{totalImages} foto(s)</Badge>
           )}
-          {activeMarketplaces > 0 && (
+          {syncableMarketplaces > 0 && (
             <Badge variant="outline" className="text-xs">
-              {activeMarketplaces} marketplace(s) conectado(s)
+              {syncableMarketplaces} marketplace(s) para sincronizar
             </Badge>
           )}
         </div>
