@@ -1,104 +1,263 @@
 
-Contexto (o que está acontecendo de verdade)
-- Nos logs do próprio app e nos logs da Edge Function ficou claro que o item do Mercado Livre que você está testando é um anúncio de catálogo:
-  - platform_product_id: MLB4193807241
-  - Edge logs: catalog_listing: true, catalog_product_id: MLB19516519
-- Em anúncio de catálogo, o Mercado Livre bloqueia atualização de imagens (inclui ordem e “imagem principal”). Por isso:
-  - A sincronização volta com erro
-  - A ordem que você define no UNISTOCK não reflete no Mercado Livre
-  - Trocar “imagem principal” (primeira imagem) também não reflete
 
-Do I know what the issue is?
-- Sim: é uma limitação/regra do Mercado Livre para anúncios de catálogo (não é mais um bug de upload/regex). O nosso sistema está tentando, mas o ML nega.
+# Plano: Corrigir Sincronização de Imagens com Shopify
 
-Objetivo da mudança
-1) Parar de te deixar em “loop de erro” tentando sincronizar algo que o ML não permite.
-2) Mostrar uma mensagem direta na tela dizendo “este anúncio é de catálogo, imagens não podem ser alteradas”, com o ID do anúncio.
-3) (Opcional) Oferecer uma ação prática: “Republicar/criar novo anúncio” (com aviso de que o ML pode transformar em catálogo de novo dependendo do produto).
+## Diagnóstico
 
-Plano de implementação (código)
+### Problema 1: Imagens sumiram da Shopify
+A Edge Function reporta sucesso `"Shopify images updated: 2"` mas as imagens não aparecem na loja.
 
-A) Melhorar o feedback no Front-end (para você ver o motivo exato)
-Arquivos:
-- src/components/products/ProductImagesGallery.tsx
-- src/components/products/MarketplaceImagesCard.tsx (mesma melhoria para consistência)
+**Causa raiz identificada:**
+| Item | Descrição |
+|------|-----------|
+| URL do Supabase | A imagem local está hospedada no Supabase Storage, que pode ter problemas de acesso externo |
+| Substituição total | A Shopify API substitui TODAS as imagens quando enviamos o array - se uma falhar, pode afetar as outras |
+| Sem validação | A função não verifica se as URLs são acessíveis antes de enviar para a Shopify |
 
-Mudanças:
-1. Ao chamar supabase.functions.invoke('update-product-images'):
-   - Capturar { data, error } (não só error)
-   - Se error for FunctionsHttpError, ler o body da resposta via error.context (que é um Response) e extrair JSON:
-     - Esperado hoje: { error: string, details?: string }
-2. Mostrar toast com a mensagem real do backend (ex: “Este anúncio é de catálogo…”) em vez de só “Edge Function returned non-2xx”.
-3. Guardar/usar o “details” quando vier 'catalog_listing' para montar uma mensagem bem objetiva.
+### Problema 2: Importação sem imagens
+O `platform_metadata.images` está vazio (`[]`) indicando que na hora da importação o produto não tinha imagens na Shopify.
 
-Resultado esperado:
-- Quando falhar, você vê exatamente: “Mercado Livre: anúncio de catálogo — imagens não podem ser alteradas” (sem mensagem genérica).
+---
 
-B) Não tentar sincronizar imagens para anúncios “bloqueados”
-Arquivo:
-- src/components/products/ProductImagesGallery.tsx
+## Arquitetura da Solução
 
-Mudanças:
-1. Antes de tentar sincronizar um listing do Mercado Livre:
-   - Se listing.sync_error já contém “catálogo” ou “pictures is not modifiable” (ou se o último retorno vier com details='catalog_listing'):
-     - Pular a tentativa automaticamente (não chamar a Edge Function de novo)
-     - Contabilizar como “skipped/blocked” e mostrar isso no toast final:
-       - Ex: “Imagens salvas. 1 marketplace sincronizado, 1 bloqueado (catálogo).”
-2. Adicionar um pequeno Alert/Banner no card da Galeria quando existir listing do Mercado Livre com bloqueio:
-   - Texto simples:
-     - “Mercado Livre bloqueou alteração de imagens porque este anúncio é de catálogo. A ordem e a imagem principal não podem ser alteradas via UNISTOCK.”
-   - Mostrar o ID do anúncio (MLB...) para referência.
+```text
+┌─────────────────────────────────────────────────────────────────┐
+│  ANTES (problema)                                                │
+│                                                                   │
+│  URLs do Supabase Storage + URLs Shopify                         │
+│         ↓                                                         │
+│  Envia todas para Shopify API                                    │
+│         ↓                                                         │
+│  Shopify não consegue baixar URL do Supabase                     │
+│         ↓                                                         │
+│  IMAGENS SOMEM ou são parcialmente ignoradas                     │
+└─────────────────────────────────────────────────────────────────┘
 
-Resultado esperado:
-- Você para de “tentar e falhar” toda vez.
-- Fica claro por que não atualiza.
+┌─────────────────────────────────────────────────────────────────┐
+│  DEPOIS (corrigido)                                              │
+│                                                                   │
+│  URLs do Supabase Storage + URLs Shopify                         │
+│         ↓                                                         │
+│  Verifica se URL é acessível externamente                        │
+│         ↓                                                         │
+│  Se for Supabase Storage → faz upload direto via base64          │
+│         ↓                                                         │
+│  IMAGENS FUNCIONAM corretamente                                  │
+└─────────────────────────────────────────────────────────────────┘
+```
 
-C) Padronizar a resposta do Backend para facilitar o front-end (sem adivinhação por texto)
-Arquivo:
-- supabase/functions/update-product-images/index.ts
+---
 
-Mudanças:
-1. Quando detectar catalog_listing/catalog_product_id:
-   - Retornar sempre uma estrutura padronizada, por exemplo:
-     - status: 409 (ou 400, mas 409 deixa claro “conflito/regra do recurso”)
-     - body: { error: '...', code: 'CATALOG_LOCKED', details: 'catalog_listing', itemId, catalogProductId }
-2. Quando vier erro de “pictures is not modifiable” (mesmo sem catalog_listing explícito):
-   - Retornar code: 'PICTURES_NOT_MODIFIABLE' e manter details com causas.
-3. Ao salvar no product_listings:
-   - Se code for CATALOG_LOCKED ou PICTURES_NOT_MODIFIABLE, setar sync_status para algo como:
-     - 'restricted' (em vez de 'error')
-   - Isso ajuda o front-end a filtrar sem depender de texto.
+## Implementação
 
-Obs: sync_status é string no banco, então não exige migration, mas vamos atualizar a UI onde isso apareça para não ficar “invisível”.
+### Arquivo 1: `supabase/functions/update-product-images/index.ts`
 
-D) Ajustes de UI para o novo status “restricted”
-Arquivos prováveis:
-- src/pages/ProductDetails.tsx (onde você já lista e recarrega listings)
-- src/pages/Products.tsx (onde hoje só marca bolinha vermelha quando sync_status === 'error')
+#### Mudança A: Adicionar função para converter imagem em base64 para Shopify
 
-Mudanças:
-1. Tratar 'restricted' como “bloqueado” (ícone/Badge diferente de erro genérico).
-2. Exibir sync_error para restricted como mensagem informativa (não “erro de conexão”).
+```typescript
+async function prepareImageForShopify(imageUrl: string): Promise<{ src?: string; attachment?: string } | null> {
+  try {
+    // Se for URL do CDN da Shopify, usar diretamente
+    if (imageUrl.includes('cdn.shopify.com')) {
+      return { src: imageUrl };
+    }
+    
+    // Para outras URLs (Supabase, externas), baixar e enviar como base64
+    console.log(`Downloading image for Shopify upload: ${imageUrl}`);
+    const response = await fetch(imageUrl);
+    
+    if (!response.ok) {
+      console.error(`Failed to fetch image: ${response.status} - ${imageUrl}`);
+      return null;
+    }
+    
+    const buffer = await response.arrayBuffer();
+    const base64 = btoa(String.fromCharCode(...new Uint8Array(buffer)));
+    
+    console.log(`Image converted to base64: ${buffer.byteLength} bytes`);
+    return { attachment: base64 };
+    
+  } catch (error) {
+    console.error(`Error preparing image: ${error.message}`);
+    return null;
+  }
+}
+```
 
-E) Testes (para confirmar o que dá e o que não dá no ML)
-1. Caso catálogo (o seu atual MLB4193807241):
-   - Reordenar no UNISTOCK e clicar “Salvar e Sincronizar”
-   - Esperado: salva localmente e mostra aviso de bloqueio “catálogo”, sem ficar repetindo tentativa.
-2. Caso não-catálogado (outro anúncio que NÃO seja catalog_listing):
-   - Reordenar imagens e mudar a principal (primeira)
-   - Esperado: Mercado Livre refletir a nova ordem.
-3. Verificar logs:
-   - Supabase Edge Function logs: update-product-images
-   - Confirmar retorno com code/details padronizado
+#### Mudança B: Atualizar função updateShopifyImages
 
-Riscos/limitações (importante e direto)
-- Se o anúncio for de catálogo, não existe “correção de código” que force o Mercado Livre a aceitar ordem/imagem principal. O máximo que o UNISTOCK pode fazer é:
-  - Identificar automaticamente
-  - Parar de insistir
-  - Te orientar para alternativa (criar novo anúncio fora do catálogo / editar direto no ML)
-- “Republicar” pode ou não resolver, porque o ML pode re-vincular ao catálogo dependendo do produto (EAN/GTIN e regras internas).
+**Antes (linha 325-341):**
+```typescript
+const shopifyImages = images.map((url, index) => ({
+  src: url,
+  position: index + 1,
+}));
+```
 
-Entregáveis (o que vai mudar ao final)
-- Você vai ver o motivo real no toast (catálogo/bloqueio), não erro genérico.
-- O UNISTOCK vai parar de tentar sincronizar imagens para anúncios bloqueados e vai te avisar claramente.
-- Para anúncios normais (não catálogo), a ordem + imagem principal devem refletir no Mercado Livre após o sync.
+**Depois:**
+```typescript
+// Preparar imagens - converter para base64 se necessário
+const preparedImages: any[] = [];
+for (let i = 0; i < images.length; i++) {
+  const imageData = await prepareImageForShopify(images[i]);
+  if (imageData) {
+    preparedImages.push({
+      ...imageData,
+      position: i + 1,
+    });
+  } else {
+    console.warn(`Skipping invalid image at position ${i + 1}: ${images[i]}`);
+  }
+}
+
+if (preparedImages.length === 0) {
+  return { 
+    success: false, 
+    error: 'Nenhuma imagem válida para enviar à Shopify',
+    code: ErrorCodes.VALIDATION_ERROR 
+  };
+}
+
+console.log(`Sending ${preparedImages.length} images to Shopify`);
+```
+
+#### Mudança C: Atualizar platform_metadata após sincronização bem-sucedida
+
+**Adicionar após linha 363 (depois do response.json()):**
+```typescript
+const data = await response.json();
+console.log('Shopify images updated:', data.product?.images?.length);
+
+// Atualizar platform_metadata com as novas imagens da Shopify
+if (data.product?.images) {
+  const supabase = createClient(
+    Deno.env.get('SUPABASE_URL')!,
+    Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
+  );
+  
+  // Buscar metadata atual e mesclar com novas imagens
+  const { data: currentListing } = await supabase
+    .from('product_listings')
+    .select('platform_metadata')
+    .eq('id', listingId)
+    .single();
+  
+  const updatedMetadata = {
+    ...(currentListing?.platform_metadata || {}),
+    images: data.product.images,
+  };
+  
+  await supabase
+    .from('product_listings')
+    .update({ platform_metadata: updatedMetadata })
+    .eq('id', listingId);
+    
+  console.log('Platform metadata updated with new Shopify images');
+}
+```
+
+---
+
+### Arquivo 2: `supabase/functions/import-products/index.ts`
+
+#### Mudança: Garantir que imagens sejam capturadas corretamente
+
+**Verificar linha 490-500:**
+```typescript
+// Extrair todas as imagens do Shopify
+const allImages = product.images?.map((img: any) => img.src).filter(Boolean) || [];
+```
+
+Adicionar log para debug:
+```typescript
+console.log(`📸 Produto ${product.title}: ${allImages.length} imagens encontradas`);
+if (allImages.length === 0 && product.image?.src) {
+  console.log(`  ↳ Usando imagem principal: ${product.image.src}`);
+  allImages.push(product.image.src);
+}
+```
+
+---
+
+## Fluxo Corrigido
+
+```text
+┌────────────────────┐
+│  Usuário adiciona  │
+│  imagem local      │
+└─────────┬──────────┘
+          │
+          ▼
+┌────────────────────┐
+│  Upload para       │
+│  Supabase Storage  │
+└─────────┬──────────┘
+          │
+          ▼
+┌────────────────────────────────────────────┐
+│  Clica "Salvar e Sincronizar"              │
+└─────────┬──────────────────────────────────┘
+          │
+          ▼
+┌────────────────────────────────────────────┐
+│  Edge Function detecta URL Supabase         │
+│         ↓                                   │
+│  Baixa imagem e converte para base64       │
+│         ↓                                   │
+│  Envia { attachment: base64 } para Shopify │
+└─────────┬──────────────────────────────────┘
+          │
+          ▼
+┌────────────────────────────────────────────┐
+│  Shopify processa e retorna CDN URLs       │
+│         ↓                                   │
+│  Atualiza platform_metadata com novas URLs │
+│         ↓                                   │
+│  Retorna sucesso ao frontend               │
+└────────────────────────────────────────────┘
+```
+
+---
+
+## Arquivos a Modificar
+
+| Arquivo | Mudança |
+|---------|---------|
+| `supabase/functions/update-product-images/index.ts` | Upload base64 para Shopify + atualizar metadata |
+| `supabase/functions/import-products/index.ts` | Melhorar captura de imagens na importação |
+
+---
+
+## Por que as imagens sumiram?
+
+A Shopify recebeu a requisição com 2 URLs:
+1. `https://cdn.shopify.com/...` ✅ (acessível)
+2. `https://fcvwogaqarkuqvumyqqm.supabase.co/storage/...` ❓ (pode ter falhado)
+
+Quando a Shopify não consegue baixar uma URL:
+- Ela pode ignorar silenciosamente
+- Ou pode falhar parcialmente
+
+O resultado `"Shopify images updated: 2"` vem da resposta da API, mas não significa que as 2 imagens foram salvas com sucesso.
+
+---
+
+## Benefícios
+
+1. **Compatibilidade total**: Imagens do Supabase Storage funcionarão corretamente
+2. **Feedback preciso**: Logs mostrarão exatamente quais imagens falharam
+3. **Metadata atualizado**: O `platform_metadata.images` refletirá as imagens reais na Shopify
+4. **Importação corrigida**: Capturará todas as imagens disponíveis
+
+---
+
+## Testes Esperados
+
+| Cenário | Resultado |
+|---------|-----------|
+| Adicionar imagem local → sincronizar | Imagem aparece na Shopify via upload base64 |
+| Reordenar imagens → sincronizar | Ordem reflete corretamente na Shopify |
+| Importar produto com imagens | Todas as imagens são capturadas |
+| Imagem com URL inválida | Aviso no toast + outras imagens sincronizam |
+
