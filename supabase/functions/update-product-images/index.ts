@@ -6,6 +6,16 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
+// Error codes for structured responses
+const ErrorCodes = {
+  CATALOG_LOCKED: 'CATALOG_LOCKED',
+  PICTURES_NOT_MODIFIABLE: 'PICTURES_NOT_MODIFIABLE',
+  TOKEN_EXPIRED: 'TOKEN_EXPIRED',
+  NOT_FOUND: 'NOT_FOUND',
+  VALIDATION_ERROR: 'VALIDATION_ERROR',
+  UNKNOWN_ERROR: 'UNKNOWN_ERROR',
+};
+
 // Upload image to Mercado Livre via multipart
 async function uploadImageToMercadoLivre(
   accessToken: string,
@@ -111,11 +121,20 @@ function isMlUrl(url: string): boolean {
   return url.includes('mlstatic.com') || url.includes('mercadolibre.com') || url.includes('mercadolivre.com');
 }
 
+interface UpdateResult {
+  success: boolean;
+  error?: string;
+  code?: string;
+  details?: string;
+  itemId?: string;
+  catalogProductId?: string;
+}
+
 async function updateMercadoLivreImages(
   accessToken: string, 
   itemId: string, 
   images: string[]
-): Promise<{ success: boolean; error?: string; details?: string }> {
+): Promise<UpdateResult> {
   try {
     console.log(`Updating Mercado Livre images for item: ${itemId}`);
     console.log(`Images to process: ${images.length}`);
@@ -132,7 +151,11 @@ async function updateMercadoLivreImages(
     });
 
     if (validImages.length === 0) {
-      return { success: false, error: 'Nenhuma imagem válida para enviar (apenas HTTPS é aceito)' };
+      return { 
+        success: false, 
+        error: 'Nenhuma imagem válida para enviar (apenas HTTPS é aceito)',
+        code: ErrorCodes.VALIDATION_ERROR,
+      };
     }
 
     console.log(`Valid images count: ${validImages.length}`);
@@ -146,11 +169,16 @@ async function updateMercadoLivreImages(
     
     console.log(`Item check - catalog_listing: ${itemData.catalog_listing}, catalog_product_id: ${itemData.catalog_product_id}`);
     
+    // Detect catalog listings BEFORE attempting update
     if (itemData.catalog_listing || itemData.catalog_product_id) {
+      console.log(`Item ${itemId} is a catalog listing - images cannot be modified`);
       return { 
         success: false, 
-        error: 'Este anúncio é de catálogo. As imagens são gerenciadas pelo Mercado Livre e não podem ser alteradas.',
-        details: 'catalog_listing'
+        error: 'Este anúncio é de catálogo. As imagens são gerenciadas pelo Mercado Livre e não podem ser alteradas via UNISTOCK.',
+        code: ErrorCodes.CATALOG_LOCKED,
+        details: 'catalog_listing',
+        itemId: itemId,
+        catalogProductId: itemData.catalog_product_id,
       };
     }
     
@@ -185,6 +213,7 @@ async function updateMercadoLivreImages(
       return { 
         success: false, 
         error: 'Nenhuma imagem foi processada com sucesso.',
+        code: ErrorCodes.VALIDATION_ERROR,
         details: errors.join('; ')
       };
     }
@@ -224,25 +253,36 @@ async function updateMercadoLivreImages(
       
       // Handle specific ML errors
       if (updateResponse.status === 401 || updateResponse.status === 403) {
-        return { success: false, error: 'Token expirado. Reconecte sua conta do Mercado Livre.' };
-      }
-      
-      // Detect catalog/locked errors
-      if (errorData.cause?.some((c: any) => 
-        c.code === 'field_not_updatable' || 
-        c.code === 'item.pictures.error' ||
-        c.message?.includes('pictures is not modifiable')
-      )) {
         return { 
           success: false, 
-          error: 'As imagens deste anúncio não podem ser alteradas (anúncio de catálogo ou bloqueado).',
-          details: JSON.stringify(errorData.cause)
+          error: 'Token expirado. Reconecte sua conta do Mercado Livre.',
+          code: ErrorCodes.TOKEN_EXPIRED,
+        };
+      }
+      
+      // Detect pictures not modifiable errors (catalog or other restrictions)
+      const isPicturesNotModifiable = errorData.cause?.some((c: any) => 
+        c.code === 'field_not_updatable' || 
+        c.code === 'item.pictures.error' ||
+        c.message?.toLowerCase().includes('pictures is not modifiable') ||
+        c.message?.toLowerCase().includes('pictures are not modifiable')
+      ) || errorData.message?.toLowerCase().includes('pictures is not modifiable');
+      
+      if (isPicturesNotModifiable) {
+        console.log(`Item ${itemId} has pictures restriction - marking as PICTURES_NOT_MODIFIABLE`);
+        return { 
+          success: false, 
+          error: 'As imagens deste anúncio não podem ser alteradas. Isso pode ocorrer em anúncios de catálogo, com vendas ativas, ou com restrições do Mercado Livre.',
+          code: ErrorCodes.PICTURES_NOT_MODIFIABLE,
+          details: JSON.stringify(errorData.cause || errorData),
+          itemId: itemId,
         };
       }
       
       return { 
         success: false, 
         error: errorData.message || `Erro ao atualizar imagens: ${updateResponse.status}`,
+        code: ErrorCodes.UNKNOWN_ERROR,
         details: JSON.stringify(errorData)
       };
     }
@@ -255,7 +295,11 @@ async function updateMercadoLivreImages(
     return { success: true, details: successMsg };
   } catch (error) {
     console.error('Error updating Mercado Livre images:', error);
-    return { success: false, error: 'Falha ao conectar com Mercado Livre' };
+    return { 
+      success: false, 
+      error: 'Falha ao conectar com Mercado Livre',
+      code: ErrorCodes.UNKNOWN_ERROR,
+    };
   }
 }
 
@@ -264,10 +308,10 @@ async function updateShopifyImages(
   productId: string,
   images: string[],
   shopDomain: string | null
-): Promise<{ success: boolean; error?: string }> {
+): Promise<UpdateResult> {
   try {
     if (!shopDomain) {
-      return { success: false, error: 'Shop domain not configured' };
+      return { success: false, error: 'Shop domain not configured', code: ErrorCodes.VALIDATION_ERROR };
     }
 
     // Ensure proper shop URL format
@@ -302,15 +346,16 @@ async function updateShopifyImages(
       console.error('Shopify API error:', errorText);
 
       if (response.status === 401) {
-        return { success: false, error: 'Token expirado. Reconecte sua loja Shopify.' };
+        return { success: false, error: 'Token expirado. Reconecte sua loja Shopify.', code: ErrorCodes.TOKEN_EXPIRED };
       }
       if (response.status === 404) {
-        return { success: false, error: 'Produto não encontrado na Shopify.' };
+        return { success: false, error: 'Produto não encontrado na Shopify.', code: ErrorCodes.NOT_FOUND };
       }
 
       return { 
         success: false, 
-        error: `Erro ao atualizar imagens: ${response.status}` 
+        error: `Erro ao atualizar imagens: ${response.status}`,
+        code: ErrorCodes.UNKNOWN_ERROR,
       };
     }
 
@@ -320,7 +365,7 @@ async function updateShopifyImages(
     return { success: true };
   } catch (error) {
     console.error('Error updating Shopify images:', error);
-    return { success: false, error: 'Falha ao conectar com Shopify' };
+    return { success: false, error: 'Falha ao conectar com Shopify', code: ErrorCodes.UNKNOWN_ERROR };
   }
 }
 
@@ -368,7 +413,7 @@ serve(async (req) => {
     // Get the listing with integration details
     const { data: listing, error: listingError } = await supabase
       .from('product_listings')
-      .select('id, platform, platform_product_id, integration_id')
+      .select('id, platform, platform_product_id, integration_id, sync_status')
       .eq('id', listingId)
       .eq('user_id', user.id)
       .single();
@@ -410,7 +455,7 @@ serve(async (req) => {
       });
     }
 
-    let result;
+    let result: UpdateResult;
 
     switch (platform) {
       case 'mercadolivre':
@@ -420,25 +465,42 @@ serve(async (req) => {
         result = await updateShopifyImages(accessToken, listing.platform_product_id, images, integration.shop_domain);
         break;
       case 'amazon':
-        result = { success: false, error: 'Amazon image sync not yet implemented' };
+        result = { success: false, error: 'Amazon image sync not yet implemented', code: ErrorCodes.UNKNOWN_ERROR };
         break;
       default:
-        result = { success: false, error: `Platform ${platform} not supported` };
+        result = { success: false, error: `Platform ${platform} not supported`, code: ErrorCodes.UNKNOWN_ERROR };
     }
 
     if (!result.success) {
-      // Update listing with sync error
+      // Determine sync_status based on error code
+      let syncStatus = 'error';
+      if (result.code === ErrorCodes.CATALOG_LOCKED || result.code === ErrorCodes.PICTURES_NOT_MODIFIABLE) {
+        syncStatus = 'restricted';
+      }
+      
+      // Update listing with sync error and appropriate status
       await supabase
         .from('product_listings')
         .update({
-          sync_status: 'error',
+          sync_status: syncStatus,
           sync_error: result.error,
           updated_at: new Date().toISOString(),
         })
         .eq('id', listingId);
 
-      return new Response(JSON.stringify({ error: result.error, details: result.details }), {
-        status: 400,
+      // Return structured error response
+      const statusCode = result.code === ErrorCodes.CATALOG_LOCKED || result.code === ErrorCodes.PICTURES_NOT_MODIFIABLE 
+        ? 409 
+        : 400;
+      
+      return new Response(JSON.stringify({ 
+        error: result.error, 
+        code: result.code,
+        details: result.details,
+        itemId: result.itemId,
+        catalogProductId: result.catalogProductId,
+      }), {
+        status: statusCode,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
     }
@@ -465,7 +527,7 @@ serve(async (req) => {
 
   } catch (error) {
     console.error('Error in update-product-images:', error);
-    return new Response(JSON.stringify({ error: 'Internal server error' }), {
+    return new Response(JSON.stringify({ error: 'Internal server error', code: ErrorCodes.UNKNOWN_ERROR }), {
       status: 500,
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     });

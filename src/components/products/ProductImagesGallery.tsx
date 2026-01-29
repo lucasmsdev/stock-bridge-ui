@@ -1,9 +1,10 @@
 import { useState, useRef, useCallback } from "react";
-import { Upload, X, Link as LinkIcon, Plus, Loader2, Save, ImageIcon, GripVertical } from "lucide-react";
+import { Upload, X, Link as LinkIcon, Plus, Loader2, Save, ImageIcon, GripVertical, AlertTriangle, Lock } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
+import { Alert, AlertDescription } from "@/components/ui/alert";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 
@@ -19,6 +20,7 @@ interface ProductListing {
   integration_id: string;
   platform_product_id: string;
   sync_status?: string;
+  sync_error?: string;
 }
 
 interface ProductImagesGalleryProps {
@@ -27,6 +29,43 @@ interface ProductImagesGalleryProps {
   listings?: ProductListing[];
   onUpdate: (images: string[]) => void;
   onSyncComplete?: () => void;
+}
+
+// Helper to check if a listing has catalog/pictures restriction
+function isListingRestricted(listing: ProductListing): boolean {
+  if (listing.sync_status === 'restricted') return true;
+  
+  const error = listing.sync_error?.toLowerCase() || '';
+  return (
+    error.includes('catálogo') ||
+    error.includes('catalog') ||
+    error.includes('pictures is not modifiable') ||
+    error.includes('pictures are not modifiable') ||
+    error.includes('não podem ser alteradas')
+  );
+}
+
+// Helper to parse edge function error response
+async function parseEdgeFunctionError(error: any): Promise<{ message: string; code?: string; details?: string; itemId?: string }> {
+  // Try to extract detailed error from FunctionsHttpError context
+  if (error?.context && typeof error.context.json === 'function') {
+    try {
+      const body = await error.context.json();
+      return {
+        message: body.error || error.message || 'Erro desconhecido',
+        code: body.code,
+        details: body.details,
+        itemId: body.itemId,
+      };
+    } catch {
+      // JSON parsing failed, fall through
+    }
+  }
+  
+  // Fallback to error message
+  return {
+    message: error?.message || 'Erro desconhecido',
+  };
 }
 
 export function ProductImagesGallery({ 
@@ -50,6 +89,11 @@ export function ProductImagesGallery({
   // Drag-and-drop reorder state
   const [draggedIndex, setDraggedIndex] = useState<number | null>(null);
   const [dragOverIndex, setDragOverIndex] = useState<number | null>(null);
+
+  // Find restricted ML listings for alert display
+  const restrictedMlListings = listings.filter(l => 
+    l.platform === 'mercadolivre' && isListingRestricted(l)
+  );
 
   const handleFileSelect = useCallback(async (files: FileList | null) => {
     if (!files || files.length === 0) return;
@@ -213,17 +257,21 @@ export function ProductImagesGallery({
   const syncToMarketplaces = async (imagesToSync: string[]) => {
     // Include error listings so user can retry sync
     // Only exclude explicitly disconnected ones
+    // Also skip listings that are restricted (catalog)
     const syncableListings = listings.filter(l => 
-      l.sync_status !== 'disconnected'
+      l.sync_status !== 'disconnected' && !isListingRestricted(l)
     );
     
-    console.log(`Listings to sync: ${syncableListings.length}`, 
+    // Count restricted listings for feedback
+    const restrictedCount = listings.filter(l => isListingRestricted(l)).length;
+    
+    console.log(`Listings to sync: ${syncableListings.length}, restricted (skipped): ${restrictedCount}`, 
       syncableListings.map(l => ({ platform: l.platform, status: l.sync_status }))
     );
     
-    if (syncableListings.length === 0) {
+    if (syncableListings.length === 0 && restrictedCount === 0) {
       console.log('No syncable listings found');
-      return { synced: 0, failed: 0 };
+      return { synced: 0, failed: 0, restricted: 0 };
     }
 
     setIsSyncingMarketplaces(true);
@@ -234,7 +282,7 @@ export function ProductImagesGallery({
       try {
         console.log(`Syncing images to ${listing.platform}...`);
         
-        const { error } = await supabase.functions.invoke('update-product-images', {
+        const { data, error } = await supabase.functions.invoke('update-product-images', {
           body: {
             productId,
             listingId: listing.id,
@@ -244,20 +292,32 @@ export function ProductImagesGallery({
         });
 
         if (error) {
-          console.error(`Error syncing to ${listing.platform}:`, error);
+          // Parse detailed error from edge function
+          const errorDetails = await parseEdgeFunctionError(error);
+          console.error(`Error syncing to ${listing.platform}:`, errorDetails);
+          
+          // Show specific toast for catalog/restricted errors
+          if (errorDetails.code === 'CATALOG_LOCKED' || errorDetails.code === 'PICTURES_NOT_MODIFIABLE') {
+            toast({
+              title: `⚠️ ${listing.platform === 'mercadolivre' ? 'Mercado Livre' : listing.platform}`,
+              description: errorDetails.message,
+              variant: "default",
+            });
+          }
+          
           failed++;
         } else {
           console.log(`✅ Images synced to ${listing.platform}`);
           synced++;
         }
-      } catch (err) {
+      } catch (err: any) {
         console.error(`Error syncing to ${listing.platform}:`, err);
         failed++;
       }
     }
 
     setIsSyncingMarketplaces(false);
-    return { synced, failed };
+    return { synced, failed, restricted: restrictedCount };
   };
 
   const handleSave = async () => {
@@ -285,25 +345,35 @@ export function ProductImagesGallery({
       onUpdate(allImages);
       
       // 2. Sync to marketplaces
-      const { synced, failed } = await syncToMarketplaces(allImages);
+      const { synced, failed, restricted } = await syncToMarketplaces(allImages);
       
       // 3. Show appropriate toast
-      if (synced > 0 && failed === 0) {
+      if (synced > 0 && failed === 0 && restricted === 0) {
         toast({
           title: "✅ Imagens atualizadas",
           description: `${allImages.length} imagem(ns) salva(s) e sincronizada(s) com ${synced} marketplace(s)`,
         });
-      } else if (synced > 0 && failed > 0) {
+      } else if (synced > 0 && (failed > 0 || restricted > 0)) {
+        const parts = [];
+        if (synced > 0) parts.push(`${synced} sincronizado(s)`);
+        if (failed > 0) parts.push(`${failed} com erro`);
+        if (restricted > 0) parts.push(`${restricted} bloqueado(s) (catálogo)`);
+        
         toast({
           title: "⚠️ Sincronização parcial",
-          description: `Imagens salvas. ${synced} marketplace(s) sincronizado(s), ${failed} com erro.`,
+          description: `Imagens salvas. ${parts.join(', ')}.`,
           variant: "default",
         });
-      } else if (failed > 0) {
+      } else if (failed > 0 && synced === 0) {
         toast({
           title: "⚠️ Erro ao sincronizar",
           description: `Imagens salvas localmente, mas falhou ao sincronizar com ${failed} marketplace(s).`,
           variant: "destructive",
+        });
+      } else if (restricted > 0 && synced === 0 && failed === 0) {
+        toast({
+          title: "ℹ️ Imagens salvas localmente",
+          description: `${allImages.length} imagem(ns) salva(s). ${restricted} marketplace(s) bloqueado(s) (anúncio de catálogo).`,
         });
       } else {
         toast({
@@ -351,9 +421,9 @@ export function ProductImagesGallery({
 
   const totalImages = images.length + pendingUploads.length;
   
-  // Count syncable marketplaces (includes error status for retry)
+  // Count syncable marketplaces (excludes disconnected and restricted)
   const syncableMarketplaces = listings.filter(l => 
-    l.sync_status !== 'disconnected'
+    l.sync_status !== 'disconnected' && !isListingRestricted(l)
   ).length;
 
   return (
@@ -399,6 +469,21 @@ export function ProductImagesGallery({
       </CardHeader>
       
       <CardContent className="space-y-4">
+        {restrictedMlListings.length > 0 && (
+          <Alert className="border-warning/50 bg-warning/10">
+            <Lock className="h-4 w-4 text-warning" />
+            <AlertDescription className="text-warning-foreground">
+              <strong>Mercado Livre:</strong> Este anúncio é de catálogo ou possui restrições. 
+              A ordem das imagens e a imagem principal não podem ser alteradas via UNISTOCK.
+              {restrictedMlListings.map(l => (
+                <span key={l.id} className="block text-xs mt-1 font-mono">
+                  ID: {l.platform_product_id}
+                </span>
+              ))}
+            </AlertDescription>
+          </Alert>
+        )}
+
         {/* Drag hint */}
         {images.length > 1 && (
           <p className="text-xs text-muted-foreground flex items-center gap-1">
