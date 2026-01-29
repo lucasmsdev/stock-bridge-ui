@@ -488,7 +488,16 @@ serve(async (req) => {
           });
 
           // Extrair todas as imagens do Shopify
-          const allImages = product.images?.map((img: any) => img.src).filter(Boolean) || [];
+          let allImages = product.images?.map((img: any) => img.src).filter(Boolean) || [];
+          
+          // Log para debug de captura de imagens
+          console.log(`📸 Produto "${product.title}": ${allImages.length} imagens encontradas`);
+          
+          // Fallback para imagem principal se nenhuma imagem foi encontrada
+          if (allImages.length === 0 && product.image?.src) {
+            console.log(`  ↳ Usando imagem principal: ${product.image.src}`);
+            allImages = [product.image.src];
+          }
 
           const productData = {
             user_id: user.id,
@@ -496,7 +505,7 @@ serve(async (req) => {
             sku: sku,
             stock: variant.inventory_quantity || 0,
             selling_price: variant.price ? parseFloat(variant.price) : null,
-            image_url: allImages[0] || product.image?.src || null,
+            image_url: allImages[0] || null,
             images: allImages.length > 0 ? allImages : null,
           };
 

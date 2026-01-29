@@ -303,11 +303,52 @@ async function updateMercadoLivreImages(
   }
 }
 
+// Prepare image for Shopify - convert non-Shopify URLs to base64
+async function prepareImageForShopify(imageUrl: string, index: number): Promise<{ src?: string; attachment?: string; position: number } | null> {
+  try {
+    // If it's already a Shopify CDN URL, use it directly
+    if (imageUrl.includes('cdn.shopify.com')) {
+      console.log(`Image ${index + 1}: Using existing Shopify CDN URL`);
+      return { src: imageUrl, position: index + 1 };
+    }
+    
+    // For other URLs (Supabase Storage, external), download and send as base64
+    console.log(`Image ${index + 1}: Downloading for base64 upload: ${imageUrl.substring(0, 80)}...`);
+    
+    const response = await fetch(imageUrl);
+    
+    if (!response.ok) {
+      console.error(`Failed to fetch image ${index + 1}: ${response.status} - ${imageUrl}`);
+      return null;
+    }
+    
+    const buffer = await response.arrayBuffer();
+    const uint8Array = new Uint8Array(buffer);
+    
+    // Convert to base64 using chunks to avoid stack overflow on large images
+    let binary = '';
+    const chunkSize = 0x8000; // 32KB chunks
+    for (let i = 0; i < uint8Array.length; i += chunkSize) {
+      const chunk = uint8Array.subarray(i, Math.min(i + chunkSize, uint8Array.length));
+      binary += String.fromCharCode.apply(null, [...chunk]);
+    }
+    const base64 = btoa(binary);
+    
+    console.log(`Image ${index + 1} converted to base64: ${buffer.byteLength} bytes`);
+    return { attachment: base64, position: index + 1 };
+    
+  } catch (error) {
+    console.error(`Error preparing image ${index + 1}:`, error);
+    return null;
+  }
+}
+
 async function updateShopifyImages(
   accessToken: string,
   productId: string,
   images: string[],
-  shopDomain: string | null
+  shopDomain: string | null,
+  listingId: string
 ): Promise<UpdateResult> {
   try {
     if (!shopDomain) {
@@ -320,12 +361,28 @@ async function updateShopifyImages(
       : `${shopDomain}.myshopify.com`;
 
     console.log(`Updating Shopify images for product: ${productId} on ${shopUrl}`);
+    console.log(`Processing ${images.length} images...`);
 
-    // Shopify expects images as array of objects with src
-    const shopifyImages = images.map((url, index) => ({
-      src: url,
-      position: index + 1,
-    }));
+    // Prepare images - convert to base64 if needed
+    const preparedImages: any[] = [];
+    for (let i = 0; i < images.length; i++) {
+      const imageData = await prepareImageForShopify(images[i], i);
+      if (imageData) {
+        preparedImages.push(imageData);
+      } else {
+        console.warn(`Skipping invalid image at position ${i + 1}: ${images[i]}`);
+      }
+    }
+
+    if (preparedImages.length === 0) {
+      return { 
+        success: false, 
+        error: 'Nenhuma imagem válida para enviar à Shopify',
+        code: ErrorCodes.VALIDATION_ERROR 
+      };
+    }
+
+    console.log(`Sending ${preparedImages.length} images to Shopify (${preparedImages.filter(i => i.attachment).length} as base64, ${preparedImages.filter(i => i.src).length} as URL)`);
 
     const response = await fetch(
       `https://${shopUrl}/admin/api/2024-01/products/${productId}.json`,
@@ -336,7 +393,7 @@ async function updateShopifyImages(
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          product: { images: shopifyImages }
+          product: { images: preparedImages }
         }),
       }
     );
@@ -362,7 +419,38 @@ async function updateShopifyImages(
     const data = await response.json();
     console.log('Shopify images updated:', data.product?.images?.length);
 
-    return { success: true };
+    // Update platform_metadata with the new Shopify images
+    if (data.product?.images && listingId) {
+      try {
+        const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
+        const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
+        const supabase = createClient(supabaseUrl, supabaseKey);
+        
+        // Fetch current metadata and merge with new images
+        const { data: currentListing } = await supabase
+          .from('product_listings')
+          .select('platform_metadata')
+          .eq('id', listingId)
+          .single();
+        
+        const updatedMetadata = {
+          ...(currentListing?.platform_metadata || {}),
+          images: data.product.images,
+        };
+        
+        await supabase
+          .from('product_listings')
+          .update({ platform_metadata: updatedMetadata })
+          .eq('id', listingId);
+          
+        console.log('Platform metadata updated with new Shopify image URLs');
+      } catch (metadataError) {
+        console.warn('Failed to update platform_metadata:', metadataError);
+        // Don't fail the whole operation if metadata update fails
+      }
+    }
+
+    return { success: true, details: `${data.product?.images?.length || 0} imagens atualizadas` };
   } catch (error) {
     console.error('Error updating Shopify images:', error);
     return { success: false, error: 'Falha ao conectar com Shopify', code: ErrorCodes.UNKNOWN_ERROR };
@@ -462,7 +550,7 @@ serve(async (req) => {
         result = await updateMercadoLivreImages(accessToken, listing.platform_product_id, images);
         break;
       case 'shopify':
-        result = await updateShopifyImages(accessToken, listing.platform_product_id, images, integration.shop_domain);
+        result = await updateShopifyImages(accessToken, listing.platform_product_id, images, integration.shop_domain, listingId);
         break;
       case 'amazon':
         result = { success: false, error: 'Amazon image sync not yet implemented', code: ErrorCodes.UNKNOWN_ERROR };
