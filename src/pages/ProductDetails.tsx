@@ -130,6 +130,12 @@ const statusConfig = {
     color: "text-amber-600",
     bgColor: "bg-amber-100 dark:bg-amber-900/30",
   },
+  restricted: {
+    icon: AlertTriangle,
+    label: "Bloqueado (Catálogo)",
+    color: "text-amber-600",
+    bgColor: "bg-amber-100 dark:bg-amber-900/30",
+  },
 };
 
 export default function ProductDetails() {

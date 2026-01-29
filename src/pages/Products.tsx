@@ -874,8 +874,10 @@ export default function Products() {
                                     alt={`${listing.platform} logo`}
                                     className={`h-5 w-auto ${logoConfig.darkInvert ? 'dark-invert' : ''} ${listing.sync_status === 'error' ? 'opacity-50' : ''}`}
                                   />
-                                  {listing.sync_status === 'error' && (
-                                    <div className="absolute -top-1 -right-1 w-2 h-2 bg-destructive rounded-full" />
+                                  {(listing.sync_status === 'error' || listing.sync_status === 'restricted') && (
+                                    <div className={`absolute -top-1 -right-1 w-2 h-2 rounded-full ${
+                                      listing.sync_status === 'restricted' ? 'bg-amber-500' : 'bg-destructive'
+                                    }`} />
                                   )}
                                 </div>
                               ) : (
