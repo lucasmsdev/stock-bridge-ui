@@ -1,181 +1,104 @@
 
-# Plano: Corrigir Sincronização de Imagens com Mercado Livre
+Contexto (o que está acontecendo de verdade)
+- Nos logs do próprio app e nos logs da Edge Function ficou claro que o item do Mercado Livre que você está testando é um anúncio de catálogo:
+  - platform_product_id: MLB4193807241
+  - Edge logs: catalog_listing: true, catalog_product_id: MLB19516519
+- Em anúncio de catálogo, o Mercado Livre bloqueia atualização de imagens (inclui ordem e “imagem principal”). Por isso:
+  - A sincronização volta com erro
+  - A ordem que você define no UNISTOCK não reflete no Mercado Livre
+  - Trocar “imagem principal” (primeira imagem) também não reflete
 
-## Diagnóstico
+Do I know what the issue is?
+- Sim: é uma limitação/regra do Mercado Livre para anúncios de catálogo (não é mais um bug de upload/regex). O nosso sistema está tentando, mas o ML nega.
 
-Os logs revelam o problema com clareza:
+Objetivo da mudança
+1) Parar de te deixar em “loop de erro” tentando sincronizar algo que o ML não permite.
+2) Mostrar uma mensagem direta na tela dizendo “este anúncio é de catálogo, imagens não podem ser alteradas”, com o ID do anúncio.
+3) (Opcional) Oferecer uma ação prática: “Republicar/criar novo anúncio” (com aviso de que o ML pode transformar em catálogo de novo dependendo do produto).
 
-```text
-sync_status: "error"
-sync_error: "pictures is not modifiable."
-→ No active listings to sync images
-```
+Plano de implementação (código)
 
-### Causa Raiz
+A) Melhorar o feedback no Front-end (para você ver o motivo exato)
+Arquivos:
+- src/components/products/ProductImagesGallery.tsx
+- src/components/products/MarketplaceImagesCard.tsx (mesma melhoria para consistência)
 
-| Problema | Descrição |
-|----------|-----------|
-| **Filtro muito restritivo** | O código ignora listings com `sync_status: 'error'`, então não tenta re-sincronizar |
-| **Erro do ML não tratado** | O Mercado Livre retorna "pictures is not modifiable" mas não sabemos se é temporário ou permanente |
+Mudanças:
+1. Ao chamar supabase.functions.invoke('update-product-images'):
+   - Capturar { data, error } (não só error)
+   - Se error for FunctionsHttpError, ler o body da resposta via error.context (que é um Response) e extrair JSON:
+     - Esperado hoje: { error: string, details?: string }
+2. Mostrar toast com a mensagem real do backend (ex: “Este anúncio é de catálogo…”) em vez de só “Edge Function returned non-2xx”.
+3. Guardar/usar o “details” quando vier 'catalog_listing' para montar uma mensagem bem objetiva.
 
----
+Resultado esperado:
+- Quando falhar, você vê exatamente: “Mercado Livre: anúncio de catálogo — imagens não podem ser alteradas” (sem mensagem genérica).
 
-## Arquitetura da Solução
+B) Não tentar sincronizar imagens para anúncios “bloqueados”
+Arquivo:
+- src/components/products/ProductImagesGallery.tsx
 
-```text
-┌─────────────────────────────────────────────────────────────────┐
-│  ANTES (problema)                                                │
-│                                                                   │
-│  Listing com sync_status = 'error'                               │
-│         ↓                                                         │
-│  Filtro: sync_status === 'active' || 'synced'                    │
-│         ↓                                                         │
-│  IGNORADO → "No active listings to sync"                         │
-└─────────────────────────────────────────────────────────────────┘
+Mudanças:
+1. Antes de tentar sincronizar um listing do Mercado Livre:
+   - Se listing.sync_error já contém “catálogo” ou “pictures is not modifiable” (ou se o último retorno vier com details='catalog_listing'):
+     - Pular a tentativa automaticamente (não chamar a Edge Function de novo)
+     - Contabilizar como “skipped/blocked” e mostrar isso no toast final:
+       - Ex: “Imagens salvas. 1 marketplace sincronizado, 1 bloqueado (catálogo).”
+2. Adicionar um pequeno Alert/Banner no card da Galeria quando existir listing do Mercado Livre com bloqueio:
+   - Texto simples:
+     - “Mercado Livre bloqueou alteração de imagens porque este anúncio é de catálogo. A ordem e a imagem principal não podem ser alteradas via UNISTOCK.”
+   - Mostrar o ID do anúncio (MLB...) para referência.
 
-┌─────────────────────────────────────────────────────────────────┐
-│  DEPOIS (corrigido)                                              │
-│                                                                   │
-│  Listing com sync_status = 'error'                               │
-│         ↓                                                         │
-│  Filtro: sync_status !== 'disconnected'                          │
-│         ↓                                                         │
-│  TENTA SYNC → Verifica se é catálogo → Mensagem clara            │
-└─────────────────────────────────────────────────────────────────┘
-```
+Resultado esperado:
+- Você para de “tentar e falhar” toda vez.
+- Fica claro por que não atualiza.
 
----
+C) Padronizar a resposta do Backend para facilitar o front-end (sem adivinhação por texto)
+Arquivo:
+- supabase/functions/update-product-images/index.ts
 
-## Implementação
+Mudanças:
+1. Quando detectar catalog_listing/catalog_product_id:
+   - Retornar sempre uma estrutura padronizada, por exemplo:
+     - status: 409 (ou 400, mas 409 deixa claro “conflito/regra do recurso”)
+     - body: { error: '...', code: 'CATALOG_LOCKED', details: 'catalog_listing', itemId, catalogProductId }
+2. Quando vier erro de “pictures is not modifiable” (mesmo sem catalog_listing explícito):
+   - Retornar code: 'PICTURES_NOT_MODIFIABLE' e manter details com causas.
+3. Ao salvar no product_listings:
+   - Se code for CATALOG_LOCKED ou PICTURES_NOT_MODIFIABLE, setar sync_status para algo como:
+     - 'restricted' (em vez de 'error')
+   - Isso ajuda o front-end a filtrar sem depender de texto.
 
-### Arquivo 1: `src/components/products/ProductImagesGallery.tsx`
+Obs: sync_status é string no banco, então não exige migration, mas vamos atualizar a UI onde isso apareça para não ficar “invisível”.
 
-#### Mudança: Ajustar filtro para permitir retry em listings com erro
+D) Ajustes de UI para o novo status “restricted”
+Arquivos prováveis:
+- src/pages/ProductDetails.tsx (onde você já lista e recarrega listings)
+- src/pages/Products.tsx (onde hoje só marca bolinha vermelha quando sync_status === 'error')
 
-**Antes (linha ~215):**
-```typescript
-const activeListings = listings.filter(l => 
-  l.sync_status === 'active' || l.sync_status === 'synced' || !l.sync_status
-);
-```
+Mudanças:
+1. Tratar 'restricted' como “bloqueado” (ícone/Badge diferente de erro genérico).
+2. Exibir sync_error para restricted como mensagem informativa (não “erro de conexão”).
 
-**Depois:**
-```typescript
-// Include error listings so user can retry sync
-// Only exclude explicitly disconnected ones
-const syncableListings = listings.filter(l => 
-  l.sync_status !== 'disconnected'
-);
-```
+E) Testes (para confirmar o que dá e o que não dá no ML)
+1. Caso catálogo (o seu atual MLB4193807241):
+   - Reordenar no UNISTOCK e clicar “Salvar e Sincronizar”
+   - Esperado: salva localmente e mostra aviso de bloqueio “catálogo”, sem ficar repetindo tentativa.
+2. Caso não-catálogado (outro anúncio que NÃO seja catalog_listing):
+   - Reordenar imagens e mudar a principal (primeira)
+   - Esperado: Mercado Livre refletir a nova ordem.
+3. Verificar logs:
+   - Supabase Edge Function logs: update-product-images
+   - Confirmar retorno com code/details padronizado
 
-#### Mudança: Adicionar log para debugging
+Riscos/limitações (importante e direto)
+- Se o anúncio for de catálogo, não existe “correção de código” que force o Mercado Livre a aceitar ordem/imagem principal. O máximo que o UNISTOCK pode fazer é:
+  - Identificar automaticamente
+  - Parar de insistir
+  - Te orientar para alternativa (criar novo anúncio fora do catálogo / editar direto no ML)
+- “Republicar” pode ou não resolver, porque o ML pode re-vincular ao catálogo dependendo do produto (EAN/GTIN e regras internas).
 
-```typescript
-console.log(`Listings to sync: ${syncableListings.length}`, 
-  syncableListings.map(l => ({ platform: l.platform, status: l.sync_status }))
-);
-```
-
----
-
-### Arquivo 2: `supabase/functions/update-product-images/index.ts`
-
-#### Mudança: Melhorar detecção de anúncios de catálogo
-
-A função `updateMercadoLivreImages` já verifica `catalog_listing` e `catalog_product_id`, mas o erro "pictures is not modifiable" pode ocorrer por outros motivos. Precisamos:
-
-1. Verificar na API do ML se o item tem restrições
-2. Fornecer mensagem mais específica ao usuário
-
-```typescript
-// Após obter itemData
-if (itemData.catalog_listing || itemData.catalog_product_id) {
-  return { 
-    success: false, 
-    error: 'Este anúncio é de catálogo. As imagens são gerenciadas pelo Mercado Livre.',
-    details: 'catalog_listing'
-  };
-}
-
-// Verificar se há restrições adicionais (anúncios com vendas)
-if (itemData.health?.aces_status === 'mandatory' || itemData.health?.pictures?.length > 0) {
-  console.log('Item has health/pictures restrictions:', itemData.health);
-}
-```
-
----
-
-### Arquivo 3: Limpar status de erro anterior
-
-Quando o usuário tenta sincronizar novamente, devemos primeiro limpar o erro anterior para dar uma chance de funcionar:
-
-```typescript
-// No início de updateMercadoLivreImages, antes de tentar sync
-// (já logamos que estamos tentando novamente)
-console.log(`Attempting to sync images to ${platform}, current status: ${listing.sync_status}`);
-```
-
----
-
-## Fluxo Corrigido
-
-```text
-┌────────────────────┐
-│  Usuário reordena  │
-│  imagens           │
-└─────────┬──────────┘
-          │
-          ▼
-┌────────────────────┐
-│  Clica "Salvar e   │
-│  Sincronizar"      │
-└─────────┬──────────┘
-          │
-          ▼
-┌────────────────────────────────────────────┐
-│  Filtra listings !== 'disconnected'         │
-│  (inclui 'error' para retry)               │
-└─────────┬──────────────────────────────────┘
-          │
-          ▼
-┌────────────────────────────────────────────┐
-│  Edge Function verifica:                    │
-│  1. É catálogo? → Mensagem específica       │
-│  2. Tem restrições? → Log detalhado         │
-│  3. OK? → Faz sync com IDs                  │
-└─────────┬──────────────────────────────────┘
-          │
-          ├── Sucesso → sync_status = 'active'
-          │
-          └── Erro → sync_status = 'error' + mensagem clara
-                     (mostra toast explicando o motivo)
-```
-
----
-
-## Arquivos a Modificar
-
-| Arquivo | Mudança |
-|---------|---------|
-| `src/components/products/ProductImagesGallery.tsx` | Ajustar filtro para incluir listings com `error` |
-| `supabase/functions/update-product-images/index.ts` | Melhorar logs e detecção de restrições |
-
----
-
-## Benefícios
-
-1. **Retry automático**: Listings com erro anterior podem ser sincronizados novamente
-2. **Feedback claro**: Mensagem específica quando imagens são bloqueadas por catálogo
-3. **Debug facilitado**: Logs mais detalhados para identificar causa de falhas
-4. **Experiência melhor**: Usuário entende por que não consegue alterar imagens
-
----
-
-## Testes Esperados
-
-| Cenário | Resultado |
-|---------|-----------|
-| Listing com `sync_status: 'error'` | Tenta sincronizar novamente |
-| Anúncio de catálogo | Toast: "Este anúncio é de catálogo..." |
-| Anúncio comum | Imagens sincronizadas com sucesso |
-| Listing desconectado | Ignorado (não tenta sync) |
+Entregáveis (o que vai mudar ao final)
+- Você vai ver o motivo real no toast (catálogo/bloqueio), não erro genérico.
+- O UNISTOCK vai parar de tentar sincronizar imagens para anúncios bloqueados e vai te avisar claramente.
+- Para anúncios normais (não catálogo), a ordem + imagem principal devem refletir no Mercado Livre após o sync.
