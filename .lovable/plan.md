@@ -1,263 +1,261 @@
 
+# Plano: Leitor de Códigos de Barras para UNISTOCK
 
-# Plano: Corrigir Sincronização de Imagens com Shopify
+## Visão Geral
 
-## Diagnóstico
+Criar um sistema de leitura de códigos de barras usando a câmera do celular/computador para localizar e registrar produtos no sistema UNISTOCK. Quando o usuário escaneia uma etiqueta gerada pela UNISTOCK (que contém o SKU no código de barras), o sistema identifica o produto e permite ações rápidas.
 
-### Problema 1: Imagens sumiram da Shopify
-A Edge Function reporta sucesso `"Shopify images updated: 2"` mas as imagens não aparecem na loja.
+## Funcionalidades
 
-**Causa raiz identificada:**
-| Item | Descrição |
-|------|-----------|
-| URL do Supabase | A imagem local está hospedada no Supabase Storage, que pode ter problemas de acesso externo |
-| Substituição total | A Shopify API substitui TODAS as imagens quando enviamos o array - se uma falhar, pode afetar as outras |
-| Sem validação | A função não verifica se as URLs são acessíveis antes de enviar para a Shopify |
+| Funcionalidade | Descrição |
+|----------------|-----------|
+| Scanner por câmera | Usa a câmera do dispositivo para ler códigos de barras |
+| Busca automática | Localiza o produto pelo SKU ou EAN escaneado |
+| Ações rápidas | Ver detalhes, ajustar estoque, reimprimir etiqueta |
+| Histórico de scans | Registro dos últimos produtos escaneados |
+| Modo mobile-first | Otimizado para uso em smartphones no depósito |
 
-### Problema 2: Importação sem imagens
-O `platform_metadata.images` está vazio (`[]`) indicando que na hora da importação o produto não tinha imagens na Shopify.
-
----
-
-## Arquitetura da Solução
+## Fluxo do Usuário
 
 ```text
-┌─────────────────────────────────────────────────────────────────┐
-│  ANTES (problema)                                                │
-│                                                                   │
-│  URLs do Supabase Storage + URLs Shopify                         │
-│         ↓                                                         │
-│  Envia todas para Shopify API                                    │
-│         ↓                                                         │
-│  Shopify não consegue baixar URL do Supabase                     │
-│         ↓                                                         │
-│  IMAGENS SOMEM ou são parcialmente ignoradas                     │
-└─────────────────────────────────────────────────────────────────┘
-
-┌─────────────────────────────────────────────────────────────────┐
-│  DEPOIS (corrigido)                                              │
-│                                                                   │
-│  URLs do Supabase Storage + URLs Shopify                         │
-│         ↓                                                         │
-│  Verifica se URL é acessível externamente                        │
-│         ↓                                                         │
-│  Se for Supabase Storage → faz upload direto via base64          │
-│         ↓                                                         │
-│  IMAGENS FUNCIONAM corretamente                                  │
-└─────────────────────────────────────────────────────────────────┘
+┌──────────────────────┐
+│  Usuário abre        │
+│  /app/scanner        │
+└──────────┬───────────┘
+           │
+           ▼
+┌──────────────────────┐
+│  Clica "Escanear"    │
+│  ou abre automático  │
+└──────────┬───────────┘
+           │
+           ▼
+┌──────────────────────┐
+│  Câmera ativa        │
+│  (solicita permissão)│
+└──────────┬───────────┘
+           │
+           ▼
+┌──────────────────────┐
+│  Aponta para código  │
+│  de barras           │
+└──────────┬───────────┘
+           │
+           ▼
+┌──────────────────────────────────────────┐
+│  Sistema detecta código (ex: SKU-001)    │
+│           ↓                               │
+│  Busca produto: SKU = "SKU-001"          │
+│  OU EAN = código escaneado               │
+└──────────┬───────────────────────────────┘
+           │
+           ▼
+┌──────────────────────────────────────────┐
+│  Produto encontrado?                      │
+│  ✅ Sim → Mostra card com info + ações   │
+│  ❌ Não → "Produto não encontrado"       │
+│          + Opção de cadastrar novo       │
+└──────────────────────────────────────────┘
 ```
 
----
+## Arquitetura Técnica
 
-## Implementação
+### Biblioteca Escolhida: html5-qrcode
 
-### Arquivo 1: `supabase/functions/update-product-images/index.ts`
+Motivos para escolher `html5-qrcode`:
+- Suporta CODE128 e EAN-13 (os formatos usados nas etiquetas UNISTOCK)
+- Funciona em dispositivos móveis e desktop
+- Não precisa de backend para processar
+- Boa documentação e comunidade ativa
+- Leve (~50KB)
 
-#### Mudança A: Adicionar função para converter imagem em base64 para Shopify
+### Estrutura de Arquivos
 
+```text
+src/
+├── pages/
+│   └── Scanner.tsx                    # Nova página /app/scanner
+├── components/
+│   └── scanner/
+│       ├── BarcodeScanner.tsx         # Componente do scanner com câmera
+│       ├── ScanResult.tsx             # Card com resultado do scan
+│       ├── ScanHistory.tsx            # Histórico de produtos escaneados
+│       └── QuickActions.tsx           # Botões de ação rápida
+```
+
+### Navegação
+
+Adicionar nova rota no sidebar:
+- Ícone: `ScanLine` do lucide-react
+- Label: "Scanner"
+- Path: `/app/scanner`
+
+## Implementação Detalhada
+
+### 1. Instalar Dependência
+
+```bash
+npm install html5-qrcode
+```
+
+### 2. Componente BarcodeScanner.tsx
+
+Responsabilidades:
+- Inicializar câmera com permissão do usuário
+- Detectar códigos de barras em tempo real
+- Callback quando código é detectado
+- Botão para alternar câmera (frontal/traseira)
+- Limpar recursos ao desmontar
+
+Interface:
 ```typescript
-async function prepareImageForShopify(imageUrl: string): Promise<{ src?: string; attachment?: string } | null> {
-  try {
-    // Se for URL do CDN da Shopify, usar diretamente
-    if (imageUrl.includes('cdn.shopify.com')) {
-      return { src: imageUrl };
-    }
-    
-    // Para outras URLs (Supabase, externas), baixar e enviar como base64
-    console.log(`Downloading image for Shopify upload: ${imageUrl}`);
-    const response = await fetch(imageUrl);
-    
-    if (!response.ok) {
-      console.error(`Failed to fetch image: ${response.status} - ${imageUrl}`);
-      return null;
-    }
-    
-    const buffer = await response.arrayBuffer();
-    const base64 = btoa(String.fromCharCode(...new Uint8Array(buffer)));
-    
-    console.log(`Image converted to base64: ${buffer.byteLength} bytes`);
-    return { attachment: base64 };
-    
-  } catch (error) {
-    console.error(`Error preparing image: ${error.message}`);
-    return null;
-  }
+interface BarcodeScannerProps {
+  onDetected: (code: string) => void;
+  onError?: (error: string) => void;
+  isActive: boolean;
 }
 ```
 
-#### Mudança B: Atualizar função updateShopifyImages
+### 3. Componente ScanResult.tsx
 
-**Antes (linha 325-341):**
+Após detectar um código, exibe:
+- Imagem do produto (se houver)
+- Nome e SKU
+- Estoque atual
+- Preço de venda
+- Botões de ação:
+  - "Ver Detalhes" → navega para /app/products/:id
+  - "Ajustar Estoque" → abre modal de ajuste
+  - "Reimprimir Etiqueta" → abre gerador com produto pré-selecionado
+
+### 4. Página Scanner.tsx
+
+Layout:
+- Header com título "Scanner de Produtos"
+- Área do scanner (ocupa maior parte da tela em mobile)
+- Card de resultado (aparece após scan)
+- Histórico de scans recentes (últimos 5)
+
+Lógica de busca:
 ```typescript
-const shopifyImages = images.map((url, index) => ({
-  src: url,
-  position: index + 1,
-}));
-```
+// Primeiro tenta buscar por SKU
+const { data: product } = await supabase
+  .from('products')
+  .select('*')
+  .eq('user_id', user.id)
+  .eq('sku', scannedCode)
+  .single();
 
-**Depois:**
-```typescript
-// Preparar imagens - converter para base64 se necessário
-const preparedImages: any[] = [];
-for (let i = 0; i < images.length; i++) {
-  const imageData = await prepareImageForShopify(images[i]);
-  if (imageData) {
-    preparedImages.push({
-      ...imageData,
-      position: i + 1,
-    });
-  } else {
-    console.warn(`Skipping invalid image at position ${i + 1}: ${images[i]}`);
-  }
-}
-
-if (preparedImages.length === 0) {
-  return { 
-    success: false, 
-    error: 'Nenhuma imagem válida para enviar à Shopify',
-    code: ErrorCodes.VALIDATION_ERROR 
-  };
-}
-
-console.log(`Sending ${preparedImages.length} images to Shopify`);
-```
-
-#### Mudança C: Atualizar platform_metadata após sincronização bem-sucedida
-
-**Adicionar após linha 363 (depois do response.json()):**
-```typescript
-const data = await response.json();
-console.log('Shopify images updated:', data.product?.images?.length);
-
-// Atualizar platform_metadata com as novas imagens da Shopify
-if (data.product?.images) {
-  const supabase = createClient(
-    Deno.env.get('SUPABASE_URL')!,
-    Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
-  );
-  
-  // Buscar metadata atual e mesclar com novas imagens
-  const { data: currentListing } = await supabase
-    .from('product_listings')
-    .select('platform_metadata')
-    .eq('id', listingId)
+// Se não encontrar, tenta por EAN
+if (!product) {
+  const { data: productByEan } = await supabase
+    .from('products')
+    .select('*')
+    .eq('user_id', user.id)
+    .eq('ean', scannedCode)
     .single();
-  
-  const updatedMetadata = {
-    ...(currentListing?.platform_metadata || {}),
-    images: data.product.images,
-  };
-  
-  await supabase
-    .from('product_listings')
-    .update({ platform_metadata: updatedMetadata })
-    .eq('id', listingId);
-    
-  console.log('Platform metadata updated with new Shopify images');
 }
 ```
 
----
+### 5. Modal de Ajuste de Estoque
 
-### Arquivo 2: `supabase/functions/import-products/index.ts`
+Permite ajuste rápido:
+- Entrada (adicionar estoque)
+- Saída (remover estoque)
+- Motivo (opcional)
 
-#### Mudança: Garantir que imagens sejam capturadas corretamente
+### 6. Histórico de Scans
 
-**Verificar linha 490-500:**
-```typescript
-// Extrair todas as imagens do Shopify
-const allImages = product.images?.map((img: any) => img.src).filter(Boolean) || [];
-```
+Armazena no localStorage:
+- Últimos 10 produtos escaneados
+- Timestamp de cada scan
+- Permite re-escanear clicando no item
 
-Adicionar log para debug:
-```typescript
-console.log(`📸 Produto ${product.title}: ${allImages.length} imagens encontradas`);
-if (allImages.length === 0 && product.image?.src) {
-  console.log(`  ↳ Usando imagem principal: ${product.image.src}`);
-  allImages.push(product.image.src);
-}
-```
+## Interface Visual
 
----
-
-## Fluxo Corrigido
+### Mobile (Prioridade)
 
 ```text
-┌────────────────────┐
-│  Usuário adiciona  │
-│  imagem local      │
-└─────────┬──────────┘
-          │
-          ▼
-┌────────────────────┐
-│  Upload para       │
-│  Supabase Storage  │
-└─────────┬──────────┘
-          │
-          ▼
-┌────────────────────────────────────────────┐
-│  Clica "Salvar e Sincronizar"              │
-└─────────┬──────────────────────────────────┘
-          │
-          ▼
-┌────────────────────────────────────────────┐
-│  Edge Function detecta URL Supabase         │
-│         ↓                                   │
-│  Baixa imagem e converte para base64       │
-│         ↓                                   │
-│  Envia { attachment: base64 } para Shopify │
-└─────────┬──────────────────────────────────┘
-          │
-          ▼
-┌────────────────────────────────────────────┐
-│  Shopify processa e retorna CDN URLs       │
-│         ↓                                   │
-│  Atualiza platform_metadata com novas URLs │
-│         ↓                                   │
-│  Retorna sucesso ao frontend               │
-└────────────────────────────────────────────┘
+┌─────────────────────────────┐
+│  ← Scanner de Produtos      │
+├─────────────────────────────┤
+│                             │
+│   ┌───────────────────┐     │
+│   │                   │     │
+│   │    [CÂMERA]       │     │
+│   │                   │     │
+│   │  ▢ Área de scan   │     │
+│   │                   │     │
+│   └───────────────────┘     │
+│                             │
+│   🔄 Alternar câmera        │
+│                             │
+├─────────────────────────────┤
+│  ┌─────────────────────┐    │
+│  │ 📦 Produto X        │    │
+│  │ SKU: SKU-001        │    │
+│  │ Estoque: 15 un      │    │
+│  │ R$ 49,90            │    │
+│  │                     │    │
+│  │ [Detalhes] [Estoque]│    │
+│  └─────────────────────┘    │
+├─────────────────────────────┤
+│  Histórico recente          │
+│  • Produto Y - há 2min      │
+│  • Produto Z - há 5min      │
+└─────────────────────────────┘
 ```
 
----
+## Casos de Uso
 
-## Arquivos a Modificar
+### Cenário 1: Conferência de estoque
+1. Funcionário pega produto na prateleira
+2. Escaneia etiqueta UNISTOCK
+3. Confere se estoque físico bate com sistema
+4. Se diferente, ajusta pelo botão "Ajustar Estoque"
 
-| Arquivo | Mudança |
-|---------|---------|
-| `supabase/functions/update-product-images/index.ts` | Upload base64 para Shopify + atualizar metadata |
-| `supabase/functions/import-products/index.ts` | Melhorar captura de imagens na importação |
+### Cenário 2: Localizar produto
+1. Cliente pede produto específico
+2. Funcionário escaneia qualquer unidade
+3. Vê onde está armazenado (se tiver essa info)
+4. Confirma preço e disponibilidade
 
----
+### Cenário 3: Reimprimir etiqueta danificada
+1. Escaneia produto com etiqueta legível mas danificada
+2. Clica "Reimprimir Etiqueta"
+3. Sistema abre gerador com produto pré-selecionado
 
-## Por que as imagens sumiram?
+## Arquivos a Criar/Modificar
 
-A Shopify recebeu a requisição com 2 URLs:
-1. `https://cdn.shopify.com/...` ✅ (acessível)
-2. `https://fcvwogaqarkuqvumyqqm.supabase.co/storage/...` ❓ (pode ter falhado)
+| Arquivo | Ação | Descrição |
+|---------|------|-----------|
+| `package.json` | Modificar | Adicionar html5-qrcode |
+| `src/pages/Scanner.tsx` | Criar | Página principal do scanner |
+| `src/components/scanner/BarcodeScanner.tsx` | Criar | Componente do scanner |
+| `src/components/scanner/ScanResult.tsx` | Criar | Card de resultado |
+| `src/components/scanner/ScanHistory.tsx` | Criar | Lista de histórico |
+| `src/components/scanner/QuickStockAdjust.tsx` | Criar | Modal de ajuste rápido |
+| `src/components/layout/AppSidebar.tsx` | Modificar | Adicionar link do scanner |
+| `src/App.tsx` | Modificar | Adicionar rota /app/scanner |
 
-Quando a Shopify não consegue baixar uma URL:
-- Ela pode ignorar silenciosamente
-- Ou pode falhar parcialmente
+## Compatibilidade
 
-O resultado `"Shopify images updated: 2"` vem da resposta da API, mas não significa que as 2 imagens foram salvas com sucesso.
+| Dispositivo | Suporte |
+|-------------|---------|
+| iPhone Safari | ✅ iOS 11+ |
+| Android Chrome | ✅ Todas versões |
+| Desktop Chrome | ✅ Com webcam |
+| Desktop Firefox | ✅ Com webcam |
 
----
+## Considerações de Segurança
 
-## Benefícios
+- Requer HTTPS para acessar câmera (já garantido pelo Lovable)
+- Usuário precisa conceder permissão de câmera
+- Busca apenas produtos do próprio user_id
 
-1. **Compatibilidade total**: Imagens do Supabase Storage funcionarão corretamente
-2. **Feedback preciso**: Logs mostrarão exatamente quais imagens falharam
-3. **Metadata atualizado**: O `platform_metadata.images` refletirá as imagens reais na Shopify
-4. **Importação corrigida**: Capturará todas as imagens disponíveis
+## Próximos Passos (Futuro)
 
----
-
-## Testes Esperados
-
-| Cenário | Resultado |
-|---------|-----------|
-| Adicionar imagem local → sincronizar | Imagem aparece na Shopify via upload base64 |
-| Reordenar imagens → sincronizar | Ordem reflete corretamente na Shopify |
-| Importar produto com imagens | Todas as imagens são capturadas |
-| Imagem com URL inválida | Aviso no toast + outras imagens sincronizam |
-
+1. Modo offline com cache local
+2. Som/vibração ao detectar código
+3. Scan em lote para inventário
+4. Integração com leitor externo via Bluetooth
