@@ -130,6 +130,287 @@ interface UpdateResult {
   catalogProductId?: string;
 }
 
+// ========================================================
+// AMAZON SP-API IMAGE SYNC
+// ========================================================
+
+async function updateAmazonImages(
+  refreshToken: string,
+  sku: string,
+  images: string[],
+  marketplaceId: string,
+  sellerId: string
+): Promise<UpdateResult> {
+  try {
+    console.log(`Updating Amazon images for SKU: ${sku}`);
+    console.log(`Images to sync: ${images.length}, max allowed: 9`);
+
+    if (images.length === 0) {
+      return { 
+        success: false, 
+        error: 'Nenhuma imagem para sincronizar',
+        code: ErrorCodes.VALIDATION_ERROR 
+      };
+    }
+
+    // Limit to 9 images (Amazon max: 1 main + 8 additional)
+    const limitedImages = images.slice(0, 9);
+    
+    // Validate all URLs
+    const validImages = limitedImages.filter(url => {
+      try {
+        const parsed = new URL(url);
+        return parsed.protocol === 'https:';
+      } catch {
+        console.log(`Invalid URL skipped: ${url}`);
+        return false;
+      }
+    });
+
+    if (validImages.length === 0) {
+      return { 
+        success: false, 
+        error: 'Nenhuma imagem válida para enviar (apenas HTTPS é aceito)',
+        code: ErrorCodes.VALIDATION_ERROR 
+      };
+    }
+
+    console.log(`Valid images: ${validImages.length}`);
+
+    // Initialize Amazon SP-API client
+    const { default: SellingPartnerAPI } = await import('npm:amazon-sp-api@latest');
+    
+    const sellingPartner = new SellingPartnerAPI({
+      region: 'na',
+      refresh_token: refreshToken,
+      credentials: {
+        SELLING_PARTNER_APP_CLIENT_ID: Deno.env.get('AMAZON_CLIENT_ID'),
+        SELLING_PARTNER_APP_CLIENT_SECRET: Deno.env.get('AMAZON_CLIENT_SECRET'),
+      },
+    });
+
+    // ========================================================
+    // GET PRODUCT TYPE via getListingsItem
+    // ========================================================
+    let productType = 'PRODUCT'; // fallback
+    
+    try {
+      console.log('Fetching productType via getListingsItem...');
+      const listingResponse = await sellingPartner.callAPI({
+        operation: 'getListingsItem',
+        endpoint: 'listingsItems',
+        path: {
+          sellerId: sellerId,
+          sku: sku,
+        },
+        query: {
+          marketplaceIds: [marketplaceId],
+          includedData: ['summaries'],
+        },
+      });
+      
+      if (listingResponse?.summaries && listingResponse.summaries.length > 0) {
+        const summary = listingResponse.summaries[0];
+        if (summary.productType) {
+          productType = summary.productType;
+          console.log(`ProductType found: ${productType}`);
+        }
+      }
+    } catch (listingError: any) {
+      console.warn('Error fetching productType (using fallback PRODUCT):', listingError?.message);
+    }
+
+    // ========================================================
+    // BUILD PATCHES FOR IMAGES
+    // ========================================================
+    const patches: any[] = [];
+
+    // Main image (first image)
+    if (validImages.length > 0) {
+      console.log(`Setting main image: ${validImages[0].substring(0, 60)}...`);
+      patches.push({
+        op: 'replace',
+        path: '/attributes/main_product_image_locator',
+        value: [{
+          marketplace_id: marketplaceId,
+          media_location: validImages[0]
+        }]
+      });
+    }
+
+    // Additional images (up to 8 more)
+    for (let i = 1; i < validImages.length && i <= 8; i++) {
+      console.log(`Setting additional image ${i}: ${validImages[i].substring(0, 60)}...`);
+      patches.push({
+        op: 'replace',
+        path: `/attributes/other_product_image_locator_${i}`,
+        value: [{
+          marketplace_id: marketplaceId,
+          media_location: validImages[i]
+        }]
+      });
+    }
+
+    // Delete unused image slots (if user removed images)
+    // If we have 2 images now, delete slots 2-8
+    for (let i = validImages.length; i <= 8; i++) {
+      // Only delete if i > 0 (never delete main image slot)
+      if (i > 0) {
+        console.log(`Deleting unused image slot ${i}`);
+        patches.push({
+          op: 'delete',
+          path: `/attributes/other_product_image_locator_${i}`
+        });
+      }
+    }
+
+    console.log(`Total patches to send: ${patches.length}`);
+
+    // ========================================================
+    // SEND PATCH TO AMAZON SP-API
+    // ========================================================
+    try {
+      const patchResult = await sellingPartner.callAPI({
+        operation: 'patchListingsItem',
+        endpoint: 'listingsItems',
+        path: {
+          sellerId: sellerId,
+          sku: sku,
+        },
+        query: {
+          marketplaceIds: [marketplaceId],
+          issueLocale: 'pt_BR',
+        },
+        body: {
+          productType: productType,
+          patches: patches,
+        },
+      });
+
+      console.log('Amazon PATCH response:', JSON.stringify(patchResult, null, 2));
+
+      // Check response status
+      const status = patchResult?.status;
+      
+      if (status === 'ACCEPTED' || status === 'VALID') {
+        // Check for issues/warnings
+        const issues = patchResult?.issues || [];
+        const warnings = issues.filter((i: any) => i.severity === 'WARNING');
+        const errors = issues.filter((i: any) => i.severity === 'ERROR');
+        
+        if (errors.length > 0) {
+          const errorMessages = errors.map((e: any) => e.message || e.code).join('; ');
+          console.warn('Amazon returned errors:', errorMessages);
+          return {
+            success: false,
+            error: `Amazon rejeitou algumas imagens: ${errorMessages}`,
+            code: ErrorCodes.VALIDATION_ERROR,
+            details: JSON.stringify(errors)
+          };
+        }
+        
+        let message = `${validImages.length} imagens enviadas para a Amazon`;
+        if (warnings.length > 0) {
+          const warningMessages = warnings.map((w: any) => w.message || w.code).join('; ');
+          message += ` (avisos: ${warningMessages})`;
+          console.warn('Amazon warnings:', warningMessages);
+        }
+        
+        console.log('Amazon images updated successfully');
+        return { 
+          success: true, 
+          details: message + '. Alterações podem levar até 24h para refletir no catálogo.'
+        };
+      } else if (status === 'INVALID') {
+        const issues = patchResult?.issues || [];
+        const errorMessages = issues.map((i: any) => i.message || i.code).join('; ');
+        console.error('Amazon INVALID response:', errorMessages);
+        
+        // Check for specific error types
+        const hasAuthError = issues.some((i: any) => 
+          i.code?.includes('UNAUTHORIZED') || 
+          i.code?.includes('TOKEN') ||
+          i.message?.toLowerCase().includes('token')
+        );
+        
+        if (hasAuthError) {
+          return { 
+            success: false, 
+            error: 'Token expirado. Reconecte sua conta Amazon.',
+            code: ErrorCodes.TOKEN_EXPIRED 
+          };
+        }
+        
+        const hasCatalogRestriction = issues.some((i: any) =>
+          i.code?.includes('CATALOG') ||
+          i.message?.toLowerCase().includes('catalog') ||
+          i.message?.toLowerCase().includes('not allowed') ||
+          i.message?.toLowerCase().includes('cannot be updated')
+        );
+        
+        if (hasCatalogRestriction) {
+          return { 
+            success: false, 
+            error: 'Este produto faz parte do catálogo Amazon. As imagens são gerenciadas pela Amazon e não podem ser alteradas.',
+            code: ErrorCodes.CATALOG_LOCKED 
+          };
+        }
+        
+        return { 
+          success: false, 
+          error: errorMessages || 'Erro ao atualizar imagens na Amazon',
+          code: ErrorCodes.VALIDATION_ERROR,
+          details: JSON.stringify(issues)
+        };
+      }
+      
+      // Unknown status
+      console.warn('Unknown Amazon response status:', status);
+      return { 
+        success: true, 
+        details: `${validImages.length} imagens enviadas. Status: ${status || 'desconhecido'}. Alterações podem levar até 24h.`
+      };
+      
+    } catch (apiError: any) {
+      console.error('Amazon SP-API error:', apiError);
+      
+      // Check for specific error types
+      const errorMessage = apiError?.message || apiError?.toString() || '';
+      const errorCode = apiError?.code || '';
+      
+      if (errorMessage.includes('401') || errorMessage.includes('Unauthorized') || errorCode.includes('UNAUTHORIZED')) {
+        return { 
+          success: false, 
+          error: 'Token expirado. Reconecte sua conta Amazon.',
+          code: ErrorCodes.TOKEN_EXPIRED 
+        };
+      }
+      
+      if (errorMessage.includes('404') || errorMessage.includes('Not Found')) {
+        return { 
+          success: false, 
+          error: 'Produto não encontrado na Amazon. Verifique o SKU.',
+          code: ErrorCodes.NOT_FOUND 
+        };
+      }
+      
+      return { 
+        success: false, 
+        error: `Erro ao conectar com Amazon: ${errorMessage}`,
+        code: ErrorCodes.UNKNOWN_ERROR 
+      };
+    }
+    
+  } catch (error: any) {
+    console.error('Error updating Amazon images:', error);
+    return { 
+      success: false, 
+      error: 'Falha ao processar imagens para Amazon',
+      code: ErrorCodes.UNKNOWN_ERROR 
+    };
+  }
+}
+
 async function updateMercadoLivreImages(
   accessToken: string, 
   itemId: string, 
@@ -514,10 +795,10 @@ serve(async (req) => {
       });
     }
 
-    // Get integration with tokens
+    // Get integration with tokens (include Amazon-specific fields)
     const { data: integration, error: integrationError } = await supabase
       .from('integrations')
-      .select('id, platform, encrypted_access_token, encrypted_refresh_token, shop_domain')
+      .select('id, platform, encrypted_access_token, encrypted_refresh_token, shop_domain, marketplace_id, selling_partner_id')
       .eq('id', listing.integration_id)
       .eq('user_id', user.id)
       .single();
@@ -552,9 +833,40 @@ serve(async (req) => {
       case 'shopify':
         result = await updateShopifyImages(accessToken, listing.platform_product_id, images, integration.shop_domain, listingId);
         break;
-      case 'amazon':
-        result = { success: false, error: 'Amazon image sync not yet implemented', code: ErrorCodes.UNKNOWN_ERROR };
+      case 'amazon': {
+        // For Amazon, we need the refresh token (not access token) and seller ID
+        let amazonRefreshToken = accessToken; // fallback
+        
+        // Try to get refresh token if available
+        if (integration.encrypted_refresh_token) {
+          const { data: decryptedRefresh } = await supabase.rpc('decrypt_token', {
+            encrypted_token: integration.encrypted_refresh_token
+          });
+          if (decryptedRefresh) {
+            amazonRefreshToken = decryptedRefresh;
+          }
+        }
+        
+        const marketplaceId = integration.marketplace_id || 'A2Q3Y263D00KWC'; // Default: Brazil
+        const sellerId = integration.selling_partner_id;
+        
+        if (!sellerId) {
+          result = { 
+            success: false, 
+            error: 'Seller ID não configurado. Reconecte sua conta Amazon em Integrações.',
+            code: ErrorCodes.VALIDATION_ERROR 
+          };
+        } else {
+          result = await updateAmazonImages(
+            amazonRefreshToken,
+            listing.platform_product_id, // SKU
+            images,
+            marketplaceId,
+            sellerId
+          );
+        }
         break;
+      }
       default:
         result = { success: false, error: `Platform ${platform} not supported`, code: ErrorCodes.UNKNOWN_ERROR };
     }
