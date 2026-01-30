@@ -1,526 +1,145 @@
 
-# Plano: Sistema Multi-Usuario com Organizacoes e Roles
+# Plano: Completar Verificacoes de Permissao e Integracao do Convite
 
-## ✅ Concluído
+## Objetivo
 
-### Fase 1: Banco de Dados
-- [x] Tabela `organizations` criada
-- [x] Tabela `organization_members` criada  
-- [x] Tabela `organization_invites` criada
-- [x] Funções de segurança (get_user_org_id, get_user_org_role, can_write_in_org, is_org_admin)
-- [x] Políticas RLS atualizadas para todas as tabelas
-- [x] Migração de dados existentes
-- [x] Trigger para criar organização no signup
-- [x] Coluna organization_id adicionada em todas as tabelas
-
-### Fase 2: Edge Functions
-- [x] `manage-organization` criada (join, info)
-- [x] `stripe-webhook` atualizado para usar organização
-
-### Fase 3: Hooks
-- [x] `useOrganization` criado
-- [x] `useOrgRole` criado
-- [x] `usePlan` atualizado para buscar plano da organização
-- [x] `useAIQuota` atualizado para quota compartilhada
-
-### Fase 4: Frontend  
-- [x] Página `Team.tsx` criada
-- [x] Componentes team (TeamMembersList, InviteCodeDialog, JoinOrganizationDialog, RoleBadge, ActiveInvitesList)
-- [x] Menu Equipe no sidebar (apenas para admins)
-- [x] Rota /app/team adicionada
-
-## 📋 Próximos Passos
-
-### Fase 5: Verificações de Permissão nos Componentes
-- [ ] Adicionar useOrgRole nos componentes de edição/exclusão
-- [ ] Desabilitar botões para visualizadores
-- [ ] Ocultar botões de deletar para operadores
-
-### Fase 6: Melhorias
-- [ ] Adicionar JoinOrganizationDialog no perfil do usuário
-- [ ] Notificações quando membro entra/sai
-- [ ] Logs de auditoria
+Finalizar a implementacao do sistema multi-usuario adicionando as verificacoes de permissao (role-based) nos componentes e integrando o dialog de convite na pagina de Perfil.
 
 ---
 
-## Modelo de Negocio
+## O Que Sera Feito
 
-O plano de assinatura (Iniciante, Profissional, Enterprise, Unlimited) sera vinculado a **organizacao**, nao ao usuario individual. O admin (dono) paga o plano, e todos os membros da organizacao herdam o acesso as features desse plano.
+### 1. Adicionar Verificacoes de Permissao nos Componentes
+
+Cada componente que permite criar, editar ou excluir dados precisa respeitar os papeis:
+- **Admin**: Pode criar, editar e excluir
+- **Operator**: Pode criar e editar (nao pode excluir)
+- **Viewer**: Apenas visualiza (nao pode criar, editar ou excluir)
+
+**Componentes a modificar:**
+
+| Componente | Alteracao |
+|------------|-----------|
+| Products.tsx | Ocultar botao "Novo Produto" para viewers, ocultar "Excluir" para operators |
+| CreateProduct.tsx | Redirecionar viewers que tentarem acessar diretamente |
+| ProductDetails.tsx | Ocultar botoes de edicao para viewers, excluir para operators |
+| Orders.tsx | Mesma logica de permissoes |
+| Suppliers.tsx | Mesma logica de permissoes |
+| SupplierDetails.tsx | Mesma logica de permissoes |
+| Expenses.tsx | Mesma logica de permissoes |
+| Integrations.tsx | Ocultar completamente para viewers e operators (apenas admin) |
+
+**Exemplo de implementacao:**
 
 ```text
-+------------------------------------------+
-|  Organizacao (Empresa)                   |
-|  - Plano: Enterprise                     |
-|  - Limite SKUs: 2000                     |
-|  - IA: 200 consultas/mes (compartilhado) |
-+------------------------------------------+
-        |
-        +-- Admin (Dono) - paga o plano
-        |
-        +-- Operador - edita produtos/pedidos
-        |
-        +-- Visualizador - apenas consulta
-```
+// No componente
+const { canWrite, isAdmin, isViewer } = useOrgRole();
 
----
+// Botao de criar (admin e operator)
+{canWrite && <Button>Novo Produto</Button>}
 
-## Estrutura de Papeis (Roles)
-
-| Papel | Produtos | Pedidos | Financeiro | Integracoes | Equipe |
-|-------|----------|---------|------------|-------------|--------|
-| Admin | Tudo | Tudo | Tudo | Gerenciar | Convidar/Gerenciar |
-| Operador | Criar/Editar | Criar/Editar | Visualizar | Visualizar | - |
-| Visualizador | Ver | Ver | Ver | - | - |
-
----
-
-## Fluxo do Usuario
-
-```text
-1. Usuario faz signup
-   └─> Sistema cria organizacao automatica (nome da empresa)
-   └─> Usuario vira admin dessa organizacao
-
-2. Admin gera codigo de convite
-   └─> Define papel (Operador ou Visualizador)
-   └─> Codigo valido por 7 dias
-
-3. Novo membro usa codigo no signup ou perfil
-   └─> Entra na organizacao com papel definido
-   └─> Herda acesso ao plano da organizacao
-
-4. Membros compartilham:
-   └─> Produtos, Pedidos, Integracoes, Fornecedores, Despesas
-   └─> Quota de IA (compartilhada por organizacao)
-```
-
----
-
-## Fase 1: Banco de Dados
-
-### Tabela: organizations
-Armazena as empresas. O plano sera movido para ca (atualmente esta em profiles).
-
-```sql
-CREATE TABLE public.organizations (
-  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
-  name text NOT NULL,
-  slug text UNIQUE NOT NULL,
-  -- Plano da organizacao (antes estava em profiles.plan)
-  plan subscription_plan NOT NULL DEFAULT 'iniciante',
-  stripe_customer_id text,
-  created_at timestamptz DEFAULT now(),
-  updated_at timestamptz DEFAULT now(),
-  owner_id uuid NOT NULL
-);
-```
-
-### Tabela: organization_members
-Relaciona usuarios com organizacoes e define papeis.
-
-```sql
-CREATE TYPE public.org_role AS ENUM ('admin', 'operator', 'viewer');
-
-CREATE TABLE public.organization_members (
-  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
-  organization_id uuid REFERENCES organizations(id) ON DELETE CASCADE NOT NULL,
-  user_id uuid NOT NULL,
-  role org_role NOT NULL DEFAULT 'viewer',
-  joined_at timestamptz DEFAULT now(),
-  UNIQUE(organization_id, user_id)
-);
-```
-
-### Tabela: organization_invites
-Codigos de convite com validade.
-
-```sql
-CREATE TABLE public.organization_invites (
-  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
-  organization_id uuid REFERENCES organizations(id) ON DELETE CASCADE NOT NULL,
-  code text UNIQUE NOT NULL, -- 8 caracteres (ex: ABC12345)
-  role org_role NOT NULL DEFAULT 'viewer',
-  created_by uuid NOT NULL,
-  expires_at timestamptz NOT NULL DEFAULT (now() + interval '7 days'),
-  used_by uuid,
-  used_at timestamptz,
-  created_at timestamptz DEFAULT now()
-);
-```
-
-### Alteracoes em Tabelas Existentes
-Adicionar organization_id em todas as tabelas de dados:
-
-- products
-- orders
-- integrations
-- suppliers
-- expenses
-- product_listings
-- ai_usage (quota compartilhada)
-- ai_conversations
-- notifications
-- scheduled_reports
-- etc.
-
-### Funcoes de Seguranca (Security Definer)
-
-```sql
--- Retorna a organizacao do usuario
-CREATE FUNCTION get_user_org_id(user_uuid uuid)
-RETURNS uuid
-LANGUAGE sql STABLE SECURITY DEFINER
-AS $$
-  SELECT organization_id FROM organization_members 
-  WHERE user_id = user_uuid LIMIT 1
-$$;
-
--- Retorna o papel do usuario na organizacao
-CREATE FUNCTION get_user_org_role(user_uuid uuid)
-RETURNS org_role
-LANGUAGE sql STABLE SECURITY DEFINER
-AS $$
-  SELECT role FROM organization_members 
-  WHERE user_id = user_uuid LIMIT 1
-$$;
-
--- Verifica se pode escrever (admin ou operator)
-CREATE FUNCTION can_write_in_org(user_uuid uuid)
-RETURNS boolean
-LANGUAGE sql STABLE SECURITY DEFINER
-AS $$
-  SELECT EXISTS (
-    SELECT 1 FROM organization_members 
-    WHERE user_id = user_uuid 
-    AND role IN ('admin', 'operator')
-  )
-$$;
-```
-
-### Politicas RLS Atualizadas
-
-```sql
--- Exemplo para products (aplica a todas as tabelas)
-CREATE POLICY "Members can view org products"
-  ON products FOR SELECT
-  USING (organization_id = get_user_org_id(auth.uid()));
-
-CREATE POLICY "Writers can insert org products"
-  ON products FOR INSERT
-  WITH CHECK (
-    organization_id = get_user_org_id(auth.uid())
-    AND can_write_in_org(auth.uid())
-  );
-
-CREATE POLICY "Writers can update org products"
-  ON products FOR UPDATE
-  USING (organization_id = get_user_org_id(auth.uid()))
-  WITH CHECK (can_write_in_org(auth.uid()));
-
-CREATE POLICY "Admins can delete org products"
-  ON products FOR DELETE
-  USING (
-    organization_id = get_user_org_id(auth.uid())
-    AND get_user_org_role(auth.uid()) = 'admin'
-  );
-```
-
-### Trigger para Criar Organizacao no Signup
-
-```sql
-CREATE FUNCTION handle_new_user_org()
-RETURNS trigger
-LANGUAGE plpgsql SECURITY DEFINER
-AS $$
-DECLARE
-  new_org_id uuid;
-  company text;
-BEGIN
-  -- Usa company_name do metadata ou nome do email
-  company := COALESCE(
-    NEW.raw_user_meta_data->>'company_name', 
-    split_part(NEW.email, '@', 1)
-  );
-  
-  -- Cria organizacao
-  INSERT INTO organizations (name, slug, owner_id)
-  VALUES (company, gen_random_uuid()::text, NEW.id)
-  RETURNING id INTO new_org_id;
-  
-  -- Adiciona como admin
-  INSERT INTO organization_members (organization_id, user_id, role)
-  VALUES (new_org_id, NEW.id, 'admin');
-  
-  RETURN NEW;
-END;
-$$;
-
-CREATE TRIGGER on_auth_user_created_org
-  AFTER INSERT ON auth.users
-  FOR EACH ROW EXECUTE FUNCTION handle_new_user_org();
-```
-
----
-
-## Fase 2: Edge Function - manage-organization
-
-### Endpoints
-
-| Metodo | Path | Acao | Permissao |
-|--------|------|------|-----------|
-| POST | /invite | Gera codigo de convite | Admin |
-| POST | /join | Usa codigo de convite | Qualquer |
-| GET | /members | Lista membros | Admin |
-| PATCH | /members/:id | Altera papel | Admin |
-| DELETE | /members/:id | Remove membro | Admin |
-| GET | /info | Info da organizacao | Todos |
-
-### Logica Principal
-
-```typescript
-// Gerar convite (apenas admin)
-if (action === 'invite') {
-  // Verifica se usuario e admin
-  // Gera codigo aleatorio de 8 caracteres
-  // Salva em organization_invites
-  // Retorna codigo
-}
-
-// Usar convite
-if (action === 'join') {
-  // Busca convite pelo codigo
-  // Verifica se nao expirou
-  // Adiciona usuario a organizacao
-  // Marca convite como usado
-}
-```
-
----
-
-## Fase 3: Atualizacao do usePlan
-
-O hook precisa buscar o plano da **organizacao**, nao mais do profile do usuario:
-
-```typescript
-// Antes: buscar de profiles.plan
-// Depois: buscar de organizations.plan via organization_members
-
-const { data } = await supabase
-  .from('organization_members')
-  .select(`
-    role,
-    organizations (
-      id,
-      name,
-      plan,
-      stripe_customer_id
-    )
-  `)
-  .eq('user_id', user.id)
-  .single();
-
-const plan = data?.organizations?.plan || 'iniciante';
-const orgRole = data?.role || 'viewer';
-```
-
----
-
-## Fase 4: Atualizacao do Stripe Webhook
-
-O webhook precisa atualizar o plano na **organizacao**, nao no profile:
-
-```typescript
-// Antes: atualiza profiles.plan
-// Depois: atualiza organizations.plan
-
-// Encontra organizacao pelo stripe_customer_id
-const { data: org } = await supabaseClient
-  .from('organizations')
-  .select('id')
-  .eq('stripe_customer_id', stripeCustomerId)
-  .single();
-
-// Atualiza plano da organizacao
-await supabaseClient
-  .from('organizations')
-  .update({ plan: newPlan })
-  .eq('id', org.id);
-```
-
----
-
-## Fase 5: Frontend
-
-### Novos Arquivos
-
-| Arquivo | Descricao |
-|---------|-----------|
-| src/pages/Team.tsx | Pagina de gerenciamento de equipe |
-| src/components/team/TeamMembersList.tsx | Lista de membros |
-| src/components/team/InviteCodeDialog.tsx | Gerar codigo de convite |
-| src/components/team/JoinOrganizationDialog.tsx | Usar codigo |
-| src/components/team/RoleBadge.tsx | Badge visual do papel |
-| src/hooks/useOrganization.tsx | Dados da organizacao |
-| src/hooks/useOrgRole.tsx | Verificar permissoes |
-
-### Interface da Pagina de Equipe
-
-```text
-+------------------------------------------+
-|  Equipe - Minha Empresa                  |
-|  Plano: Enterprise (200 consultas IA)    |
-+------------------------------------------+
-|                                          |
-|  [+ Gerar Codigo de Convite]             |
-|                                          |
-|  Membros (3)                             |
-|  +--------------------------------------+|
-|  | Avatar | Email       | Papel   | ... ||
-|  |--------|-------------|---------|-----||
-|  |  JD    | joao@...    | Admin   |     ||
-|  |  MS    | maria@...   | Operador| [v] ||
-|  |  PL    | pedro@...   | Viewer  | [v] ||
-|  +--------------------------------------+|
-|                                          |
-|  Convites Ativos                         |
-|  +--------------------------------------+|
-|  | Codigo   | Papel    | Expira  | [x]  ||
-|  |----------|----------|---------|------||
-|  | ABC12345 | Operador | 7 dias  | [x]  ||
-|  +--------------------------------------+|
-+------------------------------------------+
-```
-
-### Hook useOrgRole
-
-```typescript
-export const useOrgRole = () => {
-  const { user } = useAuth();
-  
-  const { data } = useQuery({
-    queryKey: ['org-role', user?.id],
-    queryFn: async () => {
-      const { data } = await supabase
-        .from('organization_members')
-        .select('role')
-        .eq('user_id', user.id)
-        .single();
-      return data?.role;
-    },
-  });
-  
-  return {
-    role: data || 'viewer',
-    isAdmin: data === 'admin',
-    isOperator: data === 'operator',
-    isViewer: data === 'viewer',
-    canWrite: data === 'admin' || data === 'operator',
-    canManageTeam: data === 'admin',
-  };
-};
-```
-
-### Verificacoes de Permissao nos Componentes
-
-```typescript
-// Em qualquer componente de edicao
-const { canWrite, isAdmin } = useOrgRole();
-
-// Botao de criar/editar
-{canWrite && <Button>Criar Produto</Button>}
-
-// Botao de deletar (apenas admin)
+// Botao de excluir (apenas admin)
 {isAdmin && <Button variant="destructive">Excluir</Button>}
 
-// Menu Equipe no sidebar (apenas admin)
-{isAdmin && (
-  <SidebarMenuItem>
-    <Link to="/app/team">Equipe</Link>
-  </SidebarMenuItem>
-)}
+// Redirecionar viewer de paginas de criacao
+if (isViewer) {
+  navigate('/app/products');
+  toast({ title: "Acesso negado", description: "Voce nao tem permissao para criar produtos." });
+  return;
+}
 ```
 
 ---
 
-## Fase 6: Migracao de Dados Existentes
+### 2. Adicionar Dialog de Convite na Pagina de Perfil
 
-Script para migrar usuarios existentes:
+Permitir que usuarios usem codigos de convite para entrar em organizacoes existentes.
 
-```sql
-DO $$
-DECLARE
-  user_record RECORD;
-  new_org_id uuid;
-BEGIN
-  FOR user_record IN 
-    SELECT id, email, plan, company_name, stripe_customer_id 
-    FROM profiles
-  LOOP
-    -- Criar organizacao
-    INSERT INTO organizations (name, slug, owner_id, plan, stripe_customer_id)
-    VALUES (
-      COALESCE(user_record.company_name, split_part(user_record.email, '@', 1)),
-      gen_random_uuid()::text,
-      user_record.id,
-      COALESCE(user_record.plan, 'iniciante'),
-      user_record.stripe_customer_id
-    )
-    RETURNING id INTO new_org_id;
-    
-    -- Adicionar como admin
-    INSERT INTO organization_members (organization_id, user_id, role)
-    VALUES (new_org_id, user_record.id, 'admin');
-    
-    -- Atualizar dados existentes
-    UPDATE products SET organization_id = new_org_id WHERE user_id = user_record.id;
-    UPDATE orders SET organization_id = new_org_id WHERE user_id = user_record.id;
-    UPDATE integrations SET organization_id = new_org_id WHERE user_id = user_record.id;
-    UPDATE suppliers SET organization_id = new_org_id WHERE user_id = user_record.id;
-    UPDATE expenses SET organization_id = new_org_id WHERE user_id = user_record.id;
-    -- ... outras tabelas
-  END LOOP;
-END $$;
+**Alteracoes em Profile.tsx:**
+- Adicionar secao "Entrar em uma Organizacao"
+- Botao "Tenho um codigo de convite"
+- Ao clicar, abre o JoinOrganizationDialog existente
+- Apos entrar com sucesso, recarrega a pagina para atualizar o contexto
+
+**Interface:**
+
+```text
++------------------------------------------+
+|  Organizacao                             |
++------------------------------------------+
+|  Voce faz parte de: Minha Empresa        |
+|  Papel: Operador                         |
+|                                          |
+|  [Tenho um codigo de convite]            |
++------------------------------------------+
 ```
 
 ---
 
-## Arquivos a Criar
+### 3. Bloquear Acesso a Integracoes para Nao-Admins
 
-| Arquivo | Tipo |
-|---------|------|
-| supabase/functions/manage-organization/index.ts | Edge Function |
-| src/pages/Team.tsx | Pagina |
-| src/components/team/TeamMembersList.tsx | Componente |
-| src/components/team/InviteCodeDialog.tsx | Componente |
-| src/components/team/JoinOrganizationDialog.tsx | Componente |
-| src/components/team/RoleBadge.tsx | Componente |
-| src/hooks/useOrganization.tsx | Hook |
-| src/hooks/useOrgRole.tsx | Hook |
+A pagina de Integracoes deve ser acessivel apenas para admins, pois conectar marketplaces e afeta toda a organizacao.
+
+**Alteracoes:**
+- Integrations.tsx: Verificar se e admin, se nao, mostrar mensagem e redirecionar
+- AppSidebar.tsx: Ja oculta o menu para nao-admins (implementado)
+
+---
 
 ## Arquivos a Modificar
 
 | Arquivo | Alteracao |
 |---------|-----------|
-| src/App.tsx | Adicionar rota /app/team |
-| src/components/layout/AppSidebar.tsx | Menu Equipe (condicional admin) |
-| src/hooks/usePlan.tsx | Buscar plano da organizacao |
-| src/hooks/useAIQuota.tsx | Quota por organizacao |
-| supabase/functions/stripe-webhook/index.ts | Atualizar org.plan |
-| supabase/functions/check-subscription/index.ts | Buscar org.plan |
-| Todos os componentes de edicao | Verificar canWrite |
+| src/pages/Products.tsx | Importar useOrgRole, ocultar botoes conforme papel |
+| src/pages/CreateProduct.tsx | Verificar canWrite antes de renderizar |
+| src/pages/ProductDetails.tsx | Ocultar botoes de edicao/exclusao |
+| src/pages/Orders.tsx | Verificar permissoes |
+| src/pages/Suppliers.tsx | Verificar permissoes |
+| src/pages/SupplierDetails.tsx | Verificar permissoes |
+| src/pages/Expenses.tsx | Verificar permissoes |
+| src/pages/Integrations.tsx | Bloquear acesso para nao-admins |
+| src/pages/Profile.tsx | Adicionar secao de organizacao e JoinOrganizationDialog |
+
+---
+
+## Detalhes Tecnicos
+
+### Logica de Permissoes Resumida
+
+| Acao | Admin | Operator | Viewer |
+|------|-------|----------|--------|
+| Visualizar dados | Sim | Sim | Sim |
+| Criar produtos/pedidos | Sim | Sim | Nao |
+| Editar produtos/pedidos | Sim | Sim | Nao |
+| Excluir produtos/pedidos | Sim | Nao | Nao |
+| Gerenciar integracoes | Sim | Nao | Nao |
+| Gerenciar equipe | Sim | Nao | Nao |
+
+### Hook useOrgRole (ja existe)
+
+```typescript
+const { 
+  role,           // 'admin' | 'operator' | 'viewer'
+  isAdmin,        // true se admin
+  isOperator,     // true se operator
+  isViewer,       // true se viewer
+  canWrite,       // true se admin ou operator
+  canManageTeam,  // true se admin
+  canManageIntegrations, // true se admin
+  canDeleteItems  // true se admin
+} = useOrgRole();
+```
 
 ---
 
 ## Ordem de Execucao
 
-1. Criar tabelas (organizations, organization_members, organization_invites)
-2. Criar funcoes de seguranca (get_user_org_id, etc.)
-3. Migrar dados existentes
-4. Adicionar organization_id nas tabelas existentes
-5. Atualizar politicas RLS
-6. Criar edge function manage-organization
-7. Atualizar hooks (usePlan, useAIQuota)
-8. Criar hooks (useOrganization, useOrgRole)
-9. Criar pagina Team e componentes
-10. Atualizar sidebar e verificacoes de permissao
-11. Atualizar webhooks do Stripe
+1. Adicionar verificacoes em Products.tsx (botoes de criar/excluir)
+2. Adicionar verificacoes em CreateProduct.tsx (redirect se viewer)
+3. Adicionar verificacoes em ProductDetails.tsx
+4. Adicionar verificacoes em Orders.tsx
+5. Adicionar verificacoes em Suppliers.tsx e SupplierDetails.tsx
+6. Adicionar verificacoes em Expenses.tsx
+7. Bloquear Integrations.tsx para nao-admins
+8. Adicionar secao de organizacao e JoinOrganizationDialog em Profile.tsx
+9. Testar fluxo completo com diferentes papeis
