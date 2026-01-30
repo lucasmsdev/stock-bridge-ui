@@ -1,131 +1,127 @@
 
-# Plano: Exibir Imagens da Amazon na Galeria do Produto
+
+# Plano: Corrigir Erro de Exclusão de Slots Vazios na Amazon
 
 ## Problema Identificado
 
-Quando um produto está publicado na Amazon, as imagens que estão na plataforma **não aparecem na galeria** para gerenciamento (excluir, reordenar). Isso acontece porque:
+Quando o usuário sincroniza imagens com a Amazon e tem apenas 1 imagem na galeria, o sistema tenta **deletar os slots de imagens adicionais (1 a 8)** que podem nunca ter sido preenchidos. A Amazon retorna:
 
-1. **`get-product-details`** (que alimenta `channelStocks`) não tem tratamento para Amazon - ela cai no `else` genérico e retorna `status: 'not_published'` com `images: []`
+```
+Error: Invalid empty value provided in patch at index of 1
+```
 
-2. **`verify-amazon-listing`** busca apenas a imagem principal (`mainImage` do `summaries`), mas não busca as imagens adicionais (`other_product_image_locator_1` a `8`)
+Isso significa que não podemos enviar operações `DELETE` para slots que já estão vazios.
 
-## Solução
+## Causa Raiz
 
-### Etapa 1: Adicionar função `getAmazonStock` em `get-product-details`
-
-Criar uma nova função similar às existentes para Mercado Livre e Shopify que:
-- Busque o listing Amazon via SP-API (`getListingsItem`)
-- Extraia o estoque de `fulfillment_availability`
-- Extraia **todas as imagens** (principal + adicionais)
-- Retorne no formato `ChannelStock` com array `images`
-
-### Etapa 2: Atualizar o switch/case para chamar `getAmazonStock`
-
-No loop das integrações, adicionar caso para `integration.platform === 'amazon'` que chama a nova função.
-
-### Etapa 3: Melhorar `verify-amazon-listing` para retornar todas as imagens
-
-Atualizar para retornar array `observedAmazonImages` com todas as imagens (principal + adicionais) para uso futuro pelo botão "Revalidar".
-
-## Detalhes Técnicos
-
-### Nova função `getAmazonStock`
+No código atual (linhas 254-265 de `update-product-images/index.ts`):
 
 ```typescript
-async function getAmazonStock(
-  refreshToken: string,
-  sku: string,
-  sellerId: string,
-  marketplaceId: string,
-  productListingId: string | null
-): Promise<ChannelStock> {
-  // 1. Inicializar Amazon SP-API
-  const sellingPartner = new SellingPartnerAPI({...});
-
-  // 2. Chamar getListingsItem com includedData=['attributes','summaries']
-  const response = await sellingPartner.callAPI({
-    operation: 'getListingsItem',
-    ...
-  });
-
-  // 3. Extrair estoque
-  const stock = response?.attributes?.fulfillment_availability?.[0]?.quantity ?? 0;
-
-  // 4. Extrair TODAS as imagens
-  const images: string[] = [];
-  
-  // Imagem principal do summaries
-  if (response?.summaries?.[0]?.mainImage?.link) {
-    images.push(response.summaries[0].mainImage.link);
+// Delete unused image slots (if user removed images)
+for (let i = validImages.length; i <= 8; i++) {
+  if (i > 0) {
+    patches.push({
+      op: 'delete',
+      path: `/attributes/other_product_image_locator_${i}`
+    });
   }
-  
-  // Imagens adicionais dos attributes
-  for (let i = 1; i <= 8; i++) {
-    const locator = response?.attributes?.[`other_product_image_locator_${i}`];
-    if (locator?.[0]?.media_location) {
-      images.push(locator[0].media_location);
-    }
-  }
-
-  return {
-    channel: 'amazon',
-    channelId: sku,
-    stock,
-    status: 'synced',
-    images
-  };
 }
 ```
 
-### Estrutura de dados da Amazon SP-API
+O problema é que o código **sempre tenta deletar** todos os slots não usados, independentemente de eles existirem ou não.
 
-A Amazon armazena imagens em dois lugares:
+## Solução
 
-1. **`summaries[0].mainImage.link`** - URL da imagem principal (já processada)
-2. **`attributes.main_product_image_locator[0].media_location`** - URL original da imagem principal
-3. **`attributes.other_product_image_locator_1` a `8`** - URLs das imagens adicionais
+**Antes de deletar um slot, verificar se ele existe no listing atual.** 
 
-### Integração query adicional
+Modificar o fluxo para:
+1. Buscar o listing atual via `getListingsItem` com `includedData=['attributes', 'summaries']`
+2. Extrair quais slots `other_product_image_locator_X` existem atualmente
+3. Só deletar os slots que realmente existem
 
-Precisamos buscar mais campos da tabela `integrations` para Amazon:
-- `marketplace_id`
-- `selling_partner_id`
-- `encrypted_refresh_token`
+## Implementacao Tecnica
+
+### Arquivo: `supabase/functions/update-product-images/index.ts`
+
+#### Mudanca 1: Expandir query do getListingsItem para incluir attributes
+
+```typescript
+// ANTES
+query: {
+  marketplaceIds: [marketplaceId],
+  includedData: ['summaries'],
+}
+
+// DEPOIS
+query: {
+  marketplaceIds: [marketplaceId],
+  includedData: ['summaries', 'attributes'],
+}
+```
+
+#### Mudanca 2: Extrair slots de imagem existentes
+
+```typescript
+// Apos buscar o listing, identificar quais slots existem
+const existingImageSlots = new Set<number>();
+
+// Verificar slots 1-8
+for (let i = 1; i <= 8; i++) {
+  const locator = listingResponse?.attributes?.[`other_product_image_locator_${i}`];
+  if (locator && locator.length > 0 && locator[0]?.media_location) {
+    existingImageSlots.add(i);
+  }
+}
+console.log(`Existing image slots: ${Array.from(existingImageSlots).join(', ')}`);
+```
+
+#### Mudanca 3: So deletar slots que existem
+
+```typescript
+// Delete only slots that actually exist
+for (let i = validImages.length; i <= 8; i++) {
+  if (i > 0 && existingImageSlots.has(i)) {
+    console.log(`Deleting existing image slot ${i}`);
+    patches.push({
+      op: 'delete',
+      path: `/attributes/other_product_image_locator_${i}`
+    });
+  }
+  // Se o slot nao existe, simplesmente ignora
+}
+```
+
+## Fluxo Corrigido
+
+```text
+1. Recebe lista de imagens para sincronizar (ex: 1 imagem)
+
+2. Busca listing atual da Amazon (com attributes)
+   ├─ Extrai productType
+   └─ Extrai slots de imagem que existem (ex: slots 1, 2 preenchidos)
+
+3. Constroi patches:
+   ├─ REPLACE main_product_image_locator → imagem 1
+   ├─ DELETE other_product_image_locator_1 (existe) ✓
+   ├─ DELETE other_product_image_locator_2 (existe) ✓
+   └─ IGNORA slots 3-8 (nao existem, nao precisa deletar)
+
+4. Envia PATCH para Amazon → Sucesso
+```
 
 ## Arquivos a Modificar
 
-| Arquivo | Ação | Descrição |
-|---------|------|-----------|
-| `supabase/functions/get-product-details/index.ts` | Modificar | Adicionar `getAmazonStock()` e integrar no loop principal |
-| `supabase/functions/verify-amazon-listing/index.ts` | Modificar | Retornar array completo de imagens (`observedAmazonImages`) |
+| Arquivo | Acao |
+|---------|------|
+| `supabase/functions/update-product-images/index.ts` | Modificar logica de delete para verificar slots existentes |
 
-## Fluxo Após Implementação
+## Sobre o Titulo "Manter o Mesmo Nome"
 
-```text
-ProductDetails carrega
-       │
-       ▼
-get-product-details busca integrações
-       │
-       ▼
-Para cada integração Amazon:
-  ├─ Busca listing no banco (product_listings)
-  ├─ Descriptografa refresh token
-  ├─ Chama Amazon SP-API (getListingsItem)
-  ├─ Extrai estoque + TODAS imagens
-  └─ Retorna ChannelStock com images[]
-       │
-       ▼
-MarketplaceImagesCard recebe channelStocks
-       │
-       ▼
-Tab Amazon mostra galeria com todas as imagens
-para edição (excluir, reordenar)
-```
+Pelos logs, o titulo na Amazon ainda mostra `Bambola Boneca Lola Baby Rosa Midia` mesmo apos alteracao. Isso e **comportamento normal da Amazon** - alteracoes de titulo e imagem podem levar:
 
-## Tratamento de Erros
+- **15 minutos a 2 horas** para ofertas e estoque
+- **Ate 24 horas** para titulo e imagens
+- **Ate 48 horas** em casos extremos
 
-- **Token expirado**: Retornar `status: 'token_expired'`
-- **Seller ID não configurado**: Retornar `status: 'error'` com mensagem
-- **Produto não encontrado**: Retornar `status: 'not_found'`
-- **Falha na API**: Retornar `status: 'error'` com `images: []`
+O frontend deveria mostrar uma mensagem informando isso ao usuario.
+
