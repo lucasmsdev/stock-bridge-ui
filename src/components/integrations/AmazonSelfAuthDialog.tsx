@@ -25,6 +25,7 @@ interface AmazonSelfAuthDialogProps {
 export function AmazonSelfAuthDialog({ open, onOpenChange, onSuccess }: AmazonSelfAuthDialogProps) {
   const [refreshToken, setRefreshToken] = useState("");
   const [accountName, setAccountName] = useState("");
+  const [sellerId, setSellerId] = useState("");
   const marketplaceId = "A2Q3Y263D00KWC"; // Brasil - app exclusivo para brasileiros
   const [isLoading, setIsLoading] = useState(false);
   const { toast } = useToast();
@@ -34,6 +35,25 @@ export function AmazonSelfAuthDialog({ open, onOpenChange, onSuccess }: AmazonSe
       toast({
         title: "Token obrigatório",
         description: "Por favor, insira o Refresh Token da sua conta Amazon.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    if (!sellerId.trim()) {
+      toast({
+        title: "Seller ID obrigatório",
+        description: "Por favor, insira o Seller ID da sua conta Amazon.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    // Validate Seller ID format (starts with A followed by alphanumeric)
+    if (!/^A[A-Z0-9]{10,}$/i.test(sellerId.trim())) {
+      toast({
+        title: "Seller ID inválido",
+        description: "O Seller ID deve começar com 'A' seguido de letras e números (ex: A3XXXXXXXXXX).",
         variant: "destructive",
       });
       return;
@@ -56,6 +76,7 @@ export function AmazonSelfAuthDialog({ open, onOpenChange, onSuccess }: AmazonSe
       const { data, error } = await supabase.functions.invoke("amazon-self-auth", {
         body: {
           refresh_token: refreshToken.trim(),
+          seller_id: sellerId.trim().toUpperCase(),
           account_name: accountName.trim() || undefined,
           marketplace_id: marketplaceId,
         },
@@ -89,6 +110,7 @@ export function AmazonSelfAuthDialog({ open, onOpenChange, onSuccess }: AmazonSe
       });
 
       setRefreshToken("");
+      setSellerId("");
       setAccountName("");
       onOpenChange(false);
       onSuccess();
@@ -122,7 +144,7 @@ export function AmazonSelfAuthDialog({ open, onOpenChange, onSuccess }: AmazonSe
           <Alert>
             <AlertCircle className="h-4 w-4" />
             <AlertDescription className="text-sm">
-              <strong>Como obter o Refresh Token:</strong>
+              <strong>Como obter as informações:</strong>
               <ol className="list-decimal ml-4 mt-2 space-y-1">
                 <li>Acesse o <a href="https://sellercentral.amazon.com/apps/manage" target="_blank" rel="noopener noreferrer" className="text-primary hover:underline inline-flex items-center gap-1">
                   Amazon Seller Central <ExternalLink className="h-3 w-3" />
@@ -130,6 +152,10 @@ export function AmazonSelfAuthDialog({ open, onOpenChange, onSuccess }: AmazonSe
                 <li>Encontre seu app e clique em <strong>"Authorize"</strong></li>
                 <li>Selecione os marketplaces desejados</li>
                 <li>Copie o <strong>Refresh Token</strong> gerado</li>
+                <li>Para o Seller ID, vá em <a href="https://sellercentral.amazon.com/sw/AccountInfo/MerchantToken/step/MerchantToken" target="_blank" rel="noopener noreferrer" className="text-primary hover:underline inline-flex items-center gap-1">
+                  Configurações → Informações da Conta → Informações do Vendedor <ExternalLink className="h-3 w-3" />
+                </a></li>
+                <li>Copie o <strong>"ID do comerciante"</strong> (começa com A)</li>
               </ol>
             </AlertDescription>
           </Alert>
@@ -145,6 +171,20 @@ export function AmazonSelfAuthDialog({ open, onOpenChange, onSuccess }: AmazonSe
             />
             <p className="text-xs text-muted-foreground">
               Cole o Refresh Token completo gerado no Amazon Seller Central
+            </p>
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="seller-id">Seller ID (ID do Comerciante) *</Label>
+            <Input
+              id="seller-id"
+              placeholder="A3XXXXXXXXXX"
+              value={sellerId}
+              onChange={(e) => setSellerId(e.target.value.toUpperCase())}
+              className="font-mono"
+            />
+            <p className="text-xs text-muted-foreground">
+              Encontre em: Seller Central → Configurações → Informações da Conta → "ID do comerciante"
             </p>
           </div>
 
@@ -179,7 +219,7 @@ export function AmazonSelfAuthDialog({ open, onOpenChange, onSuccess }: AmazonSe
           <Button variant="outline" onClick={() => onOpenChange(false)} disabled={isLoading}>
             Cancelar
           </Button>
-          <Button onClick={handleSubmit} disabled={isLoading || !refreshToken.trim()}>
+          <Button onClick={handleSubmit} disabled={isLoading || !refreshToken.trim() || !sellerId.trim()}>
             {isLoading ? (
               <>
                 <Loader2 className="h-4 w-4 mr-2 animate-spin" />
