@@ -52,6 +52,7 @@ import { PurchaseOrderForm } from "@/components/suppliers/PurchaseOrderForm";
 import { PurchaseOrderList, type PurchaseOrderListItem } from "@/components/suppliers/PurchaseOrderList";
 import type { Supplier } from "@/pages/Suppliers";
 import type { Json } from "@/integrations/supabase/types";
+import { useOrgRole } from "@/hooks/useOrgRole";
 
 interface Product {
   id: string;
@@ -75,6 +76,7 @@ const SupplierDetails = () => {
   const navigate = useNavigate();
   const { user } = useAuthSession();
   const { toast } = useToast();
+  const { canWrite, canDeleteItems } = useOrgRole();
 
   const [supplier, setSupplier] = useState<Supplier | null>(null);
   const [products, setProducts] = useState<Product[]>([]);
@@ -302,13 +304,15 @@ const SupplierDetails = () => {
           </div>
         </div>
         <div className="flex gap-2">
-          <Button
-            onClick={() => setIsOrderFormOpen(true)}
-            className="bg-gradient-primary text-primary-foreground shadow-primary"
-          >
-            <Plus className="h-4 w-4 mr-2" />
-            Novo Pedido
-          </Button>
+          {canWrite && (
+            <Button
+              onClick={() => setIsOrderFormOpen(true)}
+              className="bg-gradient-primary text-primary-foreground shadow-primary"
+            >
+              <Plus className="h-4 w-4 mr-2" />
+              Novo Pedido
+            </Button>
+          )}
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <Button variant="outline" size="icon">
@@ -316,17 +320,21 @@ const SupplierDetails = () => {
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end" className="bg-popover border-border">
-              <DropdownMenuItem onClick={() => setIsEditOpen(true)}>
-                <Edit className="h-4 w-4 mr-2" />
-                Editar
-              </DropdownMenuItem>
-              <DropdownMenuItem
-                onClick={() => setIsDeleteOpen(true)}
-                className="text-destructive focus:text-destructive"
-              >
-                <Trash2 className="h-4 w-4 mr-2" />
-                Excluir
-              </DropdownMenuItem>
+              {canWrite && (
+                <DropdownMenuItem onClick={() => setIsEditOpen(true)}>
+                  <Edit className="h-4 w-4 mr-2" />
+                  Editar
+                </DropdownMenuItem>
+              )}
+              {canDeleteItems && (
+                <DropdownMenuItem
+                  onClick={() => setIsDeleteOpen(true)}
+                  className="text-destructive focus:text-destructive"
+                >
+                  <Trash2 className="h-4 w-4 mr-2" />
+                  Excluir
+                </DropdownMenuItem>
+              )}
             </DropdownMenuContent>
           </DropdownMenu>
         </div>

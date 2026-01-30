@@ -17,6 +17,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import type { Json } from "@/integrations/supabase/types";
+import { useOrgRole } from "@/hooks/useOrgRole";
 
 export interface Supplier {
   id: string;
@@ -42,6 +43,7 @@ const Suppliers = () => {
   const navigate = useNavigate();
   const { user } = useAuthSession();
   const { toast } = useToast();
+  const { canWrite, canDeleteItems } = useOrgRole();
   const [suppliers, setSuppliers] = useState<Supplier[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState("");
@@ -199,16 +201,18 @@ const Suppliers = () => {
             Gerencie seus fornecedores e pedidos de compra
           </p>
         </div>
-        <Button
-          onClick={() => {
-            setEditingSupplier(null);
-            setIsFormOpen(true);
-          }}
-          className="bg-gradient-primary text-primary-foreground shadow-primary"
-        >
-          <Plus className="h-4 w-4 mr-2" />
-          Novo Fornecedor
-        </Button>
+        {canWrite && (
+          <Button
+            onClick={() => {
+              setEditingSupplier(null);
+              setIsFormOpen(true);
+            }}
+            className="bg-gradient-primary text-primary-foreground shadow-primary"
+          >
+            <Plus className="h-4 w-4 mr-2" />
+            Novo Fornecedor
+          </Button>
+        )}
       </div>
 
       {/* Stats Cards */}

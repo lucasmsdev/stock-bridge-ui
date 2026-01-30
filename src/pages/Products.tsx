@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { Plus, Search, MoreHorizontal, Edit, ExternalLink, Package, Download, Loader2, ChevronDown, Trash2, X, TrendingUp } from "lucide-react";
+import { useOrgRole } from "@/hooks/useOrgRole";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -106,6 +107,7 @@ export default function Products() {
   const { user } = useAuth();
   const { toast } = useToast();
   const { canImportProducts, getMaxSkus, getUpgradeRequiredMessage, hasFeature } = usePlan();
+  const { canWrite, canDeleteItems } = useOrgRole();
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedProducts, setSelectedProducts] = useState<string[]>([]);
   const [products, setProducts] = useState<Product[]>([]);
@@ -591,13 +593,15 @@ export default function Products() {
           </p>
         </div>
         <div className="flex gap-2">
-          <Button
-            onClick={() => navigate('/app/products/new')}
-            className="bg-gradient-primary hover:bg-primary-hover"
-          >
-            <Plus className="mr-2 h-4 w-4" />
-            Criar Produto
-          </Button>
+          {canWrite && (
+            <Button
+              onClick={() => navigate('/app/products/new')}
+              className="bg-gradient-primary hover:bg-primary-hover"
+            >
+              <Plus className="mr-2 h-4 w-4" />
+              Criar Produto
+            </Button>
+          )}
           {integrations.length > 0 && activeTab === 'catalog' ? (
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
@@ -901,25 +905,31 @@ export default function Products() {
                             </Button>
                           </DropdownMenuTrigger>
                           <DropdownMenuContent align="end" className="bg-popover border border-border shadow-medium z-50">
-                            <DropdownMenuItem 
-                              className="hover:bg-muted cursor-pointer"
-                              onClick={() => handleEditProduct(product)}
-                            >
-                              <Edit className="mr-2 h-4 w-4" />
-                              Editar
-                            </DropdownMenuItem>
+                            {canWrite && (
+                              <DropdownMenuItem 
+                                className="hover:bg-muted cursor-pointer"
+                                onClick={() => handleEditProduct(product)}
+                              >
+                                <Edit className="mr-2 h-4 w-4" />
+                                Editar
+                              </DropdownMenuItem>
+                            )}
                             <DropdownMenuItem className="hover:bg-muted cursor-pointer">
                               <ExternalLink className="mr-2 h-4 w-4" />
                               Ver no Canal
                             </DropdownMenuItem>
-                            <DropdownMenuSeparator />
-                            <DropdownMenuItem 
-                              className="hover:bg-destructive hover:text-destructive-foreground cursor-pointer"
-                              onClick={() => setDeletingProduct(product)}
-                            >
-                              <Trash2 className="mr-2 h-4 w-4" />
-                              Excluir
-                            </DropdownMenuItem>
+                            {canDeleteItems && (
+                              <>
+                                <DropdownMenuSeparator />
+                                <DropdownMenuItem 
+                                  className="hover:bg-destructive hover:text-destructive-foreground cursor-pointer"
+                                  onClick={() => setDeletingProduct(product)}
+                                >
+                                  <Trash2 className="mr-2 h-4 w-4" />
+                                  Excluir
+                                </DropdownMenuItem>
+                              </>
+                            )}
                           </DropdownMenuContent>
                         </DropdownMenu>
                       </TableCell>

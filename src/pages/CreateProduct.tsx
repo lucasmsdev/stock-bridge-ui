@@ -9,11 +9,12 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Checkbox } from "@/components/ui/checkbox";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
-import { Loader2, Package, ShoppingCart, Truck, Plus } from "lucide-react";
+import { Loader2, Package, ShoppingCart, Truck, Plus, ShieldAlert } from "lucide-react";
 import { PlatformLogo } from "@/components/ui/platform-logo";
 import { MercadoLivreCategorySelector } from "@/components/products/MercadoLivreCategorySelector";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { SupplierForm } from "@/components/suppliers/SupplierForm";
+import { useOrgRole } from "@/hooks/useOrgRole";
 
 interface Integration {
   id: string;
@@ -31,12 +32,25 @@ export default function CreateProduct() {
   const navigate = useNavigate();
   const location = useLocation();
   const { toast } = useToast();
+  const { canWrite, isLoading: roleLoading } = useOrgRole();
   const [loading, setLoading] = useState(false);
   const [integrations, setIntegrations] = useState<Integration[]>([]);
   const [loadingIntegrations, setLoadingIntegrations] = useState(true);
   const [suppliers, setSuppliers] = useState<Supplier[]>([]);
   const [loadingSuppliers, setLoadingSuppliers] = useState(true);
   const [showSupplierDialog, setShowSupplierDialog] = useState(false);
+
+  // Redirect viewers who cannot create products
+  useEffect(() => {
+    if (!roleLoading && !canWrite) {
+      toast({
+        title: "Acesso negado",
+        description: "Você não tem permissão para criar produtos.",
+        variant: "destructive",
+      });
+      navigate('/app/products');
+    }
+  }, [roleLoading, canWrite, navigate, toast]);
 
   // Get scanned code from scanner if navigated from there
   const scannedCode = (location.state as { sku?: string; ean?: string })?.sku || 
