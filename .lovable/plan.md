@@ -1,261 +1,240 @@
 
-# Plano: Leitor de Códigos de Barras para UNISTOCK
+# Plano: Sincronização Completa de Imagens com Amazon
 
 ## Visão Geral
 
-Criar um sistema de leitura de códigos de barras usando a câmera do celular/computador para localizar e registrar produtos no sistema UNISTOCK. Quando o usuário escaneia uma etiqueta gerada pela UNISTOCK (que contém o SKU no código de barras), o sistema identifica o produto e permite ações rápidas.
+Completar a integração da Amazon para que todas as funcionalidades disponíveis no Mercado Livre e Shopify também funcionem com a Amazon: alterar nome, imagem, preço e estoque. A maioria já funciona - falta apenas a sincronização de imagens pela galeria.
 
-## Funcionalidades
+## Status Atual
 
-| Funcionalidade | Descrição |
-|----------------|-----------|
-| Scanner por câmera | Usa a câmera do dispositivo para ler códigos de barras |
-| Busca automática | Localiza o produto pelo SKU ou EAN escaneado |
-| Ações rápidas | Ver detalhes, ajustar estoque, reimprimir etiqueta |
-| Histórico de scans | Registro dos últimos produtos escaneados |
-| Modo mobile-first | Otimizado para uso em smartphones no depósito |
+| Funcionalidade | Mercado Livre | Shopify | Amazon |
+|----------------|---------------|---------|--------|
+| Alterar nome | ✅ | ✅ | ✅ (já funciona via FinancialDataForm) |
+| Alterar preço | ✅ | ✅ | ✅ (já funciona via FinancialDataForm) |
+| Alterar estoque | ✅ | ✅ | ✅ (já funciona via FinancialDataForm) |
+| Alterar imagem principal | ✅ | ✅ | ✅ (já funciona via FinancialDataForm) |
+| Galeria de imagens (múltiplas) | ✅ | ✅ | ❌ Precisa implementar |
 
-## Fluxo do Usuário
+## O que já está funcionando
 
-```text
-┌──────────────────────┐
-│  Usuário abre        │
-│  /app/scanner        │
-└──────────┬───────────┘
-           │
-           ▼
-┌──────────────────────┐
-│  Clica "Escanear"    │
-│  ou abre automático  │
-└──────────┬───────────┘
-           │
-           ▼
-┌──────────────────────┐
-│  Câmera ativa        │
-│  (solicita permissão)│
-└──────────┬───────────┘
-           │
-           ▼
-┌──────────────────────┐
-│  Aponta para código  │
-│  de barras           │
-└──────────┬───────────┘
-           │
-           ▼
-┌──────────────────────────────────────────┐
-│  Sistema detecta código (ex: SKU-001)    │
-│           ↓                               │
-│  Busca produto: SKU = "SKU-001"          │
-│  OU EAN = código escaneado               │
-└──────────┬───────────────────────────────┘
-           │
-           ▼
-┌──────────────────────────────────────────┐
-│  Produto encontrado?                      │
-│  ✅ Sim → Mostra card com info + ações   │
-│  ❌ Não → "Produto não encontrado"       │
-│          + Opção de cadastrar novo       │
-└──────────────────────────────────────────┘
+O sistema atual já sincroniza com a Amazon quando o usuário salva o produto na página de detalhes:
+
+1. `FinancialDataForm` chama `update-product` edge function
+2. `update-product` detecta listings Amazon e chama `sync-amazon-listing`
+3. `sync-amazon-listing` envia para Amazon SP-API:
+   - Preço via `purchasable_offer`
+   - Estoque via `fulfillment_availability`
+   - Nome via `item_name`
+   - Imagem principal via `main_product_image_locator`
+
+## O que falta implementar
+
+### 1. Função de atualização de múltiplas imagens na Amazon
+
+A edge function `update-product-images` tem um stub para Amazon que precisa ser implementado:
+
+```typescript
+case 'amazon':
+  result = { success: false, error: 'Amazon image sync not yet implemented' };
 ```
+
+Precisamos implementar `updateAmazonImages()` usando a Amazon SP-API.
+
+### 2. Frontend - Exibir Amazon na galeria de marketplace
+
+O componente `MarketplaceImagesCard` já lista plataformas dinamicamente baseado nos listings ativos. Porém, as funcionalidades de upload e sincronização precisam ser habilitadas para Amazon.
 
 ## Arquitetura Técnica
 
-### Biblioteca Escolhida: html5-qrcode
+### Amazon SP-API para Imagens
 
-Motivos para escolher `html5-qrcode`:
-- Suporta CODE128 e EAN-13 (os formatos usados nas etiquetas UNISTOCK)
-- Funciona em dispositivos móveis e desktop
-- Não precisa de backend para processar
-- Boa documentação e comunidade ativa
-- Leve (~50KB)
-
-### Estrutura de Arquivos
+A Amazon usa a Listings Items API para gerenciar imagens:
 
 ```text
-src/
-├── pages/
-│   └── Scanner.tsx                    # Nova página /app/scanner
-├── components/
-│   └── scanner/
-│       ├── BarcodeScanner.tsx         # Componente do scanner com câmera
-│       ├── ScanResult.tsx             # Card com resultado do scan
-│       ├── ScanHistory.tsx            # Histórico de produtos escaneados
-│       └── QuickActions.tsx           # Botões de ação rápida
-```
+PATCH /listings/2021-08-01/items/{sellerId}/{sku}
 
-### Navegação
+Atributos de imagem suportados:
+- main_product_image_locator (imagem principal)
+- other_product_image_locator_1 até other_product_image_locator_8 (imagens adicionais)
 
-Adicionar nova rota no sidebar:
-- Ícone: `ScanLine` do lucide-react
-- Label: "Scanner"
-- Path: `/app/scanner`
-
-## Implementação Detalhada
-
-### 1. Instalar Dependência
-
-```bash
-npm install html5-qrcode
-```
-
-### 2. Componente BarcodeScanner.tsx
-
-Responsabilidades:
-- Inicializar câmera com permissão do usuário
-- Detectar códigos de barras em tempo real
-- Callback quando código é detectado
-- Botão para alternar câmera (frontal/traseira)
-- Limpar recursos ao desmontar
-
-Interface:
-```typescript
-interface BarcodeScannerProps {
-  onDetected: (code: string) => void;
-  onError?: (error: string) => void;
-  isActive: boolean;
+Cada atributo recebe:
+{
+  "marketplace_id": "A2Q3Y263D00KWC",
+  "media_location": "https://url-da-imagem.jpg"
 }
 ```
 
-### 3. Componente ScanResult.tsx
+### Limitações da Amazon
 
-Após detectar um código, exibe:
-- Imagem do produto (se houver)
-- Nome e SKU
-- Estoque atual
-- Preço de venda
-- Botões de ação:
-  - "Ver Detalhes" → navega para /app/products/:id
-  - "Ajustar Estoque" → abre modal de ajuste
-  - "Reimprimir Etiqueta" → abre gerador com produto pré-selecionado
+1. **Máximo de 9 imagens** (1 principal + 8 adicionais)
+2. **Formatos aceitos**: JPEG, PNG, TIFF, GIF
+3. **Tamanho máximo**: 10MB por imagem
+4. **Requisitos de qualidade**: mínimo 1000px no lado maior para zoom
+5. **Processamento assíncrono**: alterações podem levar até 24h para refletir
 
-### 4. Página Scanner.tsx
+## Implementação
 
-Layout:
-- Header com título "Scanner de Produtos"
-- Área do scanner (ocupa maior parte da tela em mobile)
-- Card de resultado (aparece após scan)
-- Histórico de scans recentes (últimos 5)
+### Arquivo 1: `supabase/functions/update-product-images/index.ts`
 
-Lógica de busca:
+Adicionar a função `updateAmazonImages`:
+
 ```typescript
-// Primeiro tenta buscar por SKU
-const { data: product } = await supabase
-  .from('products')
-  .select('*')
-  .eq('user_id', user.id)
-  .eq('sku', scannedCode)
-  .single();
+async function updateAmazonImages(
+  refreshToken: string,
+  sku: string,
+  images: string[],
+  integrationId: string,
+  marketplaceId: string,
+  sellerId: string
+): Promise<UpdateResult> {
+  // 1. Inicializar cliente Amazon SP-API
+  // 2. Construir patches para cada imagem:
+  //    - images[0] -> main_product_image_locator
+  //    - images[1-8] -> other_product_image_locator_1 a 8
+  // 3. Enviar PATCH via Listings Items API
+  // 4. Retornar resultado
+}
+```
 
-// Se não encontrar, tenta por EAN
-if (!product) {
-  const { data: productByEan } = await supabase
-    .from('products')
-    .select('*')
-    .eq('user_id', user.id)
-    .eq('ean', scannedCode)
+Modificar o switch case para chamar a nova função:
+
+```typescript
+case 'amazon':
+  // Buscar dados adicionais da integração
+  const { data: amazonInt } = await supabase
+    .from('integrations')
+    .select('encrypted_refresh_token, marketplace_id, selling_partner_id')
+    .eq('id', integration.id)
     .single();
-}
+  
+  // Descriptografar refresh token
+  const { data: refreshToken } = await supabase.rpc('decrypt_token', {
+    encrypted_token: amazonInt.encrypted_refresh_token
+  });
+  
+  result = await updateAmazonImages(
+    refreshToken,
+    listing.platform_product_id, // SKU
+    images,
+    integration.id,
+    amazonInt.marketplace_id || 'A2Q3Y263D00KWC',
+    amazonInt.selling_partner_id
+  );
+  break;
 ```
 
-### 5. Modal de Ajuste de Estoque
+### Arquivo 2: `src/components/products/MarketplaceImagesCard.tsx`
 
-Permite ajuste rápido:
-- Entrada (adicionar estoque)
-- Saída (remover estoque)
-- Motivo (opcional)
+O componente já funciona para Amazon pois:
+1. Lista plataformas dinamicamente baseado em `listings`
+2. Já tem limites definidos para Amazon (9 imagens, formatos JPEG/PNG/TIFF/GIF)
+3. Chama `update-product-images` com a plataforma correta
 
-### 6. Histórico de Scans
+Apenas garantir que a integração busque os dados corretos.
 
-Armazena no localStorage:
-- Últimos 10 produtos escaneados
-- Timestamp de cada scan
-- Permite re-escanear clicando no item
-
-## Interface Visual
-
-### Mobile (Prioridade)
+## Fluxo de Sincronização de Imagens
 
 ```text
-┌─────────────────────────────┐
-│  ← Scanner de Produtos      │
-├─────────────────────────────┤
-│                             │
-│   ┌───────────────────┐     │
-│   │                   │     │
-│   │    [CÂMERA]       │     │
-│   │                   │     │
-│   │  ▢ Área de scan   │     │
-│   │                   │     │
-│   └───────────────────┘     │
-│                             │
-│   🔄 Alternar câmera        │
-│                             │
-├─────────────────────────────┤
-│  ┌─────────────────────┐    │
-│  │ 📦 Produto X        │    │
-│  │ SKU: SKU-001        │    │
-│  │ Estoque: 15 un      │    │
-│  │ R$ 49,90            │    │
-│  │                     │    │
-│  │ [Detalhes] [Estoque]│    │
-│  └─────────────────────┘    │
-├─────────────────────────────┤
-│  Histórico recente          │
-│  • Produto Y - há 2min      │
-│  • Produto Z - há 5min      │
-└─────────────────────────────┘
+┌─────────────────────────────────────────────┐
+│  Usuário edita galeria na página do produto │
+│  (ProductDetails > MarketplaceImagesCard)   │
+└─────────────────────┬───────────────────────┘
+                      │
+                      ▼
+┌─────────────────────────────────────────────┐
+│  Clica "Sincronizar" na aba Amazon          │
+└─────────────────────┬───────────────────────┘
+                      │
+                      ▼
+┌─────────────────────────────────────────────┐
+│  Frontend chama update-product-images       │
+│  body: { productId, listingId,              │
+│          platform: 'amazon', images: [...] }│
+└─────────────────────┬───────────────────────┘
+                      │
+                      ▼
+┌─────────────────────────────────────────────┐
+│  Edge function:                             │
+│  1. Busca listing + integração              │
+│  2. Descriptografa refresh token            │
+│  3. Inicializa Amazon SP-API                │
+│  4. Constrói PATCH com imagens              │
+│  5. Envia para Listings Items API           │
+│  6. Atualiza sync_status no banco           │
+└─────────────────────┬───────────────────────┘
+                      │
+                      ▼
+┌─────────────────────────────────────────────┐
+│  Amazon processa (pode levar até 24h)       │
+│  Usuário pode clicar "Revalidar" para ver   │
+│  status atual via verify-amazon-listing     │
+└─────────────────────────────────────────────┘
 ```
 
-## Casos de Uso
-
-### Cenário 1: Conferência de estoque
-1. Funcionário pega produto na prateleira
-2. Escaneia etiqueta UNISTOCK
-3. Confere se estoque físico bate com sistema
-4. Se diferente, ajusta pelo botão "Ajustar Estoque"
-
-### Cenário 2: Localizar produto
-1. Cliente pede produto específico
-2. Funcionário escaneia qualquer unidade
-3. Vê onde está armazenado (se tiver essa info)
-4. Confirma preço e disponibilidade
-
-### Cenário 3: Reimprimir etiqueta danificada
-1. Escaneia produto com etiqueta legível mas danificada
-2. Clica "Reimprimir Etiqueta"
-3. Sistema abre gerador com produto pré-selecionado
-
-## Arquivos a Criar/Modificar
+## Arquivos a Modificar
 
 | Arquivo | Ação | Descrição |
 |---------|------|-----------|
-| `package.json` | Modificar | Adicionar html5-qrcode |
-| `src/pages/Scanner.tsx` | Criar | Página principal do scanner |
-| `src/components/scanner/BarcodeScanner.tsx` | Criar | Componente do scanner |
-| `src/components/scanner/ScanResult.tsx` | Criar | Card de resultado |
-| `src/components/scanner/ScanHistory.tsx` | Criar | Lista de histórico |
-| `src/components/scanner/QuickStockAdjust.tsx` | Criar | Modal de ajuste rápido |
-| `src/components/layout/AppSidebar.tsx` | Modificar | Adicionar link do scanner |
-| `src/App.tsx` | Modificar | Adicionar rota /app/scanner |
+| `supabase/functions/update-product-images/index.ts` | Modificar | Implementar `updateAmazonImages()` |
 
-## Compatibilidade
+## Detalhes Técnicos da Implementação
 
-| Dispositivo | Suporte |
-|-------------|---------|
-| iPhone Safari | ✅ iOS 11+ |
-| Android Chrome | ✅ Todas versões |
-| Desktop Chrome | ✅ Com webcam |
-| Desktop Firefox | ✅ Com webcam |
+### Estrutura do PATCH para Imagens
 
-## Considerações de Segurança
+```typescript
+const patches = [
+  // Imagem principal (sempre a primeira)
+  {
+    op: 'replace',
+    path: '/attributes/main_product_image_locator',
+    value: [{
+      marketplace_id: 'A2Q3Y263D00KWC',
+      media_location: images[0]
+    }]
+  },
+  // Imagens adicionais (até 8)
+  ...images.slice(1, 9).map((url, idx) => ({
+    op: 'replace',
+    path: `/attributes/other_product_image_locator_${idx + 1}`,
+    value: [{
+      marketplace_id: 'A2Q3Y263D00KWC',
+      media_location: url
+    }]
+  }))
+];
+```
 
-- Requer HTTPS para acessar câmera (já garantido pelo Lovable)
-- Usuário precisa conceder permissão de câmera
-- Busca apenas produtos do próprio user_id
+### Limpar Imagens Removidas
 
-## Próximos Passos (Futuro)
+Se o usuário tinha 5 imagens e agora só tem 2, precisamos enviar `DELETE` para as extras:
 
-1. Modo offline com cache local
-2. Som/vibração ao detectar código
-3. Scan em lote para inventário
-4. Integração com leitor externo via Bluetooth
+```typescript
+// Deletar slots não usados
+for (let i = images.length - 1; i < 8; i++) {
+  patches.push({
+    op: 'delete',
+    path: `/attributes/other_product_image_locator_${i + 1}`
+  });
+}
+```
+
+### Tratamento de Erros Específicos
+
+- **INVALID_IMAGE_URL**: URL não acessível ou formato inválido
+- **IMAGE_TOO_SMALL**: Imagem menor que 1000px
+- **UNAUTHORIZED**: Token expirado - pedir reconexão
+- **SELLER_NOT_AUTHORIZED**: Seller ID não tem permissão para editar este produto
+
+## Estimativa de Complexidade
+
+- **Backend**: Média (1 função nova similar às existentes)
+- **Frontend**: Nenhuma alteração necessária (já suporta Amazon)
+- **Testes**: Necessário testar com conta Amazon real
+
+## Observações Importantes
+
+1. **Processamento assíncrono**: A Amazon pode levar de 15 minutos a 24 horas para processar alterações de imagem. O usuário deve ser informado disso.
+
+2. **Catálogo Amazon**: Produtos vinculados a ASINs de catálogo podem ter restrições de edição de imagem (similar ao Mercado Livre). Precisamos detectar e informar o usuário.
+
+3. **Qualidade das imagens**: A Amazon pode rejeitar imagens de baixa qualidade. Devemos mostrar warnings claros.
