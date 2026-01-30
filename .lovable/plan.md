@@ -1,183 +1,144 @@
 
-# Plano: Edicao em Massa de Produtos
+# Plano: Corrigir Sincronização do Bulk Update com Amazon
 
-## Objetivo
+## Problema Identificado
 
-Implementar a funcionalidade de edicao em massa que permite aos usuarios selecionar multiplos produtos e atualizar campos especificos de todos eles de uma vez, economizando tempo e esforco.
+A função `bulk-update-products` está chamando a sincronização de forma incorreta. Atualmente usa:
 
----
-
-## Como Funcionara
-
-### Fluxo do Usuario
-
-1. Usuario seleciona produtos usando os checkboxes na tabela
-2. Barra de acoes aparece mostrando "X produtos selecionados"
-3. Usuario clica em "Editar em Massa"
-4. Modal abre com campos editaveis (apenas campos que fazem sentido editar em massa)
-5. Usuario preenche apenas os campos que quer alterar
-6. Sistema atualiza todos os produtos selecionados com os novos valores
-7. Sincronizacao com marketplaces e executada para cada produto
-
-### Campos Disponiveis para Edicao em Massa
-
-| Campo | Tipo | Comportamento |
-|-------|------|---------------|
-| Preco de Venda | Numero | Aplica mesmo preco a todos |
-| Preco de Custo | Numero | Aplica mesmo custo a todos |
-| Estoque (Ajuste) | Numero | Duas opcoes: "Definir valor" ou "Adicionar/Subtrair" |
-| Fornecedor | Select | Vincula mesmo fornecedor a todos |
-
-Campos NAO incluidos (por serem unicos por produto): Nome, SKU, Imagem
-
----
-
-## O Que Sera Criado
-
-### 1. Componente BulkEditDialog
-
-Novo componente que exibe o modal de edicao em massa.
-
-```text
-+--------------------------------------------------+
-|  Editar 5 Produtos em Massa                      |
-+--------------------------------------------------+
-|                                                  |
-|  Preco de Venda                                  |
-|  [_______________________] R$                    |
-|  [ ] Nao alterar                                 |
-|                                                  |
-|  Preco de Custo                                  |
-|  [_______________________] R$                    |
-|  [ ] Nao alterar                                 |
-|                                                  |
-|  Estoque                                         |
-|  (o) Nao alterar                                 |
-|  ( ) Definir valor: [____]                       |
-|  ( ) Adicionar: [____]                           |
-|  ( ) Subtrair: [____]                            |
-|                                                  |
-|  Fornecedor                                      |
-|  [Selecione um fornecedor    v]                  |
-|  [ ] Nao alterar                                 |
-|                                                  |
-|               [Cancelar]  [Aplicar Alteracoes]   |
-+--------------------------------------------------+
+```typescript
+await supabase.functions.invoke(syncFunction, {
+  body: { 
+    productId: listing.product_id,
+    listingId: listing.id 
+  },
+});
 ```
 
-### 2. Edge Function bulk-update-products
+Mas a função `sync-amazon-listing` espera receber:
 
-Nova Edge Function que processa a atualizacao de multiplos produtos de forma eficiente.
-
-Responsabilidades:
-- Receber array de IDs de produtos
-- Validar que todos pertencem ao usuario
-- Aplicar alteracoes em lote
-- Disparar sincronizacao com marketplaces para cada produto
-- Retornar resumo do resultado
-
----
-
-## Arquivos a Criar/Modificar
-
-| Arquivo | Acao | Descricao |
-|---------|------|-----------|
-| src/components/products/BulkEditDialog.tsx | Criar | Modal de edicao em massa |
-| supabase/functions/bulk-update-products/index.ts | Criar | Edge Function para update em lote |
-| src/pages/Products.tsx | Modificar | Integrar o BulkEditDialog e conectar ao botao |
-| supabase/config.toml | Modificar | Registrar nova Edge Function |
-
----
-
-## Detalhes Tecnicos
-
-### Interface do BulkEditDialog
-
-```text
-interface BulkEditFormData {
-  sellingPrice?: number | null;       // null = nao alterar
-  costPrice?: number | null;
-  stockMode: 'none' | 'set' | 'add' | 'subtract';
-  stockValue?: number;
-  supplierId?: string | null;
-}
-
-interface BulkEditDialogProps {
-  open: boolean;
-  onOpenChange: (open: boolean) => void;
-  selectedProducts: Product[];
-  suppliers: Supplier[];
-  onSuccess: () => void;
+```typescript
+{ 
+  productId, sku, stock, sellingPrice, name, imageUrl, integrationId 
 }
 ```
 
-### Payload da Edge Function
+**Resultado**: A sincronização é chamada mas sem os dados atualizados, então nada é enviado à Amazon.
+
+---
+
+## Sobre as Imagens
+
+O comportamento que você observou é esperado:
+
+1. **Imagem aparece no Seller Central mas não na página do produto**: A Amazon processa imagens de forma assíncrona. Alterações podem levar de **24 a 48 horas** para refletir no catálogo público.
+
+2. **Imagem setada como principal automaticamente**: Quando você envia uma nova imagem, ela substitui a principal existente. Para manter a ordem das imagens, todo o conjunto deve ser reenviado na ordem desejada.
+
+---
+
+## Solução Proposta
+
+Modificar a função `bulk-update-products` para:
+
+1. Buscar os dados completos de cada produto antes de sincronizar
+2. Usar `fetch` direto (como faz `update-product`) em vez de `supabase.functions.invoke`
+3. Passar todos os parâmetros necessários para cada função de sync
+
+### Fluxo Corrigido
 
 ```text
-// Request
++-------------------+
+| Bulk Update       |
++-------------------+
+         |
+         v
++----------------------------+
+| Para cada produto:         |
+| 1. Atualizar no banco      |
+| 2. Buscar dados completos  |
+| 3. Buscar listing + SKU    |
++----------------------------+
+         |
+         v
++--------------------------------+
+| Para cada listing:              |
+| - Amazon: enviar sku, stock,    |
+|   price, name, integrationId   |
+| - Mercado Livre: enviar         |
+|   platformProductId, etc        |
+| - Shopify: enviar variantId     |
++--------------------------------+
+```
+
+---
+
+## Arquivos a Modificar
+
+| Arquivo | Alteração |
+|---------|-----------|
+| `supabase/functions/bulk-update-products/index.ts` | Refatorar lógica de sincronização para buscar dados completos do produto e chamar funções de sync com todos os parâmetros necessários |
+
+---
+
+## Código a Ser Alterado
+
+A seção de sincronização (linhas 181-235) será reescrita para:
+
+1. Buscar os produtos atualizados com todos os campos necessários
+2. Para cada listing, construir o payload correto baseado na plataforma
+3. Usar `fetch` direto para as edge functions (mais confiável que `invoke`)
+
+### Payload Correto para Amazon
+
+```typescript
 {
-  productIds: string[];
-  updates: {
-    selling_price?: number;
-    cost_price?: number;
-    stock_mode?: 'set' | 'add' | 'subtract';
-    stock_value?: number;
-    supplier_id?: string;
-  }
+  productId: product.id,
+  sku: product.sku,
+  stock: product.stock,
+  sellingPrice: product.selling_price,
+  name: product.name,
+  imageUrl: product.image_url,
+  integrationId: listing.integration_id
 }
+```
 
-// Response
+### Payload Correto para Mercado Livre
+
+```typescript
 {
-  success: boolean;
-  updated: number;
-  synced: number;
-  errors: Array<{productId: string; error: string}>;
+  productId: product.id,
+  listingId: listing.id,
+  integrationId: listing.integration_id,
+  platformProductId: listing.platform_product_id,
+  sellingPrice: product.selling_price,
+  stock: product.stock,
+  name: product.name,
+  imageUrl: product.image_url
 }
 ```
 
-### Logica de Atualizacao de Estoque
+### Payload Correto para Shopify
 
-```text
-switch (stock_mode) {
-  case 'set':
-    // UPDATE SET stock = stock_value
-    break;
-  case 'add':
-    // UPDATE SET stock = stock + stock_value
-    break;
-  case 'subtract':
-    // UPDATE SET stock = GREATEST(0, stock - stock_value)
-    break;
+```typescript
+{
+  productId: product.id,
+  listingId: listing.id,
+  integrationId: listing.integration_id,
+  platformProductId: listing.platform_product_id,
+  platformVariantId: listing.platform_variant_id,
+  sellingPrice: product.selling_price,
+  stock: product.stock,
+  name: product.name,
+  imageUrl: product.image_url
 }
 ```
 
 ---
 
-## Verificacoes de Permissao
+## Resultado Esperado
 
-- Apenas usuarios com `canWrite` (admin ou operator) podem usar edicao em massa
-- O botao "Editar em Massa" ja esta condicionado a isso na barra de acoes
-- A Edge Function valida que todos os produtos pertencem ao usuario autenticado
-
----
-
-## Sincronizacao com Marketplaces
-
-Para cada produto atualizado:
-1. Buscar listings vinculados
-2. Chamar funcoes de sync existentes (sync-amazon-listing, sync-mercadolivre-listing, sync-shopify-listing)
-3. Coletar resultados e exibir resumo ao usuario
-
-Toast final:
-"5 produtos atualizados. 12/15 listings sincronizados com marketplaces."
-
----
-
-## Ordem de Execucao
-
-1. Criar Edge Function `bulk-update-products`
-2. Registrar em `supabase/config.toml`
-3. Criar componente `BulkEditDialog.tsx`
-4. Integrar dialog em `Products.tsx`
-5. Conectar botao "Editar em Massa" ao dialog
-6. Testar fluxo completo
+Após a correção:
+- Alterações de preço e estoque feitas via edição em massa serão sincronizadas corretamente com a Amazon
+- O estoque na Amazon refletirá o novo valor em 15 minutos a 2 horas
+- Preços serão atualizados quase imediatamente (minutos)
+- Imagens continuarão levando 24-48h para refletir no catálogo (limitação da Amazon)
