@@ -1,4 +1,5 @@
-import { NavLink, useNavigate } from "react-router-dom";
+import { useState } from "react";
+import { NavLink, useNavigate, useLocation } from "react-router-dom";
 import { 
   LayoutDashboard, 
   Package, 
@@ -9,6 +10,7 @@ import {
   Calculator,
   User,
   ChevronDown,
+  ChevronRight,
   CreditCard,
   Lock,
   Crown,
@@ -30,6 +32,11 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import {
+  Collapsible,
+  CollapsibleContent,
+  CollapsibleTrigger,
+} from "@/components/ui/collapsible";
 import { useAuthSession } from "@/hooks/useAuthSession";
 import { usePlan, FeatureName } from "@/hooks/usePlan";
 import { useToast } from "@/hooks/use-toast";
@@ -40,11 +47,25 @@ interface AppSidebarProps {
   isCollapsed: boolean;
 }
 
-const navItems = [
+interface NavItem {
+  title: string;
+  href: string;
+  icon: React.ComponentType<{ className?: string }>;
+  requiresFeature?: FeatureName;
+  children?: NavItem[];
+}
+
+const navItems: NavItem[] = [
   { title: "Dashboard", href: "/app/dashboard", icon: LayoutDashboard },
-  { title: "Produtos", href: "/app/products", icon: Package },
-  { title: "Etiquetas", href: "/app/labels", icon: Tag },
-  { title: "Scanner", href: "/app/scanner", icon: ScanLine },
+  { 
+    title: "Produtos", 
+    href: "/app/products", 
+    icon: Package,
+    children: [
+      { title: "Etiquetas", href: "/app/labels", icon: Tag },
+      { title: "Scanner", href: "/app/scanner", icon: ScanLine },
+    ]
+  },
   { title: "Pedidos", href: "/app/orders", icon: ShoppingCart },
   { 
     title: "Financeiro", 
@@ -92,10 +113,20 @@ const navItems = [
 ];
 
 export const AppSidebar = ({ isCollapsed }: AppSidebarProps) => {
-  const { user, forceLogout, clearSessionData } = useAuthSession({ requireAuth: false });
+  const { user, forceLogout } = useAuthSession({ requireAuth: false });
   const { hasFeature, currentPlan, isAdmin, isLoading } = usePlan();
   const { toast } = useToast();
   const navigate = useNavigate();
+  const location = useLocation();
+
+  // Track which collapsible menus are open
+  const [openMenus, setOpenMenus] = useState<Record<string, boolean>>(() => {
+    // Auto-open Products if on a child route
+    const isOnProductsChild = ['/app/products', '/app/labels', '/app/scanner'].some(
+      path => location.pathname.startsWith(path)
+    );
+    return { '/app/products': isOnProductsChild };
+  });
 
   // Buscar avatar_url do perfil
   const { data: profile } = useQuery({
@@ -110,7 +141,7 @@ export const AppSidebar = ({ isCollapsed }: AppSidebarProps) => {
       return data;
     },
     enabled: !!user?.id,
-    staleTime: 5 * 60 * 1000, // 5 minutos
+    staleTime: 5 * 60 * 1000,
   });
 
   const handleLogout = async () => {
@@ -133,12 +164,71 @@ export const AppSidebar = ({ isCollapsed }: AppSidebarProps) => {
     return email.split('@')[0];
   };
 
-  const renderNavItem = (item: typeof navItems[0]) => {
-    // CRÍTICO: Enquanto carrega, trata todas as features como restritas
-    // Isso evita o "flash" de conteúdo premium para usuários básicos
+  const toggleMenu = (href: string) => {
+    setOpenMenus(prev => ({ ...prev, [href]: !prev[href] }));
+  };
+
+  const isRouteActive = (href: string, children?: NavItem[]) => {
+    if (location.pathname === href) return true;
+    if (children?.some(child => location.pathname === child.href)) return true;
+    return false;
+  };
+
+  const renderNavItem = (item: NavItem, isChild = false) => {
     const hasAccess = !isLoading && (!item.requiresFeature || hasFeature(item.requiresFeature));
     const targetHref = hasAccess ? item.href : "/app/billing";
+    const hasChildren = item.children && item.children.length > 0;
+    const isOpen = openMenus[item.href] ?? false;
+    const isActive = isRouteActive(item.href, item.children);
 
+    // If has children, render collapsible
+    if (hasChildren && !isCollapsed) {
+      return (
+        <Collapsible
+          key={item.href}
+          open={isOpen}
+          onOpenChange={() => toggleMenu(item.href)}
+        >
+          <CollapsibleTrigger asChild>
+            <button
+              className={`w-full flex items-center space-x-3 px-3 py-2 rounded-lg transition-all duration-200 border border-transparent ${
+                isActive
+                  ? "bg-gradient-primary text-primary-foreground shadow-primary border-primary/20"
+                  : "hover:bg-muted/70 text-muted-foreground hover:text-foreground hover:shadow-soft hover:border-muted"
+              }`}
+            >
+              <item.icon className="h-5 w-5" />
+              <span className="font-medium flex-1 text-left">{item.title}</span>
+              {isOpen ? (
+                <ChevronDown className="h-4 w-4 transition-transform" />
+              ) : (
+                <ChevronRight className="h-4 w-4 transition-transform" />
+              )}
+            </button>
+          </CollapsibleTrigger>
+          <CollapsibleContent className="pl-4 mt-1 space-y-1">
+            {/* Link to main products page */}
+            <NavLink
+              to={item.href}
+              className={({ isActive }) =>
+                `flex items-center space-x-3 px-3 py-2 rounded-lg transition-all duration-200 border border-transparent ${
+                  isActive
+                    ? "bg-muted text-foreground font-medium"
+                    : "hover:bg-muted/50 text-muted-foreground hover:text-foreground"
+                }`
+              }
+            >
+              <item.icon className="h-4 w-4" />
+              <span className="text-sm">Ver todos</span>
+            </NavLink>
+            {/* Render children */}
+            {item.children?.map(child => renderNavItem(child, true))}
+          </CollapsibleContent>
+        </Collapsible>
+      );
+    }
+
+    // Regular nav item or collapsed mode
     return (
       <NavLink
         key={item.href}
@@ -147,18 +237,20 @@ export const AppSidebar = ({ isCollapsed }: AppSidebarProps) => {
         className={({ isActive }) =>
           `flex items-center space-x-3 px-3 py-2 rounded-lg transition-all duration-200 border border-transparent ${
             isActive
-              ? "bg-gradient-primary text-primary-foreground shadow-primary border-primary/20"
+              ? isChild
+                ? "bg-muted text-foreground font-medium"
+                : "bg-gradient-primary text-primary-foreground shadow-primary border-primary/20"
               : "hover:bg-muted/70 text-muted-foreground hover:text-foreground hover:shadow-soft hover:border-muted"
           } ${isCollapsed ? "justify-center" : ""} ${!hasAccess ? "opacity-70" : ""}`
         }
       >
         <div className="flex items-center space-x-2">
-          <item.icon className="h-5 w-5" />
+          <item.icon className={isChild ? "h-4 w-4" : "h-5 w-5"} />
           {!hasAccess && <Lock className="h-3 w-3" />}
         </div>
         {!isCollapsed && (
           <div className="flex items-center justify-between flex-1">
-            <span className="font-medium">{item.title}</span>
+            <span className={isChild ? "text-sm" : "font-medium"}>{item.title}</span>
             {!hasAccess && (
               <Badge variant="secondary" className="text-xs px-1 py-0 ml-2">
                 <Crown className="h-3 w-3" />
@@ -177,7 +269,6 @@ export const AppSidebar = ({ isCollapsed }: AppSidebarProps) => {
         {!isCollapsed ? (
           <div className="flex items-center justify-between">
             <span className="text-2xl font-bold font-sans text-foreground">UNISTOCK</span>
-            {/* CRÍTICO: Só mostra badge do plano após carregar */}
             {!isLoading && (
               <Badge variant="outline" className="text-xs capitalize">
                 {isAdmin ? "Unlimited" : currentPlan}
@@ -193,7 +284,7 @@ export const AppSidebar = ({ isCollapsed }: AppSidebarProps) => {
 
       {/* Navigation */}
       <nav className="flex-1 p-4 space-y-2 overflow-y-auto">
-        {navItems.map(renderNavItem)}
+        {navItems.map(item => renderNavItem(item))}
       </nav>
 
       {/* User Section */}
