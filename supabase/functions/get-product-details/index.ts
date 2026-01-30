@@ -91,7 +91,7 @@ serve(async (req) => {
     // Get user's integrations
     const { data: integrations, error: integrationsError } = await supabase
       .from('integrations')
-      .select('id, platform, encrypted_access_token, encrypted_refresh_token, shop_domain')
+      .select('id, platform, encrypted_access_token, encrypted_refresh_token, shop_domain, marketplace_id, selling_partner_id')
       .eq('user_id', user.id)
       .not('encrypted_access_token', 'is', null);
 
@@ -162,10 +162,22 @@ serve(async (req) => {
           );
         } else if (integration.platform === 'shopee') {
           channelStock = await getShopeeStock(accessToken, sku);
+        } else if (integration.platform === 'amazon') {
+          // Find the product listing for this integration
+          const amazonListing = productListings?.find(
+            l => l.platform === 'amazon' && l.integration_id === integration.id
+          );
+          channelStock = await getAmazonStock(
+            refreshToken,
+            sku,
+            integration.selling_partner_id || '',
+            integration.marketplace_id || 'A2Q3Y263D00KWC',
+            amazonListing?.platform_product_id || null
+          );
         } else {
           // Unknown platform - mark as not published
           channelStock = {
-            channel: integration.platform,
+            channel: 'amazon',
             channelId: '-',
             stock: 0,
             status: 'not_published'
@@ -533,4 +545,133 @@ async function getShopeeStock(accessToken: string, sku: string): Promise<Channel
     stock: 0,
     status: 'not_published'
   };
+}
+
+async function getAmazonStock(
+  refreshToken: string | null,
+  sku: string,
+  sellerId: string,
+  marketplaceId: string,
+  platformProductId: string | null
+): Promise<ChannelStock> {
+  try {
+    // Check if we have the required credentials
+    if (!refreshToken || !sellerId || !sellerId.startsWith('A')) {
+      console.log('Amazon: Missing refresh token or seller ID');
+      return {
+        channel: 'amazon',
+        channelId: '-',
+        stock: 0,
+        status: 'not_published' as const,
+        images: []
+      };
+    }
+
+    // If no listing exists for this product, it's not published
+    if (!platformProductId) {
+      console.log('Amazon: No product listing found for this product');
+      return {
+        channel: 'amazon',
+        channelId: '-',
+        stock: 0,
+        status: 'not_published' as const,
+        images: []
+      };
+    }
+
+    console.log(`Fetching Amazon stock for SKU: ${platformProductId}, Seller: ${sellerId}`);
+
+    // Initialize Amazon SP-API client
+    const { default: SellingPartnerAPI } = await import('npm:amazon-sp-api@latest');
+    
+    const sellingPartner = new SellingPartnerAPI({
+      region: 'na',
+      refresh_token: refreshToken,
+      credentials: {
+        SELLING_PARTNER_APP_CLIENT_ID: Deno.env.get('AMAZON_CLIENT_ID'),
+        SELLING_PARTNER_APP_CLIENT_SECRET: Deno.env.get('AMAZON_CLIENT_SECRET'),
+      },
+    });
+
+    // Call getListingsItem to get full product details
+    const response = await sellingPartner.callAPI({
+      operation: 'getListingsItem',
+      endpoint: 'listingsItems',
+      path: {
+        sellerId: sellerId,
+        sku: platformProductId,
+      },
+      query: {
+        marketplaceIds: [marketplaceId],
+        includedData: ['attributes', 'summaries'],
+      },
+    });
+
+    console.log('Amazon getListingsItem response received');
+
+    // Extract stock from fulfillment_availability
+    let stock = 0;
+    if (response?.attributes?.fulfillment_availability) {
+      const availability = response.attributes.fulfillment_availability[0];
+      stock = availability?.quantity ?? 0;
+    }
+
+    // Extract ALL images
+    const images: string[] = [];
+    
+    // Main image from summaries (processed/optimized URL)
+    if (response?.summaries?.[0]?.mainImage?.link) {
+      images.push(response.summaries[0].mainImage.link);
+    }
+    
+    // Additional images from attributes (other_product_image_locator_1 to 8)
+    for (let i = 1; i <= 8; i++) {
+      const locator = response?.attributes?.[`other_product_image_locator_${i}`];
+      if (locator?.[0]?.media_location) {
+        images.push(locator[0].media_location);
+      }
+    }
+
+    console.log(`Amazon product found - stock: ${stock}, images: ${images.length}`);
+
+    return {
+      channel: 'amazon',
+      channelId: platformProductId,
+      stock,
+      status: 'synced' as const,
+      images
+    };
+
+  } catch (error: any) {
+    console.error('Error fetching Amazon stock:', error);
+    
+    // Check for specific error types
+    if (error.message?.includes('token') || error.message?.includes('unauthorized') || error.message?.includes('401')) {
+      return {
+        channel: 'amazon',
+        channelId: platformProductId || '-',
+        stock: 0,
+        status: 'token_expired' as const,
+        images: []
+      };
+    }
+    
+    if (error.message?.includes('not found') || error.message?.includes('404')) {
+      return {
+        channel: 'amazon',
+        channelId: platformProductId || '-',
+        stock: 0,
+        status: 'not_found' as const,
+        images: []
+      };
+    }
+    
+    return {
+      channel: 'amazon',
+      channelId: platformProductId || '-',
+      stock: 0,
+      status: 'error' as const,
+      images: []
+    };
+  }
 }

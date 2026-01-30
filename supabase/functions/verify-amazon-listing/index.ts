@@ -154,6 +154,7 @@ serve(async (req) => {
     let observedStock = null;
     let productType = null;
     const issues: any[] = listingResponse?.issues || [];
+    const observedImages: string[] = [];
 
     // Offer Price (purchasable_offer) - preço de venda atual
     if (listingResponse?.attributes?.purchasable_offer) {
@@ -177,13 +178,28 @@ serve(async (req) => {
       observedStock = availability?.quantity ?? null;
     }
 
-    // Título e imagem do summaries
+    // Título e imagem principal do summaries
     if (listingResponse?.summaries && listingResponse.summaries.length > 0) {
       const summary = listingResponse.summaries[0];
       observedTitle = summary.itemName || null;
       observedMainImage = summary.mainImage?.link || null;
       productType = summary.productType || null;
+      
+      // Adiciona imagem principal à lista
+      if (observedMainImage) {
+        observedImages.push(observedMainImage);
+      }
     }
+
+    // Imagens adicionais (other_product_image_locator_1 a 8)
+    for (let i = 1; i <= 8; i++) {
+      const locator = listingResponse?.attributes?.[`other_product_image_locator_${i}`];
+      if (locator?.[0]?.media_location) {
+        observedImages.push(locator[0].media_location);
+      }
+    }
+
+    console.log(`📸 Total de imagens encontradas: ${observedImages.length}`);
 
     return new Response(
       JSON.stringify({
@@ -198,6 +214,8 @@ serve(async (req) => {
         observedAmazonPrice: observedOfferPrice,
         observedAmazonTitle: observedTitle,
         observedAmazonMainImage: observedMainImage,
+        // Array completo de imagens (principal + adicionais)
+        observedAmazonImages: observedImages,
         observedAmazonStock: observedStock,
         productType: productType,
         issues: issues,
