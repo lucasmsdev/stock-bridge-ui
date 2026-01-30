@@ -10,6 +10,7 @@ import { Progress } from "@/components/ui/progress";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { PlatformLogo } from "@/components/ui/platform-logo";
+import { AmazonLatencyWarning } from "@/components/amazon/AmazonLatencyWarning";
 
 interface ChannelStock {
   channel: string;
@@ -411,10 +412,18 @@ export function MarketplaceImagesCard({
 
       if (error) throw error;
 
-      toast({
-        title: "✅ Imagens sincronizadas!",
-        description: `As imagens foram atualizadas no ${platformNames[platform]}.`,
-      });
+      // Toast específico para Amazon com aviso de latência
+      if (platform === 'amazon') {
+        toast({
+          title: "✅ Sincronização aceita pela Amazon",
+          description: "Alterações de imagens podem levar até 24-48h para aparecer no catálogo.",
+        });
+      } else {
+        toast({
+          title: "✅ Imagens sincronizadas!",
+          description: `As imagens foram atualizadas no ${platformNames[platform]}.`,
+        });
+      }
 
       setHasChanges(prev => ({ ...prev, [platform]: false }));
       onImagesUpdated();
@@ -472,6 +481,10 @@ export function MarketplaceImagesCard({
 
             return (
               <TabsContent key={platform} value={platform} className="mt-4 space-y-4">
+                {/* Amazon latency warning */}
+                {platform === 'amazon' && (
+                  <AmazonLatencyWarning type="images" />
+                )}
                 {/* Status indicator */}
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-2">
