@@ -46,6 +46,9 @@ export const ScanResult = ({
   }
 
   if (!product) {
+    // Determine if code looks like EAN (8-14 digits) or SKU
+    const isEanCode = /^\d{8,14}$/.test(scannedCode);
+    
     return (
       <Card className="border-destructive/50 bg-destructive/5">
         <CardContent className="p-4">
@@ -57,18 +60,21 @@ export const ScanResult = ({
               <h3 className="font-medium text-destructive">Produto não encontrado</h3>
               <p className="text-sm text-muted-foreground mt-1">
                 Código escaneado: <span className="font-mono">{scannedCode}</span>
+                {isEanCode && <span className="ml-2 text-xs text-muted-foreground">(EAN/GTIN)</span>}
               </p>
               <p className="text-sm text-muted-foreground mt-1">
                 Este código não corresponde a nenhum produto cadastrado.
               </p>
               <Button 
-                variant="outline" 
+                variant="default" 
                 size="sm" 
                 className="mt-3"
-                onClick={() => navigate('/app/products/new', { state: { sku: scannedCode } })}
+                onClick={() => navigate('/app/products/new', { 
+                  state: isEanCode ? { ean: scannedCode } : { sku: scannedCode } 
+                })}
               >
                 <Package className="h-4 w-4 mr-2" />
-                Cadastrar produto
+                Cadastrar com este código
               </Button>
             </div>
           </div>

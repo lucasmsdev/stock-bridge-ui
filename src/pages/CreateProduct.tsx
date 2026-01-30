@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useLocation } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -29,6 +29,7 @@ interface Supplier {
 
 export default function CreateProduct() {
   const navigate = useNavigate();
+  const location = useLocation();
   const { toast } = useToast();
   const [loading, setLoading] = useState(false);
   const [integrations, setIntegrations] = useState<Integration[]>([]);
@@ -37,10 +38,17 @@ export default function CreateProduct() {
   const [loadingSuppliers, setLoadingSuppliers] = useState(true);
   const [showSupplierDialog, setShowSupplierDialog] = useState(false);
 
-  // Product data
+  // Get scanned code from scanner if navigated from there
+  const scannedCode = (location.state as { sku?: string; ean?: string })?.sku || 
+                      (location.state as { sku?: string; ean?: string })?.ean || '';
+  
+  // Determine if scanned code is EAN (13 digits numeric) or SKU
+  const isEanCode = /^\d{8,14}$/.test(scannedCode);
+
+  // Product data - pre-fill from scanner
   const [name, setName] = useState("");
-  const [sku, setSku] = useState("");
-  const [ean, setEan] = useState("");
+  const [sku, setSku] = useState(isEanCode ? "" : scannedCode);
+  const [ean, setEan] = useState(isEanCode ? scannedCode : "");
   const [costPrice, setCostPrice] = useState("");
   const [sellingPrice, setSellingPrice] = useState("");
   const [stock, setStock] = useState("");
