@@ -1,144 +1,249 @@
 
-# Plano: Corrigir Sincronização do Bulk Update com Amazon
+# Plano: Importar e Editar Descricao de Produtos
 
-## Problema Identificado
+## Objetivo
 
-A função `bulk-update-products` está chamando a sincronização de forma incorreta. Atualmente usa:
-
-```typescript
-await supabase.functions.invoke(syncFunction, {
-  body: { 
-    productId: listing.product_id,
-    listingId: listing.id 
-  },
-});
-```
-
-Mas a função `sync-amazon-listing` espera receber:
-
-```typescript
-{ 
-  productId, sku, stock, sellingPrice, name, imageUrl, integrationId 
-}
-```
-
-**Resultado**: A sincronização é chamada mas sem os dados atualizados, então nada é enviado à Amazon.
+Adicionar suporte completo ao campo Descricao de produtos:
+1. Importar descricao de todas as plataformas conectadas (Mercado Livre, Shopify, Amazon)
+2. Permitir editar a descricao direto pelo UNISTOCK
+3. Sincronizar alteracoes de descricao para os marketplaces
 
 ---
 
-## Sobre as Imagens
+## Situacao Atual
 
-O comportamento que você observou é esperado:
-
-1. **Imagem aparece no Seller Central mas não na página do produto**: A Amazon processa imagens de forma assíncrona. Alterações podem levar de **24 a 48 horas** para refletir no catálogo público.
-
-2. **Imagem setada como principal automaticamente**: Quando você envia uma nova imagem, ela substitui a principal existente. Para manter a ordem das imagens, todo o conjunto deve ser reenviado na ordem desejada.
+| Componente | Status | Observacao |
+|------------|--------|------------|
+| Campo no banco | Existe | Coluna `description` ja existe na tabela `products` |
+| Importacao ML | Nao puxa | Precisa adicionar `plain_text` da API |
+| Importacao Shopify | Nao puxa | Precisa adicionar `body_html` da API |
+| Importacao Amazon | Nao puxa | Amazon nao tem descricao no relatorio TSV |
+| Formulario de edicao | Nao tem | Precisa adicionar Textarea em FinancialDataForm |
+| Sincronizacao | Nao envia | Nenhuma funcao de sync atualiza descricao |
 
 ---
 
-## Solução Proposta
+## Como Funcionara
 
-Modificar a função `bulk-update-products` para:
-
-1. Buscar os dados completos de cada produto antes de sincronizar
-2. Usar `fetch` direto (como faz `update-product`) em vez de `supabase.functions.invoke`
-3. Passar todos os parâmetros necessários para cada função de sync
-
-### Fluxo Corrigido
+### Fluxo de Importacao
 
 ```text
-+-------------------+
-| Bulk Update       |
-+-------------------+
-         |
-         v
-+----------------------------+
-| Para cada produto:         |
-| 1. Atualizar no banco      |
-| 2. Buscar dados completos  |
-| 3. Buscar listing + SKU    |
-+----------------------------+
-         |
-         v
-+--------------------------------+
-| Para cada listing:              |
-| - Amazon: enviar sku, stock,    |
-|   price, name, integrationId   |
-| - Mercado Livre: enviar         |
-|   platformProductId, etc        |
-| - Shopify: enviar variantId     |
-+--------------------------------+
+Mercado Livre API  →  item.plain_text.text         →  products.description
+Shopify API        →  product.body_html             →  products.description (sem HTML)
+Amazon Reports     →  (nao disponivel no TSV)       →  null
 ```
+
+### Fluxo de Edicao
+
+```text
++--------------------------------------------------+
+|  Dados do Produto                                |
++--------------------------------------------------+
+|  Nome: [_________________________]               |
+|                                                  |
+|  Descricao:                                      |
+|  +--------------------------------------------+  |
+|  |                                            |  |
+|  |  [Textarea com até 4000 caracteres]        |  |
+|  |                                            |  |
+|  +--------------------------------------------+  |
+|  Caracteres: 250/4000                            |
+|                                                  |
+|  URL da Imagem: [______________________]         |
++--------------------------------------------------+
+```
+
+### Fluxo de Sincronizacao
+
+Ao salvar alteracoes no UNISTOCK:
+- **Mercado Livre**: PUT /items/{id} com `{ description: texto_plaintext }`
+- **Shopify**: PUT /products/{id}.json com `{ product: { body_html: texto } }`
+- **Amazon**: PATCH com atributo `product_description` (se disponivel)
 
 ---
 
 ## Arquivos a Modificar
 
-| Arquivo | Alteração |
-|---------|-----------|
-| `supabase/functions/bulk-update-products/index.ts` | Refatorar lógica de sincronização para buscar dados completos do produto e chamar funções de sync com todos os parâmetros necessários |
+| Arquivo | Tipo | Descricao |
+|---------|------|-----------|
+| `supabase/functions/import-products/index.ts` | Modificar | Extrair descricao de ML e Shopify durante importacao |
+| `src/components/financial/FinancialDataForm.tsx` | Modificar | Adicionar Textarea para descricao |
+| `supabase/functions/update-product/index.ts` | Modificar | Salvar campo description no banco |
+| `supabase/functions/sync-mercadolivre-listing/index.ts` | Modificar | Enviar descricao para ML via API |
+| `supabase/functions/sync-shopify-listing/index.ts` | Modificar | Enviar body_html para Shopify |
+| `supabase/functions/sync-amazon-listing/index.ts` | Modificar | Enviar product_description para Amazon |
+| `supabase/functions/bulk-update-products/index.ts` | Modificar | Incluir descricao nos payloads de sync |
+| `src/pages/ProductDetails.tsx` | Modificar | Incluir description na interface Product |
 
 ---
 
-## Código a Ser Alterado
+## Detalhes Tecnicos
 
-A seção de sincronização (linhas 181-235) será reescrita para:
+### 1. Importacao - Mercado Livre
 
-1. Buscar os produtos atualizados com todos os campos necessários
-2. Para cada listing, construir o payload correto baseado na plataforma
-3. Usar `fetch` direto para as edge functions (mais confiável que `invoke`)
+Ao buscar detalhes do item, a descricao esta em um endpoint separado:
 
-### Payload Correto para Amazon
+```text
+GET https://api.mercadolibre.com/items/{id}/description
 
-```typescript
+Resposta:
 {
-  productId: product.id,
-  sku: product.sku,
-  stock: product.stock,
-  sellingPrice: product.selling_price,
-  name: product.name,
-  imageUrl: product.image_url,
-  integrationId: listing.integration_id
+  "text": "",
+  "plain_text": "Descricao completa do produto...",
+  "date_created": "..."
 }
 ```
 
-### Payload Correto para Mercado Livre
+O campo `plain_text` contem a descricao sem formatacao HTML.
+
+### 2. Importacao - Shopify
+
+A descricao ja vem no objeto do produto como `body_html`:
+
+```text
+product.body_html = "<p>Descricao com HTML</p>"
+```
+
+Precisamos remover as tags HTML antes de salvar:
 
 ```typescript
+const description = product.body_html
+  ? product.body_html.replace(/<[^>]*>/g, '').trim()
+  : null;
+```
+
+### 3. Importacao - Amazon
+
+O relatorio GET_MERCHANT_LISTINGS_ALL_DATA da Amazon nao inclui descricao. Para obter a descricao, seria necessario chamar a Catalog Items API para cada produto, o que seria muito lento e custoso. Por isso, para Amazon, a descricao permanecera null na importacao inicial.
+
+### 4. Sincronizacao - Mercado Livre
+
+A API do ML aceita atualizacao de descricao via PUT:
+
+```text
+PUT https://api.mercadolibre.com/items/{id}/description
+
+Body:
 {
-  productId: product.id,
-  listingId: listing.id,
-  integrationId: listing.integration_id,
-  platformProductId: listing.platform_product_id,
-  sellingPrice: product.selling_price,
-  stock: product.stock,
-  name: product.name,
-  imageUrl: product.image_url
+  "plain_text": "Nova descricao do produto..."
 }
 ```
 
-### Payload Correto para Shopify
+**Importante**: A descricao no ML tem um limite de 50.000 caracteres e nao pode conter HTML.
+
+### 5. Sincronizacao - Shopify
+
+A API da Shopify aceita `body_html` no PUT do produto:
+
+```text
+PUT https://{shop}.myshopify.com/admin/api/2024-01/products/{id}.json
+
+Body:
+{
+  "product": {
+    "id": 123,
+    "body_html": "Descricao do produto"
+  }
+}
+```
+
+### 6. Sincronizacao - Amazon
+
+A Amazon SP-API aceita descricao via Listings Items PATCH:
+
+```text
+{
+  "op": "replace",
+  "path": "/attributes/product_description",
+  "value": [{
+    "value": "Descricao do produto",
+    "language_tag": "pt_BR",
+    "marketplace_id": "A2Q3Y263D00KWC"
+  }]
+}
+```
+
+**Nota**: Muitos ASINs tem descricao gerenciada pelo catalogo Amazon e podem nao aceitar alteracao.
+
+---
+
+## Interface Atualizada do Formulario
+
+A interface do produto sera expandida:
 
 ```typescript
-{
-  productId: product.id,
-  listingId: listing.id,
-  integrationId: listing.integration_id,
-  platformProductId: listing.platform_product_id,
-  platformVariantId: listing.platform_variant_id,
-  sellingPrice: product.selling_price,
-  stock: product.stock,
-  name: product.name,
-  imageUrl: product.image_url
+interface Product {
+  id: string;
+  name: string;
+  sku: string;
+  stock: number;
+  user_id: string;
+  created_at: string;
+  updated_at: string;
+  cost_price?: number;
+  selling_price?: number;
+  ad_spend?: number;
+  image_url?: string;
+  description?: string;  // ← NOVO
+}
+```
+
+O FinancialDataForm tera um novo campo:
+
+```text
+<div className="space-y-2">
+  <Label htmlFor="description">Descricao do Produto</Label>
+  <Textarea
+    id="description"
+    placeholder="Descreva seu produto em detalhes..."
+    value={formData.description}
+    onChange={(e) => handleInputChange('description', e.target.value)}
+    rows={4}
+    maxLength={4000}
+  />
+  <p className="text-xs text-muted-foreground">
+    {formData.description?.length || 0}/4000 caracteres
+  </p>
+</div>
+```
+
+---
+
+## Ordem de Execucao
+
+1. Atualizar `import-products` para capturar descricao de ML e Shopify
+2. Adicionar campo Textarea no `FinancialDataForm.tsx`
+3. Atualizar `update-product` para salvar descricao
+4. Atualizar `sync-mercadolivre-listing` para enviar descricao
+5. Atualizar `sync-shopify-listing` para enviar body_html
+6. Atualizar `sync-amazon-listing` para enviar product_description
+7. Atualizar `bulk-update-products` para incluir descricao nos syncs
+8. Atualizar interfaces Product em todos os arquivos necessarios
+
+---
+
+## Preservacao de Dados na Importacao
+
+Ao reimportar produtos, se a descricao da API vier vazia mas o produto ja tiver descricao no banco, manter a descricao existente:
+
+```typescript
+// Logica de preservacao (igual ja existe para imagens)
+const existingProduct = existingProducts.find(p => p.sku === newProduct.sku);
+
+// Se nova descricao esta vazia mas existe uma no banco, preservar
+if (!newProduct.description && existingProduct?.description) {
+  newProduct.description = existingProduct.description;
 }
 ```
 
 ---
 
-## Resultado Esperado
+## Limitacoes Conhecidas
 
-Após a correção:
-- Alterações de preço e estoque feitas via edição em massa serão sincronizadas corretamente com a Amazon
-- O estoque na Amazon refletirá o novo valor em 15 minutos a 2 horas
-- Preços serão atualizados quase imediatamente (minutos)
-- Imagens continuarão levando 24-48h para refletir no catálogo (limitação da Amazon)
+| Plataforma | Limitacao |
+|------------|-----------|
+| Mercado Livre | Descricao nao pode ter HTML, limite de 50.000 chars |
+| Shopify | Aceita HTML, sera convertido para plain text ao sincronizar |
+| Amazon | Muitos produtos tem descricao bloqueada pelo catalogo |
+| Amazon | Importacao nao traz descricao (seria muito lento) |
+
