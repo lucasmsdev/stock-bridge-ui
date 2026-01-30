@@ -33,6 +33,7 @@ import AIAssistant from "./pages/AIAssistant";
 import Contact from "./pages/Contact";
 import Labels from "./pages/Labels";
 import Scanner from "./pages/Scanner";
+import Team from "./pages/Team";
 
 const App = () => (
   <QueryClientProvider client={queryClient}>
@@ -72,6 +73,7 @@ const App = () => (
                 <Route path="ai-assistant" element={<AIAssistant />} />
                 <Route path="labels" element={<Labels />} />
                 <Route path="scanner" element={<Scanner />} />
+                <Route path="team" element={<Team />} />
                 {/* Redirect old stock-forecast route to products tab */}
                 <Route path="stock-forecast" element={<Navigate to="/app/products?tab=forecast" replace />} />
               </Route>

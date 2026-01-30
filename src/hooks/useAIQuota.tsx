@@ -6,6 +6,7 @@ import { supabase } from "@/integrations/supabase/client";
 interface AIUsage {
   id: string;
   user_id: string;
+  organization_id: string;
   month_year: string;
   query_count: number;
   created_at: string;
@@ -24,21 +25,21 @@ const getNextMonthFirstDay = () => {
 
 export const useAIQuota = () => {
   const { user } = useAuth();
-  const { currentPlan, hasFeature, isAdmin, isLoading: planLoading } = usePlan();
+  const { currentPlan, hasFeature, isAdmin, organizationId, isLoading: planLoading } = usePlan();
   const queryClient = useQueryClient();
 
   const monthYear = getCurrentMonthYear();
 
-  // Buscar uso atual do mês
+  // Buscar uso atual do mês para a ORGANIZAÇÃO (quota compartilhada)
   const { data: usage, isLoading: usageLoading } = useQuery({
-    queryKey: ['ai-usage', user?.id, monthYear],
+    queryKey: ['ai-usage', organizationId, monthYear],
     queryFn: async (): Promise<AIUsage | null> => {
-      if (!user?.id) return null;
+      if (!organizationId) return null;
 
       const { data, error } = await supabase
         .from('ai_usage')
         .select('*')
-        .eq('user_id', user.id)
+        .eq('organization_id', organizationId)
         .eq('month_year', monthYear)
         .maybeSingle();
 
@@ -49,14 +50,14 @@ export const useAIQuota = () => {
 
       return data;
     },
-    enabled: !!user?.id,
+    enabled: !!organizationId,
     staleTime: 30 * 1000, // 30 segundos
   });
 
-  // Mutation para incrementar uso
+  // Mutation para incrementar uso da organização
   const incrementUsage = useMutation({
     mutationFn: async () => {
-      if (!user?.id) throw new Error('Usuário não autenticado');
+      if (!user?.id || !organizationId) throw new Error('Usuário não autenticado');
 
       // Tentar atualizar primeiro (upsert)
       if (usage) {
@@ -67,11 +68,12 @@ export const useAIQuota = () => {
 
         if (error) throw error;
       } else {
-        // Criar novo registro
+        // Criar novo registro para a organização
         const { error } = await supabase
           .from('ai_usage')
           .insert({
             user_id: user.id,
+            organization_id: organizationId,
             month_year: monthYear,
             query_count: 1
           });
@@ -80,7 +82,7 @@ export const useAIQuota = () => {
       }
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['ai-usage', user?.id, monthYear] });
+      queryClient.invalidateQueries({ queryKey: ['ai-usage', organizationId, monthYear] });
     }
   });
 

@@ -94,23 +94,35 @@ serve(async (req) => {
       }
 
       const stripeCustomerId = session.customer;
-      logStep("Updating user plan and Stripe customer ID", { userId, planType: finalPlanType, stripeCustomerId });
+      logStep("Updating organization plan and Stripe customer ID", { userId, planType: finalPlanType, stripeCustomerId });
 
-      // Update user's plan and save stripe_customer_id in the profiles table
+      // Find user's organization via organization_members
+      const { data: memberData, error: memberError } = await supabaseClient
+        .from('organization_members')
+        .select('organization_id')
+        .eq('user_id', userId)
+        .single();
+
+      if (memberError || !memberData) {
+        logStep("ERROR: User organization not found", { userId, error: memberError });
+        return new Response("User organization not found", { status: 400 });
+      }
+
+      // Update organization's plan and stripe_customer_id
       const { error: updateError } = await supabaseClient
-        .from('profiles')
+        .from('organizations')
         .update({ 
           plan: finalPlanType,
           stripe_customer_id: stripeCustomerId 
         })
-        .eq('id', userId);
+        .eq('id', memberData.organization_id);
 
       if (updateError) {
-        logStep("ERROR updating user plan", { error: updateError });
+        logStep("ERROR updating organization plan", { error: updateError });
         return new Response(`Database error: ${updateError.message}`, { status: 500 });
       }
 
-      logStep("User plan updated successfully", { userId, planType: finalPlanType });
+      logStep("Organization plan updated successfully", { orgId: memberData.organization_id, planType: finalPlanType });
     }
 
     // Handle subscription events
@@ -118,26 +130,21 @@ serve(async (req) => {
       const subscription = event.data.object;
       logStep(`Processing ${event.type}`, { subscriptionId: subscription.id });
 
-      // Get customer email to find user
-      const customer = await stripe.customers.retrieve(subscription.customer);
-      if (customer.deleted || !customer.email) {
-        logStep("ERROR: Customer not found or no email", { customer });
-        return new Response("Customer not found", { status: 400 });
-      }
+      const stripeCustomerId = subscription.customer;
 
-      // Find user by email
-      const { data: userData, error: userError } = await supabaseClient
-        .from('profiles')
+      // Find organization by stripe_customer_id
+      const { data: orgData, error: orgError } = await supabaseClient
+        .from('organizations')
         .select('id')
-        .eq('email', customer.email)
+        .eq('stripe_customer_id', stripeCustomerId)
         .single();
 
-      if (userError || !userData) {
-        logStep("ERROR: User not found", { email: customer.email, error: userError });
-        return new Response("User not found", { status: 400 });
+      if (orgError || !orgData) {
+        logStep("ERROR: Organization not found by stripe_customer_id", { stripeCustomerId, error: orgError });
+        return new Response("Organization not found", { status: 400 });
       }
 
-      let newPlan = 'estrategista'; // Default plan
+      let newPlan = 'iniciante'; // Default plan
 
       if (event.type === 'customer.subscription.updated' && subscription.status === 'active') {
         // Get the price ID from the subscription
@@ -148,22 +155,22 @@ serve(async (req) => {
           'price_1SPpumKRFmEnuZwjDVJSIOZ2': 'dominador',
           'price_1SPodWKdlB8Nu9cyShTWmTES': 'unlimited'
         };
-        newPlan = priceToPlantMap[priceId as keyof typeof priceToPlantMap] || 'estrategista';
+        newPlan = priceToPlantMap[priceId as keyof typeof priceToPlantMap] || 'iniciante';
       }
 
-      logStep("Updating user plan from subscription event", { userId: userData.id, newPlan });
+      logStep("Updating organization plan from subscription event", { orgId: orgData.id, newPlan });
 
       const { error: updateError } = await supabaseClient
-        .from('profiles')
+        .from('organizations')
         .update({ plan: newPlan })
-        .eq('id', userData.id);
+        .eq('id', orgData.id);
 
       if (updateError) {
-        logStep("ERROR updating user plan", { error: updateError });
+        logStep("ERROR updating organization plan", { error: updateError });
         return new Response(`Database error: ${updateError.message}`, { status: 500 });
       }
 
-      logStep("User plan updated from subscription event", { userId: userData.id, newPlan });
+      logStep("Organization plan updated from subscription event", { orgId: orgData.id, newPlan });
     }
 
     return new Response(JSON.stringify({ received: true }), {

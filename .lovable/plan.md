@@ -1,6 +1,48 @@
 
 # Plano: Sistema Multi-Usuario com Organizacoes e Roles
 
+## ✅ Concluído
+
+### Fase 1: Banco de Dados
+- [x] Tabela `organizations` criada
+- [x] Tabela `organization_members` criada  
+- [x] Tabela `organization_invites` criada
+- [x] Funções de segurança (get_user_org_id, get_user_org_role, can_write_in_org, is_org_admin)
+- [x] Políticas RLS atualizadas para todas as tabelas
+- [x] Migração de dados existentes
+- [x] Trigger para criar organização no signup
+- [x] Coluna organization_id adicionada em todas as tabelas
+
+### Fase 2: Edge Functions
+- [x] `manage-organization` criada (join, info)
+- [x] `stripe-webhook` atualizado para usar organização
+
+### Fase 3: Hooks
+- [x] `useOrganization` criado
+- [x] `useOrgRole` criado
+- [x] `usePlan` atualizado para buscar plano da organização
+- [x] `useAIQuota` atualizado para quota compartilhada
+
+### Fase 4: Frontend  
+- [x] Página `Team.tsx` criada
+- [x] Componentes team (TeamMembersList, InviteCodeDialog, JoinOrganizationDialog, RoleBadge, ActiveInvitesList)
+- [x] Menu Equipe no sidebar (apenas para admins)
+- [x] Rota /app/team adicionada
+
+## 📋 Próximos Passos
+
+### Fase 5: Verificações de Permissão nos Componentes
+- [ ] Adicionar useOrgRole nos componentes de edição/exclusão
+- [ ] Desabilitar botões para visualizadores
+- [ ] Ocultar botões de deletar para operadores
+
+### Fase 6: Melhorias
+- [ ] Adicionar JoinOrganizationDialog no perfil do usuário
+- [ ] Notificações quando membro entra/sai
+- [ ] Logs de auditoria
+
+---
+
 ## Modelo de Negocio
 
 O plano de assinatura (Iniciante, Profissional, Enterprise, Unlimited) sera vinculado a **organizacao**, nao ao usuario individual. O admin (dono) paga o plano, e todos os membros da organizacao herdam o acesso as features desse plano.
