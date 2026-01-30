@@ -53,6 +53,7 @@ import { useToast } from "@/hooks/use-toast";
 import { usePlan, FeatureName } from "@/hooks/usePlan";
 import { UpgradeBanner } from "@/components/ui/upgrade-banner";
 import { StockForecastAI } from "@/components/stock/StockForecastAI";
+import { BulkEditDialog } from "@/components/products/BulkEditDialog";
 
 interface Product {
   id: string;
@@ -119,6 +120,7 @@ export default function Products() {
   const [isImporting, setIsImporting] = useState(false);
   const [editingProduct, setEditingProduct] = useState<Product | null>(null);
   const [deletingProduct, setDeletingProduct] = useState<Product | null>(null);
+  const [bulkEditOpen, setBulkEditOpen] = useState(false);
   const [editForm, setEditForm] = useState({
     name: "",
     sku: "",
@@ -719,12 +721,20 @@ export default function Products() {
                 </span>
               </div>
               <div className="flex gap-2">
-                <Button variant="outline" size="sm" className="hover:bg-destructive hover:text-destructive-foreground">
-                  Deletar Selecionados
-                </Button>
-                <Button variant="outline" size="sm">
-                  Editar em Massa
-                </Button>
+                {canDeleteItems && (
+                  <Button variant="outline" size="sm" className="hover:bg-destructive hover:text-destructive-foreground">
+                    Deletar Selecionados
+                  </Button>
+                )}
+                {canWrite && (
+                  <Button 
+                    variant="outline" 
+                    size="sm"
+                    onClick={() => setBulkEditOpen(true)}
+                  >
+                    Editar em Massa
+                  </Button>
+                )}
                 <Button 
                   variant="ghost" 
                   size="sm"
@@ -1081,6 +1091,18 @@ export default function Products() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {/* Bulk Edit Dialog */}
+      <BulkEditDialog
+        open={bulkEditOpen}
+        onOpenChange={setBulkEditOpen}
+        selectedProducts={filteredProducts.filter(p => selectedProducts.includes(p.id))}
+        suppliers={suppliers}
+        onSuccess={() => {
+          setSelectedProducts([]);
+          loadProducts();
+        }}
+      />
     </div>
   );
 }
