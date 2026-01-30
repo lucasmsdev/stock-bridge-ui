@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
-import { useSearchParams } from "react-router-dom";
-import { Plus, Settings, Unlink, ExternalLink, CheckCircle2, Plug, Loader2, Lock, Download, Key, RefreshCw, Clock, AlertTriangle } from "lucide-react";
+import { useSearchParams, useNavigate } from "react-router-dom";
+import { Plus, Settings, Unlink, ExternalLink, CheckCircle2, Plug, Loader2, Lock, Download, Key, RefreshCw, Clock, AlertTriangle, ShieldAlert } from "lucide-react";
 import { useThemeProvider } from "@/components/layout/ThemeProvider";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -26,6 +26,7 @@ import { UpgradeBanner } from "@/components/ui/upgrade-banner";
 import { AmazonSelfAuthDialog } from "@/components/integrations/AmazonSelfAuthDialog";
 import { AmazonSellerIdDialog } from "@/components/integrations/AmazonSellerIdDialog";
 import { TokenStatusBadge, getTimeUntilExpiry } from "@/components/integrations/TokenStatusBadge";
+import { useOrgRole } from "@/hooks/useOrgRole";
 
 // Mock data
 const availableIntegrations = [
@@ -61,6 +62,7 @@ const availableIntegrations = [
 ];
 
 export default function Integrations() {
+  const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
   const [disconnectingId, setDisconnectingId] = useState<string | null>(null);
   const [importingId, setImportingId] = useState<string | null>(null);
@@ -78,6 +80,19 @@ export default function Integrations() {
   const { toast } = useToast();
   const { canAccess, getUpgradeRequiredMessage } = usePlan();
   const { theme } = useThemeProvider();
+  const { canManageIntegrations, isLoading: roleLoading } = useOrgRole();
+
+  // Redirect non-admins
+  useEffect(() => {
+    if (!roleLoading && !canManageIntegrations) {
+      toast({
+        title: "Acesso restrito",
+        description: "Apenas administradores podem gerenciar integrações.",
+        variant: "destructive",
+      });
+      navigate('/app/dashboard');
+    }
+  }, [roleLoading, canManageIntegrations, navigate, toast]);
 
   useEffect(() => {
     loadConnectedIntegrations();

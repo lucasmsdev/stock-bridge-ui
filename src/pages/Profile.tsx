@@ -29,7 +29,9 @@ import {
   Save,
   Loader2,
   Database,
-  Bell
+  Bell,
+  Users,
+  UserPlus
 } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import { usePlan } from "@/hooks/usePlan";
@@ -37,6 +39,9 @@ import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { NotificationPreferences } from "@/components/notifications/NotificationPreferences";
 import { AvatarUpload } from "@/components/profile/AvatarUpload";
+import { useOrganization } from "@/hooks/useOrganization";
+import { JoinOrganizationDialog } from "@/components/team/JoinOrganizationDialog";
+import { RoleBadge } from "@/components/team/RoleBadge";
 
 interface ProfileData {
   full_name: string;
@@ -70,6 +75,7 @@ export default function Profile() {
   const { user, signOut } = useAuth();
   const { currentPlan, getPlanFeatures, getLegacyPlanFeatures, isAdmin } = usePlan();
   const { toast } = useToast();
+  const { organization, role } = useOrganization();
   
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
@@ -590,6 +596,48 @@ export default function Profile() {
 
         {/* Sidebar with Plan Info */}
         <div className="space-y-6">
+          {/* Organization Card */}
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Users className="h-5 w-5 text-primary" />
+                Organização
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              {organization ? (
+                <>
+                  <div className="space-y-2">
+                    <p className="text-sm text-muted-foreground">Você faz parte de:</p>
+                    <p className="text-lg font-semibold text-foreground">{organization.name}</p>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <span className="text-sm text-muted-foreground">Papel:</span>
+                    {role && <RoleBadge role={role} />}
+                  </div>
+                </>
+              ) : (
+                <p className="text-sm text-muted-foreground">
+                  Você ainda não faz parte de uma organização.
+                </p>
+              )}
+              
+              <Separator />
+              
+              <JoinOrganizationDialog
+                trigger={
+                  <Button variant="outline" className="w-full">
+                    <UserPlus className="h-4 w-4 mr-2" />
+                    Tenho um código de convite
+                  </Button>
+                }
+              />
+              <p className="text-xs text-muted-foreground text-center">
+                Use um código de convite para entrar em outra organização
+              </p>
+            </CardContent>
+          </Card>
+
           {/* Plan Information */}
           <Card>
             <CardHeader>

@@ -26,9 +26,9 @@ import {
 interface ExpensesListProps {
   expenses: Expense[];
   loading: boolean;
-  onEdit: (expense: Expense) => void;
-  onDelete: (id: string) => void;
-  onToggleActive: (id: string, isActive: boolean) => void;
+  onEdit?: (expense: Expense) => void;
+  onDelete?: (id: string) => void;
+  onToggleActive?: (id: string, isActive: boolean) => void;
 }
 
 const categoryConfig = {
@@ -131,48 +131,54 @@ export function ExpensesList({
                 </div>
 
                 <div className="flex items-center gap-2 shrink-0">
-                  <Switch
-                    checked={expense.is_active}
-                    onCheckedChange={() => onToggleActive(expense.id, expense.is_active)}
-                    aria-label="Ativar/desativar despesa"
-                  />
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    onClick={() => onEdit(expense)}
-                    className="h-8 w-8"
-                  >
-                    <Pencil className="h-4 w-4" />
-                  </Button>
-                  <AlertDialog>
-                    <AlertDialogTrigger asChild>
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        className="h-8 w-8 text-destructive hover:text-destructive"
-                      >
-                        <Trash2 className="h-4 w-4" />
-                      </Button>
-                    </AlertDialogTrigger>
-                    <AlertDialogContent>
-                      <AlertDialogHeader>
-                        <AlertDialogTitle>Remover despesa?</AlertDialogTitle>
-                        <AlertDialogDescription>
-                          Esta ação não pode ser desfeita. A despesa "{expense.name}" 
-                          será permanentemente removida.
-                        </AlertDialogDescription>
-                      </AlertDialogHeader>
-                      <AlertDialogFooter>
-                        <AlertDialogCancel>Cancelar</AlertDialogCancel>
-                        <AlertDialogAction
-                          onClick={() => onDelete(expense.id)}
-                          className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                  {onToggleActive && (
+                    <Switch
+                      checked={expense.is_active}
+                      onCheckedChange={() => onToggleActive(expense.id, expense.is_active)}
+                      aria-label="Ativar/desativar despesa"
+                    />
+                  )}
+                  {onEdit && (
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      onClick={() => onEdit(expense)}
+                      className="h-8 w-8"
+                    >
+                      <Pencil className="h-4 w-4" />
+                    </Button>
+                  )}
+                  {onDelete && (
+                    <AlertDialog>
+                      <AlertDialogTrigger asChild>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-8 w-8 text-destructive hover:text-destructive"
                         >
-                          Remover
-                        </AlertDialogAction>
-                      </AlertDialogFooter>
-                    </AlertDialogContent>
-                  </AlertDialog>
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      </AlertDialogTrigger>
+                      <AlertDialogContent>
+                        <AlertDialogHeader>
+                          <AlertDialogTitle>Remover despesa?</AlertDialogTitle>
+                          <AlertDialogDescription>
+                            Esta ação não pode ser desfeita. A despesa "{expense.name}" 
+                            será permanentemente removida.
+                          </AlertDialogDescription>
+                        </AlertDialogHeader>
+                        <AlertDialogFooter>
+                          <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                          <AlertDialogAction
+                            onClick={() => onDelete(expense.id)}
+                            className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                          >
+                            Remover
+                          </AlertDialogAction>
+                        </AlertDialogFooter>
+                      </AlertDialogContent>
+                    </AlertDialog>
+                  )}
                 </div>
               </div>
             </div>

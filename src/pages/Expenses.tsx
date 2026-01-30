@@ -11,6 +11,7 @@ import { ProfitProjection } from "@/components/expenses/ProfitProjection";
 import { FinancialSettings, FinancialSettingsData } from "@/components/expenses/FinancialSettings";
 import { MonthlyHistoryChart } from "@/components/expenses/MonthlyHistoryChart";
 import { Receipt, PlusCircle, PieChart, TrendingUp, Settings, BarChart3 } from "lucide-react";
+import { useOrgRole } from "@/hooks/useOrgRole";
 
 export interface Expense {
   id: string;
@@ -30,6 +31,7 @@ export interface Expense {
 export default function Expenses() {
   const { user } = useAuth();
   const { toast } = useToast();
+  const { canWrite, canDeleteItems } = useOrgRole();
   const [expenses, setExpenses] = useState<Expense[]>([]);
   const [loading, setLoading] = useState(true);
   const [editingExpense, setEditingExpense] = useState<Expense | null>(null);
@@ -160,40 +162,44 @@ export default function Expenses() {
 
         <TabsContent value="register" className="space-y-6">
           <div className="grid gap-6 lg:grid-cols-2">
-            <Card>
-              <CardHeader>
-                <CardTitle>
-                  {editingExpense ? 'Editar Despesa' : 'Nova Despesa'}
-                </CardTitle>
-                <CardDescription>
-                  {editingExpense 
-                    ? 'Atualize os dados da despesa abaixo.'
-                    : 'Adicione uma nova despesa recorrente ou pontual.'}
-                </CardDescription>
-              </CardHeader>
-              <CardContent>
-                <ExpenseForm 
-                  expense={editingExpense}
-                  onSuccess={handleExpenseCreated}
-                  onCancel={() => setEditingExpense(null)}
-                />
-              </CardContent>
-            </Card>
+            {canWrite && (
+              <Card>
+                <CardHeader>
+                  <CardTitle>
+                    {editingExpense ? 'Editar Despesa' : 'Nova Despesa'}
+                  </CardTitle>
+                  <CardDescription>
+                    {editingExpense 
+                      ? 'Atualize os dados da despesa abaixo.'
+                      : 'Adicione uma nova despesa recorrente ou pontual.'}
+                  </CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <ExpenseForm 
+                    expense={editingExpense}
+                    onSuccess={handleExpenseCreated}
+                    onCancel={() => setEditingExpense(null)}
+                  />
+                </CardContent>
+              </Card>
+            )}
 
-            <Card>
+            <Card className={!canWrite ? "lg:col-span-2" : ""}>
               <CardHeader>
                 <CardTitle>Despesas Cadastradas</CardTitle>
                 <CardDescription>
-                  Gerencie suas despesas ativas e inativas.
+                  {canWrite 
+                    ? 'Gerencie suas despesas ativas e inativas.'
+                    : 'Visualize as despesas cadastradas.'}
                 </CardDescription>
               </CardHeader>
               <CardContent>
                 <ExpensesList 
                   expenses={expenses}
                   loading={loading}
-                  onEdit={handleEditExpense}
-                  onDelete={handleDeleteExpense}
-                  onToggleActive={handleToggleActive}
+                  onEdit={canWrite ? handleEditExpense : undefined}
+                  onDelete={canDeleteItems ? handleDeleteExpense : undefined}
+                  onToggleActive={canWrite ? handleToggleActive : undefined}
                 />
               </CardContent>
             </Card>
