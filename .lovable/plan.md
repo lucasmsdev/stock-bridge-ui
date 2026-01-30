@@ -1,147 +1,183 @@
 
-# Plano: Sistema Multi-Usuário e RBAC - COMPLETO ✅
-
-> **STATUS: IMPLEMENTADO**
+# Plano: Edicao em Massa de Produtos
 
 ## Objetivo
 
-Finalizar a implementacao do sistema multi-usuario adicionando as verificacoes de permissao (role-based) nos componentes e integrando o dialog de convite na pagina de Perfil.
+Implementar a funcionalidade de edicao em massa que permite aos usuarios selecionar multiplos produtos e atualizar campos especificos de todos eles de uma vez, economizando tempo e esforco.
 
 ---
 
-## O Que Sera Feito
+## Como Funcionara
 
-### 1. Adicionar Verificacoes de Permissao nos Componentes
+### Fluxo do Usuario
 
-Cada componente que permite criar, editar ou excluir dados precisa respeitar os papeis:
-- **Admin**: Pode criar, editar e excluir
-- **Operator**: Pode criar e editar (nao pode excluir)
-- **Viewer**: Apenas visualiza (nao pode criar, editar ou excluir)
+1. Usuario seleciona produtos usando os checkboxes na tabela
+2. Barra de acoes aparece mostrando "X produtos selecionados"
+3. Usuario clica em "Editar em Massa"
+4. Modal abre com campos editaveis (apenas campos que fazem sentido editar em massa)
+5. Usuario preenche apenas os campos que quer alterar
+6. Sistema atualiza todos os produtos selecionados com os novos valores
+7. Sincronizacao com marketplaces e executada para cada produto
 
-**Componentes a modificar:**
+### Campos Disponiveis para Edicao em Massa
 
-| Componente | Alteracao |
-|------------|-----------|
-| Products.tsx | Ocultar botao "Novo Produto" para viewers, ocultar "Excluir" para operators |
-| CreateProduct.tsx | Redirecionar viewers que tentarem acessar diretamente |
-| ProductDetails.tsx | Ocultar botoes de edicao para viewers, excluir para operators |
-| Orders.tsx | Mesma logica de permissoes |
-| Suppliers.tsx | Mesma logica de permissoes |
-| SupplierDetails.tsx | Mesma logica de permissoes |
-| Expenses.tsx | Mesma logica de permissoes |
-| Integrations.tsx | Ocultar completamente para viewers e operators (apenas admin) |
+| Campo | Tipo | Comportamento |
+|-------|------|---------------|
+| Preco de Venda | Numero | Aplica mesmo preco a todos |
+| Preco de Custo | Numero | Aplica mesmo custo a todos |
+| Estoque (Ajuste) | Numero | Duas opcoes: "Definir valor" ou "Adicionar/Subtrair" |
+| Fornecedor | Select | Vincula mesmo fornecedor a todos |
 
-**Exemplo de implementacao:**
+Campos NAO incluidos (por serem unicos por produto): Nome, SKU, Imagem
+
+---
+
+## O Que Sera Criado
+
+### 1. Componente BulkEditDialog
+
+Novo componente que exibe o modal de edicao em massa.
 
 ```text
-// No componente
-const { canWrite, isAdmin, isViewer } = useOrgRole();
-
-// Botao de criar (admin e operator)
-{canWrite && <Button>Novo Produto</Button>}
-
-// Botao de excluir (apenas admin)
-{isAdmin && <Button variant="destructive">Excluir</Button>}
-
-// Redirecionar viewer de paginas de criacao
-if (isViewer) {
-  navigate('/app/products');
-  toast({ title: "Acesso negado", description: "Voce nao tem permissao para criar produtos." });
-  return;
-}
++--------------------------------------------------+
+|  Editar 5 Produtos em Massa                      |
++--------------------------------------------------+
+|                                                  |
+|  Preco de Venda                                  |
+|  [_______________________] R$                    |
+|  [ ] Nao alterar                                 |
+|                                                  |
+|  Preco de Custo                                  |
+|  [_______________________] R$                    |
+|  [ ] Nao alterar                                 |
+|                                                  |
+|  Estoque                                         |
+|  (o) Nao alterar                                 |
+|  ( ) Definir valor: [____]                       |
+|  ( ) Adicionar: [____]                           |
+|  ( ) Subtrair: [____]                            |
+|                                                  |
+|  Fornecedor                                      |
+|  [Selecione um fornecedor    v]                  |
+|  [ ] Nao alterar                                 |
+|                                                  |
+|               [Cancelar]  [Aplicar Alteracoes]   |
++--------------------------------------------------+
 ```
 
----
+### 2. Edge Function bulk-update-products
 
-### 2. Adicionar Dialog de Convite na Pagina de Perfil
+Nova Edge Function que processa a atualizacao de multiplos produtos de forma eficiente.
 
-Permitir que usuarios usem codigos de convite para entrar em organizacoes existentes.
-
-**Alteracoes em Profile.tsx:**
-- Adicionar secao "Entrar em uma Organizacao"
-- Botao "Tenho um codigo de convite"
-- Ao clicar, abre o JoinOrganizationDialog existente
-- Apos entrar com sucesso, recarrega a pagina para atualizar o contexto
-
-**Interface:**
-
-```text
-+------------------------------------------+
-|  Organizacao                             |
-+------------------------------------------+
-|  Voce faz parte de: Minha Empresa        |
-|  Papel: Operador                         |
-|                                          |
-|  [Tenho um codigo de convite]            |
-+------------------------------------------+
-```
+Responsabilidades:
+- Receber array de IDs de produtos
+- Validar que todos pertencem ao usuario
+- Aplicar alteracoes em lote
+- Disparar sincronizacao com marketplaces para cada produto
+- Retornar resumo do resultado
 
 ---
 
-### 3. Bloquear Acesso a Integracoes para Nao-Admins
+## Arquivos a Criar/Modificar
 
-A pagina de Integracoes deve ser acessivel apenas para admins, pois conectar marketplaces e afeta toda a organizacao.
-
-**Alteracoes:**
-- Integrations.tsx: Verificar se e admin, se nao, mostrar mensagem e redirecionar
-- AppSidebar.tsx: Ja oculta o menu para nao-admins (implementado)
-
----
-
-## Arquivos a Modificar
-
-| Arquivo | Alteracao |
-|---------|-----------|
-| src/pages/Products.tsx | Importar useOrgRole, ocultar botoes conforme papel |
-| src/pages/CreateProduct.tsx | Verificar canWrite antes de renderizar |
-| src/pages/ProductDetails.tsx | Ocultar botoes de edicao/exclusao |
-| src/pages/Orders.tsx | Verificar permissoes |
-| src/pages/Suppliers.tsx | Verificar permissoes |
-| src/pages/SupplierDetails.tsx | Verificar permissoes |
-| src/pages/Expenses.tsx | Verificar permissoes |
-| src/pages/Integrations.tsx | Bloquear acesso para nao-admins |
-| src/pages/Profile.tsx | Adicionar secao de organizacao e JoinOrganizationDialog |
+| Arquivo | Acao | Descricao |
+|---------|------|-----------|
+| src/components/products/BulkEditDialog.tsx | Criar | Modal de edicao em massa |
+| supabase/functions/bulk-update-products/index.ts | Criar | Edge Function para update em lote |
+| src/pages/Products.tsx | Modificar | Integrar o BulkEditDialog e conectar ao botao |
+| supabase/config.toml | Modificar | Registrar nova Edge Function |
 
 ---
 
 ## Detalhes Tecnicos
 
-### Logica de Permissoes Resumida
+### Interface do BulkEditDialog
 
-| Acao | Admin | Operator | Viewer |
-|------|-------|----------|--------|
-| Visualizar dados | Sim | Sim | Sim |
-| Criar produtos/pedidos | Sim | Sim | Nao |
-| Editar produtos/pedidos | Sim | Sim | Nao |
-| Excluir produtos/pedidos | Sim | Nao | Nao |
-| Gerenciar integracoes | Sim | Nao | Nao |
-| Gerenciar equipe | Sim | Nao | Nao |
+```text
+interface BulkEditFormData {
+  sellingPrice?: number | null;       // null = nao alterar
+  costPrice?: number | null;
+  stockMode: 'none' | 'set' | 'add' | 'subtract';
+  stockValue?: number;
+  supplierId?: string | null;
+}
 
-### Hook useOrgRole (ja existe)
-
-```typescript
-const { 
-  role,           // 'admin' | 'operator' | 'viewer'
-  isAdmin,        // true se admin
-  isOperator,     // true se operator
-  isViewer,       // true se viewer
-  canWrite,       // true se admin ou operator
-  canManageTeam,  // true se admin
-  canManageIntegrations, // true se admin
-  canDeleteItems  // true se admin
-} = useOrgRole();
+interface BulkEditDialogProps {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  selectedProducts: Product[];
+  suppliers: Supplier[];
+  onSuccess: () => void;
+}
 ```
+
+### Payload da Edge Function
+
+```text
+// Request
+{
+  productIds: string[];
+  updates: {
+    selling_price?: number;
+    cost_price?: number;
+    stock_mode?: 'set' | 'add' | 'subtract';
+    stock_value?: number;
+    supplier_id?: string;
+  }
+}
+
+// Response
+{
+  success: boolean;
+  updated: number;
+  synced: number;
+  errors: Array<{productId: string; error: string}>;
+}
+```
+
+### Logica de Atualizacao de Estoque
+
+```text
+switch (stock_mode) {
+  case 'set':
+    // UPDATE SET stock = stock_value
+    break;
+  case 'add':
+    // UPDATE SET stock = stock + stock_value
+    break;
+  case 'subtract':
+    // UPDATE SET stock = GREATEST(0, stock - stock_value)
+    break;
+}
+```
+
+---
+
+## Verificacoes de Permissao
+
+- Apenas usuarios com `canWrite` (admin ou operator) podem usar edicao em massa
+- O botao "Editar em Massa" ja esta condicionado a isso na barra de acoes
+- A Edge Function valida que todos os produtos pertencem ao usuario autenticado
+
+---
+
+## Sincronizacao com Marketplaces
+
+Para cada produto atualizado:
+1. Buscar listings vinculados
+2. Chamar funcoes de sync existentes (sync-amazon-listing, sync-mercadolivre-listing, sync-shopify-listing)
+3. Coletar resultados e exibir resumo ao usuario
+
+Toast final:
+"5 produtos atualizados. 12/15 listings sincronizados com marketplaces."
 
 ---
 
 ## Ordem de Execucao
 
-1. Adicionar verificacoes em Products.tsx (botoes de criar/excluir)
-2. Adicionar verificacoes em CreateProduct.tsx (redirect se viewer)
-3. Adicionar verificacoes em ProductDetails.tsx
-4. Adicionar verificacoes em Orders.tsx
-5. Adicionar verificacoes em Suppliers.tsx e SupplierDetails.tsx
-6. Adicionar verificacoes em Expenses.tsx
-7. Bloquear Integrations.tsx para nao-admins
-8. Adicionar secao de organizacao e JoinOrganizationDialog em Profile.tsx
-9. Testar fluxo completo com diferentes papeis
+1. Criar Edge Function `bulk-update-products`
+2. Registrar em `supabase/config.toml`
+3. Criar componente `BulkEditDialog.tsx`
+4. Integrar dialog em `Products.tsx`
+5. Conectar botao "Editar em Massa" ao dialog
+6. Testar fluxo completo
