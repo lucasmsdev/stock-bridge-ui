@@ -135,5 +135,11 @@ verify_jwt = true
 [functions.update-product-images]
 verify_jwt = true
 
+[functions.bulk-update-products]
+verify_jwt = true
+
+[functions.manage-organization]
+verify_jwt = true
+
 [functions.manage-organization]
 verify_jwt = true
