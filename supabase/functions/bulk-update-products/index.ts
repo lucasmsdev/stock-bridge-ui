@@ -183,44 +183,94 @@ Deno.serve(async (req) => {
     const supabaseServiceRoleKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
 
     if (supabaseServiceRoleKey) {
-      // Get all listings for updated products
+      // Fetch complete product data for sync
+      const { data: updatedProducts } = await supabase
+        .from('products')
+        .select('id, sku, stock, selling_price, name, image_url, images')
+        .in('id', productIds);
+
+      const productMap = new Map(updatedProducts?.map(p => [p.id, p]) || []);
+
+      // Get all listings for updated products with full details
       const { data: listings } = await supabase
         .from('product_listings')
-        .select('id, product_id, platform, integration_id')
+        .select('id, product_id, platform, integration_id, platform_product_id, platform_variant_id')
         .in('product_id', productIds);
 
       if (listings && listings.length > 0) {
         for (const listing of listings) {
+          const product = productMap.get(listing.product_id);
+          if (!product) continue;
+
           try {
             let syncFunction = '';
+            let payload: Record<string, any> = {};
+
             switch (listing.platform) {
               case 'mercadolivre':
                 syncFunction = 'sync-mercadolivre-listing';
+                payload = {
+                  productId: product.id,
+                  listingId: listing.id,
+                  integrationId: listing.integration_id,
+                  platformProductId: listing.platform_product_id,
+                  sellingPrice: product.selling_price,
+                  stock: product.stock,
+                  name: product.name,
+                  imageUrl: product.image_url,
+                };
                 break;
               case 'amazon':
                 syncFunction = 'sync-amazon-listing';
+                payload = {
+                  productId: product.id,
+                  sku: product.sku,
+                  stock: product.stock,
+                  sellingPrice: product.selling_price,
+                  name: product.name,
+                  imageUrl: product.image_url,
+                  integrationId: listing.integration_id,
+                };
                 break;
               case 'shopify':
                 syncFunction = 'sync-shopify-listing';
+                payload = {
+                  productId: product.id,
+                  listingId: listing.id,
+                  integrationId: listing.integration_id,
+                  platformProductId: listing.platform_product_id,
+                  platformVariantId: listing.platform_variant_id,
+                  sellingPrice: product.selling_price,
+                  stock: product.stock,
+                  name: product.name,
+                  imageUrl: product.image_url,
+                };
                 break;
               default:
                 continue; // Skip unsupported platforms
             }
 
-            // Call the sync function
-            const { error: syncError } = await supabase.functions.invoke(syncFunction, {
-              body: { 
-                productId: listing.product_id,
-                listingId: listing.id 
+            // Call the sync function using fetch for reliability
+            const response = await fetch(`${supabaseUrl}/functions/v1/${syncFunction}`, {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${supabaseServiceRoleKey}`,
               },
+              body: JSON.stringify(payload),
             });
+
+            const result = await response.json().catch(() => ({}));
+            const success = response.ok && result.success !== false;
 
             syncResults.push({
               productId: listing.product_id,
               platform: listing.platform,
-              success: !syncError,
-              error: syncError?.message,
+              success,
+              error: success ? undefined : (result.error || `HTTP ${response.status}`),
             });
+
+            console.log(`Sync ${listing.platform} for product ${product.id}: ${success ? 'OK' : 'FAILED'}`, result);
           } catch (err) {
             console.error(`Error syncing listing ${listing.id}:`, err);
             syncResults.push({
