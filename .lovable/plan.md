@@ -1,127 +1,100 @@
 
+# Plano: Adicionar Aviso de Latência da Amazon no Frontend
 
-# Plano: Corrigir Erro de Exclusão de Slots Vazios na Amazon
+## Contexto
 
-## Problema Identificado
+Os logs confirmam que **todas as sincronizações estão funcionando** (preço, nome, estoque e imagens). A Amazon retorna `status: "ACCEPTED"` para todas as operações. O problema é que o usuário não sabe que a Amazon leva tempo para processar:
 
-Quando o usuário sincroniza imagens com a Amazon e tem apenas 1 imagem na galeria, o sistema tenta **deletar os slots de imagens adicionais (1 a 8)** que podem nunca ter sido preenchidos. A Amazon retorna:
+- **15 min a 2 horas**: Preço e Estoque
+- **24 a 48 horas**: Nome e Imagens
 
-```
-Error: Invalid empty value provided in patch at index of 1
-```
+## Solucao
 
-Isso significa que não podemos enviar operações `DELETE` para slots que já estão vazios.
+Adicionar avisos visuais no frontend informando sobre os tempos de processamento da Amazon, para que o usuario entenda que "ACCEPTED" nao significa "visivel imediatamente".
 
-## Causa Raiz
+## Implementacao
 
-No código atual (linhas 254-265 de `update-product-images/index.ts`):
+### Arquivo 1: `src/components/products/MarketplaceImagesCard.tsx`
 
-```typescript
-// Delete unused image slots (if user removed images)
-for (let i = validImages.length; i <= 8; i++) {
-  if (i > 0) {
-    patches.push({
-      op: 'delete',
-      path: `/attributes/other_product_image_locator_${i}`
-    });
-  }
-}
-```
-
-O problema é que o código **sempre tenta deletar** todos os slots não usados, independentemente de eles existirem ou não.
-
-## Solução
-
-**Antes de deletar um slot, verificar se ele existe no listing atual.** 
-
-Modificar o fluxo para:
-1. Buscar o listing atual via `getListingsItem` com `includedData=['attributes', 'summaries']`
-2. Extrair quais slots `other_product_image_locator_X` existem atualmente
-3. Só deletar os slots que realmente existem
-
-## Implementacao Tecnica
-
-### Arquivo: `supabase/functions/update-product-images/index.ts`
-
-#### Mudanca 1: Expandir query do getListingsItem para incluir attributes
+Adicionar um alerta informativo na aba Amazon explicando o delay:
 
 ```typescript
-// ANTES
-query: {
-  marketplaceIds: [marketplaceId],
-  includedData: ['summaries'],
-}
-
-// DEPOIS
-query: {
-  marketplaceIds: [marketplaceId],
-  includedData: ['summaries', 'attributes'],
-}
+{activeTab === 'amazon' && (
+  <div className="bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800 rounded-lg p-3 mb-4">
+    <div className="flex items-start gap-2">
+      <Clock className="h-4 w-4 text-amber-600 mt-0.5" />
+      <div className="text-sm text-amber-800 dark:text-amber-200">
+        <strong>Importante:</strong> Alteracoes de imagens na Amazon podem levar 
+        ate 24-48 horas para aparecer no catalogo publico, mesmo apos a sincronizacao 
+        ser aceita com sucesso.
+      </div>
+    </div>
+  </div>
+)}
 ```
 
-#### Mudanca 2: Extrair slots de imagem existentes
+### Arquivo 2: `src/pages/ProductDetails.tsx`
+
+Apos sincronizacao com Amazon bem-sucedida, mostrar toast informativo:
 
 ```typescript
-// Apos buscar o listing, identificar quais slots existem
-const existingImageSlots = new Set<number>();
-
-// Verificar slots 1-8
-for (let i = 1; i <= 8; i++) {
-  const locator = listingResponse?.attributes?.[`other_product_image_locator_${i}`];
-  if (locator && locator.length > 0 && locator[0]?.media_location) {
-    existingImageSlots.add(i);
-  }
-}
-console.log(`Existing image slots: ${Array.from(existingImageSlots).join(', ')}`);
+// Quando syncResult.platform === 'amazon' && syncResult.success
+toast({
+  title: "Amazon sincronizado",
+  description: "Preco/estoque: 15min-2h. Nome/imagens: ate 48h para refletir.",
+  variant: "default",
+});
 ```
 
-#### Mudanca 3: So deletar slots que existem
+### Arquivo 3: Criar componente `src/components/amazon/AmazonLatencyWarning.tsx`
+
+Componente reutilizavel para exibir o aviso de latencia:
 
 ```typescript
-// Delete only slots that actually exist
-for (let i = validImages.length; i <= 8; i++) {
-  if (i > 0 && existingImageSlots.has(i)) {
-    console.log(`Deleting existing image slot ${i}`);
-    patches.push({
-      op: 'delete',
-      path: `/attributes/other_product_image_locator_${i}`
-    });
-  }
-  // Se o slot nao existe, simplesmente ignora
+import { Clock, Info } from "lucide-react";
+import { Alert, AlertDescription } from "@/components/ui/alert";
+
+interface AmazonLatencyWarningProps {
+  type: 'images' | 'stock' | 'general';
 }
+
+export const AmazonLatencyWarning = ({ type }: AmazonLatencyWarningProps) => {
+  const messages = {
+    images: "Alteracoes de imagens podem levar ate 24-48 horas para aparecer no catalogo.",
+    stock: "Alteracoes de preco e estoque podem levar ate 15 minutos a 2 horas.",
+    general: "Preco/estoque: 15min-2h. Nome/imagens: ate 48h para refletir na Amazon."
+  };
+
+  return (
+    <Alert className="bg-amber-50 dark:bg-amber-950/30 border-amber-200">
+      <Clock className="h-4 w-4 text-amber-600" />
+      <AlertDescription className="text-amber-800 dark:text-amber-200">
+        {messages[type]}
+      </AlertDescription>
+    </Alert>
+  );
+};
 ```
 
-## Fluxo Corrigido
+## Onde Exibir os Avisos
 
-```text
-1. Recebe lista de imagens para sincronizar (ex: 1 imagem)
-
-2. Busca listing atual da Amazon (com attributes)
-   ├─ Extrai productType
-   └─ Extrai slots de imagem que existem (ex: slots 1, 2 preenchidos)
-
-3. Constroi patches:
-   ├─ REPLACE main_product_image_locator → imagem 1
-   ├─ DELETE other_product_image_locator_1 (existe) ✓
-   ├─ DELETE other_product_image_locator_2 (existe) ✓
-   └─ IGNORA slots 3-8 (nao existem, nao precisa deletar)
-
-4. Envia PATCH para Amazon → Sucesso
-```
+| Local | Tipo de Aviso |
+|-------|---------------|
+| Aba Amazon em MarketplaceImagesCard | `type="images"` |
+| Toast apos salvar produto com Amazon | `type="general"` |
+| Dialogo de sincronizacao Amazon | `type="general"` |
 
 ## Arquivos a Modificar
 
 | Arquivo | Acao |
 |---------|------|
-| `supabase/functions/update-product-images/index.ts` | Modificar logica de delete para verificar slots existentes |
+| `src/components/amazon/AmazonLatencyWarning.tsx` | **Criar** - Componente de aviso |
+| `src/components/products/MarketplaceImagesCard.tsx` | Adicionar aviso na aba Amazon |
+| `src/pages/ProductDetails.tsx` | Melhorar toast de sucesso Amazon |
 
-## Sobre o Titulo "Manter o Mesmo Nome"
+## Resultado Esperado
 
-Pelos logs, o titulo na Amazon ainda mostra `Bambola Boneca Lola Baby Rosa Midia` mesmo apos alteracao. Isso e **comportamento normal da Amazon** - alteracoes de titulo e imagem podem levar:
-
-- **15 minutos a 2 horas** para ofertas e estoque
-- **Ate 24 horas** para titulo e imagens
-- **Ate 48 horas** em casos extremos
-
-O frontend deveria mostrar uma mensagem informando isso ao usuario.
-
+O usuario vera claramente que:
+1. A sincronizacao foi **aceita** pela Amazon
+2. Mas pode levar **tempo** para aparecer no site publico
+3. Isso e **comportamento normal** da Amazon, nao um erro do sistema
