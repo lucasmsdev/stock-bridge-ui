@@ -134,7 +134,7 @@ export function BulkEditDialog({
     }
     
     if (!skipSupplier) {
-      updates.supplier_id = supplierId || null;
+      updates.supplier_id = supplierId === '__none__' ? null : (supplierId || null);
     }
 
     // Check if any updates were selected
@@ -364,8 +364,8 @@ export function BulkEditDialog({
               <SelectTrigger>
                 <SelectValue placeholder="Selecione um fornecedor" />
               </SelectTrigger>
-              <SelectContent className="bg-popover border border-border shadow-medium z-50">
-                <SelectItem value="">Nenhum (remover vínculo)</SelectItem>
+              <SelectContent className="bg-popover border border-border shadow-lg z-50">
+                <SelectItem value="__none__">Nenhum (remover vínculo)</SelectItem>
                 {suppliers.map((supplier) => (
                   <SelectItem key={supplier.id} value={supplier.id}>
                     {supplier.name}
