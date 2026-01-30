@@ -130,12 +130,14 @@ const convertToLegacyFeatures = (plan: PlanFeatures): LegacyPlanFeatures => {
 interface UserProfileData {
   plan: PlanType;
   role: string;
+  orgRole: 'admin' | 'operator' | 'viewer' | null;
+  organizationId: string | null;
 }
 
 export const usePlan = () => {
   const { user, isLoading: authLoading } = useAuth();
 
-  // React Query para buscar o plano do usuário com cache otimista
+  // React Query para buscar o plano da organização do usuário
   const { data: userProfile, isLoading: profileLoading, error } = useQuery({
     queryKey: queryKeys.profile.plan(user?.id || ''),
     queryFn: async (): Promise<UserProfileData> => {
@@ -143,45 +145,56 @@ export const usePlan = () => {
         throw new Error('User not authenticated');
       }
 
-      // Buscar o plano do usuário
-      const { data: profileData, error: profileError } = await supabase
-        .from('profiles')
-        .select('plan')
-        .eq('id', user.id)
+      // Buscar a organização e plano via organization_members
+      const { data: orgData, error: orgError } = await supabase
+        .from('organization_members')
+        .select(`
+          role,
+          organization_id,
+          organizations (
+            plan
+          )
+        `)
+        .eq('user_id', user.id)
         .maybeSingle();
 
-      if (profileError) {
-        console.error('Error fetching user plan:', profileError);
-        throw profileError;
+      if (orgError && orgError.code !== 'PGRST116') {
+        console.error('Error fetching organization:', orgError);
+        throw orgError;
       }
 
-      // Buscar o role do usuário da tabela user_roles (SEGURO)
+      // Buscar o role do usuário da tabela user_roles (SEGURO - para admin do sistema)
       const { data: roleData, error: roleError } = await supabase
         .from('user_roles')
         .select('role')
         .eq('user_id', user.id)
         .maybeSingle();
 
-      if (roleError && roleError.code !== 'PGRST116') { // PGRST116 = no rows returned
+      if (roleError && roleError.code !== 'PGRST116') {
         console.error('Error fetching user role:', roleError);
       }
 
-      const plan = (profileData?.plan as PlanType) || PlanType.INICIANTE;
+      // Plano vem da organização agora
+      const plan = (orgData?.organizations?.plan as PlanType) || PlanType.INICIANTE;
       const role = roleData?.role || 'user';
+      const orgRole = orgData?.role as 'admin' | 'operator' | 'viewer' | null;
+      const organizationId = orgData?.organization_id || null;
       
-      console.log('User profile loaded (React Query):', { plan, role, isAdmin: role === 'admin' });
+      console.log('User profile loaded (React Query):', { plan, role, orgRole, isAdmin: role === 'admin' });
 
-      return { plan, role };
+      return { plan, role, orgRole, organizationId };
     },
-    enabled: !!user?.id && !authLoading, // Só executa quando tiver user e auth terminar
-    staleTime: 5 * 60 * 1000, // Cache por 5 minutos
-    gcTime: 10 * 60 * 1000, // Manter em memória por 10 minutos
+    enabled: !!user?.id && !authLoading,
+    staleTime: 5 * 60 * 1000,
+    gcTime: 10 * 60 * 1000,
   });
 
   const isLoading = authLoading || profileLoading;
   const currentPlan = userProfile?.plan || PlanType.INICIANTE;
   const isAdmin = userProfile?.role === 'admin';
   const userRole = userProfile?.role || 'user';
+  const orgRole = userProfile?.orgRole || null;
+  const organizationId = userProfile?.organizationId || null;
 
   // Nova função para verificar acesso usando o sistema de features
   const hasFeature = (feature: FeatureName): boolean => {
@@ -326,8 +339,12 @@ export const usePlan = () => {
     getPlanFeatures,
     getLegacyPlanFeatures,
     getUpgradeRequiredMessage,
-    // Nova funcionalidade de admin
+    // Admin do sistema (user_roles)
     isAdmin,
     userRole,
+    // Papel na organização
+    orgRole,
+    organizationId,
+    isOrgAdmin: orgRole === 'admin',
   };
 };

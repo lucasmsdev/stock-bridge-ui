@@ -20,7 +20,8 @@ import {
   Receipt,
   Truck,
   Tag,
-  ScanLine
+  ScanLine,
+  Users
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -51,6 +52,7 @@ interface NavItem {
   title: string;
   href: string;
   icon: React.ComponentType<{ className?: string }>;
+  adminOnly?: boolean;
   requiresFeature?: FeatureName;
   children?: NavItem[];
 }
@@ -98,12 +100,19 @@ const navItems: NavItem[] = [
     icon: Sparkles, 
     requiresFeature: FeatureName.AI_ASSISTANT
   },
+  { 
+    title: "Equipe", 
+    href: "/app/team", 
+    icon: Users,
+    adminOnly: true
+  },
   { title: "Ajuda", href: "/app/help", icon: HelpCircle },
 ];
 
 export const AppSidebar = ({ isCollapsed }: AppSidebarProps) => {
   const { user, forceLogout } = useAuthSession({ requireAuth: false });
-  const { hasFeature, currentPlan, isAdmin, isLoading } = usePlan();
+  const { hasFeature, currentPlan, isAdmin, isOrgAdmin, isLoading } = usePlan();
+  
   const { toast } = useToast();
   const navigate = useNavigate();
   const location = useLocation();
@@ -164,6 +173,11 @@ export const AppSidebar = ({ isCollapsed }: AppSidebarProps) => {
   };
 
   const renderNavItem = (item: NavItem, isChild = false) => {
+    // Hide admin-only items if user is not org admin
+    if (item.adminOnly && !isOrgAdmin && !isAdmin) {
+      return null;
+    }
+    
     const hasAccess = !isLoading && (!item.requiresFeature || hasFeature(item.requiresFeature));
     const targetHref = hasAccess ? item.href : "/app/billing";
     const hasChildren = item.children && item.children.length > 0;
