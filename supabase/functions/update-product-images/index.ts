@@ -190,12 +190,13 @@ async function updateAmazonImages(
     });
 
     // ========================================================
-    // GET PRODUCT TYPE via getListingsItem
+    // GET PRODUCT TYPE AND EXISTING IMAGES via getListingsItem
     // ========================================================
     let productType = 'PRODUCT'; // fallback
+    const existingImageSlots = new Set<number>();
     
     try {
-      console.log('Fetching productType via getListingsItem...');
+      console.log('Fetching productType and existing images via getListingsItem...');
       const listingResponse = await sellingPartner.callAPI({
         operation: 'getListingsItem',
         endpoint: 'listingsItems',
@@ -205,7 +206,7 @@ async function updateAmazonImages(
         },
         query: {
           marketplaceIds: [marketplaceId],
-          includedData: ['summaries'],
+          includedData: ['summaries', 'attributes'],
         },
       });
       
@@ -216,8 +217,19 @@ async function updateAmazonImages(
           console.log(`ProductType found: ${productType}`);
         }
       }
+      
+      // Extract which image slots currently exist
+      if (listingResponse?.attributes) {
+        for (let i = 1; i <= 8; i++) {
+          const locator = listingResponse.attributes[`other_product_image_locator_${i}`];
+          if (locator && Array.isArray(locator) && locator.length > 0 && locator[0]?.media_location) {
+            existingImageSlots.add(i);
+          }
+        }
+        console.log(`Existing image slots: ${existingImageSlots.size > 0 ? Array.from(existingImageSlots).join(', ') : 'none'}`);
+      }
     } catch (listingError: any) {
-      console.warn('Error fetching productType (using fallback PRODUCT):', listingError?.message);
+      console.warn('Error fetching listing data (using fallback PRODUCT, no existing slots):', listingError?.message);
     }
 
     // ========================================================
@@ -251,12 +263,10 @@ async function updateAmazonImages(
       });
     }
 
-    // Delete unused image slots (if user removed images)
-    // If we have 2 images now, delete slots 2-8
+    // Delete ONLY slots that actually exist (avoid "Invalid empty value" error)
     for (let i = validImages.length; i <= 8; i++) {
-      // Only delete if i > 0 (never delete main image slot)
-      if (i > 0) {
-        console.log(`Deleting unused image slot ${i}`);
+      if (i > 0 && existingImageSlots.has(i)) {
+        console.log(`Deleting existing image slot ${i}`);
         patches.push({
           op: 'delete',
           path: `/attributes/other_product_image_locator_${i}`
