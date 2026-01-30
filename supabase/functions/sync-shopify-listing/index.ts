@@ -16,6 +16,7 @@ interface SyncRequest {
   stock?: number;
   name?: string;
   imageUrl?: string;
+  description?: string;
 }
 
 const SHOPIFY_API_VERSION = '2024-01';
@@ -51,7 +52,7 @@ serve(async (req) => {
     }
 
     const body: SyncRequest = await req.json();
-    const { productId, listingId, integrationId, platformProductId, platformVariantId, sellingPrice, stock, name, imageUrl } = body;
+    const { productId, listingId, integrationId, platformProductId, platformVariantId, sellingPrice, stock, name, imageUrl, description } = body;
 
     if (!integrationId || !platformProductId) {
       return new Response(
@@ -148,9 +149,9 @@ serve(async (req) => {
     const warnings: Array<{ code: string; message: string }> = [];
 
     // ========================================
-    // 1. Atualizar produto (titulo e imagem)
+    // 1. Atualizar produto (titulo, imagem e descrição)
     // ========================================
-    if (name || imageUrl) {
+    if (name || imageUrl || description) {
       const productPayload: Record<string, any> = {
         product: {
           id: parseInt(platformProductId),
@@ -163,6 +164,11 @@ serve(async (req) => {
 
       if (imageUrl) {
         productPayload.product.images = [{ src: imageUrl }];
+      }
+
+      // Shopify usa body_html para descrição
+      if (description) {
+        productPayload.product.body_html = description;
       }
 
       console.log('📤 Atualizando produto Shopify:', JSON.stringify(productPayload, null, 2));
@@ -267,6 +273,7 @@ serve(async (req) => {
 
       if (name) updatedFields.push('title');
       if (imageUrl) updatedFields.push('images');
+      if (description) updatedFields.push('body_html');
     }
 
     // ========================================

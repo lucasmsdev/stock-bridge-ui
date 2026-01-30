@@ -15,6 +15,7 @@ interface SyncRequest {
   stock?: number;
   name?: string;
   imageUrl?: string;
+  description?: string;
 }
 
 interface MercadoLivreError {
@@ -126,7 +127,7 @@ serve(async (req) => {
     }
 
     const body: SyncRequest = await req.json();
-    const { productId, listingId, integrationId, platformProductId, sellingPrice, stock, name, imageUrl } = body;
+    const { productId, listingId, integrationId, platformProductId, sellingPrice, stock, name, imageUrl, description } = body;
 
     if (!integrationId || !platformProductId) {
       return new Response(
@@ -141,6 +142,7 @@ serve(async (req) => {
       sellingPrice,
       stock,
       name: name?.substring(0, 30) + '...',
+      description: description?.substring(0, 50) + '...',
     });
 
     // Buscar integração e descriptografar token
@@ -270,14 +272,76 @@ serve(async (req) => {
       mlPayload.title = name;
     }
 
-    // Se não há nada para atualizar
-    if (Object.keys(mlPayload).length === 0) {
+    // Se não há nada para atualizar no item principal
+    if (Object.keys(mlPayload).length === 0 && !description) {
       console.log('ℹ️ Nenhum campo para atualizar no Mercado Livre');
       return new Response(
         JSON.stringify({ 
           success: true, 
           message: 'Nenhum campo para atualizar',
           skipped: true,
+        }),
+        { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    // ========================================
+    // ATUALIZAR DESCRIÇÃO (endpoint separado)
+    // ========================================
+    let descriptionUpdated = false;
+    let descriptionWarning: string | null = null;
+
+    if (description && description.trim().length > 0) {
+      console.log('📝 Atualizando descrição no Mercado Livre...');
+      
+      try {
+        const descResponse = await fetch(
+          `https://api.mercadolibre.com/items/${platformProductId}/description`,
+          {
+            method: 'PUT',
+            headers: {
+              'Authorization': `Bearer ${currentAccessToken}`,
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({ plain_text: description.trim() }),
+          }
+        );
+
+        if (descResponse.ok) {
+          console.log('✅ Descrição atualizada com sucesso no ML');
+          descriptionUpdated = true;
+        } else {
+          const descError = await descResponse.text();
+          console.warn('⚠️ Erro ao atualizar descrição:', descError);
+          descriptionWarning = 'Descrição não foi atualizada. Pode ser um produto de catálogo.';
+        }
+      } catch (descErr: any) {
+        console.warn('⚠️ Exceção ao atualizar descrição:', descErr?.message);
+        descriptionWarning = 'Erro ao atualizar descrição.';
+      }
+    }
+
+    // Se só tinha descrição para atualizar e não tem mlPayload
+    if (Object.keys(mlPayload).length === 0) {
+      console.log('ℹ️ Apenas descrição foi atualizada');
+      
+      // Atualizar status do listing
+      await supabaseAdmin
+        .from('product_listings')
+        .update({
+          sync_status: 'active',
+          last_sync_at: new Date().toISOString(),
+          sync_error: null,
+          updated_at: new Date().toISOString(),
+        })
+        .eq('id', listingId);
+
+      return new Response(
+        JSON.stringify({
+          success: true,
+          message: descriptionUpdated ? 'Descrição atualizada' : 'Nenhum campo para atualizar',
+          updatedFields: descriptionUpdated ? ['description'] : [],
+          warnings: descriptionWarning ? [{ code: 'description_warning', message: descriptionWarning }] : [],
         }),
         { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
@@ -324,11 +388,14 @@ serve(async (req) => {
         .update(updateListingData)
         .eq('id', listingId);
 
+      const updatedFields = Object.keys(mlPayload);
+      if (descriptionUpdated) updatedFields.push('description');
+
       const response: any = {
         success: true,
         message: 'Produto atualizado no Mercado Livre',
         platformProductId,
-        updatedFields: Object.keys(mlPayload),
+        updatedFields,
         mlResponse: {
           id: mlResult.id,
           status: mlResult.status,
@@ -339,12 +406,19 @@ serve(async (req) => {
 
       // Avisar se título não foi alterado
       if (name && !canChangeTitle) {
-        response.warnings = [{
+        response.warnings = response.warnings || [];
+        response.warnings.push({
           code: 'title_not_modifiable',
           message: isCatalogProduct 
             ? 'Nome não foi alterado (produto de catálogo). Preço e estoque foram atualizados.'
             : `Nome não foi alterado (${soldQuantity} venda(s)). Preço e estoque foram atualizados.`,
-        }];
+        });
+      }
+
+      // Avisar sobre descrição
+      if (descriptionWarning) {
+        response.warnings = response.warnings || [];
+        response.warnings.push({ code: 'description_warning', message: descriptionWarning });
       }
 
       return new Response(
