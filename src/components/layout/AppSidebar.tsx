@@ -17,7 +17,8 @@ import {
   Sparkles,
   Receipt,
   Truck,
-  Tag
+  Tag,
+  ScanLine
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -43,6 +44,7 @@ const navItems = [
   { title: "Dashboard", href: "/app/dashboard", icon: LayoutDashboard },
   { title: "Produtos", href: "/app/products", icon: Package },
   { title: "Etiquetas", href: "/app/labels", icon: Tag },
+  { title: "Scanner", href: "/app/scanner", icon: ScanLine },
   { title: "Pedidos", href: "/app/orders", icon: ShoppingCart },
   { 
     title: "Financeiro", 

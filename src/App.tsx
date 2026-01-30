@@ -32,6 +32,7 @@ import Checkout from "./pages/Checkout";
 import AIAssistant from "./pages/AIAssistant";
 import Contact from "./pages/Contact";
 import Labels from "./pages/Labels";
+import Scanner from "./pages/Scanner";
 
 const App = () => (
   <QueryClientProvider client={queryClient}>
@@ -70,6 +71,7 @@ const App = () => (
                 <Route path="reports" element={<Reports />} />
                 <Route path="ai-assistant" element={<AIAssistant />} />
                 <Route path="labels" element={<Labels />} />
+                <Route path="scanner" element={<Scanner />} />
                 {/* Redirect old stock-forecast route to products tab */}
                 <Route path="stock-forecast" element={<Navigate to="/app/products?tab=forecast" replace />} />
               </Route>
