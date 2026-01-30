@@ -59,6 +59,16 @@ serve(async (req) => {
     const user = { id: userId };
     console.log('Authenticated user:', user.id);
 
+    // Get user's organization_id for RLS compliance
+    const { data: userOrg } = await supabaseClient
+      .from('organization_members')
+      .select('organization_id')
+      .eq('user_id', user.id)
+      .single();
+    
+    const organizationId = userOrg?.organization_id || null;
+    console.log('User organization:', organizationId);
+
     // Get user's plan and current product count to check SKU limits
     const { data: userProfile, error: profileError } = await supabaseClient
       .from('profiles')
@@ -380,6 +390,7 @@ serve(async (req) => {
 
             return {
               user_id: user.id,
+              organization_id: organizationId,
               name: item.title,
               sku: String(item.seller_custom_field || item.id), // Ensure SKU is always string
               stock: item.available_quantity || 0,
@@ -533,6 +544,7 @@ serve(async (req) => {
 
           const productData = {
             user_id: user.id,
+            organization_id: organizationId,
             name: `${product.title}${variant.title !== 'Default Title' ? ` - ${variant.title}` : ''}`,
             sku: sku,
             stock: variant.inventory_quantity || 0,
@@ -953,6 +965,7 @@ serve(async (req) => {
 
             const productData = {
               user_id: user.id,
+              organization_id: organizationId,
               name: itemName || sellerSku,
               sku: sellerSku,
               stock: stock,
@@ -1412,6 +1425,7 @@ serve(async (req) => {
           if (mapping) {
             listingsToInsert.push({
               user_id: user.id,
+              organization_id: organizationId,
               product_id: product.id,
               platform: 'shopify',
               platform_product_id: mapping.shopifyProductId,     // ✅ product.id da Shopify
@@ -1427,6 +1441,7 @@ serve(async (req) => {
             // Fallback: criar listing sem IDs corretos
             listingsToInsert.push({
               user_id: user.id,
+              organization_id: organizationId,
               product_id: product.id,
               platform: 'shopify',
               platform_product_id: product.sku,
@@ -1441,6 +1456,7 @@ serve(async (req) => {
         for (const product of insertedProducts) {
           listingsToInsert.push({
             user_id: user.id,
+            organization_id: organizationId,
             product_id: product.id,
             platform: platform,
             platform_product_id: product.sku, // SKU é usado como identificador
