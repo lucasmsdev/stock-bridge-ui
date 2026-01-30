@@ -69,7 +69,7 @@ serve(async (req) => {
     // Get product from database - search by ID first, then by SKU
     let productQuery = supabase
       .from('products')
-      .select('id, name, sku, stock, user_id, created_at, updated_at, cost_price, selling_price, ad_spend, image_url, images')
+      .select('id, name, sku, stock, user_id, created_at, updated_at, cost_price, selling_price, ad_spend, image_url, images, description')
       .eq('user_id', user.id);
 
     if (id) {
