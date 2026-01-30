@@ -183,10 +183,10 @@ Deno.serve(async (req) => {
     const supabaseServiceRoleKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
 
     if (supabaseServiceRoleKey) {
-      // Fetch complete product data for sync
+      // Fetch complete product data for sync (including description)
       const { data: updatedProducts } = await supabase
         .from('products')
-        .select('id, sku, stock, selling_price, name, image_url, images')
+        .select('id, sku, stock, selling_price, name, image_url, images, description')
         .in('id', productIds);
 
       const productMap = new Map(updatedProducts?.map(p => [p.id, p]) || []);
@@ -218,6 +218,7 @@ Deno.serve(async (req) => {
                   stock: product.stock,
                   name: product.name,
                   imageUrl: product.image_url,
+                  description: product.description,
                 };
                 break;
               case 'amazon':
@@ -230,6 +231,7 @@ Deno.serve(async (req) => {
                   name: product.name,
                   imageUrl: product.image_url,
                   integrationId: listing.integration_id,
+                  description: product.description,
                 };
                 break;
               case 'shopify':
@@ -244,6 +246,7 @@ Deno.serve(async (req) => {
                   stock: product.stock,
                   name: product.name,
                   imageUrl: product.image_url,
+                  description: product.description,
                 };
                 break;
               default:

@@ -287,6 +287,28 @@ serve(async (req) => {
         const detailsUrl = `https://api.mercadolibre.com/items?ids=${itemIds.slice(0, 20).join(',')}`;
         console.log(`Chamando API de detalhes: ${detailsUrl}`);
 
+        // Step 3.1: Fetch descriptions for all items (in parallel later)
+        const descriptionPromises = itemIds.slice(0, 20).map(async (itemId: string) => {
+          try {
+            const descResponse = await fetch(`https://api.mercadolibre.com/items/${itemId}/description`, {
+              headers: { 'Authorization': `Bearer ${accessToken}` },
+            });
+            if (descResponse.ok) {
+              const descData = await descResponse.json();
+              return { itemId, description: descData.plain_text || null };
+            }
+            return { itemId, description: null };
+          } catch (err) {
+            console.warn(`⚠️ Erro ao buscar descrição do item ${itemId}:`, err);
+            return { itemId, description: null };
+          }
+        });
+
+        // Wait for all descriptions in parallel
+        const descriptionsArray = await Promise.all(descriptionPromises);
+        const descriptionsMap = new Map(descriptionsArray.map(d => [d.itemId, d.description]));
+        console.log(`📝 Descrições buscadas para ${descriptionsMap.size} produtos`);
+
         const detailsResponse = await fetch(detailsUrl, {
           method: 'GET',
           headers: {
@@ -353,6 +375,9 @@ serve(async (req) => {
               (pic.secure_url || pic.url || '').replace('http://', 'https://')
             ).filter(Boolean) || [];
 
+            // Get description from map (fetched in parallel earlier)
+            const itemDescription = descriptionsMap.get(item.id) || null;
+
             return {
               user_id: user.id,
               name: item.title,
@@ -361,6 +386,7 @@ serve(async (req) => {
               selling_price: selling_price,
               image_url: allImages[0] || (item.thumbnail ? item.thumbnail.replace('http://', 'https://') : null),
               images: allImages.length > 0 ? allImages : null,
+              description: itemDescription,
             };
           });
 
@@ -499,6 +525,12 @@ serve(async (req) => {
             allImages = [product.image.src];
           }
 
+          // Extract description from body_html, stripping HTML tags
+          let descriptionText: string | null = null;
+          if (product.body_html) {
+            descriptionText = product.body_html.replace(/<[^>]*>/g, '').trim() || null;
+          }
+
           const productData = {
             user_id: user.id,
             name: `${product.title}${variant.title !== 'Default Title' ? ` - ${variant.title}` : ''}`,
@@ -507,6 +539,7 @@ serve(async (req) => {
             selling_price: variant.price ? parseFloat(variant.price) : null,
             image_url: allImages[0] || null,
             images: allImages.length > 0 ? allImages : null,
+            description: descriptionText,
           };
 
           productsToInsert.push(productData);

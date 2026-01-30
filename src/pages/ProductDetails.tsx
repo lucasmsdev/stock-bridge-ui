@@ -38,6 +38,7 @@ interface Product {
   image_url?: string;
   supplier_id?: string;
   images?: string[];
+  description?: string;
 }
 
 interface Supplier {

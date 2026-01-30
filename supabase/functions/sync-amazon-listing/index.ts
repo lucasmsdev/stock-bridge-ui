@@ -105,7 +105,7 @@ serve(async (req) => {
       );
     }
 
-    const { productId, sku, stock, sellingPrice, name, imageUrl, integrationId } = await req.json();
+    const { productId, sku, stock, sellingPrice, name, imageUrl, integrationId, description } = await req.json();
 
     console.log('🔄 Sincronizando produto Amazon:', { 
       productId, 
@@ -115,7 +115,8 @@ serve(async (req) => {
       sellingPriceType: typeof sellingPrice,
       name, 
       imageUrl, 
-      integrationId 
+      integrationId,
+      description: description?.substring(0, 50) + '...',
     });
 
     if (!productId || !sku || !integrationId) {
@@ -422,6 +423,21 @@ serve(async (req) => {
         value: [{
           marketplace_id: marketplaceId,
           media_location: imageUrl
+        }]
+      });
+    }
+
+    // Atualizar descrição se fornecida
+    // NOTA: Muitos produtos têm descrição gerenciada pelo catálogo Amazon
+    if (description && typeof description === 'string' && description.trim().length > 0) {
+      console.log('📝 Atualizando descrição para:', description.substring(0, 50) + '...');
+      patches.push({
+        op: 'replace',
+        path: '/attributes/product_description',
+        value: [{
+          value: description.trim(),
+          language_tag: 'pt_BR',
+          marketplace_id: marketplaceId
         }]
       });
     }

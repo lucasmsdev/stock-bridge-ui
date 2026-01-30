@@ -3,6 +3,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
 import { Loader2, DollarSign, Save, Package, AlertTriangle, CheckCircle, Info } from "lucide-react";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { supabase } from "@/integrations/supabase/client";
@@ -20,6 +21,7 @@ interface Product {
   selling_price?: number;
   ad_spend?: number;
   image_url?: string;
+  description?: string;
 }
 
 interface FinancialDataFormProps {
@@ -94,6 +96,7 @@ export function FinancialDataForm({ product, onUpdate }: FinancialDataFormProps)
     selling_price: formatMoneyBR(product.selling_price),
     ad_spend: formatMoneyBR(product.ad_spend) || "0",
     image_url: product.image_url || "",
+    description: product.description || "",
   });
 
   const handleInputChange = (field: string, value: string) => {
@@ -124,6 +127,7 @@ export function FinancialDataForm({ product, onUpdate }: FinancialDataFormProps)
         selling_price: sellingPrice,
         ad_spend: adSpend,
         image_url: formData.image_url.trim() || null,
+        description: formData.description.trim() || null,
       };
 
       const { data, error } = await supabase.functions.invoke('update-product', {
@@ -136,6 +140,7 @@ export function FinancialDataForm({ product, onUpdate }: FinancialDataFormProps)
           ad_spend: updateData.ad_spend,
           stock: product.stock,
           image_url: updateData.image_url,
+          description: updateData.description,
         }
       });
 
@@ -314,6 +319,23 @@ export function FinancialDataForm({ product, onUpdate }: FinancialDataFormProps)
                 onChange={(e) => handleInputChange('image_url', e.target.value)}
               />
             </div>
+          </div>
+
+          {/* Description Field */}
+          <div className="space-y-2">
+            <Label htmlFor="description">Descrição do Produto</Label>
+            <Textarea
+              id="description"
+              placeholder="Descreva seu produto em detalhes..."
+              value={formData.description}
+              onChange={(e) => handleInputChange('description', e.target.value)}
+              rows={4}
+              maxLength={4000}
+              className="resize-none"
+            />
+            <p className="text-xs text-muted-foreground">
+              {formData.description?.length || 0}/4000 caracteres
+            </p>
           </div>
           
           {formData.image_url && formData.image_url.startsWith('http') && (
