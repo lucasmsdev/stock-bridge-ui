@@ -64,6 +64,7 @@ const navItems: NavItem[] = [
     children: [
       { title: "Etiquetas", href: "/app/labels", icon: Tag },
       { title: "Scanner", href: "/app/scanner", icon: ScanLine },
+      { title: "Fornecedores", href: "/app/suppliers", icon: Truck },
     ]
   },
   { title: "Pedidos", href: "/app/orders", icon: ShoppingCart },
@@ -80,22 +81,10 @@ const navItems: NavItem[] = [
     requiresFeature: FeatureName.FINANCIAL_CALCULATOR
   },
   { 
-    title: "Fornecedores", 
-    href: "/app/suppliers", 
-    icon: Truck, 
-    requiresFeature: FeatureName.FINANCIAL_CALCULATOR
-  },
-  { 
     title: "Integrações", 
     href: "/app/integrations", 
     icon: Plug, 
     requiresFeature: FeatureName.MULTI_MARKETPLACE
-  },
-  { 
-    title: "Análise de Mercado", 
-    href: "/app/market-analysis", 
-    icon: Target, 
-    requiresFeature: FeatureName.MARKET_ANALYSIS
   },
   { 
     title: "Relatórios", 
@@ -122,7 +111,7 @@ export const AppSidebar = ({ isCollapsed }: AppSidebarProps) => {
   // Track which collapsible menus are open
   const [openMenus, setOpenMenus] = useState<Record<string, boolean>>(() => {
     // Auto-open Products if on a child route
-    const isOnProductsChild = ['/app/products', '/app/labels', '/app/scanner'].some(
+    const isOnProductsChild = ['/app/products', '/app/labels', '/app/scanner', '/app/suppliers'].some(
       path => location.pathname.startsWith(path)
     );
     return { '/app/products': isOnProductsChild };
