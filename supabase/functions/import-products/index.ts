@@ -986,19 +986,21 @@ serve(async (req) => {
         }
 
         // ========================================================
-        // PASSO 7: Buscar imagens via Catalog Items API para produtos sem imagem
+        // PASSO 7: Buscar imagens E descrições via Catalog Items API
         // ========================================================
         if (productsToInsert.length > 0) {
-          const productsWithoutImage = productsToInsert.filter(p => !p.image_url && p._asin);
+          // Buscar para todos os produtos que têm ASIN (para pegar descrição também)
+          const productsWithAsin = productsToInsert.filter(p => p._asin);
           
-          if (productsWithoutImage.length > 0) {
-            console.log(`🖼️ Buscando imagens para ${productsWithoutImage.length} produtos via Catalog Items API...`);
+          if (productsWithAsin.length > 0) {
+            console.log(`🖼️📝 Buscando imagens e descrições para ${productsWithAsin.length} produtos via Catalog Items API...`);
             
             let imagesFound = 0;
+            let descriptionsFound = 0;
             
             // Process in batches of 5 to avoid rate limiting
-            for (let i = 0; i < productsWithoutImage.length; i += 5) {
-              const batch = productsWithoutImage.slice(i, i + 5);
+            for (let i = 0; i < productsWithAsin.length; i += 5) {
+              const batch = productsWithAsin.slice(i, i + 5);
               
               await Promise.all(batch.map(async (product) => {
                 try {
@@ -1008,50 +1010,78 @@ serve(async (req) => {
                     path: { asin: product._asin },
                     query: {
                       marketplaceIds: [validatedMarketplaceId],
-                      includedData: 'images',
+                      includedData: 'images,summaries', // Include summaries for description
                     },
                   });
                   
-                  // Extract main image
-                  const images = catalogResponse?.images || catalogResponse?.attributes?.images || [];
-                  let mainImage = null;
+                  // Extract main image (only if product doesn't have one)
+                  if (!product.image_url) {
+                    const images = catalogResponse?.images || catalogResponse?.attributes?.images || [];
+                    let mainImage = null;
+                    
+                    // Try to find main image from response
+                    if (Array.isArray(images)) {
+                      for (const imgSet of images) {
+                        const imgArray = imgSet?.images || imgSet;
+                        if (Array.isArray(imgArray)) {
+                          const primaryImg = imgArray.find((img: any) => img.variant === 'MAIN');
+                          if (primaryImg?.link) {
+                            mainImage = primaryImg.link;
+                            break;
+                          }
+                          // Fallback to first image
+                          if (!mainImage && imgArray[0]?.link) {
+                            mainImage = imgArray[0].link;
+                          }
+                        }
+                      }
+                    }
+                    
+                    if (mainImage) {
+                      product.image_url = mainImage.replace('http://', 'https://');
+                      imagesFound++;
+                      console.log(`🖼️ Imagem encontrada via Catalog API para SKU ${product.sku}: ${product.image_url.substring(0, 60)}...`);
+                    }
+                  }
                   
-                  // Try to find main image from response
-                  if (Array.isArray(images)) {
-                    for (const imgSet of images) {
-                      const imgArray = imgSet?.images || imgSet;
-                      if (Array.isArray(imgArray)) {
-                        const primaryImg = imgArray.find((img: any) => img.variant === 'MAIN');
-                        if (primaryImg?.link) {
-                          mainImage = primaryImg.link;
-                          break;
-                        }
-                        // Fallback to first image
-                        if (!mainImage && imgArray[0]?.link) {
-                          mainImage = imgArray[0].link;
-                        }
+                  // Extract description from summaries
+                  const summaries = catalogResponse?.summaries || [];
+                  if (Array.isArray(summaries) && summaries.length > 0) {
+                    // Find summary for the current marketplace or use first available
+                    const summary = summaries.find((s: any) => s.marketplaceId === validatedMarketplaceId) || summaries[0];
+                    
+                    // Try different fields that may contain description
+                    const descriptionText = summary?.itemName || 
+                                            summary?.browseClassification?.displayName ||
+                                            null;
+                    
+                    // Amazon doesn't have a direct "description" in summaries, but we can try attributes
+                    // For now, we'll check if there's a product_description in attributes
+                    const attributes = catalogResponse?.attributes || {};
+                    const productDescription = attributes?.product_description;
+                    
+                    if (Array.isArray(productDescription) && productDescription.length > 0) {
+                      const desc = productDescription[0]?.value;
+                      if (desc && typeof desc === 'string' && desc.trim()) {
+                        product.description = desc.trim();
+                        descriptionsFound++;
+                        console.log(`📝 Descrição encontrada para SKU ${product.sku}: ${product.description.substring(0, 50)}...`);
                       }
                     }
                   }
                   
-                  if (mainImage) {
-                    product.image_url = mainImage.replace('http://', 'https://');
-                    imagesFound++;
-                    console.log(`🖼️ Imagem encontrada via Catalog API para SKU ${product.sku}: ${product.image_url.substring(0, 60)}...`);
-                  }
-                  
                 } catch (catalogError: any) {
-                  console.warn(`⚠️ Erro ao buscar imagem para ASIN ${product._asin}:`, catalogError?.message);
+                  console.warn(`⚠️ Erro ao buscar dados do catálogo para ASIN ${product._asin}:`, catalogError?.message);
                 }
               }));
               
               // Small delay between batches
-              if (i + 5 < productsWithoutImage.length) {
+              if (i + 5 < productsWithAsin.length) {
                 await new Promise(resolve => setTimeout(resolve, 300));
               }
             }
             
-            console.log(`✅ ${imagesFound} imagens encontradas via Catalog Items API`);
+            console.log(`✅ Catalog Items API: ${imagesFound} imagens e ${descriptionsFound} descrições encontradas`);
           }
         }
 
