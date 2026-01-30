@@ -15,7 +15,9 @@ interface SyncRequest {
   stock?: number;
   name?: string;
   imageUrl?: string;
+  images?: string[];  // Full image gallery
   description?: string;
+  syncImages?: boolean; // Explicit flag to sync images
 }
 
 interface MercadoLivreError {
@@ -127,7 +129,7 @@ serve(async (req) => {
     }
 
     const body: SyncRequest = await req.json();
-    const { productId, listingId, integrationId, platformProductId, sellingPrice, stock, name, imageUrl, description } = body;
+    const { productId, listingId, integrationId, platformProductId, sellingPrice, stock, name, imageUrl, images, description, syncImages } = body;
 
     if (!integrationId || !platformProductId) {
       return new Response(
@@ -228,10 +230,18 @@ serve(async (req) => {
       mlPayload.available_quantity = stock;
     }
 
-    if (imageUrl) {
-      mlPayload.pictures = [{ source: imageUrl }];
+    // IMPORTANTE: Só enviar imagens se syncImages === true (ação explícita do usuário)
+    // Isso evita sobrescrever a galeria ao editar apenas descrição/preço/estoque
+    if (syncImages === true) {
+      // Usar galeria completa se disponível, senão usar imageUrl única
+      if (images && images.length > 0) {
+        mlPayload.pictures = images.map(url => ({ source: url }));
+        console.log(`📸 Sincronizando ${images.length} imagens`);
+      } else if (imageUrl) {
+        mlPayload.pictures = [{ source: imageUrl }];
+        console.log('📸 Sincronizando 1 imagem');
+      }
     }
-
     // Primeiro, verificar se podemos alterar o título
     let canChangeTitle = true;
     let itemStatus = 'unknown';
