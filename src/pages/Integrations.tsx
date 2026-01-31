@@ -59,6 +59,13 @@ const availableIntegrations = [
     popular: false,
     logoUrl: "https://cdn.freebiesupply.com/logos/large/2x/shopify-logo-png-transparent.png",
   },
+  {
+    id: "meta_ads",
+    name: "Meta Ads",
+    description: "Facebook e Instagram Ads - métricas de campanhas publicitárias",
+    popular: true,
+    logoUrl: "https://upload.wikimedia.org/wikipedia/commons/thumb/7/7b/Meta_Platforms_Inc._logo.svg/800px-Meta_Platforms_Inc._logo.svg.png",
+  },
 ];
 
 export default function Integrations() {
@@ -256,6 +263,38 @@ export default function Integrations() {
       console.log("🔄 Redirecionando para Shopify Admin...");
 
       // Redirect to Shopify authorization page
+      window.location.href = authUrl;
+    } else if (platformId === "meta_ads") {
+      // Meta Ads OAuth flow
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
+
+      if (!user) {
+        toast({
+          title: "Erro de autenticação",
+          description: "Faça login para conectar integrações.",
+          variant: "destructive",
+        });
+        return;
+      }
+
+      console.log("🔵 Iniciando fluxo OAuth Meta Ads...");
+
+      // Meta App ID - substitua pelo seu App ID do Meta Developer Portal
+      // Como é público (similar ao Mercado Livre), pode ficar no frontend
+      const metaAppId = "META_APP_ID_AQUI"; // TODO: Substituir pelo App ID real
+      const callbackUrl = `https://fcvwogaqarkuqvumyqqm.supabase.co/functions/v1/meta-ads-auth`;
+      const scopes = "ads_read,ads_management,business_management";
+
+      const authUrl =
+        `https://www.facebook.com/v21.0/dialog/oauth` +
+        `?client_id=${metaAppId}` +
+        `&redirect_uri=${encodeURIComponent(callbackUrl)}` +
+        `&scope=${encodeURIComponent(scopes)}` +
+        `&state=${user.id}`;
+
+      console.log("🔄 Redirecionando para Facebook Login...");
       window.location.href = authUrl;
     } else {
       // Mock connection logic for other platforms

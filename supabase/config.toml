@@ -141,5 +141,5 @@ verify_jwt = true
 [functions.manage-organization]
 verify_jwt = true
 
-[functions.manage-organization]
-verify_jwt = true
+[functions.meta-ads-auth]
+verify_jwt = false
