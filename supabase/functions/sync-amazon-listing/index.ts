@@ -105,7 +105,7 @@ serve(async (req) => {
       );
     }
 
-    const { productId, sku, stock, sellingPrice, name, imageUrl, integrationId, description } = await req.json();
+    const { productId, sku, stock, sellingPrice, name, imageUrl, integrationId, description, syncImages } = await req.json();
 
     console.log('🔄 Sincronizando produto Amazon:', { 
       productId, 
@@ -414,9 +414,10 @@ serve(async (req) => {
       });
     }
 
-    // Atualizar imagem principal se fornecida
-    if (imageUrl && typeof imageUrl === 'string' && imageUrl.startsWith('http')) {
-      console.log('🖼️ Atualizando imagem para:', imageUrl);
+    // Atualizar imagem principal SOMENTE se explicitamente solicitado (syncImages === true)
+    // Isso evita sobrescrever imagens ao editar apenas estoque/preço/descrição
+    if (syncImages === true && imageUrl && typeof imageUrl === 'string' && imageUrl.startsWith('http')) {
+      console.log('🖼️ Atualizando imagem (ação explícita via galeria):', imageUrl);
       patches.push({
         op: 'replace',
         path: '/attributes/main_product_image_locator',

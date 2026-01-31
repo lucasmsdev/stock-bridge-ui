@@ -127,7 +127,7 @@ serve(async (req) => {
                   stock: stock,
                   sellingPrice: selling_price,
                   name: name,
-                  imageUrl: image_url,
+                  // imageUrl: NÃO enviamos aqui - imagens só via galeria explícita com syncImages: true
                   integrationId: listing.integration_id,
                   description: description,
                 }),
