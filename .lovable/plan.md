@@ -1,109 +1,68 @@
 
-
-# Plano: Corrigir Sincronização de Imagens Amazon
+# Plano: Importar Descrições dos Produtos da Amazon
 
 ## Diagnóstico do Problema
 
-Quando você edita apenas o estoque na Amazon, o sistema está enviando também o campo `imageUrl` para a função de sincronização. A Amazon então tenta atualizar o slot `main_product_image_locator` com o valor da URL.
+O código atual já tenta extrair descrições da Amazon (linhas 1060-1070), porém a chamada à Catalog Items API não solicita os dados corretos:
 
-**O que pode estar acontecendo:**
+**Problema identificado na linha 1013:**
+```typescript
+includedData: 'images,summaries', // ❌ Falta 'attributes'
+```
 
-1. Se `image_url` no banco estiver vazia ou diferente da imagem atual na Amazon, ela sobrescreve
-2. A Amazon processa a atualização de imagem de forma assíncrona (24-48h para refletir) mas o slot de imagem pode ser limpo imediatamente
+A descrição do produto na Amazon fica no campo `product_description` dentro de `attributes`, mas esse campo não é retornado porque `attributes` não está no parâmetro `includedData`.
 
-## Arquivos a Modificar
+---
+
+## Arquivo a Modificar
 
 | Arquivo | Alteração |
 |---------|-----------|
-| `supabase/functions/sync-amazon-listing/index.ts` | Adicionar flag `syncImages` e só atualizar imagem quando explicitamente solicitado |
-| `supabase/functions/update-product/index.ts` | **NÃO** enviar `imageUrl` para Amazon durante updates de formulário normais |
+| `supabase/functions/import-products/index.ts` | Adicionar `'attributes'` ao `includedData` da Catalog Items API |
 
 ---
 
-## Alteração 1: `sync-amazon-listing/index.ts`
+## Alteração Necessária
 
-Modificar para aceitar uma flag `syncImages` similar ao que já fizemos no Mercado Livre:
+**Linha 1013 - Adicionar `attributes` ao includedData:**
 
 ```typescript
-// Linha 108: adicionar syncImages ao destructuring
-const { productId, sku, stock, sellingPrice, name, imageUrl, integrationId, description, syncImages } = await req.json();
-
-// Linhas 417-428: só enviar imagem se syncImages === true
 // ANTES (atual):
-if (imageUrl && typeof imageUrl === 'string' && imageUrl.startsWith('http')) {
-  patches.push({
-    op: 'replace',
-    path: '/attributes/main_product_image_locator',
-    value: [{
-      marketplace_id: marketplaceId,
-      media_location: imageUrl
-    }]
-  });
-}
+query: {
+  marketplaceIds: [validatedMarketplaceId],
+  includedData: 'images,summaries', // Include summaries for description
+},
 
 // DEPOIS (corrigido):
-if (syncImages === true && imageUrl && typeof imageUrl === 'string' && imageUrl.startsWith('http')) {
-  console.log('🖼️ Atualizando imagem (ação explícita):', imageUrl);
-  patches.push({
-    op: 'replace',
-    path: '/attributes/main_product_image_locator',
-    value: [{
-      marketplace_id: marketplaceId,
-      media_location: imageUrl
-    }]
-  });
-}
+query: {
+  marketplaceIds: [validatedMarketplaceId],
+  includedData: 'images,summaries,attributes', // Include attributes for product_description
+},
 ```
 
 ---
 
-## Alteração 2: `update-product/index.ts`
+## Por Que Isso Resolve
 
-Remover o envio de `imageUrl` para Amazon (linhas 124-134) já que imagens devem ser sincronizadas apenas pela galeria:
-
-```typescript
-// ANTES (atual):
-body: JSON.stringify({
-  productId: productId,
-  sku: sku,
-  stock: stock,
-  sellingPrice: selling_price,
-  name: name,
-  imageUrl: image_url,  // ❌ Remove isso
-  integrationId: listing.integration_id,
-  description: description,
-}),
-
-// DEPOIS (corrigido):
-body: JSON.stringify({
-  productId: productId,
-  sku: sku,
-  stock: stock,
-  sellingPrice: selling_price,
-  name: name,
-  // imageUrl: NÃO enviamos aqui - imagens só via galeria explícita
-  integrationId: listing.integration_id,
-  description: description,
-}),
-```
+1. A Amazon Catalog Items API retorna diferentes datasets dependendo do parâmetro `includedData`
+2. O campo `product_description` fica dentro de `attributes`, não em `summaries`
+3. O código já está preparado para ler `catalogResponse?.attributes?.product_description` (linhas 1060-1070)
+4. Apenas faltava solicitar esses dados na query
 
 ---
 
 ## Resultado Esperado
 
-Após as correções:
-
-1. **Editar estoque/preço/descrição** → NÃO altera as imagens na Amazon
-2. **Usar galeria de imagens** → Sincroniza imagens via ação explícita com `syncImages: true`
-3. Imagens existentes na Amazon permanecem intactas durante updates de dados
+Após a correção:
+- A descrição dos produtos Amazon será importada junto com imagens e demais dados
+- O campo aparecerá preenchido na página de detalhes do produto no UNISTOCK
+- O log mostrará: `📝 Descrição encontrada para SKU X: ...`
 
 ---
 
-## Nota sobre a Imagem Perdida
+## Nota sobre Produtos Já Importados
 
-Se a imagem já foi removida da Amazon, você precisará:
-
-1. Aguardar a correção ser aplicada
-2. Usar a **Galeria de Imagens** no UNISTOCK para sincronizar as fotos novamente
-3. Lembrar que a Amazon pode levar 24-48h para processar alterações de imagem
-
+Para produtos que já foram importados sem descrição, será necessário:
+1. Excluir os produtos da Amazon no UNISTOCK
+2. Reimportar após a correção ser aplicada
+3. Ou editar manualmente a descrição se preferir
