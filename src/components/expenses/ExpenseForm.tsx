@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import { useAuth } from "@/hooks/useAuth";
+import { useOrganization } from "@/hooks/useOrganization";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { Button } from "@/components/ui/button";
@@ -37,6 +38,7 @@ const recurrenceLabels = {
 
 export function ExpenseForm({ expense, onSuccess, onCancel }: ExpenseFormProps) {
   const { user } = useAuth();
+  const { organizationId } = useOrganization();
   const { toast } = useToast();
   const [loading, setLoading] = useState(false);
   
@@ -102,6 +104,7 @@ export function ExpenseForm({ expense, onSuccess, onCancel }: ExpenseFormProps) 
     try {
       const expenseData = {
         user_id: user.id,
+        organization_id: organizationId,
         name: formData.name.trim(),
         category: formData.category,
         amount,
