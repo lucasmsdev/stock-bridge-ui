@@ -1010,7 +1010,7 @@ serve(async (req) => {
                     path: { asin: product._asin },
                     query: {
                       marketplaceIds: [validatedMarketplaceId],
-                      includedData: 'images,summaries', // Include summaries for description
+                      includedData: 'images,summaries,attributes', // Include attributes for product_description
                     },
                   });
                   
