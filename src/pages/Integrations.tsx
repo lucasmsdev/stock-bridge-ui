@@ -283,7 +283,7 @@ export default function Integrations() {
 
       // Meta App ID - substitua pelo seu App ID do Meta Developer Portal
       // Como é público (similar ao Mercado Livre), pode ficar no frontend
-      const metaAppId = "META_APP_ID_AQUI"; // TODO: Substituir pelo App ID real
+      const metaAppId = "1414008656796817";
       const callbackUrl = `https://fcvwogaqarkuqvumyqqm.supabase.co/functions/v1/meta-ads-auth`;
       const scopes = "ads_read,ads_management,business_management";
 
