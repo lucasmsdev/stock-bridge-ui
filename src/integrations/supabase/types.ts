@@ -14,6 +14,87 @@ export type Database = {
   }
   public: {
     Tables: {
+      ad_metrics: {
+        Row: {
+          ad_account_id: string | null
+          campaign_id: string
+          campaign_name: string
+          clicks: number
+          conversion_value: number
+          conversions: number
+          cpc: number | null
+          created_at: string
+          ctr: number | null
+          date: string
+          id: string
+          impressions: number
+          integration_id: string
+          organization_id: string | null
+          platform: string
+          reach: number | null
+          spend: number
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          ad_account_id?: string | null
+          campaign_id: string
+          campaign_name: string
+          clicks?: number
+          conversion_value?: number
+          conversions?: number
+          cpc?: number | null
+          created_at?: string
+          ctr?: number | null
+          date: string
+          id?: string
+          impressions?: number
+          integration_id: string
+          organization_id?: string | null
+          platform: string
+          reach?: number | null
+          spend?: number
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          ad_account_id?: string | null
+          campaign_id?: string
+          campaign_name?: string
+          clicks?: number
+          conversion_value?: number
+          conversions?: number
+          cpc?: number | null
+          created_at?: string
+          ctr?: number | null
+          date?: string
+          id?: string
+          impressions?: number
+          integration_id?: string
+          organization_id?: string | null
+          platform?: string
+          reach?: number | null
+          spend?: number
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ad_metrics_integration_id_fkey"
+            columns: ["integration_id"]
+            isOneToOne: false
+            referencedRelation: "integrations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "ad_metrics_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       ai_conversations: {
         Row: {
           created_at: string
