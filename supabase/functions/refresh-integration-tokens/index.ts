@@ -13,6 +13,7 @@ const TOKEN_EXPIRY_HOURS: Record<string, number> = {
   mercadolivre: 6,
   shopee: 4,
   shopify: 0, // Não expira
+  meta_ads: 1440, // 60 dias = 1440 horas
 };
 
 // Margem de segurança para refresh (em minutos)
@@ -115,6 +116,15 @@ serve(async (req) => {
           newTokenData = await refreshAmazonToken(refreshToken);
         } else if (integration.platform === 'shopee') {
           newTokenData = await refreshShopeeToken(refreshToken, integration);
+        } else if (integration.platform === 'meta_ads') {
+          // Meta Ads uses long-lived tokens that are renewed via fb_exchange_token
+          // We need the current access token, not refresh token
+          const { data: accessToken } = await supabase.rpc('decrypt_token', {
+            encrypted_token: integration.encrypted_access_token
+          });
+          if (accessToken) {
+            newTokenData = await refreshMetaAdsToken(accessToken);
+          }
         } else {
           console.log(`⏭️ Pulando ${integration.platform} - Plataforma não suportada para refresh`);
           results.skipped++;
@@ -341,4 +351,41 @@ async function refreshShopeeToken(refreshToken: string, integration: any) {
   // Shopee usa um sistema diferente com partner_id e partner_key
   console.log('   ⚠️ Renovação de token Shopee não implementada ainda');
   return null;
+}
+
+// Renovar token do Meta Ads
+async function refreshMetaAdsToken(currentAccessToken: string) {
+  const metaAppId = Deno.env.get('META_APP_ID');
+  const metaAppSecret = Deno.env.get('META_APP_SECRET');
+
+  if (!metaAppId || !metaAppSecret) {
+    throw new Error('Credenciais do Meta Ads não configuradas');
+  }
+
+  console.log('   🔄 Chamando API Meta para renovar long-lived token...');
+
+  // Meta's long-lived tokens can be renewed by exchanging them for a new one
+  // This works as long as the token hasn't expired yet
+  const response = await fetch(
+    `https://graph.facebook.com/v21.0/oauth/access_token` +
+    `?grant_type=fb_exchange_token` +
+    `&client_id=${metaAppId}` +
+    `&client_secret=${metaAppSecret}` +
+    `&fb_exchange_token=${currentAccessToken}`,
+    { method: 'GET' }
+  );
+
+  if (!response.ok) {
+    const errorText = await response.text();
+    console.error('   ❌ Erro API Meta:', errorText);
+    throw new Error(`Meta Ads refresh failed: ${response.status} - ${errorText}`);
+  }
+
+  const data = await response.json();
+  console.log('   ✅ API Meta respondeu com sucesso');
+  
+  return {
+    access_token: data.access_token,
+    // Meta long-lived tokens don't use refresh tokens
+  };
 }
