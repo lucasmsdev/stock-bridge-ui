@@ -1,9 +1,11 @@
-import { TrendingUp, Package, ShoppingCart, Plug2, DollarSign, Loader2, Receipt, Target, Store, Calendar, Wallet, AlertTriangle, Sparkles, Trash2 } from "lucide-react";
+import { TrendingUp, Package, ShoppingCart, Plug2, DollarSign, Loader2, Receipt, Target, Store, Calendar, Wallet, AlertTriangle, Sparkles, Trash2, Megaphone } from "lucide-react";
 import { CriticalStockCard } from "@/components/dashboard/CriticalStockCard";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import DashboardFilters, { DashboardFiltersState } from "@/components/dashboard/DashboardFilters";
+import { AdsDashboard } from "@/components/ads/AdsDashboard";
 import { useEffect, useState, useCallback } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
@@ -558,6 +560,22 @@ export default function Dashboard() {
         </div>
       </div>
 
+      {/* Tabs Navigation */}
+      <Tabs defaultValue="vendas" className="w-full">
+        <TabsList className="grid w-full max-w-md grid-cols-2">
+          <TabsTrigger value="vendas" className="gap-2">
+            <DollarSign className="h-4 w-4" />
+            Vendas
+          </TabsTrigger>
+          <TabsTrigger value="ads" className="gap-2">
+            <Megaphone className="h-4 w-4" />
+            Ads
+          </TabsTrigger>
+        </TabsList>
+
+        {/* Vendas Tab Content */}
+        <TabsContent value="vendas" className="mt-6 space-y-4 md:space-y-6">
+
       {/* Filtros */}
       <DashboardFilters
         onApply={handleApplyFilters}
@@ -865,6 +883,13 @@ export default function Dashboard() {
           </Card>
         </>
       )}
+        </TabsContent>
+
+        {/* Ads Tab Content */}
+        <TabsContent value="ads" className="mt-6">
+          <AdsDashboard />
+        </TabsContent>
+      </Tabs>
     </div>
   );
 }
