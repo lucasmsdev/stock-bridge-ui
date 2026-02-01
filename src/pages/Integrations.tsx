@@ -66,6 +66,14 @@ const availableIntegrations = [
     popular: true,
     logoUrl: "https://upload.wikimedia.org/wikipedia/commons/thumb/7/7b/Meta_Platforms_Inc._logo.svg/800px-Meta_Platforms_Inc._logo.svg.png",
   },
+  {
+    id: "google_ads",
+    name: "Google Ads",
+    description: "Métricas de campanhas do Google Ads - pesquisa, display e shopping",
+    popular: false,
+    comingSoon: true,
+    logoUrl: "https://upload.wikimedia.org/wikipedia/commons/c/c7/Google_Ads_logo.svg",
+  },
 ];
 
 export default function Integrations() {
@@ -918,7 +926,7 @@ export default function Integrations() {
             return (
               <Card
                 key={platform.id}
-                className="shadow-soft hover:shadow-medium transition-all duration-200 group hover:scale-[1.02] hover:-translate-y-1"
+                className={`shadow-soft hover:shadow-medium transition-all duration-200 group hover:scale-[1.02] hover:-translate-y-1 ${platform.comingSoon ? 'opacity-70' : ''}`}
                 style={{ animationDelay: `${index * 0.1}s` }}
               >
                 <CardHeader className="pb-3">
@@ -934,7 +942,12 @@ export default function Integrations() {
                       <div>
                         <CardTitle className="text-lg flex items-center gap-2">
                           {platform.name}
-                          {platform.popular && (
+                          {platform.comingSoon && (
+                            <Badge variant="outline" className="bg-muted text-muted-foreground">
+                              Em breve
+                            </Badge>
+                          )}
+                          {platform.popular && !platform.comingSoon && (
                             <Badge variant="secondary" className="bg-primary text-primary-foreground animate-glow">
                               Popular
                             </Badge>
@@ -952,13 +965,24 @@ export default function Integrations() {
                 </CardHeader>
 
                 <CardContent>
-                  <Button
-                    onClick={() => handleConnect(platform.id)}
-                    className="w-full bg-gradient-primary hover:bg-primary-hover group-hover:shadow-primary transition-all duration-200 hover:scale-[1.02]"
-                  >
-                    <Plus className="w-4 h-4 mr-2" />
-                    {isConnected ? `Conectar Outra Conta ${platform.name}` : `Conectar ${platform.name}`}
-                  </Button>
+                  {platform.comingSoon ? (
+                    <Button
+                      disabled
+                      className="w-full"
+                      variant="outline"
+                    >
+                      <Clock className="w-4 h-4 mr-2" />
+                      Em breve
+                    </Button>
+                  ) : (
+                    <Button
+                      onClick={() => handleConnect(platform.id)}
+                      className="w-full bg-gradient-primary hover:bg-primary-hover group-hover:shadow-primary transition-all duration-200 hover:scale-[1.02]"
+                    >
+                      <Plus className="w-4 h-4 mr-2" />
+                      {isConnected ? `Conectar Outra Conta ${platform.name}` : `Conectar ${platform.name}`}
+                    </Button>
+                  )}
                 </CardContent>
               </Card>
             );
