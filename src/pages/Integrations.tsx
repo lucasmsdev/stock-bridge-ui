@@ -33,7 +33,6 @@ interface IntegrationPlatform {
   id: string;
   name: string;
   description: string;
-  popular: boolean;
   logoUrl: string;
   darkLogoUrl?: string;
   comingSoon?: boolean;
@@ -45,21 +44,18 @@ const marketplaceIntegrations: IntegrationPlatform[] = [
     id: "mercadolivre",
     name: "Mercado Livre",
     description: "Integração completa com o maior marketplace da América Latina",
-    popular: true,
     logoUrl: "https://vectorseek.com/wp-content/uploads/2023/08/Mercado-Livre-Icon-Logo-Vector.svg-.png",
   },
   {
     id: "shopee",
     name: "Shopee",
     description: "Conecte-se ao maior marketplace de vendas online do Sudeste Asiático",
-    popular: true,
     logoUrl: "https://upload.wikimedia.org/wikipedia/commons/thumb/0/0e/Shopee_logo.svg/1442px-Shopee_logo.svg.png",
   },
   {
     id: "amazon",
     name: "Amazon",
     description: "Venda seus produtos na maior plataforma de e-commerce do mundo",
-    popular: true,
     logoUrl: "https://upload.wikimedia.org/wikipedia/commons/d/de/Amazon_icon.png",
     darkLogoUrl: "https://www.pngmart.com/files/23/Amazon-Logo-White-PNG-Photos.png",
   },
@@ -67,7 +63,6 @@ const marketplaceIntegrations: IntegrationPlatform[] = [
     id: "shopify",
     name: "Shopify",
     description: "Conecte sua loja Shopify para sincronização de produtos e pedidos",
-    popular: false,
     logoUrl: "https://cdn.freebiesupply.com/logos/large/2x/shopify-logo-png-transparent.png",
   },
 ];
@@ -77,14 +72,12 @@ const adsIntegrations: IntegrationPlatform[] = [
     id: "meta_ads",
     name: "Meta Ads",
     description: "Facebook e Instagram Ads - métricas de campanhas publicitárias",
-    popular: true,
     logoUrl: "https://upload.wikimedia.org/wikipedia/commons/thumb/7/7b/Meta_Platforms_Inc._logo.svg/800px-Meta_Platforms_Inc._logo.svg.png",
   },
   {
     id: "google_ads",
     name: "Google Ads",
     description: "Métricas de campanhas do Google Ads - pesquisa, display e shopping",
-    popular: false,
     comingSoon: true,
     logoUrl: "https://upload.wikimedia.org/wikipedia/commons/c/c7/Google_Ads_logo.svg",
   },
@@ -92,7 +85,6 @@ const adsIntegrations: IntegrationPlatform[] = [
     id: "tiktok_ads",
     name: "TikTok Ads",
     description: "Métricas de campanhas do TikTok Ads - vídeos e performance",
-    popular: false,
     comingSoon: true,
     logoUrl: "https://sf-tb-sg.ibytedtos.com/obj/eden-sg/uhtyvueh7nulogpoguhm/tiktok-icon2.png",
   },
@@ -972,11 +964,6 @@ export default function Integrations() {
                               Em breve
                             </Badge>
                           )}
-                          {platform.popular && !platform.comingSoon && (
-                            <Badge variant="secondary" className="bg-primary text-primary-foreground animate-glow">
-                              Popular
-                            </Badge>
-                          )}
                         </CardTitle>
                       </div>
                     </div>
@@ -1049,11 +1036,6 @@ export default function Integrations() {
                           {platform.comingSoon && (
                             <Badge variant="outline" className="bg-muted text-muted-foreground">
                               Em breve
-                            </Badge>
-                          )}
-                          {platform.popular && !platform.comingSoon && (
-                            <Badge variant="secondary" className="bg-primary text-primary-foreground animate-glow">
-                              Popular
                             </Badge>
                           )}
                         </CardTitle>
