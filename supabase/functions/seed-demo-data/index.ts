@@ -145,6 +145,26 @@ serve(async (req) => {
     // Use service role for data operations
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
+    // Buscar organization_id do usuário
+    const { data: orgMember, error: orgError } = await supabase
+      .from('organization_members')
+      .select('organization_id')
+      .eq('user_id', user.id)
+      .single();
+
+    if (orgError || !orgMember?.organization_id) {
+      console.error('Erro ao buscar organização:', orgError);
+      return new Response(JSON.stringify({ 
+        error: 'Usuário não pertence a nenhuma organização' 
+      }), {
+        status: 400,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+      });
+    }
+
+    const organizationId = orgMember.organization_id;
+    console.log(`Organization ID: ${organizationId}`);
+
     // Clean existing data
     console.log('Limpando dados existentes...');
     await supabase.from('price_monitoring_jobs').delete().eq('user_id', user.id);
@@ -160,6 +180,7 @@ serve(async (req) => {
     console.log('Inserindo fornecedores...');
     const supplierInserts = suppliers.map(s => ({
       user_id: user.id,
+      organization_id: organizationId,
       name: s.name,
       contact_name: s.contact_name,
       email: s.email,
@@ -174,6 +195,7 @@ serve(async (req) => {
     console.log('Inserindo produtos...');
     const productInserts = products.map((p, i) => ({
       user_id: user.id,
+      organization_id: organizationId,
       name: p.name,
       sku: `SKU-${String(i + 1).padStart(4, '0')}`,
       category: p.category,
@@ -203,6 +225,7 @@ serve(async (req) => {
       
       orders.push({
         user_id: user.id,
+        organization_id: organizationId,
         order_id_channel: `ORD-${Date.now()}-${randomInt(1000, 9999)}`,
         platform: getWeightedPlatform(),
         status: randomItem(orderStatuses),
@@ -226,6 +249,7 @@ serve(async (req) => {
         
         orders.push({
           user_id: user.id,
+          organization_id: organizationId,
           order_id_channel: `ORD-${Date.now()}-${randomInt(1000, 9999)}-${day}-${i}`,
           platform: getWeightedPlatform(),
           status: randomItem(orderStatuses),
@@ -250,6 +274,7 @@ serve(async (req) => {
         
         orders.push({
           user_id: user.id,
+          organization_id: organizationId,
           order_id_channel: `ORD-${Date.now()}-${randomInt(1000, 9999)}-${day}-${i}`,
           platform: getWeightedPlatform(),
           status: randomItem(orderStatuses),
@@ -274,6 +299,7 @@ serve(async (req) => {
         
         orders.push({
           user_id: user.id,
+          organization_id: organizationId,
           order_id_channel: `ORD-${Date.now()}-${randomInt(1000, 9999)}-${day}-${i}`,
           platform: getWeightedPlatform(),
           status: 'completed',
@@ -300,6 +326,7 @@ serve(async (req) => {
     startDate.setMonth(startDate.getMonth() - 3);
     const expenseInserts = expenses.map(e => ({
       user_id: user.id,
+      organization_id: organizationId,
       name: e.name,
       category: e.category,
       amount: e.amount,
@@ -316,6 +343,7 @@ serve(async (req) => {
       createdAt.setHours(createdAt.getHours() - i * 2);
       return {
         user_id: user.id,
+        organization_id: organizationId,
         type: n.type,
         title: n.title,
         message: n.message,
@@ -329,6 +357,7 @@ serve(async (req) => {
     console.log('Inserindo jobs de monitoramento...');
     const monitoringJobs = insertedProducts!.slice(0, 8).map(p => ({
       user_id: user.id,
+      organization_id: organizationId,
       product_id: p.id,
       competitor_url: `https://www.mercadolivre.com.br/produto-similar-${randomInt(1000, 9999)}`,
       trigger_condition: randomItem(['price_decrease', 'price_increase', 'any_change']),
