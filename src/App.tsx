@@ -34,6 +34,8 @@ import Contact from "./pages/Contact";
 import Labels from "./pages/Labels";
 import Scanner from "./pages/Scanner";
 import Team from "./pages/Team";
+import TermsOfService from "./pages/TermsOfService";
+import PrivacyPolicy from "./pages/PrivacyPolicy";
 
 const App = () => (
   <QueryClientProvider client={queryClient}>
@@ -81,6 +83,8 @@ const App = () => (
               {/* Landing page as root */}
               <Route path="/" element={<Landing />} />
               <Route path="/contato" element={<Contact />} />
+              <Route path="/termos" element={<TermsOfService />} />
+              <Route path="/privacidade" element={<PrivacyPolicy />} />
               
               {/* Catch all route - redirect to landing */}
               <Route path="*" element={<Navigate to="/" replace />} />

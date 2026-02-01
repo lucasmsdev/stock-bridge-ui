@@ -729,6 +729,12 @@ const Landing = () => {
                 <a href="#faq" className="block text-muted-foreground hover:text-primary transition-colors">
                   FAQ
                 </a>
+                <Link to="/termos" className="block text-muted-foreground hover:text-primary transition-colors">
+                  Termos de Serviço
+                </Link>
+                <Link to="/privacidade" className="block text-muted-foreground hover:text-primary transition-colors">
+                  Política de Privacidade
+                </Link>
               </div>
             </div>
           </div>
