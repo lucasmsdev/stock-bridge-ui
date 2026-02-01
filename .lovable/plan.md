@@ -1,77 +1,146 @@
 
 
-# Plano: Adicionar Google Ads (Em Breve)
+# Plano: Corrigir Edge Function seed-demo-data
 
-## Visão Geral
+## Problema Identificado
 
-Adicionar o Google Ads à lista de integrações disponíveis na página de Integrações, porém marcado como "Em breve" com botão desabilitado.
+A Edge Function `seed-demo-data` está inserindo dados **sem `organization_id`**, e as RLS policies exigem que `organization_id = get_user_org_id(auth.uid())` para permitir leitura. Isso faz com que os dados gerados fiquem "invisíveis" para o usuário no Dashboard.
+
+Dados no banco confirmam o problema:
+- 1089 pedidos com `organization_id = NULL`
+- 25 produtos com `organization_id = NULL`
+- O usuário pertence à organização `7deae850-e4c2-42d6-880b-2ec84c9a5eca`
+
+---
+
+## Solução
+
+Modificar a Edge Function `seed-demo-data` para:
+
+1. **Buscar a organização do usuário** antes de inserir dados
+2. **Incluir `organization_id`** em todos os inserts (products, orders, expenses, suppliers, notifications, etc.)
 
 ---
 
 ## Modificações
 
-### Arquivo: `src/pages/Integrations.tsx`
+### Arquivo: `supabase/functions/seed-demo-data/index.ts`
 
-#### 1. Atualizar o array `availableIntegrations` (linha ~32)
+#### 1. Buscar organization_id do usuário (após autenticação, ~linha 141)
 
-Adicionar Google Ads após Meta Ads:
+Adicionar consulta para obter a organização do usuário:
 
 ```typescript
-{
-  id: "google_ads",
-  name: "Google Ads",
-  description: "Métricas de campanhas do Google Ads - pesquisa, display e shopping",
-  popular: false,
-  comingSoon: true,
-  logoUrl: "https://upload.wikimedia.org/wikipedia/commons/c/c7/Google_Ads_logo.svg",
+// Buscar organization_id do usuário
+const { data: orgMember } = await supabase
+  .from('organization_members')
+  .select('organization_id')
+  .eq('user_id', user.id)
+  .single();
+
+const organizationId = orgMember?.organization_id;
+
+if (!organizationId) {
+  return new Response(JSON.stringify({ 
+    error: 'Usuário não pertence a nenhuma organização' 
+  }), {
+    status: 400,
+    headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+  });
 }
 ```
 
-#### 2. Modificar o render do card (linhas ~918-964)
+#### 2. Adicionar organization_id em todos os inserts
 
-Atualizar para:
-- Exibir badge "Em breve" ao lado do nome quando `comingSoon: true`
-- Desabilitar o botão "Conectar" para integrações `comingSoon`
-- Alterar texto do botão para "Em breve" quando desabilitado
+**Suppliers (linha ~161):**
+```typescript
+const supplierInserts = suppliers.map(s => ({
+  user_id: user.id,
+  organization_id: organizationId,  // <- ADICIONAR
+  name: s.name,
+  ...
+}));
+```
 
----
+**Products (linha ~175):**
+```typescript
+const productInserts = products.map((p, i) => ({
+  user_id: user.id,
+  organization_id: organizationId,  // <- ADICIONAR
+  name: p.name,
+  ...
+}));
+```
 
-## Visual Esperado
+**Orders (linhas ~204, 227, 251, 275):**
+```typescript
+orders.push({
+  user_id: user.id,
+  organization_id: organizationId,  // <- ADICIONAR
+  order_id_channel: ...,
+  ...
+});
+```
 
-```text
-+-------------------------------------+
-|  [Google Ads Logo]                  |
-|  Google Ads          [Em breve]     |
-|  Metricas de campanhas do Google    |
-|  Ads - pesquisa, display e shopping |
-|                                     |
-|  +-------------------------------+  |
-|  |       Em breve (disabled)     |  |
-|  +-------------------------------+  |
-+-------------------------------------+
+**Expenses (linha ~301):**
+```typescript
+const expenseInserts = expenses.map(e => ({
+  user_id: user.id,
+  organization_id: organizationId,  // <- ADICIONAR
+  name: e.name,
+  ...
+}));
+```
+
+**Notifications (linha ~314):**
+```typescript
+const notificationInserts = notifications.map((n, i) => ({
+  user_id: user.id,
+  organization_id: organizationId,  // <- ADICIONAR (se a tabela tiver esse campo)
+  type: n.type,
+  ...
+}));
+```
+
+**Price Monitoring Jobs (linha ~330):**
+```typescript
+const monitoringJobs = insertedProducts!.slice(0, 8).map(p => ({
+  user_id: user.id,
+  organization_id: organizationId,  // <- ADICIONAR (se a tabela tiver esse campo)
+  product_id: p.id,
+  ...
+}));
 ```
 
 ---
 
-## Detalhes Tecnicos
+## Tabelas Afetadas
 
-| Item | Valor |
-|------|-------|
-| Badge | `variant="outline"` com classes `bg-muted text-muted-foreground` |
-| Botao | `disabled={true}` com icone `Clock` ao inves de `Plus` |
-| Estilo | Opacidade reduzida no card para indicar indisponibilidade |
-
----
-
-## Arquivos Afetados
-
-| Arquivo | Acao |
-|---------|------|
-| `src/pages/Integrations.tsx` | Modificar |
+| Tabela | Tem organization_id? | Precisa Adicionar? |
+|--------|---------------------|-------------------|
+| suppliers | Verificar | Sim |
+| products | Sim | Sim |
+| orders | Sim | Sim |
+| expenses | Sim | Sim |
+| notifications | Verificar | Possivelmente |
+| price_monitoring_jobs | Verificar | Possivelmente |
 
 ---
 
-## Resultado
+## Ações Adicionais
 
-O Google Ads aparecera na lista de integracoes disponiveis, claramente marcado como "Em breve", mantendo a expectativa do usuario de que a funcionalidade sera adicionada futuramente, sem confusao sobre o status atual.
+Após atualizar a Edge Function, será necessário:
+
+1. **Deploy** da Edge Function atualizada
+2. **Limpar dados antigos** com organization_id NULL (ou atualizar para o ID correto)
+3. **Testar novamente** o botão "Gerar Demo"
+
+---
+
+## Resultado Esperado
+
+Após a correção:
+- O botão "Gerar Demo" criará dados com o `organization_id` correto
+- As RLS policies permitirão a leitura dos dados
+- O Dashboard exibirá os dados corretamente
 
