@@ -1014,33 +1014,41 @@ serve(async (req) => {
                     },
                   });
                   
-                  // Extract main image (only if product doesn't have one)
-                  if (!product.image_url) {
-                    const images = catalogResponse?.images || catalogResponse?.attributes?.images || [];
-                    let mainImage = null;
-                    
-                    // Try to find main image from response
-                    if (Array.isArray(images)) {
-                      for (const imgSet of images) {
-                        const imgArray = imgSet?.images || imgSet;
-                        if (Array.isArray(imgArray)) {
-                          const primaryImg = imgArray.find((img: any) => img.variant === 'MAIN');
-                          if (primaryImg?.link) {
-                            mainImage = primaryImg.link;
-                            break;
-                          }
-                          // Fallback to first image
-                          if (!mainImage && imgArray[0]?.link) {
-                            mainImage = imgArray[0].link;
+                  // Extract ALL images (main + additional) from Catalog API
+                  const allProductImages: string[] = [];
+                  const imagesData = catalogResponse?.images || [];
+                  
+                  if (Array.isArray(imagesData)) {
+                    for (const imgSet of imagesData) {
+                      const imgArray = imgSet?.images || imgSet;
+                      if (Array.isArray(imgArray)) {
+                        // Sort: MAIN first, then by variant name (PT01, PT02, etc.)
+                        const sortedImages = [...imgArray].sort((a: any, b: any) => {
+                          if (a.variant === 'MAIN') return -1;
+                          if (b.variant === 'MAIN') return 1;
+                          return (a.variant || '').localeCompare(b.variant || '');
+                        });
+                        
+                        for (const img of sortedImages) {
+                          if (img.link) {
+                            const httpsUrl = img.link.replace('http://', 'https://');
+                            if (!allProductImages.includes(httpsUrl)) {
+                              allProductImages.push(httpsUrl);
+                            }
                           }
                         }
                       }
                     }
-                    
-                    if (mainImage) {
-                      product.image_url = mainImage.replace('http://', 'https://');
+                  }
+                  
+                  // Assign images to product
+                  if (allProductImages.length > 0) {
+                    // Only update if product doesn't already have images or has fewer
+                    if (!product.images || product.images.length < allProductImages.length) {
+                      product.image_url = allProductImages[0];
+                      product.images = allProductImages;
                       imagesFound++;
-                      console.log(`🖼️ Imagem encontrada via Catalog API para SKU ${product.sku}: ${product.image_url.substring(0, 60)}...`);
+                      console.log(`🖼️ ${allProductImages.length} imagens encontradas via Catalog API para SKU ${product.sku}`);
                     }
                   }
                   

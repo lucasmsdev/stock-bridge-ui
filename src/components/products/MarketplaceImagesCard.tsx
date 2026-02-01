@@ -1,4 +1,4 @@
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect } from "react";
 import { Image, Plus, Trash2, RefreshCw, Loader2, AlertTriangle, CheckCircle, Link as LinkIcon, Upload, X } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -70,20 +70,31 @@ export function MarketplaceImagesCard({
   const { toast } = useToast();
   const fileInputRefs = useRef<Record<string, HTMLInputElement | null>>({});
   
-  const [imagesByPlatform, setImagesByPlatform] = useState<Record<string, string[]>>(() => {
-    const initial: Record<string, string[]> = {};
-    channelStocks.forEach(cs => {
-      if (cs.images && cs.images.length > 0) {
-        initial[cs.channel] = [...cs.images];
-      }
-    });
-    return initial;
-  });
+  // Inicializa imagesByPlatform a partir de channelStocks
+  const [imagesByPlatform, setImagesByPlatform] = useState<Record<string, string[]>>({});
   const [newImageUrl, setNewImageUrl] = useState<Record<string, string>>({});
   const [isSyncing, setIsSyncing] = useState<Record<string, boolean>>({});
   const [hasChanges, setHasChanges] = useState<Record<string, boolean>>({});
   const [pendingUploads, setPendingUploads] = useState<Record<string, PendingUpload[]>>({});
   const [isDragging, setIsDragging] = useState<Record<string, boolean>>({});
+
+  // Atualiza o estado quando channelStocks mudar (reload dos dados)
+  // Apenas atualiza se não houver mudanças pendentes no estado local
+  useEffect(() => {
+    const newImages: Record<string, string[]> = {};
+    channelStocks.forEach(cs => {
+      if (cs.images && cs.images.length > 0) {
+        // Só atualiza se não tem mudanças pendentes para esta plataforma
+        if (!hasChanges[cs.channel]) {
+          newImages[cs.channel] = [...cs.images];
+        } else {
+          // Mantém o estado local se tiver mudanças não sincronizadas
+          newImages[cs.channel] = imagesByPlatform[cs.channel] || [...cs.images];
+        }
+      }
+    });
+    setImagesByPlatform(prev => ({ ...prev, ...newImages }));
+  }, [channelStocks]);
 
   // Get unique platforms that have listings
   const activePlatforms = [...new Set(listings.map(l => l.platform))];
