@@ -28,8 +28,19 @@ import { AmazonSellerIdDialog } from "@/components/integrations/AmazonSellerIdDi
 import { TokenStatusBadge, getTimeUntilExpiry } from "@/components/integrations/TokenStatusBadge";
 import { useOrgRole } from "@/hooks/useOrgRole";
 
-// Mock data
-const availableIntegrations = [
+// Integration type
+interface IntegrationPlatform {
+  id: string;
+  name: string;
+  description: string;
+  popular: boolean;
+  logoUrl: string;
+  darkLogoUrl?: string;
+  comingSoon?: boolean;
+}
+
+// Integration categories
+const marketplaceIntegrations: IntegrationPlatform[] = [
   {
     id: "mercadolivre",
     name: "Mercado Livre",
@@ -59,6 +70,9 @@ const availableIntegrations = [
     popular: false,
     logoUrl: "https://cdn.freebiesupply.com/logos/large/2x/shopify-logo-png-transparent.png",
   },
+];
+
+const adsIntegrations: IntegrationPlatform[] = [
   {
     id: "meta_ads",
     name: "Meta Ads",
@@ -74,7 +88,18 @@ const availableIntegrations = [
     comingSoon: true,
     logoUrl: "https://upload.wikimedia.org/wikipedia/commons/c/c7/Google_Ads_logo.svg",
   },
+  {
+    id: "tiktok_ads",
+    name: "TikTok Ads",
+    description: "Métricas de campanhas do TikTok Ads - vídeos e performance",
+    popular: false,
+    comingSoon: true,
+    logoUrl: "https://sf-tb-sg.ibytedtos.com/obj/eden-sg/uhtyvueh7nulogpoguhm/tiktok-icon2.png",
+  },
 ];
+
+// Combined for backward compatibility
+const availableIntegrations: IntegrationPlatform[] = [...marketplaceIntegrations, ...adsIntegrations];
 
 export default function Integrations() {
   const navigate = useNavigate();
@@ -911,15 +936,15 @@ export default function Integrations() {
         )}
       </div>
 
-      {/* Available Integrations */}
+      {/* Available Integrations - Marketplaces */}
       <div className="space-y-4">
         <div className="flex items-center justify-between">
-          <h2 className="text-xl font-semibold text-foreground">Conecte um Novo Canal</h2>
-          <Badge variant="outline">{availableIntegrations.length} plataformas disponíveis</Badge>
+          <h2 className="text-xl font-semibold text-foreground">Marketplaces</h2>
+          <Badge variant="outline">{marketplaceIntegrations.length} plataformas</Badge>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-          {availableIntegrations.map((platform, index) => {
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+          {marketplaceIntegrations.map((platform, index) => {
             const connectedCount = connectedIntegrations.filter((c) => c.platform === platform.id).length;
             const isConnected = connectedCount > 0;
 
@@ -952,15 +977,15 @@ export default function Integrations() {
                               Popular
                             </Badge>
                           )}
-                          {isConnected && (
-                            <Badge variant="outline" className="bg-green-500/10 text-green-600 border-green-500/20">
-                              {connectedCount} {connectedCount === 1 ? "conectada" : "conectadas"}
-                            </Badge>
-                          )}
                         </CardTitle>
                       </div>
                     </div>
                   </div>
+                  {isConnected && (
+                    <Badge variant="outline" className="w-fit bg-green-500/10 text-green-600 border-green-500/20">
+                      {connectedCount} {connectedCount === 1 ? "conectada" : "conectadas"}
+                    </Badge>
+                  )}
                   <CardDescription className="text-sm">{platform.description}</CardDescription>
                 </CardHeader>
 
@@ -980,7 +1005,86 @@ export default function Integrations() {
                       className="w-full bg-gradient-primary hover:bg-primary-hover group-hover:shadow-primary transition-all duration-200 hover:scale-[1.02]"
                     >
                       <Plus className="w-4 h-4 mr-2" />
-                      {isConnected ? `Conectar Outra Conta ${platform.name}` : `Conectar ${platform.name}`}
+                      {isConnected ? `Conectar Outra` : `Conectar`}
+                    </Button>
+                  )}
+                </CardContent>
+              </Card>
+            );
+          })}
+        </div>
+      </div>
+
+      {/* Available Integrations - Ads */}
+      <div className="space-y-4">
+        <div className="flex items-center justify-between">
+          <h2 className="text-xl font-semibold text-foreground">Plataformas de Anúncios</h2>
+          <Badge variant="outline">{adsIntegrations.length} plataformas</Badge>
+        </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          {adsIntegrations.map((platform, index) => {
+            const connectedCount = connectedIntegrations.filter((c) => c.platform === platform.id).length;
+            const isConnected = connectedCount > 0;
+
+            return (
+              <Card
+                key={platform.id}
+                className={`shadow-soft hover:shadow-medium transition-all duration-200 group hover:scale-[1.02] hover:-translate-y-1 ${platform.comingSoon ? 'opacity-70' : ''}`}
+                style={{ animationDelay: `${index * 0.1}s` }}
+              >
+                <CardHeader className="pb-3">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-3">
+                      <div className="group-hover:scale-110 transition-transform">
+                        <img
+                          src={theme === 'dark' && platform.darkLogoUrl ? platform.darkLogoUrl : platform.logoUrl}
+                          alt={`${platform.name} logo`}
+                          className="h-8 w-auto"
+                        />
+                      </div>
+                      <div>
+                        <CardTitle className="text-lg flex items-center gap-2">
+                          {platform.name}
+                          {platform.comingSoon && (
+                            <Badge variant="outline" className="bg-muted text-muted-foreground">
+                              Em breve
+                            </Badge>
+                          )}
+                          {platform.popular && !platform.comingSoon && (
+                            <Badge variant="secondary" className="bg-primary text-primary-foreground animate-glow">
+                              Popular
+                            </Badge>
+                          )}
+                        </CardTitle>
+                      </div>
+                    </div>
+                  </div>
+                  {isConnected && (
+                    <Badge variant="outline" className="w-fit bg-green-500/10 text-green-600 border-green-500/20">
+                      {connectedCount} {connectedCount === 1 ? "conectada" : "conectadas"}
+                    </Badge>
+                  )}
+                  <CardDescription className="text-sm">{platform.description}</CardDescription>
+                </CardHeader>
+
+                <CardContent>
+                  {platform.comingSoon ? (
+                    <Button
+                      disabled
+                      className="w-full"
+                      variant="outline"
+                    >
+                      <Clock className="w-4 h-4 mr-2" />
+                      Em breve
+                    </Button>
+                  ) : (
+                    <Button
+                      onClick={() => handleConnect(platform.id)}
+                      className="w-full bg-gradient-primary hover:bg-primary-hover group-hover:shadow-primary transition-all duration-200 hover:scale-[1.02]"
+                    >
+                      <Plus className="w-4 h-4 mr-2" />
+                      {isConnected ? `Conectar Outra` : `Conectar`}
                     </Button>
                   )}
                 </CardContent>
