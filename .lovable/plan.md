@@ -1,4 +1,5 @@
 
+
 # Plano: Adicionar Google Ads (Em Breve)
 
 ## Visão Geral
@@ -37,34 +38,34 @@ Atualizar para:
 
 ## Visual Esperado
 
-```
-┌─────────────────────────────────────┐
-│  [Google Ads Logo]                  │
-│  Google Ads          [Em breve]     │
-│  Métricas de campanhas do Google    │
-│  Ads - pesquisa, display e shopping │
-│                                     │
-│  ┌─────────────────────────────────┐│
-│  │       Em breve (disabled)       ││
-│  └─────────────────────────────────┘│
-└─────────────────────────────────────┘
+```text
++-------------------------------------+
+|  [Google Ads Logo]                  |
+|  Google Ads          [Em breve]     |
+|  Metricas de campanhas do Google    |
+|  Ads - pesquisa, display e shopping |
+|                                     |
+|  +-------------------------------+  |
+|  |       Em breve (disabled)     |  |
+|  +-------------------------------+  |
++-------------------------------------+
 ```
 
 ---
 
-## Detalhes Técnicos
+## Detalhes Tecnicos
 
 | Item | Valor |
 |------|-------|
 | Badge | `variant="outline"` com classes `bg-muted text-muted-foreground` |
-| Botão | `disabled={true}` com ícone `Clock` ao invés de `Plus` |
+| Botao | `disabled={true}` com icone `Clock` ao inves de `Plus` |
 | Estilo | Opacidade reduzida no card para indicar indisponibilidade |
 
 ---
 
 ## Arquivos Afetados
 
-| Arquivo | Ação |
+| Arquivo | Acao |
 |---------|------|
 | `src/pages/Integrations.tsx` | Modificar |
 
@@ -72,4 +73,5 @@ Atualizar para:
 
 ## Resultado
 
-O Google Ads aparecerá na lista de integrações disponíveis, claramente marcado como "Em breve", mantendo a expectativa do usuário de que a funcionalidade será adicionada futuramente, sem confusão sobre o status atual.
+O Google Ads aparecera na lista de integracoes disponiveis, claramente marcado como "Em breve", mantendo a expectativa do usuario de que a funcionalidade sera adicionada futuramente, sem confusao sobre o status atual.
+
