@@ -23,6 +23,7 @@ import { ProfitabilityCalculator } from "@/components/financial/ProfitabilityCal
 import { AmazonStatusCard } from "@/components/amazon/AmazonStatusCard";
 import { MarketplaceImagesCard } from "@/components/products/MarketplaceImagesCard";
 import { ProductImagesGallery } from "@/components/products/ProductImagesGallery";
+import { ProductAdsPerformance } from "@/components/products/ProductAdsPerformance";
 
 interface Product {
   id: string;
@@ -39,6 +40,9 @@ interface Product {
   supplier_id?: string;
   images?: string[];
   description?: string;
+  total_attributed_spend?: number;
+  total_attributed_revenue?: number;
+  attributed_roas?: number;
 }
 
 interface Supplier {
@@ -543,6 +547,16 @@ export default function ProductDetails() {
           integrationId={listing.integration_id}
         />
       ))}
+
+      {/* Ads Performance - Campaign Links and ROI */}
+      <ProductAdsPerformance
+        productId={product.id}
+        productSku={product.sku}
+        productName={product.name}
+        totalAttributedSpend={product.total_attributed_spend}
+        totalAttributedRevenue={product.total_attributed_revenue}
+        attributedRoas={product.attributed_roas}
+      />
 
       {/* Profitability Analysis */}
       <ProfitabilityAnalysis 
