@@ -168,6 +168,168 @@ export type Database = {
           },
         ]
       }
+      attributed_conversions: {
+        Row: {
+          attributed_at: string
+          attributed_spend: number
+          attribution_method: string
+          attribution_weight: number
+          campaign_id: string
+          campaign_name: string | null
+          conversion_date: string
+          created_at: string
+          id: string
+          order_id: string | null
+          order_value: number
+          organization_id: string | null
+          platform: string
+          product_id: string | null
+          quantity: number
+          sku: string
+          user_id: string
+        }
+        Insert: {
+          attributed_at?: string
+          attributed_spend?: number
+          attribution_method?: string
+          attribution_weight?: number
+          campaign_id: string
+          campaign_name?: string | null
+          conversion_date: string
+          created_at?: string
+          id?: string
+          order_id?: string | null
+          order_value?: number
+          organization_id?: string | null
+          platform: string
+          product_id?: string | null
+          quantity?: number
+          sku: string
+          user_id: string
+        }
+        Update: {
+          attributed_at?: string
+          attributed_spend?: number
+          attribution_method?: string
+          attribution_weight?: number
+          campaign_id?: string
+          campaign_name?: string | null
+          conversion_date?: string
+          created_at?: string
+          id?: string
+          order_id?: string | null
+          order_value?: number
+          organization_id?: string | null
+          platform?: string
+          product_id?: string | null
+          quantity?: number
+          sku?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "attributed_conversions_order_id_fkey"
+            columns: ["order_id"]
+            isOneToOne: false
+            referencedRelation: "orders"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "attributed_conversions_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "attributed_conversions_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "product_roi_metrics"
+            referencedColumns: ["product_id"]
+          },
+          {
+            foreignKeyName: "attributed_conversions_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "products"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      campaign_product_links: {
+        Row: {
+          campaign_id: string
+          campaign_name: string | null
+          created_at: string
+          end_date: string | null
+          id: string
+          is_active: boolean
+          link_type: string
+          organization_id: string | null
+          platform: string
+          product_id: string | null
+          sku: string
+          start_date: string | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          campaign_id: string
+          campaign_name?: string | null
+          created_at?: string
+          end_date?: string | null
+          id?: string
+          is_active?: boolean
+          link_type?: string
+          organization_id?: string | null
+          platform: string
+          product_id?: string | null
+          sku: string
+          start_date?: string | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          campaign_id?: string
+          campaign_name?: string | null
+          created_at?: string
+          end_date?: string | null
+          id?: string
+          is_active?: boolean
+          link_type?: string
+          organization_id?: string | null
+          platform?: string
+          product_id?: string | null
+          sku?: string
+          start_date?: string | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "campaign_product_links_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "campaign_product_links_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "product_roi_metrics"
+            referencedColumns: ["product_id"]
+          },
+          {
+            foreignKeyName: "campaign_product_links_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "products"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       expenses: {
         Row: {
           amount: number
@@ -654,6 +816,13 @@ export type Database = {
             foreignKeyName: "price_monitoring_jobs_product_id_fkey"
             columns: ["product_id"]
             isOneToOne: false
+            referencedRelation: "product_roi_metrics"
+            referencedColumns: ["product_id"]
+          },
+          {
+            foreignKeyName: "price_monitoring_jobs_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
             referencedRelation: "products"
             referencedColumns: ["id"]
           },
@@ -730,6 +899,13 @@ export type Database = {
             foreignKeyName: "product_listings_product_id_fkey"
             columns: ["product_id"]
             isOneToOne: false
+            referencedRelation: "product_roi_metrics"
+            referencedColumns: ["product_id"]
+          },
+          {
+            foreignKeyName: "product_listings_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
             referencedRelation: "products"
             referencedColumns: ["id"]
           },
@@ -744,7 +920,9 @@ export type Database = {
       }
       products: {
         Row: {
+          active_campaign_ids: Json | null
           ad_spend: number | null
+          attributed_roas: number | null
           brand: string | null
           category: string | null
           condition: string | null
@@ -762,12 +940,16 @@ export type Database = {
           sku: string
           stock: number
           supplier_id: string | null
+          total_attributed_revenue: number | null
+          total_attributed_spend: number | null
           updated_at: string
           user_id: string
           weight: number | null
         }
         Insert: {
+          active_campaign_ids?: Json | null
           ad_spend?: number | null
+          attributed_roas?: number | null
           brand?: string | null
           category?: string | null
           condition?: string | null
@@ -785,12 +967,16 @@ export type Database = {
           sku: string
           stock?: number
           supplier_id?: string | null
+          total_attributed_revenue?: number | null
+          total_attributed_spend?: number | null
           updated_at?: string
           user_id: string
           weight?: number | null
         }
         Update: {
+          active_campaign_ids?: Json | null
           ad_spend?: number | null
+          attributed_roas?: number | null
           brand?: string | null
           category?: string | null
           condition?: string | null
@@ -808,6 +994,8 @@ export type Database = {
           sku?: string
           stock?: number
           supplier_id?: string | null
+          total_attributed_revenue?: number | null
+          total_attributed_spend?: number | null
           updated_at?: string
           user_id?: string
           weight?: number | null
@@ -1141,7 +1329,31 @@ export type Database = {
       }
     }
     Views: {
-      [_ in never]: never
+      product_roi_metrics: {
+        Row: {
+          attributed_orders: number | null
+          cost_per_acquisition: number | null
+          cost_price: number | null
+          organization_id: string | null
+          product_id: string | null
+          product_name: string | null
+          roas: number | null
+          selling_price: number | null
+          sku: string | null
+          total_attributed_revenue: number | null
+          total_attributed_spend: number | null
+          total_attributed_units: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "products_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Functions: {
       can_write_in_org: { Args: { user_uuid: string }; Returns: boolean }
