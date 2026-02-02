@@ -21,7 +21,8 @@ import {
   Truck,
   Tag,
   ScanLine,
-  Users
+  Users,
+  PieChart
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -87,6 +88,12 @@ const navItems: NavItem[] = [
     href: "/app/integrations", 
     icon: Plug, 
     requiresFeature: FeatureName.MULTI_MARKETPLACE
+  },
+  {
+    title: "ROI de Produtos",
+    href: "/app/product-roi",
+    icon: PieChart,
+    requiresFeature: FeatureName.FINANCIAL_CALCULATOR
   },
   { 
     title: "Relatórios", 

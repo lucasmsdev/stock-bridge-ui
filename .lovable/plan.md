@@ -1,13 +1,16 @@
 
 # Plano: Cruzamento de Dados entre Vendas e Anúncios
 
-## Visão Geral
+## Status: Em Implementação ✅
 
-Implementar um sistema completo de atribuição que conecta os gastos com anúncios às vendas reais, permitindo calcular o ROI real por SKU/produto, identificar quais campanhas geram mais vendas e otimizar investimentos em marketing.
+### Fases Concluídas:
+- [x] **Fase 1**: Estrutura de Dados (tabelas `campaign_product_links`, `attributed_conversions`, view `product_roi_metrics`)
+- [x] **Fase 3 (parcial)**: Edge Function `attribute-conversions` criada e deployada
+- [x] **Fase 4 (parcial)**: Página ProductROI.tsx, hooks useProductROI e useCampaignLinks
+- [x] **Fase 5 (parcial)**: Modal CampaignLinkDialog para vincular campanhas a produtos
+- [x] Componente ProductAdsPerformance adicionado à página de detalhes do produto
 
 ---
-
-## O Problema Atual
 
 ```text
 +------------------+         +------------------+
