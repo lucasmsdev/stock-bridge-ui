@@ -110,17 +110,24 @@ const notifications = [
   { type: 'price_alert', title: '🔔 Alerta de margem', message: 'SSD NVMe 1TB está com margem de apenas 18%. Revise o custo ou preço.' }
 ];
 
-// Ad campaigns demo data (Meta Ads and Google Ads)
+// Ad campaigns demo data (Meta Ads, Google Ads, TikTok Ads)
 const adCampaigns = [
+  // Meta Ads campaigns
   { platform: 'meta_ads', name: 'Black Friday 2025', status: 'active', dailyBudget: 280, roas: 4.2 },
   { platform: 'meta_ads', name: 'Remarketing Site', status: 'active', dailyBudget: 180, roas: 3.8 },
   { platform: 'meta_ads', name: 'Stories Verão', status: 'active', dailyBudget: 95, roas: 1.8 },
   { platform: 'meta_ads', name: 'Feed Produtos', status: 'active', dailyBudget: 150, roas: 2.4 },
   { platform: 'meta_ads', name: 'Lookalike Clientes', status: 'paused', dailyBudget: 60, roas: 3.1 },
+  // Google Ads campaigns
   { platform: 'google_ads', name: 'Search - Produtos', status: 'active', dailyBudget: 350, roas: 2.9 },
   { platform: 'google_ads', name: 'Display - Marca', status: 'active', dailyBudget: 120, roas: 2.1 },
   { platform: 'google_ads', name: 'Shopping Feed', status: 'active', dailyBudget: 85, roas: 3.5 },
   { platform: 'google_ads', name: 'Performance Max', status: 'paused', dailyBudget: 70, roas: 2.8 },
+  // TikTok Ads campaigns
+  { platform: 'tiktok_ads', name: 'Spark Ads - Influencers', status: 'active', dailyBudget: 200, roas: 3.6 },
+  { platform: 'tiktok_ads', name: 'In-Feed Produtos', status: 'active', dailyBudget: 150, roas: 2.8 },
+  { platform: 'tiktok_ads', name: 'TopView Lançamento', status: 'active', dailyBudget: 300, roas: 2.2 },
+  { platform: 'tiktok_ads', name: 'Hashtag Challenge', status: 'paused', dailyBudget: 180, roas: 3.0 },
 ];
 
 serve(async (req) => {
