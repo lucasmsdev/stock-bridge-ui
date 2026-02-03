@@ -110,6 +110,19 @@ const notifications = [
   { type: 'price_alert', title: '🔔 Alerta de margem', message: 'SSD NVMe 1TB está com margem de apenas 18%. Revise o custo ou preço.' }
 ];
 
+// Ad campaigns demo data (Meta Ads and Google Ads)
+const adCampaigns = [
+  { platform: 'meta_ads', name: 'Black Friday 2025', status: 'active', dailyBudget: 280, roas: 4.2 },
+  { platform: 'meta_ads', name: 'Remarketing Site', status: 'active', dailyBudget: 180, roas: 3.8 },
+  { platform: 'meta_ads', name: 'Stories Verão', status: 'active', dailyBudget: 95, roas: 1.8 },
+  { platform: 'meta_ads', name: 'Feed Produtos', status: 'active', dailyBudget: 150, roas: 2.4 },
+  { platform: 'meta_ads', name: 'Lookalike Clientes', status: 'paused', dailyBudget: 60, roas: 3.1 },
+  { platform: 'google_ads', name: 'Search - Produtos', status: 'active', dailyBudget: 350, roas: 2.9 },
+  { platform: 'google_ads', name: 'Display - Marca', status: 'active', dailyBudget: 120, roas: 2.1 },
+  { platform: 'google_ads', name: 'Shopping Feed', status: 'active', dailyBudget: 85, roas: 3.5 },
+  { platform: 'google_ads', name: 'Performance Max', status: 'paused', dailyBudget: 70, roas: 2.8 },
+];
+
 serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
@@ -167,6 +180,9 @@ serve(async (req) => {
 
     // Clean existing data
     console.log('Limpando dados existentes...');
+    await supabase.from('attributed_conversions').delete().eq('user_id', user.id);
+    await supabase.from('campaign_product_links').delete().eq('user_id', user.id);
+    await supabase.from('ad_metrics').delete().eq('user_id', user.id);
     await supabase.from('price_monitoring_jobs').delete().eq('user_id', user.id);
     await supabase.from('notifications').delete().eq('user_id', user.id);
     await supabase.from('orders').delete().eq('user_id', user.id);
@@ -366,12 +382,168 @@ serve(async (req) => {
     }));
     await supabase.from('price_monitoring_jobs').insert(monitoringJobs);
 
+    // ============================================
+    // ADS DATA: Campanhas, Vínculos e Atribuições
+    // ============================================
+    console.log('Inserindo dados de ads (campanhas, vínculos, atribuições)...');
+
+    // Generate ad_metrics for each campaign over last 30 days
+    const adMetricsInserts: any[] = [];
+    const campaignLinks: any[] = [];
+    const attributedConversions: any[] = [];
+    
+    // Create a fake integration ID for demo purposes
+    const fakeIntegrationId = crypto.randomUUID();
+    
+    adCampaigns.forEach((campaign, idx) => {
+      const campaignId = `demo-campaign-${idx + 1}`;
+      
+      // Generate daily metrics for last 30 days
+      for (let day = 0; day < 30; day++) {
+        const date = new Date(now);
+        date.setDate(date.getDate() - day);
+        const dateStr = date.toISOString().split('T')[0];
+        
+        // Add variance based on campaign status and performance
+        const isActive = campaign.status === 'active';
+        const baseSpend = isActive ? campaign.dailyBudget * randomFloat(0.8, 1.2) : campaign.dailyBudget * randomFloat(0.1, 0.3);
+        const spend = Math.round(baseSpend * 100) / 100;
+        
+        // Calculate metrics based on ROAS and spend
+        const conversionValue = spend * campaign.roas * randomFloat(0.85, 1.15);
+        const avgOrderValue = 350; // Average order value
+        const conversions = Math.max(1, Math.round(conversionValue / avgOrderValue));
+        const cpc = randomFloat(1.0, 3.5);
+        const clicks = Math.round(spend / cpc);
+        const ctr = randomFloat(1.0, 3.0);
+        const impressions = Math.round(clicks / (ctr / 100));
+        
+        adMetricsInserts.push({
+          user_id: user.id,
+          organization_id: organizationId,
+          integration_id: fakeIntegrationId,
+          platform: campaign.platform,
+          campaign_id: campaignId,
+          campaign_name: campaign.name,
+          date: dateStr,
+          spend,
+          impressions,
+          clicks,
+          conversions,
+          conversion_value: Math.round(conversionValue * 100) / 100,
+          cpc: Math.round(cpc * 100) / 100,
+          ctr: Math.round(ctr * 100) / 100,
+          reach: Math.round(impressions * randomFloat(0.7, 0.9))
+        });
+      }
+      
+      // Link each campaign to 2-4 products
+      const numProducts = randomInt(2, 4);
+      const linkedProducts = insertedProducts!.slice(idx % 20, (idx % 20) + numProducts);
+      
+      linkedProducts.forEach(product => {
+        campaignLinks.push({
+          user_id: user.id,
+          organization_id: organizationId,
+          campaign_id: campaignId,
+          campaign_name: campaign.name,
+          platform: campaign.platform,
+          product_id: product.id,
+          sku: product.sku,
+          is_active: campaign.status === 'active',
+          link_type: 'manual',
+          start_date: new Date(now.getTime() - 60 * 24 * 60 * 60 * 1000).toISOString().split('T')[0]
+        });
+      });
+    });
+
+    // Insert ad_metrics in batches
+    console.log(`Inserindo ${adMetricsInserts.length} métricas de ads...`);
+    for (let i = 0; i < adMetricsInserts.length; i += batchSize) {
+      const batch = adMetricsInserts.slice(i, i + batchSize);
+      await supabase.from('ad_metrics').insert(batch);
+    }
+
+    // Insert campaign_product_links
+    console.log(`Inserindo ${campaignLinks.length} vínculos de campanhas...`);
+    await supabase.from('campaign_product_links').insert(campaignLinks);
+
+    // Generate attributed conversions based on orders and campaign links
+    console.log('Gerando atribuições de conversão...');
+    
+    // For each order, check if the product has a linked campaign and create attribution
+    const ordersWithAttribution = orders.slice(0, Math.floor(orders.length * 0.35)); // ~35% of orders attributed
+    
+    for (const order of ordersWithAttribution) {
+      const orderItems = order.items as { product_id: string; name: string; quantity: number; price: number }[];
+      
+      for (const item of orderItems) {
+        // Find if this product has a linked campaign
+        const linkedCampaign = campaignLinks.find(link => link.product_id === item.product_id);
+        
+        if (linkedCampaign) {
+          const orderDate = new Date(order.order_date);
+          const orderValue = item.price * item.quantity;
+          
+          // Calculate attributed spend (proportional to campaign daily spend)
+          const campaign = adCampaigns.find(c => `demo-campaign-${adCampaigns.indexOf(c) + 1}` === linkedCampaign.campaign_id);
+          const attributedSpend = campaign ? campaign.dailyBudget * randomFloat(0.02, 0.08) : randomFloat(5, 20);
+          
+          attributedConversions.push({
+            user_id: user.id,
+            organization_id: organizationId,
+            campaign_id: linkedCampaign.campaign_id,
+            campaign_name: linkedCampaign.campaign_name,
+            platform: linkedCampaign.platform,
+            product_id: item.product_id,
+            sku: linkedCampaign.sku,
+            order_id: null, // We don't have the actual order ID at this point
+            order_value: orderValue,
+            quantity: item.quantity,
+            attributed_spend: Math.round(attributedSpend * 100) / 100,
+            conversion_date: orderDate.toISOString().split('T')[0],
+            attribution_method: 'time_window',
+            attribution_weight: 1.0
+          });
+        }
+      }
+    }
+
+    // Insert attributed conversions in batches
+    console.log(`Inserindo ${attributedConversions.length} atribuições de conversão...`);
+    for (let i = 0; i < attributedConversions.length; i += batchSize) {
+      const batch = attributedConversions.slice(i, i + batchSize);
+      await supabase.from('attributed_conversions').insert(batch);
+    }
+
+    // Update product aggregated metrics
+    console.log('Atualizando métricas agregadas dos produtos...');
+    for (const link of campaignLinks) {
+      const productConversions = attributedConversions.filter(ac => ac.product_id === link.product_id);
+      
+      if (productConversions.length > 0) {
+        const totalRevenue = productConversions.reduce((sum, c) => sum + c.order_value, 0);
+        const totalSpend = productConversions.reduce((sum, c) => sum + c.attributed_spend, 0);
+        const roas = totalSpend > 0 ? totalRevenue / totalSpend : 0;
+        
+        await supabase.from('products').update({
+          total_attributed_revenue: Math.round(totalRevenue * 100) / 100,
+          total_attributed_spend: Math.round(totalSpend * 100) / 100,
+          attributed_roas: Math.round(roas * 100) / 100,
+          active_campaign_ids: [link.campaign_id]
+        }).eq('id', link.product_id);
+      }
+    }
+
     // Calculate summary
     const totalRevenue = orders.reduce((sum, o) => sum + o.total_value, 0);
     const todayRevenue = orders.filter(o => {
       const orderDate = new Date(o.order_date);
       return orderDate.toDateString() === now.toDateString();
     }).reduce((sum, o) => sum + o.total_value, 0);
+    
+    const totalAdSpend = adMetricsInserts.reduce((sum, m) => sum + m.spend, 0);
+    const totalAttributedRevenue = attributedConversions.reduce((sum, c) => sum + c.order_value, 0);
 
     const summary = {
       produtos: insertedProducts!.length,
@@ -381,6 +553,12 @@ serve(async (req) => {
       despesas: expenseInserts.length,
       notificacoes: notificationInserts.length,
       jobs_monitoramento: monitoringJobs.length,
+      campanhas_ads: adCampaigns.length,
+      metricas_ads: adMetricsInserts.length,
+      vinculos_campanhas: campaignLinks.length,
+      atribuicoes_conversao: attributedConversions.length,
+      gasto_total_ads: totalAdSpend.toFixed(2),
+      receita_atribuida: totalAttributedRevenue.toFixed(2),
       faturamento_total: totalRevenue.toFixed(2),
       faturamento_hoje: todayRevenue.toFixed(2)
     };
