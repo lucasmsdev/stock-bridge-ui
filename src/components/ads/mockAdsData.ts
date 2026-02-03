@@ -1,8 +1,8 @@
-export type AdsPlatform = 'meta_ads' | 'google_ads' | 'all';
+export type AdsPlatform = 'meta_ads' | 'google_ads' | 'tiktok_ads' | 'all';
 
 export interface Campaign {
   id: string;
-  platform: 'meta_ads' | 'google_ads';
+  platform: 'meta_ads' | 'google_ads' | 'tiktok_ads';
   name: string;
   status: 'active' | 'paused';
   spend: number;
@@ -22,7 +22,7 @@ export interface DailyMetric {
   impressions: number;
   clicks: number;
   conversions: number;
-  platform: 'meta_ads' | 'google_ads';
+  platform: 'meta_ads' | 'google_ads' | 'tiktok_ads';
 }
 
 // Campanhas Meta Ads
@@ -168,8 +168,72 @@ export const googleCampaigns: Campaign[] = [
   },
 ];
 
+// Campanhas TikTok Ads
+export const tiktokCampaigns: Campaign[] = [
+  {
+    id: 'tiktok-1',
+    platform: 'tiktok_ads',
+    name: 'Spark Ads - Influencers',
+    status: 'active',
+    spend: 3600,
+    impressions: 285000,
+    clicks: 5700,
+    ctr: 2.0,
+    conversions: 228,
+    conversionValue: 12960,
+    cpc: 0.63,
+    costPerConversion: 15.79,
+    roas: 3.6,
+  },
+  {
+    id: 'tiktok-2',
+    platform: 'tiktok_ads',
+    name: 'In-Feed Produtos',
+    status: 'active',
+    spend: 2700,
+    impressions: 198000,
+    clicks: 3960,
+    ctr: 2.0,
+    conversions: 158,
+    conversionValue: 7560,
+    cpc: 0.68,
+    costPerConversion: 17.09,
+    roas: 2.8,
+  },
+  {
+    id: 'tiktok-3',
+    platform: 'tiktok_ads',
+    name: 'TopView Lançamento',
+    status: 'active',
+    spend: 5400,
+    impressions: 420000,
+    clicks: 4200,
+    ctr: 1.0,
+    conversions: 168,
+    conversionValue: 11880,
+    cpc: 1.29,
+    costPerConversion: 32.14,
+    roas: 2.2,
+  },
+  {
+    id: 'tiktok-4',
+    platform: 'tiktok_ads',
+    name: 'Hashtag Challenge',
+    status: 'paused',
+    spend: 1620,
+    impressions: 150000,
+    clicks: 2250,
+    ctr: 1.5,
+    conversions: 90,
+    conversionValue: 4860,
+    cpc: 0.72,
+    costPerConversion: 18.00,
+    roas: 3.0,
+  },
+];
+
 // Todas as campanhas
-export const allCampaigns: Campaign[] = [...metaCampaigns, ...googleCampaigns];
+export const allCampaigns: Campaign[] = [...metaCampaigns, ...googleCampaigns, ...tiktokCampaigns];
 
 // Dados diários dos últimos 30 dias
 const generateDailyData = (): DailyMetric[] => {
@@ -205,6 +269,19 @@ const generateDailyData = (): DailyMetric[] => {
       impressions: Math.floor(11000 + Math.random() * 6000),
       clicks: Math.floor(140 + Math.random() * 100),
       conversions: googleBaseConversions,
+    });
+    
+    // Variação realista para TikTok Ads
+    const tiktokBaseSpend = 220 + Math.random() * 80;
+    const tiktokBaseConversions = 15 + Math.floor(Math.random() * 10);
+    
+    data.push({
+      date: dateStr,
+      platform: 'tiktok_ads',
+      spend: Math.round(tiktokBaseSpend * 100) / 100,
+      impressions: Math.floor(35000 + Math.random() * 15000),
+      clicks: Math.floor(500 + Math.random() * 200),
+      conversions: tiktokBaseConversions,
     });
   }
   
@@ -272,7 +349,8 @@ export const getAggregatedDailyData = (platform: AdsPlatform) => {
 export const getPlatformBreakdown = () => {
   const metaTotals = calculateTotals(metaCampaigns);
   const googleTotals = calculateTotals(googleCampaigns);
-  const total = metaTotals.spend + googleTotals.spend;
+  const tiktokTotals = calculateTotals(tiktokCampaigns);
+  const total = metaTotals.spend + googleTotals.spend + tiktokTotals.spend;
   
   return [
     {
@@ -286,6 +364,12 @@ export const getPlatformBreakdown = () => {
       spend: googleTotals.spend,
       percentage: total > 0 ? (googleTotals.spend / total) * 100 : 0,
       color: 'hsl(142, 71%, 45%)', // Google green
+    },
+    {
+      platform: 'TikTok Ads',
+      spend: tiktokTotals.spend,
+      percentage: total > 0 ? (tiktokTotals.spend / total) * 100 : 0,
+      color: 'hsl(349, 100%, 50%)', // TikTok red/pink
     },
   ];
 };
