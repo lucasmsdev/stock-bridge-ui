@@ -79,7 +79,7 @@ const adsIntegrations: IntegrationPlatform[] = [
     id: "meta_ads",
     name: "Meta Ads",
     description: "Facebook e Instagram Ads - métricas de campanhas publicitárias",
-    logoUrl: "https://upload.wikimedia.org/wikipedia/commons/thumb/7/7b/Meta_Platforms_Inc._logo.svg/800px-Meta_Platforms_Inc._logo.svg.png",
+    logoUrl: "/logos/meta-ads.png",
   },
   {
     id: "google_ads",
