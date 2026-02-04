@@ -69,7 +69,7 @@ const marketplaceIntegrations: IntegrationPlatform[] = [
     id: "shein",
     name: "Shein",
     description: "Integração com o marketplace de moda mais popular do mundo",
-    logoUrl: "https://upload.wikimedia.org/wikipedia/commons/thumb/9/92/SHEIN_logo.svg/1200px-SHEIN_logo.svg.png",
+    logoUrl: "/logos/shein.png",
     comingSoon: true,
   },
 ];
