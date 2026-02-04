@@ -628,107 +628,81 @@ export default function Integrations() {
             <Loader2 className="h-8 w-8 text-primary animate-spin" />
           </div>
         ) : connectedIntegrations.length > 0 ? (
-          <div className="space-y-6">
-            {/* Agrupar por plataforma */}
-            {Object.entries(
-              connectedIntegrations.reduce((acc: Record<string, any[]>, integration: any) => {
-                if (!acc[integration.platform]) {
-                  acc[integration.platform] = [];
-                }
-                acc[integration.platform].push(integration);
-                return acc;
-              }, {}),
-            ).map(([platform, platformIntegrations]: [string, any[]]) => (
-              <div key={platform} className="space-y-3">
-                {platformIntegrations.length > 1 && (
-                  <div className="flex items-center gap-2">
-                    <h3 className="text-lg font-semibold capitalize">{platform}</h3>
-                    <Badge variant="secondary" className="bg-primary/10 text-primary">
-                      {platformIntegrations.length} {platformIntegrations.length === 1 ? "conta" : "contas"}
-                    </Badge>
-                  </div>
-                )}
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                  {platformIntegrations.map((integration, idx) => (
-                    <Card
-                      key={integration.id}
-                      className={`shadow-soft hover:shadow-medium transition-all duration-200 ${
-                        importingId === integration.id
-                          ? "ring-2 ring-primary animate-pulse"
-                          : "hover:scale-[1.02] hover:-translate-y-1"
-                      }`}
-                    >
-                      <CardHeader className="pb-3">
-                        <div className="flex items-center justify-between">
-                          <div className="flex items-center gap-3">
-                            {platformIntegrations.length > 1 && (
-                              <div className="flex-shrink-0 w-8 h-8 rounded-full bg-primary/10 text-primary flex items-center justify-center font-semibold text-sm">
-                                {idx + 1}
-                              </div>
-                            )}
-                            <div className="hover:scale-110 transition-transform">
-                              {(() => {
-                                const platformConfig = availableIntegrations.find((p) => p.id === integration.platform);
-                                if (platformConfig?.logoUrl) {
-                                  const logoUrl = theme === 'dark' && platformConfig.darkLogoUrl 
-                                    ? platformConfig.darkLogoUrl 
-                                    : platformConfig.logoUrl;
-                                  return (
-                                    <img
-                                      src={logoUrl}
-                                      alt={`${integration.platform} logo`}
-                                      className="h-8 w-auto"
-                                    />
-                                  );
-                                }
-                                return <PlatformLogo platform={integration.platform} size="lg" />;
-                              })()}
-                            </div>
-                            <div>
-                              <CardTitle className="text-lg capitalize">{integration.platform}</CardTitle>
-                              {integration.account_name && (
-                                <CardDescription className="font-medium">
-                                  {integration.account_nickname || integration.account_name}
-                                </CardDescription>
-                              )}
-                              <CardDescription className="text-xs">
-                                Conectado em {new Date(integration.created_at).toLocaleDateString("pt-BR")}
-                              </CardDescription>
-                            </div>
-                          </div>
-                          {importingId === integration.id ? (
-                                                    <Badge variant="secondary" className="bg-primary text-primary-foreground animate-pulse">
-                              <Loader2 className="w-3 h-3 mr-1 animate-spin" />
-                              Importando
-                            </Badge>
-                          ) : (
-                            <TokenStatusBadge 
-                              platform={integration.platform}
-                              tokenExpiresAt={integration.token_expires_at}
-                              updatedAt={integration.updated_at}
+          <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
+            {connectedIntegrations.map((integration: any) => {
+              const platformConfig = availableIntegrations.find((p) => p.id === integration.platform);
+              const logoUrl = theme === 'dark' && platformConfig?.darkLogoUrl 
+                ? platformConfig.darkLogoUrl 
+                : platformConfig?.logoUrl;
+              
+              return (
+                <Card
+                  key={integration.id}
+                  className={`shadow-soft hover:shadow-medium transition-all duration-200 ${
+                    importingId === integration.id
+                      ? "ring-2 ring-primary animate-pulse"
+                      : "hover:scale-[1.02] hover:-translate-y-1"
+                  }`}
+                >
+                  <CardHeader className="pb-3">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-3">
+                        <div className="hover:scale-110 transition-transform">
+                          {logoUrl ? (
+                            <img
+                              src={logoUrl}
+                              alt={`${integration.platform} logo`}
+                              className="h-8 w-auto"
                             />
+                          ) : (
+                            <PlatformLogo platform={integration.platform} size="lg" />
                           )}
                         </div>
-                      </CardHeader>
-
-                      <CardContent className="space-y-4">
-                        <div className="flex items-center justify-between text-xs text-muted-foreground">
-                          <span>Conectado: {new Date(integration.created_at).toLocaleDateString("pt-BR")}</span>
-                          <div className="flex items-center gap-2">
-                            {integration.token_expires_at && integration.platform !== 'shopify' && (
-                              <span className="flex items-center gap-1">
-                                <Clock className="w-3 h-3" />
-                                Expira: {getTimeUntilExpiry(integration.token_expires_at)}
-                              </span>
-                            )}
-                            {lastSyncTimes[integration.id] && (
-                              <span className="flex items-center gap-1">
-                                <RefreshCw className="w-3 h-3" />
-                                Sync: {new Date(lastSyncTimes[integration.id]!).toLocaleTimeString("pt-BR", { hour: '2-digit', minute: '2-digit' })}
-                              </span>
-                            )}
-                          </div>
+                        <div>
+                          <CardTitle className="text-lg capitalize">{integration.platform.replace('_', ' ')}</CardTitle>
+                          {integration.account_name && (
+                            <CardDescription className="font-medium">
+                              {integration.account_nickname || integration.account_name}
+                            </CardDescription>
+                          )}
+                          <CardDescription className="text-xs">
+                            Conectado em {new Date(integration.created_at).toLocaleDateString("pt-BR")}
+                          </CardDescription>
                         </div>
+                      </div>
+                      {importingId === integration.id ? (
+                        <Badge variant="secondary" className="bg-primary text-primary-foreground animate-pulse">
+                          <Loader2 className="w-3 h-3 mr-1 animate-spin" />
+                          Importando
+                        </Badge>
+                      ) : (
+                        <TokenStatusBadge 
+                          platform={integration.platform}
+                          tokenExpiresAt={integration.token_expires_at}
+                          updatedAt={integration.updated_at}
+                        />
+                      )}
+                    </div>
+                  </CardHeader>
+
+                  <CardContent className="space-y-3">
+                    <div className="flex items-center justify-between text-xs text-muted-foreground">
+                      <span>Conectado: {new Date(integration.created_at).toLocaleDateString("pt-BR")}</span>
+                      <div className="flex items-center gap-2">
+                        {integration.token_expires_at && integration.platform !== 'shopify' && (
+                          <span className="flex items-center gap-1">
+                            <Clock className="w-3 h-3" />
+                            Expira: {getTimeUntilExpiry(integration.token_expires_at)}
+                          </span>
+                        )}
+                        {lastSyncTimes[integration.id] && (
+                          <span className="flex items-center gap-1">
+                            <RefreshCw className="w-3 h-3" />
+                            Sync: {new Date(lastSyncTimes[integration.id]!).toLocaleTimeString("pt-BR", { hour: '2-digit', minute: '2-digit' })}
+                          </span>
+                        )}
+                      </div>
+                    </div>
 
                         <Separator />
 
@@ -910,11 +884,9 @@ export default function Integrations() {
                           </AlertDialog>
                         </div>
                       </CardContent>
-                    </Card>
-                  ))}
-                </div>
-              </div>
-            ))}
+                </Card>
+              );
+            })}
           </div>
         ) : (
           <Card className="shadow-soft">
