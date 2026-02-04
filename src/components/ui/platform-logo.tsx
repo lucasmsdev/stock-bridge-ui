@@ -13,7 +13,7 @@ const platformLogos = {
   shopify: 'https://cdn.freebiesupply.com/logos/large/2x/shopify-logo-png-transparent.png',
   shopee: 'https://upload.wikimedia.org/wikipedia/commons/thumb/0/0e/Shopee_logo.svg/1442px-Shopee_logo.svg.png',
   amazon: 'https://upload.wikimedia.org/wikipedia/commons/d/de/Amazon_icon.png',
-  shein: 'https://upload.wikimedia.org/wikipedia/commons/thumb/9/92/SHEIN_logo.svg/1200px-SHEIN_logo.svg.png',
+  shein: '/logos/shein.png',
   magento: '/logos/magento.svg',
   woocommerce: '/logos/woocommerce.svg',
   vtex: '/logos/vtex.svg',
