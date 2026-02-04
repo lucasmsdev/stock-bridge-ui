@@ -3,9 +3,9 @@ import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.57.0";
 import { createHmac } from "https://deno.land/std@0.168.0/node/crypto.ts";
 
+// Webhooks are server-to-server calls - minimal headers needed
 const corsHeaders = {
-  'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+  'Content-Type': 'application/json',
 };
 
 interface OrderItem {
@@ -29,9 +29,9 @@ interface OrderData {
 }
 
 serve(async (req) => {
-  // Handle CORS preflight requests
+  // Webhooks don't need CORS preflight handling
   if (req.method === 'OPTIONS') {
-    return new Response(null, { headers: corsHeaders });
+    return new Response(null, { status: 204 });
   }
 
   try {
