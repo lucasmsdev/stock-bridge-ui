@@ -65,6 +65,13 @@ const marketplaceIntegrations: IntegrationPlatform[] = [
     description: "Conecte sua loja Shopify para sincronização de produtos e pedidos",
     logoUrl: "https://cdn.freebiesupply.com/logos/large/2x/shopify-logo-png-transparent.png",
   },
+  {
+    id: "shein",
+    name: "Shein",
+    description: "Integração com o marketplace de moda mais popular do mundo",
+    logoUrl: "https://upload.wikimedia.org/wikipedia/commons/thumb/9/92/SHEIN_logo.svg/1200px-SHEIN_logo.svg.png",
+    comingSoon: true,
+  },
 ];
 
 const adsIntegrations: IntegrationPlatform[] = [
