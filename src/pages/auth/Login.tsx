@@ -157,11 +157,10 @@ export default function Login() {
       <div className="w-full max-w-md animate-fade-in">
         <Card className="shadow-medium">
           <CardHeader className="text-center space-y-4">
-            <div className="mx-auto w-16 h-16 rounded-xl flex items-center justify-center overflow-hidden">
+            <div className="mx-auto w-20 h-20 rounded-xl flex items-center justify-center overflow-hidden">
               <img src={unistockIcon} alt="UniStock" className="w-full h-full object-cover rounded-xl" />
             </div>
             <div>
-              <CardTitle className="text-2xl font-bold">UniStock</CardTitle>
               <CardDescription className="text-muted-foreground">
                 Faça login em sua conta
               </CardDescription>
