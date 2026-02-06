@@ -46,6 +46,7 @@ interface FormattedOrder {
   customer: string;
   items: number;
   total: string;
+  totalRaw: number;
   status: string;
   statusColor: string;
 }
@@ -162,6 +163,7 @@ export default function Orders() {
           customer: order.customer_name || 'Cliente não identificado',
           items: itemsArray.length,
           total: formatCurrency(order.total_value),
+          totalRaw: order.total_value,
           status: statusInfo.label,
           statusColor: statusInfo.color
         };
@@ -252,10 +254,7 @@ export default function Orders() {
     return matchesSearch && matchesChannel && matchesStatus;
   });
 
-  const totalValue = filteredOrders.reduce((sum, order) => {
-    const value = parseFloat(order.total.replace("R$ ", "").replace(".", "").replace(",", "."));
-    return sum + value;
-  }, 0);
+  const totalValue = filteredOrders.reduce((sum, order) => sum + (order.totalRaw || 0), 0);
 
   if (isLoading) {
     return (
