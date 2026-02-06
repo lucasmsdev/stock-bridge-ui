@@ -72,6 +72,20 @@ const marketplaceIntegrations: IntegrationPlatform[] = [
     logoUrl: "/logos/shein.png",
     comingSoon: true,
   },
+  {
+    id: "tiktokshop",
+    name: "TikTok Shop",
+    description: "Venda diretamente pelo TikTok com integração de catálogo e pedidos",
+    logoUrl: "/logos/tiktok-shop.png",
+    comingSoon: true,
+  },
+  {
+    id: "magalu",
+    name: "Magalu",
+    description: "Conecte-se ao marketplace da Magazine Luiza e expanda suas vendas",
+    logoUrl: "/logos/magalu.png",
+    comingSoon: true,
+  },
 ];
 
 const adsIntegrations: IntegrationPlatform[] = [
