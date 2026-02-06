@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import {
   Dialog,
   DialogContent,
@@ -16,19 +16,22 @@ import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { useQueryClient } from '@tanstack/react-query';
 import type { Tables } from '@/integrations/supabase/types';
+import type { ScanMode } from '@/pages/Scanner';
 
 interface QuickStockAdjustProps {
   product: Tables<'products'>;
   isOpen: boolean;
   onClose: () => void;
   onSuccess?: () => void;
+  defaultMode?: ScanMode | null;
 }
 
 export const QuickStockAdjust = ({ 
   product, 
   isOpen, 
   onClose,
-  onSuccess 
+  onSuccess,
+  defaultMode
 }: QuickStockAdjustProps) => {
   const [adjustType, setAdjustType] = useState<'add' | 'remove'>('add');
   const [quantity, setQuantity] = useState('');
@@ -37,6 +40,14 @@ export const QuickStockAdjust = ({
   
   const { toast } = useToast();
   const queryClient = useQueryClient();
+
+  // Sincronizar com o modo do scanner quando o dialog abre
+  useEffect(() => {
+    if (isOpen && defaultMode) {
+      setAdjustType(defaultMode === 'sell' ? 'remove' : 'add');
+      setReason(defaultMode === 'sell' ? 'Venda' : 'Recebimento de mercadoria');
+    }
+  }, [isOpen, defaultMode]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -75,11 +86,10 @@ export const QuickStockAdjust = ({
       if (error) throw error;
 
       toast({
-        title: 'Estoque atualizado',
+        title: adjustType === 'add' ? '📦 Estoque atualizado' : '✅ Venda registrada',
         description: `${product.name}: ${product.stock} → ${newStock} unidades`,
       });
 
-      // Invalidar queries
       queryClient.invalidateQueries({ queryKey: ['products'] });
       queryClient.invalidateQueries({ queryKey: ['product', product.id] });
 
@@ -99,7 +109,9 @@ export const QuickStockAdjust = ({
   const handleClose = () => {
     setQuantity('');
     setReason('');
-    setAdjustType('add');
+    if (!defaultMode) {
+      setAdjustType('add');
+    }
     onClose();
   };
 
@@ -107,7 +119,11 @@ export const QuickStockAdjust = ({
     <Dialog open={isOpen} onOpenChange={handleClose}>
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
-          <DialogTitle>Ajustar Estoque</DialogTitle>
+          <DialogTitle>
+            {defaultMode === 'sell' ? 'Registrar Venda' : 
+             defaultMode === 'add' ? 'Entrada de Estoque' : 
+             'Ajustar Estoque'}
+          </DialogTitle>
         </DialogHeader>
 
         <form onSubmit={handleSubmit} className="space-y-4">
@@ -153,7 +169,7 @@ export const QuickStockAdjust = ({
               min="1"
               value={quantity}
               onChange={(e) => setQuantity(e.target.value)}
-              placeholder="Ex: 10"
+              placeholder="Ex: 1"
               autoFocus
             />
             {quantity && !isNaN(parseInt(quantity)) && (
@@ -186,7 +202,7 @@ export const QuickStockAdjust = ({
             </Button>
             <Button type="submit" disabled={isLoading || !quantity}>
               {isLoading && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
-              Confirmar
+              {adjustType === 'remove' ? 'Confirmar Saída' : 'Confirmar Entrada'}
             </Button>
           </DialogFooter>
         </form>
