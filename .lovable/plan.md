@@ -1,64 +1,104 @@
 
-# Plano: Corrigir 404 no Deploy Vercel para SPA React
+# Plano: Corrigir Políticas RLS Vulneráveis
 
 ## Diagnóstico
 
-O problema não está no `vite.config.ts` - a configuração atual está correta. O Vite já:
-- Gera a pasta `dist/` por padrão
-- Inclui `index.html` automaticamente
-- Usa `base: '/'` como padrão
+Identificamos **7 políticas RLS vulneráveis** em 2 tabelas que usam `USING (true)` ou `WITH CHECK (true)`:
 
-**O problema real**: A Vercel não sabe que seu projeto é uma SPA (Single Page Application) e tenta servir arquivos estáticos para cada rota. Quando você acessa `/app/produto`, ela busca um arquivo que não existe.
+| Tabela | Operação | Política Atual |
+|--------|----------|----------------|
+| `ad_metrics` | INSERT | `WITH CHECK (true)` |
+| `ad_metrics` | UPDATE | `USING (true)` |
+| `ad_metrics` | DELETE | `USING (true)` |
+| `attributed_conversions` | INSERT | `WITH CHECK (true)` |
+| `attributed_conversions` | UPDATE | `USING (true)` |
+| `attributed_conversions` | DELETE | `USING (true)` |
+
+### Por que isso é um problema?
+
+Essas políticas permitem que **qualquer usuário autenticado** insira, atualize ou delete dados de **qualquer organização** - não apenas a sua. Isso quebra totalmente o isolamento de dados entre organizações.
+
+### Contexto de uso
+
+Essas tabelas são manipuladas por Edge Functions que usam `SUPABASE_SERVICE_ROLE_KEY`:
+- `sync-meta-ads` → insere/atualiza `ad_metrics`
+- `attribute-conversions` → insere/deleta `attributed_conversions`
+
+A service role key **ignora RLS**, então as Edge Functions continuarão funcionando normalmente.
 
 ## Solução
 
-Criar um arquivo `vercel.json` na raiz do projeto que instrui a Vercel a:
-1. Redirecionar todas as rotas para `index.html`
-2. Usar a pasta `dist` como output
-3. Configurar o comando de build correto
+Remover as políticas permissivas e criar políticas que:
+1. **SELECT**: Usuários podem ver dados da sua organização (já está correto)
+2. **INSERT/UPDATE/DELETE**: Negar acesso direto do cliente - apenas service role pode modificar
+
+### Abordagem recomendada
+
+Como essas tabelas só devem ser modificadas por Edge Functions (usando service role), a solução mais segura é **não ter políticas de escrita para usuários comuns**.
 
 ## Implementação
 
-### Arquivo a ser criado: `vercel.json`
+### 1. Script SQL para remover políticas vulneráveis
 
-```json
-{
-  "buildCommand": "npm run build",
-  "outputDirectory": "dist",
-  "framework": "vite",
-  "rewrites": [
-    {
-      "source": "/(.*)",
-      "destination": "/index.html"
-    }
-  ]
-}
+```sql
+-- Remover políticas vulneráveis da tabela ad_metrics
+DROP POLICY IF EXISTS "Service role can insert ad_metrics" ON ad_metrics;
+DROP POLICY IF EXISTS "Service role can update ad_metrics" ON ad_metrics;
+DROP POLICY IF EXISTS "Service role can delete ad_metrics" ON ad_metrics;
+
+-- Remover políticas vulneráveis da tabela attributed_conversions
+DROP POLICY IF EXISTS "Service role can insert attributed conversions" ON attributed_conversions;
+DROP POLICY IF EXISTS "Service role can update attributed conversions" ON attributed_conversions;
+DROP POLICY IF EXISTS "Service role can delete attributed conversions" ON attributed_conversions;
 ```
 
-## Detalhes Técnicos
+### 2. Resultado esperado
 
-| Configuração | Propósito |
-|--------------|-----------|
-| `buildCommand` | Define explicitamente o comando de build |
-| `outputDirectory` | Aponta para a pasta `dist` gerada pelo Vite |
-| `framework` | Otimiza a Vercel para projetos Vite |
-| `rewrites` | Redireciona TODAS as rotas para `index.html`, permitindo que o React Router gerencie a navegação |
+Após remover essas políticas:
 
-## Por que isso resolve
+| Tabela | SELECT | INSERT | UPDATE | DELETE |
+|--------|--------|--------|--------|--------|
+| `ad_metrics` | Membros da org | Bloqueado | Bloqueado | Bloqueado |
+| `attributed_conversions` | Membros da org | Bloqueado | Bloqueado | Bloqueado |
 
-Quando um usuário acessa `/app/produto`:
-1. **Antes**: Vercel busca `/app/produto/index.html` → 404
-2. **Depois**: Vercel serve `/index.html` → React Router renderiza a rota `/app/produto`
+- Usuários podem apenas **visualizar** dados da sua organização
+- **Edge Functions** (com service role) continuam tendo acesso total
+- Nenhum usuário consegue modificar dados diretamente
 
-## Alternativa (se preferir Netlify)
+### 3. Criar arquivo de migração
 
-Para Netlify, seria necessário criar `public/_redirects`:
+Será criado em: `supabase/migrations/20250204_fix_permissive_rls_policies.sql`
+
+## Por que isso é seguro?
+
+```text
++-------------------+     +------------------+     +---------------+
+|   Cliente React   |---->|   RLS (Supabase) |---->|   Tabelas     |
+| (anon/user token) |     | Bloqueia INSERT  |     | ad_metrics    |
++-------------------+     | UPDATE, DELETE   |     | attr_conv     |
+                          +------------------+     +---------------+
+                                  ^
+                                  | BYPASS
++-------------------+     +------------------+
+|  Edge Functions   |---->| Service Role Key |
+| (sync-meta-ads)   |     | (ignora RLS)     |
++-------------------+     +------------------+
 ```
-/*    /index.html   200
-```
 
-## Passos após implementação
+## Arquivos a serem criados
 
-1. Commitar o `vercel.json` no repositório
-2. Fazer novo deploy na Vercel
-3. Testar as rotas `/app/dashboard`, `/app/produto`, etc.
+1. **`supabase/migrations/20250204_fix_permissive_rls_policies.sql`**
+   - Remove as 6 políticas vulneráveis
+   - Comentários explicando a razão
+
+## Verificação após implementação
+
+Executar o linter novamente deve reduzir de 9 para 3 warnings (restando apenas os não relacionados a RLS).
+
+## Detalhes técnicos adicionais
+
+A service role key (usada nas Edge Functions) tem uma propriedade especial no Supabase: ela **ignora completamente as políticas RLS**. Isso significa que:
+
+- Não precisamos criar políticas especiais para "permitir service role"
+- Basta não ter políticas permissivas para usuários comuns
+- As Edge Functions continuarão funcionando normalmente

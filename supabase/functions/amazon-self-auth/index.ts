@@ -204,7 +204,7 @@ serve(async (req) => {
     if (insertError) {
       console.error('❌ Erro ao salvar integração:', insertError);
       return new Response(
-        JSON.stringify({ error: 'Erro ao salvar integração', details: insertError.message }), 
+        JSON.stringify({ error: 'Erro ao salvar integração' }), 
         { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
@@ -224,7 +224,7 @@ serve(async (req) => {
   } catch (error: any) {
     console.error('💥 Erro no self-auth Amazon:', error);
     return new Response(
-      JSON.stringify({ error: 'Erro interno no servidor', details: error.message }), 
+      JSON.stringify({ error: 'Erro interno no servidor' }), 
       { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
   }
