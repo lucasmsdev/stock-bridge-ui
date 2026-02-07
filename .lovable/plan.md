@@ -1,85 +1,81 @@
 
+# Reorganizar Dados Demo: Centro de Custos + ROI de Produtos
 
-## Tornar os Dados Demo Mais Realistas
+## Resumo
 
-### Problema Atual
-Os dados gerados mostram valores exagerados porque combinam:
-- Produtos muito caros (iPhone R$8.499, Notebook R$5.299)
-- Volume alto de pedidos (35-45 por dia, 500+ no total)
-- Ordens com quantidades multiplicadas por precos altos
+Os dados de demonstracao tem tres problemas principais que vou corrigir:
 
-Isso gera faturamentos de R$180k+ que nao refletem a realidade de um e-commerce pequeno/medio.
+1. **Despesas com categorias erradas** - As categorias estao como texto livre ("Infraestrutura", "Marketing") em vez dos valores esperados pelo sistema ("fixed", "variable", "operational"). Isso faz o Centro de Custos nao categorizar corretamente as despesas e o grafico de pizza ficar vazio.
 
-### O Que Vai Mudar
+2. **ROI de Produtos irrealista** - O gasto atribuido por conversao esta muito baixo (2-8% do orcamento diario), gerando ROAS absurdamente altos (10-40x). Na vida real, um e-commerce pequeno tem ROAS entre 1.5x e 5x.
 
-**1. Produtos com precos mais acessiveis**
-- Remover itens premium como iPhone (R$8.499) e Notebook Gamer (R$5.299)
-- Substituir por produtos mais comuns no e-commerce brasileiro (capinhas, camisetas, organizadores, etc.)
-- Faixa de preco: R$29 a R$349 (maioria abaixo de R$200)
+3. **Falta de variedade no ROI** - Todos os produtos parecem lucrativos. Na realidade, sempre tem produtos que dao prejuizo nos ads, outros neutros e outros excelentes.
 
-**2. Volume de pedidos mais realista**
-- Hoje: 8-15 pedidos (em vez de 35-45)
-- Ultimos 7 dias: 5-12 por dia (em vez de 20-30)
-- Dias 8-30: 3-8 por dia (em vez de 10-20)
-- Dias 31-90: 1-5 por dia (em vez de 5-12)
-- Total: ~200 pedidos (em vez de 500+)
+---
 
-**3. Despesas proporcionais**
-- Google Ads: R$1.500 (em vez de R$5.000)
-- Meta Ads: R$800 (em vez de R$3.500)
-- Funcionarios: R$1.800 e R$1.500 (em vez de R$2.800 e R$2.200)
-- Aluguel: R$1.800 (em vez de R$3.500)
-- Total mensal de despesas: ~R$8.500 (em vez de ~R$20.500)
+## O que muda
 
-**4. Campanhas de ads com budgets menores**
-- Budgets diarios entre R$15 e R$80 (em vez de R$60 a R$350)
-- Mais condizente com e-commerce pequeno/medio
+### 1. Despesas com categorias corretas e mais realistas
 
-### Resultado Esperado
-- Faturamento mensal: ~R$25.000-35.000 (realista para operacao solo/equipe pequena)
-- Margem liquida mantendo o minimo de 25%
-- Valores que o usuario reconhece como "possiveis" no seu negocio
+**Antes:** Categorias como "Infraestrutura", "Marketing", "Pessoal" (nao reconhecidas pelo sistema)
 
-### Detalhes Tecnicos
+**Depois:** Cada despesa tera a categoria correta do enum (`fixed`, `variable`, `operational`):
 
-**Arquivo: `supabase/functions/seed-demo-data/index.ts`**
+| Despesa | Categoria | Valor |
+|---------|-----------|-------|
+| Aluguel Escritorio | fixed | R$ 1.800 |
+| Contabilidade | fixed | R$ 600 |
+| Internet Fibra | fixed | R$ 149 |
+| Energia Eletrica | fixed | R$ 280 |
+| UniStock Pro | fixed | R$ 197 |
+| Funcionario - Operacoes | fixed | R$ 2.200 |
+| Funcionario - Atendimento | fixed | R$ 1.800 |
+| Google Ads | variable | R$ 1.500 |
+| Meta Ads | variable | R$ 800 |
+| TikTok Ads | variable | R$ 450 |
+| Comissao Indicacao | variable | R$ 300 |
+| Embalagens e Materiais | operational | R$ 650 |
+| Frete Correios/Transportadora | operational | R$ 1.200 |
+| Telefonia/WhatsApp Business | operational | R$ 99 |
+| Impressora Etiquetas (manutencao) | operational | R$ 80 |
 
-Atualizar o array `products` (linhas 46-72) com produtos mais acessiveis:
+**Total mensal:** ~R$ 10.105 (realista para e-commerce pequeno/medio faturando R$ 25-35k)
 
-```text
-Exemplos de novos produtos:
-- Capinha Silicone Premium (R$39, custo R$12)
-- Camiseta Algodao Estampada (R$59, custo R$22)
-- Fone de Ouvido Bluetooth (R$89, custo R$35)
-- Organizador de Mesa MDF (R$79, custo R$30)
-- Pelicula Vidro Temperado Kit 3 (R$29, custo R$8)
-- Luminaria LED USB Flexivel (R$49, custo R$18)
-- Mochila Notebook Impermeavel (R$149, custo R$65)
-- Kit Pinceis Maquiagem 12pcs (R$69, custo R$25)
-- Garrafa Termica 500ml (R$59, custo R$22)
-- Relogio Digital Esportivo (R$99, custo R$40)
-- Mouse Sem Fio Ergonomico (R$79, custo R$30)
-- Suporte Celular Carro (R$39, custo R$12)
-- Hub USB 4 Portas (R$59, custo R$20)
-- Capa Kindle/Tablet (R$69, custo R$25)
-- Ring Light 10" com Tripe (R$119, custo R$45)
-- Teclado Bluetooth Compacto (R$129, custo R$50)
-- Pochete Esportiva (R$49, custo R$18)
-- Cabo USB-C 2m Reforçado (R$34, custo R$10)
-- Caixa de Som Portatil (R$99, custo R$38)
-- Power Bank 10000mAh (R$89, custo R$35)
-```
+### 2. ROI de Produtos com dados realistas
 
-Atualizar volume de pedidos (linhas 241-336):
-- Today: `randomInt(8, 15)`
-- Days 1-7: `randomInt(5, 12)`
-- Days 8-30: `randomInt(3, 8)`
-- Days 31-90: `randomInt(1, 5)`
+**Antes:** Gasto atribuido = 2-8% do orcamento diario (muito baixo), ROAS artificialmente alto
 
-Atualizar `expenses` (linhas 85-98) com valores menores e mais realistas para operacao pequena.
+**Depois:** Distribuicao realista de performance por produto:
 
-Atualizar `adCampaigns` (linhas 114-131) com daily budgets entre R$15-80.
+- **~30% dos produtos com campanhas vinculadas terao ROAS excelente** (3x-6x) - sao os "vencedores"
+- **~40% terao ROAS bom** (1.5x-3x) - lucrativos mas nao excepcionais
+- **~20% terao ROAS neutro** (0.8x-1.2x) - basicamente empatam
+- **~10% terao ROAS ruim** (0.3x-0.8x) - dando prejuizo nos ads
 
-Atualizar textos de notificacoes (linhas 100-111) para refletir os novos valores mais baixos.
+O calculo do `attributed_spend` sera proporcional ao `order_value` dividido pelo ROAS-alvo de cada tier, em vez de ser uma fracao minuscula do orcamento diario.
 
-A funcao precisa ser redeployada apos as alteracoes.
+### 3. Mais produtos vinculados a campanhas
+
+**Antes:** Cada campanha vinculada a 2-4 produtos (com sobreposicao), total ~12-15 produtos com dados de ROI
+
+**Depois:** Vincular pelo menos 14-16 dos 20 produtos a campanhas, garantindo que a pagina de ROI mostre uma tabela robusta com variedade de performance.
+
+---
+
+## Detalhes tecnicos
+
+### Arquivo alterado
+`supabase/functions/seed-demo-data/index.ts`
+
+### Alteracoes especificas
+
+1. **Array `expenses`** (linhas 80-92): Substituir por novo array com campo `category` usando os valores corretos do enum (`fixed`, `variable`, `operational`) e adicionar mais despesas para cobertura completa dos tres tipos.
+
+2. **Bloco de atribuicao de conversoes** (linhas 509-548): Reescrever a logica para:
+   - Atribuir um "tier" de performance a cada produto (excellent, good, neutral, poor)
+   - Calcular `attributed_spend` baseado em `order_value / target_roas` do tier
+   - Garantir que ~40% dos pedidos tenham atribuicao (vs 35% atual)
+
+3. **Bloco de `campaign_product_links`** (linhas 478-496): Ajustar para distribuir mais produtos entre campanhas, evitando que muitos fiquem de fora.
+
+4. **Deploy automatico** da edge function apos as alteracoes.

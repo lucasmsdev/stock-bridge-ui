@@ -26,6 +26,7 @@ import FAQ from "./pages/FAQ";
 import Profile from "./pages/Profile";
 import Billing from "./pages/Billing";
 import MercadoLivreCallback from "./pages/callback/MercadoLivreCallback";
+import MagaluCallback from "./pages/callback/MagaluCallback";
 import Landing from "./pages/Landing";
 import Reports from "./pages/Reports";
 import Checkout from "./pages/Checkout";
@@ -53,6 +54,7 @@ const App = () => (
               <Route path="/pending-payment" element={<PendingPayment />} />
               <Route path="/checkout" element={<Checkout />} />
               <Route path="/callback/mercadolivre" element={<MercadoLivreCallback />} />
+              <Route path="/callback/magalu" element={<MagaluCallback />} />
               
               {/* Protected Routes */}
               <Route path="/app" element={<AppLayout />}>

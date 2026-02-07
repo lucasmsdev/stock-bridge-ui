@@ -28,8 +28,8 @@ const brazilianLastNames = [
   'Mendes', 'Freitas', 'Cardoso', 'Ramos', 'Gonçalves', 'Santana', 'Teixeira'
 ];
 
-const platforms = ['mercadolivre', 'shopee', 'amazon', 'shopify'];
-const platformWeights = [0.40, 0.30, 0.20, 0.10]; // 40% ML, 30% Shopee, 20% Amazon, 10% Shopify
+const platforms = ['mercadolivre', 'shopee', 'amazon', 'shopify', 'magalu'];
+const platformWeights = [0.35, 0.25, 0.18, 0.10, 0.12]; // 35% ML, 25% Shopee, 18% Amazon, 10% Shopify, 12% Magalu
 
 const getWeightedPlatform = () => {
   const rand = Math.random();
@@ -78,17 +78,18 @@ const suppliers = [
 ];
 
 const expenses = [
-  { name: 'Aluguel Escritório', category: 'Infraestrutura', amount: 1800, recurrence: 'monthly' },
-  { name: 'Contabilidade', category: 'Administrativo', amount: 600, recurrence: 'monthly' },
-  { name: 'Internet Fibra 300MB', category: 'Infraestrutura', amount: 149, recurrence: 'monthly' },
-  { name: 'Energia Elétrica', category: 'Infraestrutura', amount: 280, recurrence: 'monthly' },
-  { name: 'UniStock Pro', category: 'Ferramentas', amount: 197, recurrence: 'monthly' },
-  { name: 'Google Ads', category: 'Marketing', amount: 1500, recurrence: 'monthly' },
-  { name: 'Meta Ads', category: 'Marketing', amount: 800, recurrence: 'monthly' },
-  { name: 'Embalagens e Materiais', category: 'Operacional', amount: 650, recurrence: 'monthly' },
-  { name: 'Funcionário - Operações', category: 'Pessoal', amount: 1800, recurrence: 'monthly' },
-  { name: 'Funcionário - Atendimento', category: 'Pessoal', amount: 1500, recurrence: 'monthly' },
-  { name: 'Telefonia/WhatsApp Business', category: 'Operacional', amount: 99, recurrence: 'monthly' }
+  // Fixed costs (~R$986)
+  { name: 'Aluguel Escritório', category: 'fixed', amount: 650, recurrence: 'monthly' },
+  { name: 'Contabilidade', category: 'fixed', amount: 150, recurrence: 'monthly' },
+  { name: 'Internet Fibra', category: 'fixed', amount: 89, recurrence: 'monthly' },
+  { name: 'UniStock Pro', category: 'fixed', amount: 97, recurrence: 'monthly' },
+  // Variable costs - Ads (~R$1.550)
+  { name: 'Google Ads', category: 'variable', amount: 800, recurrence: 'monthly' },
+  { name: 'Meta Ads', category: 'variable', amount: 500, recurrence: 'monthly' },
+  { name: 'TikTok Ads', category: 'variable', amount: 250, recurrence: 'monthly' },
+  // Operational costs (~R$550)
+  { name: 'Embalagens e Materiais', category: 'operational', amount: 200, recurrence: 'monthly' },
+  { name: 'Frete Correios', category: 'operational', amount: 350, recurrence: 'monthly' },
 ];
 
 const notifications = [
@@ -106,18 +107,18 @@ const notifications = [
 
 // Ad campaigns demo data (Meta Ads, Google Ads, TikTok Ads)
 const adCampaigns = [
-  // Meta Ads campaigns
-  { platform: 'meta_ads', name: 'Remarketing Site', status: 'active', dailyBudget: 30, roas: 3.8 },
-  { platform: 'meta_ads', name: 'Stories Produtos', status: 'active', dailyBudget: 20, roas: 2.2 },
-  { platform: 'meta_ads', name: 'Feed Catálogo', status: 'active', dailyBudget: 25, roas: 2.6 },
-  { platform: 'meta_ads', name: 'Lookalike Clientes', status: 'paused', dailyBudget: 15, roas: 3.1 },
-  // Google Ads campaigns
-  { platform: 'google_ads', name: 'Search - Produtos', status: 'active', dailyBudget: 50, roas: 2.9 },
-  { platform: 'google_ads', name: 'Shopping Feed', status: 'active', dailyBudget: 40, roas: 3.5 },
-  { platform: 'google_ads', name: 'Performance Max', status: 'paused', dailyBudget: 25, roas: 2.8 },
-  // TikTok Ads campaigns
-  { platform: 'tiktok_ads', name: 'In-Feed Produtos', status: 'active', dailyBudget: 30, roas: 2.8 },
-  { platform: 'tiktok_ads', name: 'Spark Ads', status: 'paused', dailyBudget: 20, roas: 3.0 },
+  // Meta Ads campaigns (~R$17/day = R$500/month)
+  { platform: 'meta_ads', name: 'Remarketing Site', status: 'active', dailyBudget: 7, roas: 3.8 },
+  { platform: 'meta_ads', name: 'Feed Catálogo', status: 'active', dailyBudget: 5, roas: 2.4 },
+  { platform: 'meta_ads', name: 'Stories Produtos', status: 'active', dailyBudget: 3, roas: 1.8 },
+  { platform: 'meta_ads', name: 'Lookalike Clientes', status: 'paused', dailyBudget: 2, roas: 3.1 },
+  // Google Ads campaigns (~R$27/day = R$800/month)
+  { platform: 'google_ads', name: 'Search - Produtos', status: 'active', dailyBudget: 12, roas: 2.9 },
+  { platform: 'google_ads', name: 'Shopping Feed', status: 'active', dailyBudget: 8, roas: 3.5 },
+  { platform: 'google_ads', name: 'Performance Max', status: 'paused', dailyBudget: 7, roas: 2.8 },
+  // TikTok Ads campaigns (~R$8/day = R$250/month)
+  { platform: 'tiktok_ads', name: 'In-Feed Produtos', status: 'active', dailyBudget: 5, roas: 2.8 },
+  { platform: 'tiktok_ads', name: 'Spark Ads', status: 'paused', dailyBudget: 3, roas: 3.0 },
 ];
 
 serve(async (req) => {
@@ -188,6 +189,8 @@ serve(async (req) => {
     await supabase.from('purchase_orders').delete().eq('user_id', user.id);
     await supabase.from('suppliers').delete().eq('user_id', user.id);
     await supabase.from('expenses').delete().eq('user_id', user.id);
+    // Remove demo integrations (only platform 'magalu' to avoid removing real connections)
+    await supabase.from('integrations').delete().eq('user_id', user.id).eq('platform', 'magalu').like('account_name', '%Demo%');
 
     // Insert suppliers
     console.log('Inserindo fornecedores...');
@@ -222,6 +225,45 @@ serve(async (req) => {
       dimensions: { width: randomInt(5, 50), height: randomInt(5, 40), length: randomInt(5, 60) }
     }));
     const { data: insertedProducts } = await supabase.from('products').insert(productInserts).select();
+
+    // ============================================
+    // MAGALU: Fake integration + product listings
+    // ============================================
+    console.log('Criando integração Magalu demo...');
+    
+    // Create a fake Magalu integration
+    const fakeToken = 'demo-magalu-token-' + crypto.randomUUID();
+    const { data: encryptedToken } = await supabase.rpc('encrypt_token', { token: fakeToken });
+    
+    const { data: magaluIntegration } = await supabase.from('integrations').insert({
+      user_id: user.id,
+      organization_id: organizationId,
+      platform: 'magalu',
+      encrypted_access_token: encryptedToken,
+      encrypted_refresh_token: encryptedToken,
+      account_name: 'Loja Demo Magalu',
+      account_nickname: 'Magalu Principal',
+      token_expires_at: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString(),
+    }).select().single();
+
+    // Create product listings on Magalu for ~8 products
+    if (magaluIntegration && insertedProducts) {
+      const magaluListings = insertedProducts.slice(0, 8).map((p, i) => ({
+        user_id: user.id,
+        organization_id: organizationId,
+        product_id: p.id,
+        integration_id: magaluIntegration.id,
+        platform: 'magalu',
+        platform_product_id: `MGLU-${String(i + 1).padStart(6, '0')}`,
+        sync_status: i < 6 ? 'active' : (i === 6 ? 'pending' : 'error'),
+        sync_error: i === 7 ? 'SKU não encontrado no catálogo Magalu' : null,
+        last_sync_at: i < 6 ? new Date().toISOString() : null,
+        platform_url: `https://www.magazineluiza.com.br/produto/p/MGLU${String(i + 1).padStart(6, '0')}`,
+      }));
+      
+      await supabase.from('product_listings').insert(magaluListings);
+      console.log(`✅ ${magaluListings.length} listings Magalu criados`);
+    }
 
     // Generate orders - 500+ orders over 90 days with concentration on recent days
     console.log('Gerando pedidos...');
@@ -434,23 +476,33 @@ serve(async (req) => {
         });
       }
       
-      // Link each campaign to 2-4 products
-      const numProducts = randomInt(2, 4);
-      const linkedProducts = insertedProducts!.slice(idx % 20, (idx % 20) + numProducts);
+      // Link each campaign to 3-5 products, spread across all 20 products
+      // Use different offsets per campaign to maximize coverage
+      const numProducts = randomInt(3, 5);
+      const startIdx = (idx * 3) % 20; // spread starting index
+      const linkedProductIds = new Set<string>();
+      for (let p = 0; p < numProducts; p++) {
+        const pIdx = (startIdx + p * 2) % insertedProducts!.length;
+        linkedProductIds.add(insertedProducts![pIdx].id);
+      }
       
-      linkedProducts.forEach(product => {
-        campaignLinks.push({
-          user_id: user.id,
-          organization_id: organizationId,
-          campaign_id: campaignId,
-          campaign_name: campaign.name,
-          platform: campaign.platform,
-          product_id: product.id,
-          sku: product.sku,
-          is_active: campaign.status === 'active',
-          link_type: 'manual',
-          start_date: new Date(now.getTime() - 60 * 24 * 60 * 60 * 1000).toISOString().split('T')[0]
-        });
+      linkedProductIds.forEach(productId => {
+        const product = insertedProducts!.find(p => p.id === productId)!;
+        // Avoid duplicate links for same campaign+product
+        if (!campaignLinks.some(l => l.campaign_id === campaignId && l.product_id === productId)) {
+          campaignLinks.push({
+            user_id: user.id,
+            organization_id: organizationId,
+            campaign_id: campaignId,
+            campaign_name: campaign.name,
+            platform: campaign.platform,
+            product_id: product.id,
+            sku: product.sku,
+            is_active: campaign.status === 'active',
+            link_type: 'manual',
+            start_date: new Date(now.getTime() - 60 * 24 * 60 * 60 * 1000).toISOString().split('T')[0]
+          });
+        }
       });
     });
 
@@ -468,23 +520,42 @@ serve(async (req) => {
     // Generate attributed conversions based on orders and campaign links
     console.log('Gerando atribuições de conversão...');
     
-    // For each order, check if the product has a linked campaign and create attribution
-    const ordersWithAttribution = orders.slice(0, Math.floor(orders.length * 0.35)); // ~35% of orders attributed
+    // Assign a performance tier to each product for realistic ROAS distribution
+    // ~30% excellent (3x-6x), ~40% good (1.5x-3x), ~20% neutral (0.8x-1.2x), ~10% poor (0.3x-0.8x)
+    const linkedProductIds = [...new Set(campaignLinks.map(l => l.product_id))];
+    const productTiers: Record<string, { minRoas: number; maxRoas: number; label: string }> = {};
+    
+    linkedProductIds.forEach((productId, i) => {
+      const ratio = i / linkedProductIds.length;
+      if (ratio < 0.3) {
+        productTiers[productId] = { minRoas: 3.0, maxRoas: 6.0, label: 'excellent' };
+      } else if (ratio < 0.7) {
+        productTiers[productId] = { minRoas: 1.5, maxRoas: 3.0, label: 'good' };
+      } else if (ratio < 0.9) {
+        productTiers[productId] = { minRoas: 0.8, maxRoas: 1.2, label: 'neutral' };
+      } else {
+        productTiers[productId] = { minRoas: 0.3, maxRoas: 0.8, label: 'poor' };
+      }
+    });
+    
+    // ~40% of orders get attribution
+    const ordersWithAttribution = orders.slice(0, Math.floor(orders.length * 0.40));
     
     for (const order of ordersWithAttribution) {
       const orderItems = order.items as { product_id: string; name: string; quantity: number; price: number }[];
       
       for (const item of orderItems) {
-        // Find if this product has a linked campaign
         const linkedCampaign = campaignLinks.find(link => link.product_id === item.product_id);
         
         if (linkedCampaign) {
           const orderDate = new Date(order.order_date);
           const orderValue = item.price * item.quantity;
+          const tier = productTiers[item.product_id];
           
-          // Calculate attributed spend (proportional to campaign daily spend)
-          const campaign = adCampaigns.find(c => `demo-campaign-${adCampaigns.indexOf(c) + 1}` === linkedCampaign.campaign_id);
-          const attributedSpend = campaign ? campaign.dailyBudget * randomFloat(0.02, 0.08) : randomFloat(5, 20);
+          // Calculate attributed_spend = order_value / target_roas
+          // This produces realistic ROAS values
+          const targetRoas = tier ? randomFloat(tier.minRoas, tier.maxRoas) : randomFloat(1.5, 3.0);
+          const attributedSpend = orderValue / targetRoas;
           
           attributedConversions.push({
             user_id: user.id,
@@ -494,7 +565,7 @@ serve(async (req) => {
             platform: linkedCampaign.platform,
             product_id: item.product_id,
             sku: linkedCampaign.sku,
-            order_id: null, // We don't have the actual order ID at this point
+            order_id: null,
             order_value: orderValue,
             quantity: item.quantity,
             attributed_spend: Math.round(attributedSpend * 100) / 100,
