@@ -99,11 +99,17 @@ serve(async (req) => {
     let fileContent: string;
     let filename: string;
     let contentType: string;
+    let isBinary = false;
 
     if (format === 'CSV') {
       fileContent = generateCSV(reportData);
       filename = `relatorio-${reportType}-${period}-${Date.now()}.csv`;
       contentType = 'text/csv';
+    } else if (format === 'XLSX') {
+      fileContent = generateXLSX(reportData);
+      filename = `relatorio-${reportType}-${period}-${Date.now()}.xlsx`;
+      contentType = 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet';
+      isBinary = true;
     } else if (format === 'PDF') {
       fileContent = generatePDF(reportData, reportType);
       filename = `relatorio-${reportType}-${period}-${Date.now()}.pdf`;
@@ -115,7 +121,7 @@ serve(async (req) => {
     console.log(`✅ Report generated successfully: ${filename}`);
 
     // Return the file as a data URL for immediate download
-    const base64Content = btoa(fileContent);
+    const base64Content = isBinary ? fileContent : btoa(fileContent);
     const dataUrl = `data:${contentType};base64,${base64Content}`;
 
     return new Response(JSON.stringify({
@@ -531,6 +537,207 @@ async function generateROIByChannelReport(supabase: any, userId: string, dateRan
     },
     channels
   };
+}
+
+// ─── XLSX Generation (XML Spreadsheet) ───────────────────────────
+
+function escapeXml(str: string): string {
+  return String(str)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&apos;');
+}
+
+function buildXlsxSheet(headers: string[], rows: string[][]): string {
+  let sheetData = '';
+  
+  // Header row
+  sheetData += '<Row>';
+  for (const h of headers) {
+    sheetData += `<Cell><Data ss:Type="String">${escapeXml(h)}</Data></Cell>`;
+  }
+  sheetData += '</Row>\n';
+  
+  // Data rows
+  for (const row of rows) {
+    sheetData += '<Row>';
+    for (const cell of row) {
+      // Detect if numeric (for Excel formatting)
+      const num = parseFloat(cell.replace(/[R$\s%,]/g, '').replace(',', '.'));
+      if (!isNaN(num) && cell.trim() !== '' && !/[a-zA-ZÀ-ú]/.test(cell.replace(/R\$/, ''))) {
+        sheetData += `<Cell><Data ss:Type="Number">${num}</Data></Cell>`;
+      } else {
+        sheetData += `<Cell><Data ss:Type="String">${escapeXml(cell)}</Data></Cell>`;
+      }
+    }
+    sheetData += '</Row>\n';
+  }
+  
+  return sheetData;
+}
+
+function wrapXlsxWorkbook(sheets: { name: string; data: string }[]): string {
+  let xml = '<?xml version="1.0" encoding="UTF-8"?>\n';
+  xml += '<?mso-application progid="Excel.Sheet"?>\n';
+  xml += '<Workbook xmlns="urn:schemas-microsoft-com:office:spreadsheet"\n';
+  xml += '  xmlns:o="urn:schemas-microsoft-com:office:office"\n';
+  xml += '  xmlns:x="urn:schemas-microsoft-com:office:excel"\n';
+  xml += '  xmlns:ss="urn:schemas-microsoft-com:office:spreadsheet">\n';
+  xml += '<Styles>\n';
+  xml += '  <Style ss:ID="Default" ss:Name="Normal"><Font ss:FontName="Calibri" ss:Size="11"/></Style>\n';
+  xml += '  <Style ss:ID="Header"><Font ss:FontName="Calibri" ss:Size="11" ss:Bold="1"/><Interior ss:Color="#D9E1F2" ss:Pattern="Solid"/></Style>\n';
+  xml += '</Styles>\n';
+  
+  for (const sheet of sheets) {
+    xml += `<Worksheet ss:Name="${escapeXml(sheet.name)}">\n`;
+    xml += '<Table>\n';
+    xml += sheet.data;
+    xml += '</Table>\n';
+    xml += '</Worksheet>\n';
+  }
+  
+  xml += '</Workbook>';
+  return xml;
+}
+
+function generateXLSX(reportData: any): string {
+  console.log('📊 Generating XLSX format');
+  
+  let headers: string[];
+  let rows: string[][];
+  let summaryHeaders: string[];
+  let summaryRows: string[][];
+  let sheetName: string;
+  
+  switch (reportData.type) {
+    case 'sales': {
+      sheetName = 'Vendas';
+      headers = ['Data', 'ID do Pedido', 'Plataforma', 'Valor Total', 'Itens'];
+      rows = (reportData.orders || []).map((o: any) => [
+        new Date(o.order_date).toLocaleDateString('pt-BR'),
+        o.order_id_channel,
+        o.platform,
+        `R$ ${o.total_value?.toFixed(2) || '0.00'}`,
+        String(Array.isArray(o.items) ? o.items.length : 0),
+      ]);
+      summaryHeaders = ['Métrica', 'Valor'];
+      summaryRows = [
+        ['Total de Pedidos', String(reportData.summary.totalOrders)],
+        ['Receita Total', `R$ ${reportData.summary.totalRevenue?.toFixed(2) || '0.00'}`],
+        ['Valor Médio', `R$ ${reportData.summary.averageOrderValue?.toFixed(2) || '0.00'}`],
+      ];
+      break;
+    }
+    case 'profitability': {
+      sheetName = 'Lucratividade';
+      headers = ['Produto', 'SKU', 'Preço de Custo', 'Preço de Venda', 'Lucro', 'Margem (%)'];
+      rows = (reportData.products || []).map((p: any) => [
+        p.name,
+        p.sku,
+        `R$ ${p.cost_price?.toFixed(2) || '0.00'}`,
+        `R$ ${p.selling_price?.toFixed(2) || '0.00'}`,
+        `R$ ${p.profit?.toFixed(2) || '0.00'}`,
+        `${p.margin?.toFixed(2) || '0.00'}%`,
+      ]);
+      summaryHeaders = ['Métrica', 'Valor'];
+      summaryRows = [
+        ['Total de Produtos', String(reportData.summary.totalProducts)],
+        ['Lucro Total', `R$ ${reportData.summary.totalProfit?.toFixed(2) || '0.00'}`],
+        ['Margem Média', `${reportData.summary.averageMargin?.toFixed(2) || '0.00'}%`],
+      ];
+      break;
+    }
+    case 'marketplace_performance': {
+      sheetName = 'Marketplaces';
+      headers = ['Plataforma', 'Total de Pedidos', 'Receita Total', 'Valor Médio'];
+      rows = (reportData.platforms || []).map((p: any) => [
+        p.platform,
+        String(p.totalOrders),
+        `R$ ${p.totalRevenue?.toFixed(2) || '0.00'}`,
+        `R$ ${p.averageOrderValue?.toFixed(2) || '0.00'}`,
+      ]);
+      summaryHeaders = ['Métrica', 'Valor'];
+      summaryRows = [
+        ['Total de Plataformas', String(reportData.summary.totalPlatforms)],
+        ['Total de Pedidos', String(reportData.summary.totalOrders)],
+        ['Receita Total', `R$ ${reportData.summary.totalRevenue?.toFixed(2) || '0.00'}`],
+      ];
+      break;
+    }
+    case 'trends': {
+      sheetName = 'Tendências';
+      headers = ['Mês', 'Total de Pedidos', 'Receita Total', 'Crescimento (%)'];
+      rows = (reportData.months || []).map((m: any) => [
+        m.month,
+        String(m.totalOrders),
+        `R$ ${m.totalRevenue?.toFixed(2) || '0.00'}`,
+        `${m.revenueGrowth?.toFixed(2) || '0.00'}%`,
+      ]);
+      summaryHeaders = ['Métrica', 'Valor'];
+      summaryRows = [
+        ['Total de Meses', String(reportData.summary.totalMonths)],
+        ['Receita Média Mensal', `R$ ${reportData.summary.averageMonthlyRevenue?.toFixed(2) || '0.00'}`],
+        ['Crescimento Médio', `${reportData.summary.averageGrowth?.toFixed(2) || '0.00'}%`],
+      ];
+      break;
+    }
+    case 'stock_forecast': {
+      sheetName = 'Previsão Estoque';
+      headers = ['Produto', 'SKU', 'Estoque Atual', 'Vendidos', 'Vendas/Dia', 'Dias até Esgotar', 'Reposição Recomendada', 'Status'];
+      rows = (reportData.forecasts || []).map((f: any) => [
+        f.name,
+        f.sku,
+        String(f.currentStock),
+        String(f.totalSold),
+        String(f.dailySalesRate),
+        String(f.daysUntilStockout),
+        String(f.recommendedReorder),
+        f.stockStatus,
+      ]);
+      summaryHeaders = ['Métrica', 'Valor'];
+      summaryRows = [
+        ['Total de Produtos', String(reportData.summary.totalProducts)],
+        ['Estoque Crítico', String(reportData.summary.criticalStock)],
+        ['Estoque Baixo', String(reportData.summary.lowStock)],
+      ];
+      break;
+    }
+    case 'roi_by_channel': {
+      sheetName = 'ROI por Canal';
+      headers = ['Canal', 'Receita', 'Custo', 'Gasto com Ads', 'Lucro', 'ROI (%)'];
+      rows = (reportData.channels || []).map((c: any) => [
+        c.platform,
+        `R$ ${c.revenue?.toFixed(2) || '0.00'}`,
+        `R$ ${c.cost?.toFixed(2) || '0.00'}`,
+        `R$ ${c.adSpend?.toFixed(2) || '0.00'}`,
+        `R$ ${c.profit?.toFixed(2) || '0.00'}`,
+        `${c.roi?.toFixed(2) || '0.00'}%`,
+      ]);
+      summaryHeaders = ['Métrica', 'Valor'];
+      summaryRows = [
+        ['Total de Canais', String(reportData.summary.totalChannels)],
+        ['Receita Total', `R$ ${reportData.summary.totalRevenue?.toFixed(2) || '0.00'}`],
+        ['Lucro Total', `R$ ${reportData.summary.totalProfit?.toFixed(2) || '0.00'}`],
+        ['ROI Médio', `${reportData.summary.averageROI?.toFixed(2) || '0.00'}%`],
+      ];
+      break;
+    }
+    default:
+      throw new Error('Unknown report type for XLSX generation');
+  }
+  
+  const dataSheet = buildXlsxSheet(headers, rows);
+  const summarySheet = buildXlsxSheet(summaryHeaders, summaryRows);
+  
+  const xlsxContent = wrapXlsxWorkbook([
+    { name: sheetName, data: dataSheet },
+    { name: 'Resumo', data: summarySheet },
+  ]);
+  
+  // Encode to base64 (the caller expects base64 for isBinary)
+  return btoa(unescape(encodeURIComponent(xlsxContent)));
 }
 
 // Generate CSV content
