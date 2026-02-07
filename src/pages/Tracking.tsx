@@ -85,12 +85,32 @@ export default function Tracking() {
     if (!user) return;
     try {
       setIsLoading(true);
-      const { data, error } = await supabase
+      // Fetch orders with shipping_status OR orders with status shipped/processing/paid (even without shipping_status)
+      const { data: withStatus, error: err1 } = await supabase
         .from("orders")
         .select("id, order_id_channel, platform, customer_name, items, tracking_code, tracking_url, carrier, shipping_status, shipping_updated_at, shipping_history, order_date, total_value")
         .eq("user_id", user.id)
         .not("shipping_status", "is", null)
         .order("shipping_updated_at", { ascending: false, nullsFirst: false });
+
+      const { data: withoutStatus, error: err2 } = await supabase
+        .from("orders")
+        .select("id, order_id_channel, platform, customer_name, items, tracking_code, tracking_url, carrier, shipping_status, shipping_updated_at, shipping_history, order_date, total_value")
+        .eq("user_id", user.id)
+        .is("shipping_status", null)
+        .in("status", ["shipped", "processing", "paid"])
+        .order("order_date", { ascending: false });
+
+      const error = err1 || err2;
+      const existingIds = new Set((withStatus || []).map((o: any) => o.id));
+      const mergedOrders = [
+        ...(withStatus || []),
+        ...(withoutStatus || []).filter((o: any) => !existingIds.has(o.id)).map((o: any) => ({
+          ...o,
+          shipping_status: "pending_shipment",
+        })),
+      ];
+      const data = mergedOrders;
 
       if (error) throw error;
       setOrders((data as TrackingOrder[]) || []);
