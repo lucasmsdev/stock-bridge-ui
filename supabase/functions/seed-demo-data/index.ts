@@ -78,21 +78,18 @@ const suppliers = [
 ];
 
 const expenses = [
-  // Fixed costs
-  { name: 'Aluguel Escritório', category: 'fixed', amount: 1200, recurrence: 'monthly' },
-  { name: 'Contabilidade', category: 'fixed', amount: 350, recurrence: 'monthly' },
-  { name: 'Internet Fibra', category: 'fixed', amount: 119, recurrence: 'monthly' },
-  { name: 'Energia Elétrica', category: 'fixed', amount: 180, recurrence: 'monthly' },
+  // Fixed costs (~R$986)
+  { name: 'Aluguel Escritório', category: 'fixed', amount: 650, recurrence: 'monthly' },
+  { name: 'Contabilidade', category: 'fixed', amount: 150, recurrence: 'monthly' },
+  { name: 'Internet Fibra', category: 'fixed', amount: 89, recurrence: 'monthly' },
   { name: 'UniStock Pro', category: 'fixed', amount: 97, recurrence: 'monthly' },
-  { name: 'Funcionário - Operações', category: 'fixed', amount: 1500, recurrence: 'monthly' },
-  // Variable costs
-  { name: 'Google Ads', category: 'variable', amount: 600, recurrence: 'monthly' },
-  { name: 'Meta Ads', category: 'variable', amount: 400, recurrence: 'monthly' },
-  { name: 'TikTok Ads', category: 'variable', amount: 200, recurrence: 'monthly' },
-  // Operational costs
-  { name: 'Embalagens e Materiais', category: 'operational', amount: 350, recurrence: 'monthly' },
-  { name: 'Frete Correios', category: 'operational', amount: 600, recurrence: 'monthly' },
-  { name: 'Telefonia/WhatsApp Business', category: 'operational', amount: 69, recurrence: 'monthly' },
+  // Variable costs - Ads (~R$1.550)
+  { name: 'Google Ads', category: 'variable', amount: 800, recurrence: 'monthly' },
+  { name: 'Meta Ads', category: 'variable', amount: 500, recurrence: 'monthly' },
+  { name: 'TikTok Ads', category: 'variable', amount: 250, recurrence: 'monthly' },
+  // Operational costs (~R$550)
+  { name: 'Embalagens e Materiais', category: 'operational', amount: 200, recurrence: 'monthly' },
+  { name: 'Frete Correios', category: 'operational', amount: 350, recurrence: 'monthly' },
 ];
 
 const notifications = [
@@ -110,18 +107,18 @@ const notifications = [
 
 // Ad campaigns demo data (Meta Ads, Google Ads, TikTok Ads)
 const adCampaigns = [
-  // Meta Ads campaigns
-  { platform: 'meta_ads', name: 'Remarketing Site', status: 'active', dailyBudget: 30, roas: 3.8 },
-  { platform: 'meta_ads', name: 'Stories Produtos', status: 'active', dailyBudget: 20, roas: 2.2 },
-  { platform: 'meta_ads', name: 'Feed Catálogo', status: 'active', dailyBudget: 25, roas: 2.6 },
-  { platform: 'meta_ads', name: 'Lookalike Clientes', status: 'paused', dailyBudget: 15, roas: 3.1 },
-  // Google Ads campaigns
-  { platform: 'google_ads', name: 'Search - Produtos', status: 'active', dailyBudget: 50, roas: 2.9 },
-  { platform: 'google_ads', name: 'Shopping Feed', status: 'active', dailyBudget: 40, roas: 3.5 },
-  { platform: 'google_ads', name: 'Performance Max', status: 'paused', dailyBudget: 25, roas: 2.8 },
-  // TikTok Ads campaigns
-  { platform: 'tiktok_ads', name: 'In-Feed Produtos', status: 'active', dailyBudget: 30, roas: 2.8 },
-  { platform: 'tiktok_ads', name: 'Spark Ads', status: 'paused', dailyBudget: 20, roas: 3.0 },
+  // Meta Ads campaigns (~R$17/day = R$500/month)
+  { platform: 'meta_ads', name: 'Remarketing Site', status: 'active', dailyBudget: 7, roas: 3.8 },
+  { platform: 'meta_ads', name: 'Feed Catálogo', status: 'active', dailyBudget: 5, roas: 2.4 },
+  { platform: 'meta_ads', name: 'Stories Produtos', status: 'active', dailyBudget: 3, roas: 1.8 },
+  { platform: 'meta_ads', name: 'Lookalike Clientes', status: 'paused', dailyBudget: 2, roas: 3.1 },
+  // Google Ads campaigns (~R$27/day = R$800/month)
+  { platform: 'google_ads', name: 'Search - Produtos', status: 'active', dailyBudget: 12, roas: 2.9 },
+  { platform: 'google_ads', name: 'Shopping Feed', status: 'active', dailyBudget: 8, roas: 3.5 },
+  { platform: 'google_ads', name: 'Performance Max', status: 'paused', dailyBudget: 7, roas: 2.8 },
+  // TikTok Ads campaigns (~R$8/day = R$250/month)
+  { platform: 'tiktok_ads', name: 'In-Feed Produtos', status: 'active', dailyBudget: 5, roas: 2.8 },
+  { platform: 'tiktok_ads', name: 'Spark Ads', status: 'paused', dailyBudget: 3, roas: 3.0 },
 ];
 
 serve(async (req) => {
