@@ -230,7 +230,7 @@ REGRAS DE ANÁLISE:
 
 Gere no máximo 5 insights. Priorize os mais urgentes e acionáveis. Use nomes reais dos produtos e valores específicos. Seja direto e objetivo.`;
 
-    // Call Perplexity API with tool calling
+    // Call Perplexity API with structured JSON output
     const perplexityResponse = await fetch("https://api.perplexity.ai/chat/completions", {
       method: "POST",
       headers: {
@@ -241,48 +241,44 @@ Gere no máximo 5 insights. Priorize os mais urgentes e acionáveis. Use nomes r
         model: "sonar",
         messages: [
           { role: "system", content: systemPrompt },
-          { role: "user", content: "Analise os dados do meu negócio e gere insights proativos. Use a função generate_insights para retornar os resultados estruturados." },
+          { role: "user", content: "Analise os dados do meu negócio e gere insights proativos. Retorne APENAS o JSON estruturado com os insights." },
         ],
-        tools: [
-          {
-            type: "function",
-            function: {
-              name: "generate_insights",
-              description: "Gera insights proativos estruturados baseados nos dados do negócio",
-              parameters: {
-                type: "object",
-                properties: {
-                  insights: {
-                    type: "array",
-                    items: {
-                      type: "object",
-                      properties: {
-                        type: {
-                          type: "string",
-                          enum: ["stock_critical", "low_margin", "expansion_opportunity", "trend_alert", "cost_optimization"],
-                        },
-                        severity: {
-                          type: "string",
-                          enum: ["critical", "warning", "opportunity"],
-                        },
-                        title: { type: "string" },
-                        description: { type: "string" },
-                        action: { type: "string" },
-                        metric: { type: "string" },
-                        relatedProductId: { type: "string" },
+        response_format: {
+          type: "json_schema",
+          json_schema: {
+            name: "insights_response",
+            schema: {
+              type: "object",
+              properties: {
+                insights: {
+                  type: "array",
+                  items: {
+                    type: "object",
+                    properties: {
+                      type: {
+                        type: "string",
+                        enum: ["stock_critical", "low_margin", "expansion_opportunity", "trend_alert", "cost_optimization"],
                       },
-                      required: ["type", "severity", "title", "description", "action", "metric"],
-                      additionalProperties: false,
+                      severity: {
+                        type: "string",
+                        enum: ["critical", "warning", "opportunity"],
+                      },
+                      title: { type: "string" },
+                      description: { type: "string" },
+                      action: { type: "string" },
+                      metric: { type: "string" },
+                      relatedProductId: { type: "string" },
                     },
+                    required: ["type", "severity", "title", "description", "action", "metric"],
+                    additionalProperties: false,
                   },
                 },
-                required: ["insights"],
-                additionalProperties: false,
               },
+              required: ["insights"],
+              additionalProperties: false,
             },
           },
-        ],
-        tool_choice: { type: "function", function: { name: "generate_insights" } },
+        },
         max_tokens: 1500,
         temperature: 0.3,
       }),
@@ -301,30 +297,26 @@ Gere no máximo 5 insights. Priorize os mais urgentes e acionáveis. Use nomes r
     
     let insights: any[] = [];
 
-    // Extract from tool call response
-    const toolCall = aiResult.choices?.[0]?.message?.tool_calls?.[0];
-    if (toolCall?.function?.arguments) {
+    // Extract from structured JSON response
+    const content = aiResult.choices?.[0]?.message?.content;
+    if (content) {
       try {
-        const parsed = JSON.parse(toolCall.function.arguments);
+        const parsed = JSON.parse(content);
         insights = parsed.insights || [];
       } catch (e) {
-        console.error("Failed to parse tool call arguments:", e);
-      }
-    }
-
-    // Fallback: try to parse from content if no tool call
-    if (insights.length === 0 && aiResult.choices?.[0]?.message?.content) {
-      try {
-        const content = aiResult.choices[0].message.content;
-        const jsonMatch = content.match(/\[[\s\S]*\]/);
-        if (jsonMatch) {
-          insights = JSON.parse(jsonMatch[0]);
+        console.error("Failed to parse JSON response:", e);
+        // Fallback: try to extract JSON array from content
+        try {
+          const jsonMatch = content.match(/\{[\s\S]*"insights"[\s\S]*\}/);
+          if (jsonMatch) {
+            const parsed2 = JSON.parse(jsonMatch[0]);
+            insights = parsed2.insights || [];
+          }
+        } catch (e2) {
+          console.error("Fallback parse also failed:", e2);
         }
-      } catch (e) {
-        console.error("Failed to parse content fallback:", e);
       }
     }
-
     // Limit to 5 insights
     insights = insights.slice(0, 5);
 
