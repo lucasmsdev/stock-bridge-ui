@@ -598,6 +598,7 @@ export type Database = {
       }
       orders: {
         Row: {
+          carrier: string | null
           created_at: string
           customer_email: string | null
           customer_name: string | null
@@ -609,12 +610,18 @@ export type Database = {
           organization_id: string | null
           platform: string
           shipping_address: Json | null
+          shipping_history: Json | null
+          shipping_status: string | null
+          shipping_updated_at: string | null
           status: string | null
           total_value: number
+          tracking_code: string | null
+          tracking_url: string | null
           updated_at: string
           user_id: string
         }
         Insert: {
+          carrier?: string | null
           created_at?: string
           customer_email?: string | null
           customer_name?: string | null
@@ -626,12 +633,18 @@ export type Database = {
           organization_id?: string | null
           platform: string
           shipping_address?: Json | null
+          shipping_history?: Json | null
+          shipping_status?: string | null
+          shipping_updated_at?: string | null
           status?: string | null
           total_value: number
+          tracking_code?: string | null
+          tracking_url?: string | null
           updated_at?: string
           user_id: string
         }
         Update: {
+          carrier?: string | null
           created_at?: string
           customer_email?: string | null
           customer_name?: string | null
@@ -643,8 +656,13 @@ export type Database = {
           organization_id?: string | null
           platform?: string
           shipping_address?: Json | null
+          shipping_history?: Json | null
+          shipping_status?: string | null
+          shipping_updated_at?: string | null
           status?: string | null
           total_value?: number
+          tracking_code?: string | null
+          tracking_url?: string | null
           updated_at?: string
           user_id?: string
         }

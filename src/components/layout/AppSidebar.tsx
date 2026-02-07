@@ -22,7 +22,8 @@ import {
   Tag,
   ScanLine,
   Users,
-  PieChart
+  PieChart,
+  PackageSearch
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -70,7 +71,14 @@ const navItems: NavItem[] = [
       { title: "Fornecedores", href: "/app/suppliers", icon: Truck },
     ]
   },
-  { title: "Pedidos", href: "/app/orders", icon: ShoppingCart },
+  { 
+    title: "Pedidos", 
+    href: "/app/orders", 
+    icon: ShoppingCart,
+    children: [
+      { title: "Rastreio", href: "/app/tracking", icon: PackageSearch },
+    ]
+  },
   { 
     title: "Financeiro", 
     href: "/app/finance", 
@@ -130,7 +138,10 @@ export const AppSidebar = ({ isCollapsed }: AppSidebarProps) => {
     const isOnProductsChild = ['/app/products', '/app/labels', '/app/scanner', '/app/suppliers'].some(
       path => location.pathname.startsWith(path)
     );
-    return { '/app/products': isOnProductsChild };
+    const isOnOrdersChild = ['/app/orders', '/app/tracking'].some(
+      path => location.pathname.startsWith(path)
+    );
+    return { '/app/products': isOnProductsChild, '/app/orders': isOnOrdersChild };
   });
 
   // Buscar avatar_url do perfil

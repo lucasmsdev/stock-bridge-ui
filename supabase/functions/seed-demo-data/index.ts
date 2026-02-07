@@ -43,6 +43,60 @@ const getWeightedPlatform = () => {
 
 const orderStatuses = ['completed', 'completed', 'completed', 'completed', 'shipped', 'pending'];
 
+// Tracking helpers
+const carriers = ['Correios', 'Correios', 'Correios', 'Jadlog', 'Total Express', 'Sequoia']; // 50% Correios
+const generateTrackingCode = (carrier: string) => {
+  if (carrier === 'Correios') {
+    const digits = Array.from({ length: 9 }, () => Math.floor(Math.random() * 10)).join('');
+    return `BR${digits}BR`;
+  }
+  if (carrier === 'Jadlog') {
+    return `JADLOG${Array.from({ length: 8 }, () => Math.floor(Math.random() * 10)).join('')}`;
+  }
+  if (carrier === 'Total Express') {
+    return `TEX${Array.from({ length: 10 }, () => Math.floor(Math.random() * 10)).join('')}`;
+  }
+  return `SEQ${Array.from({ length: 9 }, () => Math.floor(Math.random() * 10)).join('')}`;
+};
+
+const shippingStatusWeights = ['in_transit', 'in_transit', 'in_transit', 'in_transit', 'shipped', 'shipped', 'shipped', 'out_for_delivery', 'out_for_delivery', 'delivered'];
+
+const generateShippingHistory = (status: string, orderDate: Date): { date: string; status: string; description: string; location: string }[] => {
+  const events: { date: string; status: string; description: string; location: string }[] = [];
+  const cities = ['São Paulo, SP', 'Curitiba, PR', 'Rio de Janeiro, RJ', 'Belo Horizonte, MG', 'Campinas, SP', 'Florianópolis, SC', 'Porto Alegre, RS'];
+  const originCity = randomItem(cities);
+  const destCity = randomItem(cities.filter(c => c !== originCity));
+  
+  const baseDate = new Date(orderDate);
+  
+  // Posted
+  baseDate.setHours(baseDate.getHours() + randomInt(2, 24));
+  events.push({ date: baseDate.toISOString(), status: 'shipped', description: 'Objeto postado', location: originCity });
+  
+  if (status === 'shipped') return events.reverse();
+  
+  // In transit
+  baseDate.setHours(baseDate.getHours() + randomInt(6, 48));
+  events.push({ date: baseDate.toISOString(), status: 'in_transit', description: 'Objeto em trânsito - por favor aguarde', location: `Centro de Distribuição - ${randomItem(cities)}` });
+  
+  baseDate.setHours(baseDate.getHours() + randomInt(12, 36));
+  events.push({ date: baseDate.toISOString(), status: 'in_transit', description: 'Objeto encaminhado para unidade de destino', location: `Unidade de Tratamento - ${randomItem(cities)}` });
+  
+  if (status === 'in_transit') return events.reverse();
+  
+  // Out for delivery
+  baseDate.setHours(baseDate.getHours() + randomInt(6, 24));
+  events.push({ date: baseDate.toISOString(), status: 'out_for_delivery', description: 'Objeto saiu para entrega ao destinatário', location: destCity });
+  
+  if (status === 'out_for_delivery') return events.reverse();
+  
+  // Delivered
+  baseDate.setHours(baseDate.getHours() + randomInt(1, 8));
+  events.push({ date: baseDate.toISOString(), status: 'delivered', description: 'Objeto entregue ao destinatário', location: destCity });
+  
+  return events.reverse();
+};
+
 const products = [
   { name: 'Capinha Silicone Premium', category: 'Acessórios', price: 39, cost: 12, stock: 250 },
   { name: 'Camiseta Algodão Estampada', category: 'Vestuário', price: 59, cost: 22, stock: 180 },
@@ -270,6 +324,35 @@ serve(async (req) => {
     const now = new Date();
     const orders: any[] = [];
     
+    // Helper to build an order with tracking
+    const buildOrder = (product: any, quantity: number, orderDate: Date, status: string, channelSuffix: string) => {
+      const needsTracking = status === 'shipped' || status === 'completed';
+      const carrier = needsTracking ? randomItem(carriers) : null;
+      const shippingStatus = status === 'completed' ? 'delivered' : (status === 'shipped' ? randomItem(shippingStatusWeights) : (status === 'pending' ? 'pending_shipment' : 'pending_shipment'));
+      const trackingCode = needsTracking ? generateTrackingCode(carrier!) : null;
+      const shippingHistory = needsTracking ? generateShippingHistory(shippingStatus, orderDate) : [];
+      const shippingUpdatedAt = shippingHistory.length > 0 ? shippingHistory[0].date : null;
+      
+      return {
+        user_id: user.id,
+        organization_id: organizationId,
+        order_id_channel: `ORD-${Date.now()}-${randomInt(1000, 9999)}${channelSuffix}`,
+        platform: getWeightedPlatform(),
+        status,
+        total_value: product.selling_price * quantity,
+        order_date: orderDate.toISOString(),
+        customer_name: `${randomItem(brazilianFirstNames)} ${randomItem(brazilianLastNames)}`,
+        customer_email: `cliente${randomInt(1, 9999)}@email.com`,
+        items: [{ product_id: product.id, name: product.name, quantity, price: product.selling_price }],
+        tracking_code: trackingCode,
+        tracking_url: trackingCode ? `https://rastreamento.correios.com.br/app/index.php?objetos=${trackingCode}` : null,
+        carrier,
+        shipping_status: shippingStatus,
+        shipping_updated_at: shippingUpdatedAt,
+        shipping_history: shippingHistory,
+      };
+    };
+
     // Today: 8-15 orders (realistic for small/medium e-commerce)
     const todayOrders = randomInt(8, 15);
     for (let i = 0; i < todayOrders; i++) {
@@ -278,18 +361,7 @@ serve(async (req) => {
       const orderDate = new Date(now);
       orderDate.setHours(randomInt(0, 23), randomInt(0, 59), randomInt(0, 59));
       
-      orders.push({
-        user_id: user.id,
-        organization_id: organizationId,
-        order_id_channel: `ORD-${Date.now()}-${randomInt(1000, 9999)}`,
-        platform: getWeightedPlatform(),
-        status: randomItem(orderStatuses),
-        total_value: product.selling_price * quantity,
-        order_date: orderDate.toISOString(),
-        customer_name: `${randomItem(brazilianFirstNames)} ${randomItem(brazilianLastNames)}`,
-        customer_email: `cliente${randomInt(1, 9999)}@email.com`,
-        items: [{ product_id: product.id, name: product.name, quantity, price: product.selling_price }]
-      });
+      orders.push(buildOrder(product, quantity, orderDate, randomItem(orderStatuses), ''));
     }
 
     // Last 7 days (excluding today): 5-12 orders per day
@@ -302,18 +374,7 @@ serve(async (req) => {
         orderDate.setDate(orderDate.getDate() - day);
         orderDate.setHours(randomInt(0, 23), randomInt(0, 59), randomInt(0, 59));
         
-        orders.push({
-          user_id: user.id,
-          organization_id: organizationId,
-          order_id_channel: `ORD-${Date.now()}-${randomInt(1000, 9999)}-${day}-${i}`,
-          platform: getWeightedPlatform(),
-          status: randomItem(orderStatuses),
-          total_value: product.selling_price * quantity,
-          order_date: orderDate.toISOString(),
-          customer_name: `${randomItem(brazilianFirstNames)} ${randomItem(brazilianLastNames)}`,
-          customer_email: `cliente${randomInt(1, 9999)}@email.com`,
-          items: [{ product_id: product.id, name: product.name, quantity, price: product.selling_price }]
-        });
+        orders.push(buildOrder(product, quantity, orderDate, randomItem(orderStatuses), `-${day}-${i}`));
       }
     }
 
@@ -327,18 +388,7 @@ serve(async (req) => {
         orderDate.setDate(orderDate.getDate() - day);
         orderDate.setHours(randomInt(0, 23), randomInt(0, 59), randomInt(0, 59));
         
-        orders.push({
-          user_id: user.id,
-          organization_id: organizationId,
-          order_id_channel: `ORD-${Date.now()}-${randomInt(1000, 9999)}-${day}-${i}`,
-          platform: getWeightedPlatform(),
-          status: randomItem(orderStatuses),
-          total_value: product.selling_price * quantity,
-          order_date: orderDate.toISOString(),
-          customer_name: `${randomItem(brazilianFirstNames)} ${randomItem(brazilianLastNames)}`,
-          customer_email: `cliente${randomInt(1, 9999)}@email.com`,
-          items: [{ product_id: product.id, name: product.name, quantity, price: product.selling_price }]
-        });
+        orders.push(buildOrder(product, quantity, orderDate, randomItem(orderStatuses), `-${day}-${i}`));
       }
     }
 
@@ -352,18 +402,7 @@ serve(async (req) => {
         orderDate.setDate(orderDate.getDate() - day);
         orderDate.setHours(randomInt(0, 23), randomInt(0, 59), randomInt(0, 59));
         
-        orders.push({
-          user_id: user.id,
-          organization_id: organizationId,
-          order_id_channel: `ORD-${Date.now()}-${randomInt(1000, 9999)}-${day}-${i}`,
-          platform: getWeightedPlatform(),
-          status: 'completed',
-          total_value: product.selling_price * quantity,
-          order_date: orderDate.toISOString(),
-          customer_name: `${randomItem(brazilianFirstNames)} ${randomItem(brazilianLastNames)}`,
-          customer_email: `cliente${randomInt(1, 9999)}@email.com`,
-          items: [{ product_id: product.id, name: product.name, quantity, price: product.selling_price }]
-        });
+        orders.push(buildOrder(product, quantity, orderDate, 'completed', `-${day}-${i}`));
       }
     }
 
