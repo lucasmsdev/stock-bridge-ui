@@ -21,6 +21,8 @@ import {
   Package,
   Search,
   ArrowUpDown,
+  ArrowUp,
+  ArrowDown,
   AlertTriangle,
   CheckCircle,
   BarChart3,
@@ -38,9 +40,19 @@ const formatCurrency = (value: number) => {
 export default function ProductROI() {
   const { roiData, summary, isLoading, refetch } = useProductROI();
   const [search, setSearch] = useState("");
-  const [sortBy, setSortBy] = useState<'roas' | 'revenue' | 'spend'>('roas');
+  const [sortBy, setSortBy] = useState<'roas' | 'revenue' | 'spend' | 'sales' | 'cpa'>('roas');
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc');
   const navigate = useNavigate();
+
+  const getSortValue = (p: typeof roiData[number], field: typeof sortBy) => {
+    switch (field) {
+      case 'roas': return p.roas;
+      case 'revenue': return p.total_attributed_revenue;
+      case 'spend': return p.total_attributed_spend;
+      case 'sales': return p.total_attributed_units;
+      case 'cpa': return p.cost_per_acquisition;
+    }
+  };
 
   const filteredData = roiData
     .filter(p => 
@@ -48,18 +60,25 @@ export default function ProductROI() {
       p.sku.toLowerCase().includes(search.toLowerCase())
     )
     .sort((a, b) => {
-      const aVal = sortBy === 'roas' ? a.roas : sortBy === 'revenue' ? a.total_attributed_revenue : a.total_attributed_spend;
-      const bVal = sortBy === 'roas' ? b.roas : sortBy === 'revenue' ? b.total_attributed_revenue : b.total_attributed_spend;
+      const aVal = getSortValue(a, sortBy);
+      const bVal = getSortValue(b, sortBy);
       return sortOrder === 'desc' ? bVal - aVal : aVal - bVal;
     });
 
-  const toggleSort = (field: 'roas' | 'revenue' | 'spend') => {
+  const toggleSort = (field: typeof sortBy) => {
     if (sortBy === field) {
       setSortOrder(sortOrder === 'desc' ? 'asc' : 'desc');
     } else {
       setSortBy(field);
       setSortOrder('desc');
     }
+  };
+
+  const SortIcon = ({ field }: { field: typeof sortBy }) => {
+    if (sortBy !== field) return <ArrowUpDown className="h-3 w-3 text-muted-foreground/50" />;
+    return sortOrder === 'desc' 
+      ? <ArrowDown className="h-3 w-3 text-primary" /> 
+      : <ArrowUp className="h-3 w-3 text-primary" />;
   };
 
   const getRoasStatus = (roas: number) => {
@@ -265,32 +284,48 @@ export default function ProductROI() {
                     <TableHead>Produto</TableHead>
                     <TableHead>SKU</TableHead>
                     <TableHead 
-                      className="text-right cursor-pointer hover:bg-muted/50"
+                      className="text-right cursor-pointer select-none hover:bg-muted/50 transition-colors"
                       onClick={() => toggleSort('revenue')}
                     >
                       <div className="flex items-center justify-end gap-1">
                         Receita
-                        <ArrowUpDown className="h-3 w-3" />
+                        <SortIcon field="revenue" />
                       </div>
                     </TableHead>
                     <TableHead 
-                      className="text-right cursor-pointer hover:bg-muted/50"
+                      className="text-right cursor-pointer select-none hover:bg-muted/50 transition-colors"
                       onClick={() => toggleSort('spend')}
                     >
                       <div className="flex items-center justify-end gap-1">
                         Gasto Ads
-                        <ArrowUpDown className="h-3 w-3" />
+                        <SortIcon field="spend" />
                       </div>
                     </TableHead>
-                    <TableHead className="text-right">Vendas</TableHead>
-                    <TableHead className="text-right">CPA</TableHead>
                     <TableHead 
-                      className="text-right cursor-pointer hover:bg-muted/50"
+                      className="text-right cursor-pointer select-none hover:bg-muted/50 transition-colors"
+                      onClick={() => toggleSort('sales')}
+                    >
+                      <div className="flex items-center justify-end gap-1">
+                        Vendas
+                        <SortIcon field="sales" />
+                      </div>
+                    </TableHead>
+                    <TableHead 
+                      className="text-right cursor-pointer select-none hover:bg-muted/50 transition-colors"
+                      onClick={() => toggleSort('cpa')}
+                    >
+                      <div className="flex items-center justify-end gap-1">
+                        CPA
+                        <SortIcon field="cpa" />
+                      </div>
+                    </TableHead>
+                    <TableHead 
+                      className="text-right cursor-pointer select-none hover:bg-muted/50 transition-colors"
                       onClick={() => toggleSort('roas')}
                     >
                       <div className="flex items-center justify-end gap-1">
                         ROAS
-                        <ArrowUpDown className="h-3 w-3" />
+                        <SortIcon field="roas" />
                       </div>
                     </TableHead>
                     <TableHead className="text-center">Status</TableHead>
