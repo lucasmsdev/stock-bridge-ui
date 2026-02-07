@@ -1,5 +1,5 @@
 import { Badge } from "@/components/ui/badge";
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef, useEffect, useCallback } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -7,10 +7,11 @@ import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/useAuth";
 import { useAIQuota } from "@/hooks/useAIQuota";
 import { supabase } from "@/integrations/supabase/client";
-import { Send, Bot, User, Loader2, Sparkles, Plus, MessageSquare, Trash2 } from "lucide-react";
+import { Send, Bot, User, Sparkles, Plus, MessageSquare, Trash2 } from "lucide-react";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { AIQuotaBar } from "@/components/ai/AIQuotaBar";
 import { AIUpgradeDialog } from "@/components/ai/AIUpgradeDialog";
+import ReactMarkdown from "react-markdown";
 
 interface Message {
   role: 'user' | 'assistant';
@@ -25,6 +26,8 @@ interface Conversation {
   updated_at: string;
 }
 
+const STREAM_URL = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/ai-assistant`;
+
 const AIAssistant = () => {
   const initialMessage: Message = {
     role: 'assistant',
@@ -34,12 +37,13 @@ const AIAssistant = () => {
 
   const [messages, setMessages] = useState<Message[]>([initialMessage]);
   const [input, setInput] = useState('');
-  const [isLoading, setIsLoading] = useState(false);
+  const [isStreaming, setIsStreaming] = useState(false);
   const [conversationId, setConversationId] = useState<string | null>(null);
   const [conversations, setConversations] = useState<Conversation[]>([]);
   const [showUpgradeDialog, setShowUpgradeDialog] = useState(false);
   const [upgradeReason, setUpgradeReason] = useState<'no_access' | 'quota_exceeded'>('no_access');
   const scrollRef = useRef<HTMLDivElement>(null);
+  const abortControllerRef = useRef<AbortController | null>(null);
   const { toast } = useToast();
   const { user } = useAuth();
   
@@ -98,11 +102,8 @@ const AIAssistant = () => {
           updated_at: conv.updated_at
         }));
         setConversations(conversationsList);
-        
-        // Load the most recent conversation
         loadConversationById(data[0].id);
       } else {
-        // Create first conversation
         await createNewConversation();
       }
     } catch (error) {
@@ -266,32 +267,142 @@ const AIAssistant = () => {
     }
   };
 
-  const cleanMarkdown = (text: string) => {
-    let cleaned = text
-      .replace(/✅/g, '✓')
-      .replace(/\*\*\*(.*?)\*\*\*/g, '$1')
-      .replace(/\*\*(.*?)\*\*/g, '$1')
-      .replace(/\*(.*?)\*/g, '$1')
-      .replace(/__(.*?)__/g, '$1')
-      .replace(/_(.*?)_/g, '$1')
-      .replace(/`(.*?)`/g, '$1')
-      .replace(/#{1,6}\s+/g, '')
-      .replace(/\*/g, '');
-    
-    return cleaned.trim();
-  };
+  // SSE streaming function
+  const streamResponse = useCallback(async (allMessages: Message[]) => {
+    // Prepare messages for the API (skip initial welcome message)
+    const apiMessages = allMessages
+      .filter((_, i) => i > 0) // skip the initial assistant welcome message
+      .map(m => ({ role: m.role, content: m.content }));
+
+    const controller = new AbortController();
+    abortControllerRef.current = controller;
+
+    const { data: { session } } = await supabase.auth.getSession();
+    const accessToken = session?.access_token;
+
+    if (!accessToken) {
+      throw new Error('Sessão expirada');
+    }
+
+    const resp = await fetch(STREAM_URL, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${accessToken}`,
+        'apikey': import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY,
+      },
+      body: JSON.stringify({ messages: apiMessages }),
+      signal: controller.signal,
+    });
+
+    // Handle error responses (non-stream)
+    if (!resp.ok) {
+      const contentType = resp.headers.get('content-type') || '';
+      if (contentType.includes('application/json')) {
+        const errorData = await resp.json();
+        if (resp.status === 429 || errorData.code === 'QUOTA_EXCEEDED') {
+          setUpgradeReason('quota_exceeded');
+          setShowUpgradeDialog(true);
+          return;
+        }
+        if (resp.status === 403 || errorData.code === 'NO_ACCESS') {
+          setUpgradeReason('no_access');
+          setShowUpgradeDialog(true);
+          return;
+        }
+        throw new Error(errorData.error || 'Erro ao consultar IA');
+      }
+      throw new Error(`Erro ${resp.status}`);
+    }
+
+    if (!resp.body) throw new Error('Stream vazio');
+
+    const reader = resp.body.getReader();
+    const decoder = new TextDecoder();
+    let textBuffer = '';
+    let assistantSoFar = '';
+    let streamDone = false;
+
+    while (!streamDone) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      textBuffer += decoder.decode(value, { stream: true });
+
+      let newlineIndex: number;
+      while ((newlineIndex = textBuffer.indexOf('\n')) !== -1) {
+        let line = textBuffer.slice(0, newlineIndex);
+        textBuffer = textBuffer.slice(newlineIndex + 1);
+
+        if (line.endsWith('\r')) line = line.slice(0, -1);
+        if (line.startsWith(':') || line.trim() === '') continue;
+        if (!line.startsWith('data: ')) continue;
+
+        const jsonStr = line.slice(6).trim();
+        if (jsonStr === '[DONE]') {
+          streamDone = true;
+          break;
+        }
+
+        try {
+          const parsed = JSON.parse(jsonStr);
+          const content = parsed.choices?.[0]?.delta?.content as string | undefined;
+          if (content) {
+            assistantSoFar += content;
+            const currentContent = assistantSoFar;
+            setMessages(prev => {
+              const last = prev[prev.length - 1];
+              if (last?.role === 'assistant' && last === prev[prev.length - 1] && prev.length > 1) {
+                // Check if this is the streaming message (not the welcome)
+                const updated = [...prev];
+                updated[updated.length - 1] = { ...last, content: currentContent };
+                return updated;
+              }
+              return [...prev, { role: 'assistant', content: currentContent, timestamp: new Date() }];
+            });
+          }
+        } catch {
+          // Incomplete JSON: put back and wait
+          textBuffer = line + '\n' + textBuffer;
+          break;
+        }
+      }
+    }
+
+    // Final flush
+    if (textBuffer.trim()) {
+      for (let raw of textBuffer.split('\n')) {
+        if (!raw) continue;
+        if (raw.endsWith('\r')) raw = raw.slice(0, -1);
+        if (raw.startsWith(':') || raw.trim() === '') continue;
+        if (!raw.startsWith('data: ')) continue;
+        const jsonStr = raw.slice(6).trim();
+        if (jsonStr === '[DONE]') continue;
+        try {
+          const parsed = JSON.parse(jsonStr);
+          const content = parsed.choices?.[0]?.delta?.content as string | undefined;
+          if (content) {
+            assistantSoFar += content;
+            const currentContent = assistantSoFar;
+            setMessages(prev => {
+              const updated = [...prev];
+              updated[updated.length - 1] = { ...updated[updated.length - 1], content: currentContent };
+              return updated;
+            });
+          }
+        } catch { /* ignore partial leftovers */ }
+      }
+    }
+  }, []);
 
   const handleSend = async () => {
-    if (!input.trim() || isLoading) return;
+    if (!input.trim() || isStreaming) return;
 
-    // Verificar acesso antes de enviar
     if (!hasAccess) {
       setUpgradeReason('no_access');
       setShowUpgradeDialog(true);
       return;
     }
 
-    // Verificar se está no limite
     if (isAtLimit) {
       setUpgradeReason('quota_exceeded');
       setShowUpgradeDialog(true);
@@ -304,61 +415,31 @@ const AIAssistant = () => {
       timestamp: new Date()
     };
 
-    setMessages(prev => [...prev, userMessage]);
+    const updatedMessages = [...messages, userMessage];
+    setMessages(updatedMessages);
     setInput('');
-    setIsLoading(true);
+    setIsStreaming(true);
 
     if (!conversationId) {
       await createNewConversation();
     }
 
     try {
-      const { data, error } = await supabase.functions.invoke('ai-assistant', {
-        body: { question: userMessage.content }
-      });
-
-      if (error) throw error;
-
-      // Tratar erros de quota do backend
-      if (!data?.success) {
-        if (data?.code === 'NO_ACCESS') {
-          setUpgradeReason('no_access');
-          setShowUpgradeDialog(true);
-          return;
-        }
-        if (data?.code === 'QUOTA_EXCEEDED') {
-          setUpgradeReason('quota_exceeded');
-          setShowUpgradeDialog(true);
-          return;
-        }
-        throw new Error(data?.error || 'Erro desconhecido');
-      }
-
-      if (data?.answer) {
-        const assistantMessage: Message = {
-          role: 'assistant',
-          content: cleanMarkdown(data.answer),
-          timestamp: new Date()
-        };
-        setMessages(prev => [...prev, assistantMessage]);
-        
-        // Incrementar uso local (para atualizar UI)
-        await incrementUsage();
-      } else {
-        throw new Error('Resposta inválida da IA');
-      }
+      await streamResponse(updatedMessages);
+      // Incrementar uso local
+      await incrementUsage();
     } catch (error: any) {
-      console.error('Erro ao consultar assistente:', error);
+      if (error.name === 'AbortError') return;
       
-      // Verificar se é erro de quota (429)
-      if (error?.status === 429 || error?.message?.includes('QUOTA_EXCEEDED')) {
+      console.error('Erro ao consultar assistente:', error);
+
+      if (error?.message?.includes('QUOTA_EXCEEDED')) {
         setUpgradeReason('quota_exceeded');
         setShowUpgradeDialog(true);
         return;
       }
-      
-      // Verificar se é erro de acesso (403)
-      if (error?.status === 403 || error?.message?.includes('NO_ACCESS')) {
+
+      if (error?.message?.includes('NO_ACCESS')) {
         setUpgradeReason('no_access');
         setShowUpgradeDialog(true);
         return;
@@ -370,7 +451,8 @@ const AIAssistant = () => {
         variant: "destructive",
       });
     } finally {
-      setIsLoading(false);
+      setIsStreaming(false);
+      abortControllerRef.current = null;
     }
   };
 
@@ -510,7 +592,16 @@ const AIAssistant = () => {
                         : 'bg-muted'
                     }`}
                   >
-                    <p className="text-xs md:text-sm whitespace-pre-wrap break-words leading-relaxed">{message.content}</p>
+                    {message.role === 'assistant' ? (
+                      <div className="text-xs md:text-sm leading-relaxed prose prose-sm dark:prose-invert max-w-none prose-p:my-1 prose-ul:my-1 prose-ol:my-1 prose-li:my-0.5 prose-headings:my-2 prose-headings:text-foreground prose-strong:text-foreground prose-a:text-primary">
+                        <ReactMarkdown>{message.content}</ReactMarkdown>
+                        {isStreaming && index === messages.length - 1 && (
+                          <span className="inline-block w-2 h-4 bg-primary animate-pulse ml-0.5 align-text-bottom" />
+                        )}
+                      </div>
+                    ) : (
+                      <p className="text-xs md:text-sm whitespace-pre-wrap break-words leading-relaxed">{message.content}</p>
+                    )}
                     <span className="text-xs opacity-70 mt-2 block">
                       {message.timestamp.toLocaleTimeString('pt-BR', { 
                         hour: '2-digit', 
@@ -525,13 +616,17 @@ const AIAssistant = () => {
                   )}
                 </div>
               ))}
-              {isLoading && (
+              {isStreaming && messages[messages.length - 1]?.role !== 'assistant' && (
                 <div className="flex gap-3 justify-start">
-                  <div className="flex-shrink-0 w-8 h-8 rounded-full bg-primary flex items-center justify-center">
+                  <div className="hidden md:flex flex-shrink-0 w-8 h-8 rounded-full bg-primary items-center justify-center">
                     <Bot className="h-5 w-5 text-primary-foreground" />
                   </div>
                   <div className="bg-muted rounded-lg p-4">
-                    <Loader2 className="h-5 w-5 animate-spin text-primary" />
+                    <span className="inline-flex gap-1">
+                      <span className="w-2 h-2 rounded-full bg-primary animate-bounce" style={{ animationDelay: '0ms' }} />
+                      <span className="w-2 h-2 rounded-full bg-primary animate-bounce" style={{ animationDelay: '150ms' }} />
+                      <span className="w-2 h-2 rounded-full bg-primary animate-bounce" style={{ animationDelay: '300ms' }} />
+                    </span>
                   </div>
                 </div>
               )}
@@ -571,19 +666,15 @@ const AIAssistant = () => {
                       ? "Limite atingido. Faça upgrade ou aguarde renovação..." 
                       : "Digite sua pergunta..."
                 }
-                disabled={isLoading || !hasAccess || isAtLimit}
+                disabled={isStreaming || !hasAccess || isAtLimit}
                 className="flex-1 text-sm md:text-base"
               />
               <Button
                 onClick={handleSend}
-                disabled={isLoading || !input.trim() || !hasAccess || isAtLimit}
+                disabled={isStreaming || !input.trim() || !hasAccess || isAtLimit}
                 className="px-3 md:px-6"
               >
-                {isLoading ? (
-                  <Loader2 className="h-4 w-4 animate-spin" />
-                ) : (
-                  <Send className="h-4 w-4" />
-                )}
+                <Send className="h-4 w-4" />
               </Button>
             </div>
           </div>
