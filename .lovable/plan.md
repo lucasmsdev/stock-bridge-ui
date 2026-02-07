@@ -1,81 +1,132 @@
 
-# Reorganizar Dados Demo: Centro de Custos + ROI de Produtos
+
+# Implementacao Real do Sync de Rastreio - Shopify, Amazon e Mercado Livre
 
 ## Resumo
 
-Os dados de demonstracao tem tres problemas principais que vou corrigir:
-
-1. **Despesas com categorias erradas** - As categorias estao como texto livre ("Infraestrutura", "Marketing") em vez dos valores esperados pelo sistema ("fixed", "variable", "operational"). Isso faz o Centro de Custos nao categorizar corretamente as despesas e o grafico de pizza ficar vazio.
-
-2. **ROI de Produtos irrealista** - O gasto atribuido por conversao esta muito baixo (2-8% do orcamento diario), gerando ROAS absurdamente altos (10-40x). Na vida real, um e-commerce pequeno tem ROAS entre 1.5x e 5x.
-
-3. **Falta de variedade no ROI** - Todos os produtos parecem lucrativos. Na realidade, sempre tem produtos que dao prejuizo nos ads, outros neutros e outros excelentes.
+Reescrever a Edge Function `sync-tracking` para realizar chamadas reais as APIs de rastreio dos 3 marketplaces conectados. A funcao ira buscar pedidos pendentes de atualizacao, descriptografar tokens, chamar as APIs de cada plataforma e atualizar os campos `tracking_code`, `carrier`, `shipping_status`, `shipping_history`, `tracking_url` e `shipping_updated_at` na tabela `orders`.
 
 ---
 
-## O que muda
+## Como funciona cada API
 
-### 1. Despesas com categorias corretas e mais realistas
+### Mercado Livre
+- **Endpoint**: `GET /orders/{order_id}/shipments` retorna o `shipment_id`
+- **Detalhes**: `GET /shipments/{shipment_id}` retorna `tracking_number`, `tracking_url`, `status`, `substatus`, `date_created`, `last_updated`, e `tracking_method` (transportadora)
+- **Status possiveis**: `pending`, `handling`, `ready_to_ship`, `shipped`, `delivered`, `not_delivered`, `cancelled`
+- **Requer**: Header `X-Format-New: true` para o JSON atualizado
 
-**Antes:** Categorias como "Infraestrutura", "Marketing", "Pessoal" (nao reconhecidas pelo sistema)
+### Amazon SP-API
+- **Limitacao importante**: A API de Orders (`GET /orders/v0/orders/{orderId}`) retorna o `FulfillmentChannel` (AFN = FBA, MFN = Seller) mas NAO retorna tracking numbers diretamente para pedidos MFN
+- **Para pedidos FBA**: O tracking esta disponivel via relatarios (`GET_AMAZON_FULFILLED_SHIPMENTS_DATA_GENERAL`)
+- **Abordagem pratica**: Buscar o campo `LatestShipDate`, `LatestDeliveryDate` e `OrderStatus` para inferir o estado de envio. Para pedidos FBA, verificar se o status e `Shipped` e marcar como em transito
+- **Status uteis**: `Pending`, `Unshipped`, `Shipped`, `Canceled`
 
-**Depois:** Cada despesa tera a categoria correta do enum (`fixed`, `variable`, `operational`):
+### Shopify
+- **Endpoint**: `GET /admin/api/2024-01/orders/{order_id}/fulfillments.json`
+- **Retorna**: Array de fulfillments, cada um com `tracking_number`, `tracking_url`, `tracking_company`, `shipment_status` e `updated_at`
+- **Status possiveis**: `confirmed`, `in_transit`, `out_for_delivery`, `attempted_delivery`, `delivered`, `failure`
+- API mais completa e direta para tracking
 
-| Despesa | Categoria | Valor |
-|---------|-----------|-------|
-| Aluguel Escritorio | fixed | R$ 1.800 |
-| Contabilidade | fixed | R$ 600 |
-| Internet Fibra | fixed | R$ 149 |
-| Energia Eletrica | fixed | R$ 280 |
-| UniStock Pro | fixed | R$ 197 |
-| Funcionario - Operacoes | fixed | R$ 2.200 |
-| Funcionario - Atendimento | fixed | R$ 1.800 |
-| Google Ads | variable | R$ 1.500 |
-| Meta Ads | variable | R$ 800 |
-| TikTok Ads | variable | R$ 450 |
-| Comissao Indicacao | variable | R$ 300 |
-| Embalagens e Materiais | operational | R$ 650 |
-| Frete Correios/Transportadora | operational | R$ 1.200 |
-| Telefonia/WhatsApp Business | operational | R$ 99 |
-| Impressora Etiquetas (manutencao) | operational | R$ 80 |
+---
 
-**Total mensal:** ~R$ 10.105 (realista para e-commerce pequeno/medio faturando R$ 25-35k)
+## O que sera modificado
 
-### 2. ROI de Produtos com dados realistas
+### 1. `supabase/functions/sync-tracking/index.ts` (reescrita completa)
 
-**Antes:** Gasto atribuido = 2-8% do orcamento diario (muito baixo), ROAS artificialmente alto
+A funcao sera reestruturada com:
 
-**Depois:** Distribuicao realista de performance por produto:
+**Autenticacao e setup**:
+- Valida JWT do usuario
+- Cria cliente Supabase com service role key
+- Busca integracoes ativas do usuario (mercadolivre, shopify, amazon)
+- Busca pedidos com `shipping_status` em (`pending_shipment`, `shipped`, `in_transit`, `out_for_delivery`) OU pedidos com status `shipped`/`processing` sem `shipping_status`
 
-- **~30% dos produtos com campanhas vinculadas terao ROAS excelente** (3x-6x) - sao os "vencedores"
-- **~40% terao ROAS bom** (1.5x-3x) - lucrativos mas nao excepcionais
-- **~20% terao ROAS neutro** (0.8x-1.2x) - basicamente empatam
-- **~10% terao ROAS ruim** (0.3x-0.8x) - dando prejuizo nos ads
+**Token handling** (reutilizando o padrao do `sync-orders`):
+- Descriptografa `encrypted_access_token` via `decrypt_token` RPC
+- Para Shopify: usa direto (nao expira)
+- Para ML e Amazon: descriptografa e usa (refresh e feito pelo cron separado)
 
-O calculo do `attributed_spend` sera proporcional ao `order_value` dividido pelo ROAS-alvo de cada tier, em vez de ser uma fracao minuscula do orcamento diario.
+**Provider de rastreio para Mercado Livre**:
+- Para cada pedido ML: `GET /orders/{order_id_channel}/shipments` com Bearer token
+- Extrai `shipment_id` da resposta
+- Faz `GET /shipments/{shipment_id}` para obter detalhes completos
+- Mapeia status ML para nosso status: `handling`/`ready_to_ship` -> `pending_shipment`, `shipped` -> `in_transit`, `delivered` -> `delivered`, `not_delivered` -> `returned`
+- Extrai `tracking_number`, `tracking_url` (do campo `tracking_method`), e nome da transportadora
+- Constroi historico a partir dos dados de status
 
-### 3. Mais produtos vinculados a campanhas
+**Provider de rastreio para Shopify**:
+- Para cada pedido Shopify: `GET /admin/api/2024-01/orders/{order_id_channel}/fulfillments.json`
+- Pega o primeiro fulfillment ativo (mais recente)
+- Extrai `tracking_number`, `tracking_url`, `tracking_company`
+- Mapeia `shipment_status`: `confirmed` -> `shipped`, `in_transit` -> `in_transit`, `out_for_delivery` -> `out_for_delivery`, `delivered` -> `delivered`
+- Se nao tem fulfillment, mantem `pending_shipment`
 
-**Antes:** Cada campanha vinculada a 2-4 produtos (com sobreposicao), total ~12-15 produtos com dados de ROI
+**Provider de rastreio para Amazon**:
+- Para cada pedido Amazon: `GET /orders/v0/orders/{order_id_channel}` para verificar `OrderStatus`
+- Mapeia: `Unshipped`/`Pending` -> `pending_shipment`, `Shipped` -> `in_transit` (para FBA/AFN) ou `shipped` (para MFN), `Canceled` -> ignora
+- Atualiza `shipping_status` e `shipping_updated_at` baseado nos dados disponiveis
 
-**Depois:** Vincular pelo menos 14-16 dos 20 produtos a campanhas, garantindo que a pagina de ROI mostre uma tabela robusta com variedade de performance.
+**Atualizacao no banco**:
+- Para cada pedido atualizado, faz UPDATE na tabela `orders` com os novos dados
+- Adiciona eventos ao `shipping_history` (JSONB array) sem duplicar eventos existentes
+- Atualiza `shipping_updated_at` com timestamp atual
+
+**Resposta**:
+- Retorna resumo: total verificado, total atualizado, erros por plataforma
+
+### 2. `src/pages/Tracking.tsx` (ajuste menor)
+
+- Incluir pedidos com status `shipped` ou `processing` que ainda nao tem `shipping_status` preenchido na query, para que aparecam como "Aguardando Envio" na tela
+- Isso garante que pedidos recem-sincronizados (via sync-orders) aparecam na tela de rastreio mesmo antes do primeiro sync-tracking
 
 ---
 
 ## Detalhes tecnicos
 
-### Arquivo alterado
-`supabase/functions/seed-demo-data/index.ts`
+### Mapeamento de status por plataforma
 
-### Alteracoes especificas
+```text
+Mercado Livre:
+  pending/handling/ready_to_ship -> pending_shipment
+  shipped                        -> in_transit
+  delivered                      -> delivered
+  not_delivered                  -> returned
+  cancelled                     -> (ignora)
 
-1. **Array `expenses`** (linhas 80-92): Substituir por novo array com campo `category` usando os valores corretos do enum (`fixed`, `variable`, `operational`) e adicionar mais despesas para cobertura completa dos tres tipos.
+Shopify:
+  (sem fulfillment)              -> pending_shipment
+  confirmed                     -> shipped
+  in_transit                    -> in_transit
+  out_for_delivery              -> out_for_delivery
+  delivered                     -> delivered
+  failure                       -> returned
 
-2. **Bloco de atribuicao de conversoes** (linhas 509-548): Reescrever a logica para:
-   - Atribuir um "tier" de performance a cada produto (excellent, good, neutral, poor)
-   - Calcular `attributed_spend` baseado em `order_value / target_roas` do tier
-   - Garantir que ~40% dos pedidos tenham atribuicao (vs 35% atual)
+Amazon:
+  Pending/Unshipped              -> pending_shipment
+  PartiallyShipped              -> shipped
+  Shipped                       -> in_transit
+  Canceled                      -> (ignora)
+```
 
-3. **Bloco de `campaign_product_links`** (linhas 478-496): Ajustar para distribuir mais produtos entre campanhas, evitando que muitos fiquem de fora.
+### Estrutura do shipping_history (JSONB)
 
-4. **Deploy automatico** da edge function apos as alteracoes.
+Cada evento segue o formato:
+```text
+{
+  "date": "2026-02-05T14:30:00Z",
+  "status": "in_transit",
+  "description": "Objeto em transito - Curitiba/PR",
+  "location": "Curitiba/PR"
+}
+```
+
+### Arquivos modificados
+
+1. **`supabase/functions/sync-tracking/index.ts`** - Reescrita com implementacao real
+2. **`src/pages/Tracking.tsx`** - Query ajustada para incluir pedidos sem shipping_status
+
+### Deploy
+
+- Deploy da edge function `sync-tracking` apos as alteracoes
+
