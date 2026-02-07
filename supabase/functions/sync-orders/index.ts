@@ -303,7 +303,6 @@ const ShopeeProvider: MarketplaceOrderProvider = {
   platform: 'shopee',
   
   mapStatus(platformStatus: string): OrderStatus {
-    // TODO: Implement when Shopee integration is ready
     const statusMap: Record<string, OrderStatus> = {
       'unpaid': 'pending',
       'ready_to_ship': 'paid',
@@ -317,9 +316,81 @@ const ShopeeProvider: MarketplaceOrderProvider = {
   },
 
   async fetchOrders(accessToken: string, integration: any, since: Date): Promise<StandardOrder[]> {
-    // TODO: Implement when Shopee integration is ready
     console.log('Shopee provider not yet implemented');
     return [];
+  }
+};
+
+// ================= MAGALU PROVIDER =================
+const MagaluProvider: MarketplaceOrderProvider = {
+  platform: 'magalu',
+  
+  mapStatus(platformStatus: string): OrderStatus {
+    const statusMap: Record<string, OrderStatus> = {
+      'new': 'pending',
+      'approved': 'paid',
+      'shipped': 'shipped',
+      'delivered': 'delivered',
+      'finished': 'delivered',
+      'cancelled': 'cancelled',
+      'refunded': 'refunded',
+    };
+    return statusMap[platformStatus.toLowerCase()] || 'pending';
+  },
+
+  async fetchOrders(accessToken: string, integration: any, since: Date): Promise<StandardOrder[]> {
+    const orders: StandardOrder[] = [];
+    
+    try {
+      const sinceStr = since.toISOString().split('T')[0]; // YYYY-MM-DD format
+      
+      const ordersUrl = `https://api.magalu.com/seller/v1/orders?purchased_at__gte=${sinceStr}&_limit=100`;
+      const ordersResponse = await fetch(ordersUrl, {
+        headers: {
+          'Authorization': `Bearer ${accessToken}`,
+          'Accept': 'application/json',
+        }
+      });
+      
+      if (!ordersResponse.ok) {
+        console.error('Failed to fetch Magalu orders:', await ordersResponse.text());
+        return orders;
+      }
+      
+      const ordersData = await ordersResponse.json();
+      const ordersList = Array.isArray(ordersData) ? ordersData : (ordersData.results || ordersData.data || []);
+      
+      for (const order of ordersList) {
+        const items = (order.items || order.order_items || []).map((item: any) => ({
+          id: item.id || item.sku,
+          seller_sku: item.sku || '',
+          title: item.title || item.name || '',
+          quantity: item.quantity || 1,
+          unit_price: item.unit_price || item.price || 0,
+        }));
+        
+        const totalValue = items.reduce((sum: number, item: any) => 
+          sum + (item.unit_price * item.quantity), 0) || order.total || order.total_value || 0;
+        
+        orders.push({
+          order_id_channel: String(order.id || order.code || order.order_id),
+          platform: 'magalu',
+          status: this.mapStatus(order.status || 'new'),
+          customer_name: order.customer?.name || order.buyer?.name || null,
+          customer_email: order.customer?.email || order.buyer?.email || null,
+          shipping_address: order.shipping_address || order.delivery_address || null,
+          total_value: totalValue,
+          order_date: order.purchased_at || order.created_at || new Date().toISOString(),
+          items,
+        });
+      }
+      
+      console.log(`Magalu: Fetched ${orders.length} orders`);
+    } catch (error) {
+      console.error('Error fetching Magalu orders:', error);
+    }
+    
+    return orders;
   }
 };
 
@@ -329,6 +400,7 @@ const providers: Record<string, MarketplaceOrderProvider> = {
   'amazon': AmazonProvider,
   'shopify': ShopifyProvider,
   'shopee': ShopeeProvider,
+  'magalu': MagaluProvider,
 };
 
 // Helper function to refresh tokens before syncing
