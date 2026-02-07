@@ -28,8 +28,8 @@ const brazilianLastNames = [
   'Mendes', 'Freitas', 'Cardoso', 'Ramos', 'Gonçalves', 'Santana', 'Teixeira'
 ];
 
-const platforms = ['mercadolivre', 'shopee', 'amazon', 'shopify'];
-const platformWeights = [0.40, 0.30, 0.20, 0.10]; // 40% ML, 30% Shopee, 20% Amazon, 10% Shopify
+const platforms = ['mercadolivre', 'shopee', 'amazon', 'shopify', 'magalu'];
+const platformWeights = [0.35, 0.25, 0.18, 0.10, 0.12]; // 35% ML, 25% Shopee, 18% Amazon, 10% Shopify, 12% Magalu
 
 const getWeightedPlatform = () => {
   const rand = Math.random();
@@ -188,6 +188,8 @@ serve(async (req) => {
     await supabase.from('purchase_orders').delete().eq('user_id', user.id);
     await supabase.from('suppliers').delete().eq('user_id', user.id);
     await supabase.from('expenses').delete().eq('user_id', user.id);
+    // Remove demo integrations (only platform 'magalu' to avoid removing real connections)
+    await supabase.from('integrations').delete().eq('user_id', user.id).eq('platform', 'magalu').like('account_name', '%Demo%');
 
     // Insert suppliers
     console.log('Inserindo fornecedores...');
@@ -222,6 +224,45 @@ serve(async (req) => {
       dimensions: { width: randomInt(5, 50), height: randomInt(5, 40), length: randomInt(5, 60) }
     }));
     const { data: insertedProducts } = await supabase.from('products').insert(productInserts).select();
+
+    // ============================================
+    // MAGALU: Fake integration + product listings
+    // ============================================
+    console.log('Criando integração Magalu demo...');
+    
+    // Create a fake Magalu integration
+    const fakeToken = 'demo-magalu-token-' + crypto.randomUUID();
+    const { data: encryptedToken } = await supabase.rpc('encrypt_token', { token: fakeToken });
+    
+    const { data: magaluIntegration } = await supabase.from('integrations').insert({
+      user_id: user.id,
+      organization_id: organizationId,
+      platform: 'magalu',
+      encrypted_access_token: encryptedToken,
+      encrypted_refresh_token: encryptedToken,
+      account_name: 'Loja Demo Magalu',
+      account_nickname: 'Magalu Principal',
+      token_expires_at: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString(),
+    }).select().single();
+
+    // Create product listings on Magalu for ~8 products
+    if (magaluIntegration && insertedProducts) {
+      const magaluListings = insertedProducts.slice(0, 8).map((p, i) => ({
+        user_id: user.id,
+        organization_id: organizationId,
+        product_id: p.id,
+        integration_id: magaluIntegration.id,
+        platform: 'magalu',
+        platform_product_id: `MGLU-${String(i + 1).padStart(6, '0')}`,
+        sync_status: i < 6 ? 'active' : (i === 6 ? 'pending' : 'error'),
+        sync_error: i === 7 ? 'SKU não encontrado no catálogo Magalu' : null,
+        last_sync_at: i < 6 ? new Date().toISOString() : null,
+        platform_url: `https://www.magazineluiza.com.br/produto/p/MGLU${String(i + 1).padStart(6, '0')}`,
+      }));
+      
+      await supabase.from('product_listings').insert(magaluListings);
+      console.log(`✅ ${magaluListings.length} listings Magalu criados`);
+    }
 
     // Generate orders - 500+ orders over 90 days with concentration on recent days
     console.log('Gerando pedidos...');
