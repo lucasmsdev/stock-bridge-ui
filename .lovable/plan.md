@@ -1,111 +1,147 @@
 
-
-# Upgrade Completo da Uni AI - Streaming, Memoria, Markdown e Contexto Expandido
+# Uni AI Proativa - Insights Automaticos no Dashboard
 
 ## Resumo
 
-Transformar a Uni AI de um sistema "pergunta-resposta" bloqueante em um chat com streaming token por token, memoria conversacional completa, respostas formatadas com markdown, e contexto de dados expandido para dar respostas mais precisas.
+Criar um sistema onde a Uni AI analisa automaticamente os dados do usuario e gera insights proativos que aparecem diretamente no Dashboard, sem o usuario precisar abrir o chat e perguntar. A Uni identifica oportunidades, problemas e recomendacoes acionaveis baseadas nos dados reais do negocio.
 
 ---
 
 ## O que muda para o usuario
 
-1. **Respostas em tempo real** - Os tokens aparecem conforme sao gerados, ao inves de esperar 5-10 segundos pela resposta completa
-2. **Memoria conversacional** - A Uni lembra do que foi discutido antes na mesma conversa e consegue fazer referencia a respostas anteriores
-3. **Respostas formatadas** - Titulos em negrito, listas organizadas, tabelas de dados, tudo renderizado visualmente no chat
-4. **Analises mais completas** - A Uni recebe ate 100 produtos e 200 pedidos, alem de dados de despesas e fornecedores para dar conselhos mais precisos
+Ao abrir o Dashboard, o usuario vera um card "Insights da Uni" com ate 3 recomendacoes estrategicas geradas automaticamente pela IA. Exemplos:
+
+- "Seu produto **Capa iPhone 15** vai esgotar em 5 dias e a demanda esta em alta. Recomendo repor 200 unidades agora."
+- "Margem do **Kit Pelicula + Capa** esta em 8% - abaixo do minimo saudavel. Considere reajustar o preco de R$ 29,90 para R$ 34,90."
+- "Voce nao vende na Amazon. Seus 3 produtos mais vendidos no Mercado Livre tem demanda la. Potencial de +R$ 2.400/mes."
+
+Os insights sao renovados automaticamente a cada 12 horas e podem ser atualizados manualmente.
+
+---
+
+## Como funciona
+
+1. **Edge Function `generate-ai-insights`**: Roda sob demanda (quando o Dashboard carrega e o cache esta expirado). Analisa produtos, pedidos, despesas e gera insights via Perplexity API usando tool calling para retornar JSON estruturado.
+
+2. **Tabela `ai_insights`**: Armazena os insights gerados com TTL de 12 horas. Evita chamadas desnecessarias a API.
+
+3. **Componente `ProactiveInsightsCard`**: Card no Dashboard que exibe os insights com icones de urgencia, acoes sugeridas e link para discutir com a Uni no chat.
+
+4. **Integracao com Notificacoes**: Insights criticos (estoque esgotando, margem negativa) tambem criam notificacoes automaticas que aparecem no sino de notificacoes.
 
 ---
 
 ## Detalhes tecnicos
 
-### 1. Edge Function `ai-assistant` - Reescrita com streaming e memoria
-
-**Mudancas no body da requisicao:**
-- Recebe `messages` (array completo da conversa) ao inves de apenas `question` (string unica)
-- A funcao usa TODAS as mensagens anteriores na chamada a API, permitindo contexto conversacional
-
-**Streaming SSE:**
-- Habilita `stream: true` na chamada a Perplexity API
-- Retorna `text/event-stream` diretamente para o frontend, repassando o stream da Perplexity
-- Cada chunk SSE contem um token parcial que o frontend renderiza imediatamente
-- Tratamento de erros 429 e 402 antes de iniciar o stream
-
-**Contexto expandido:**
-- Produtos: de 50 para 100 (com margem, velocidade de vendas, dias ate esgotar)
-- Pedidos: de 30 para 200 na exibicao detalhada
-- Novas informacoes adicionadas: despesas fixas (da tabela `expenses`) e fornecedores (da tabela `suppliers`)
-- `max_tokens` aumentado de 1000 para 2000 para respostas mais detalhadas
-
-**Mensagens enviadas a API:**
-```text
-[
-  { role: "system", content: "prompt do sistema + dados do usuario expandidos" },
-  { role: "user", content: "primeira pergunta" },
-  { role: "assistant", content: "primeira resposta" },
-  { role: "user", content: "segunda pergunta" },
-  ...
-]
-```
-
-### 2. Frontend `AIAssistant.tsx` - Streaming + Markdown
-
-**Instalacao de dependencia:**
-- Instalar `react-markdown` para renderizar respostas formatadas
-
-**Streaming no frontend:**
-- Substituir `supabase.functions.invoke` por `fetch` direto ao endpoint da Edge Function
-- Implementar parser SSE line-by-line conforme best practices
-- Cada token recebido atualiza o conteudo da ultima mensagem `assistant` no state
-- Indicador de "digitando" durante o streaming (cursor piscando)
-
-**Memoria conversacional:**
-- `handleSend` envia TODAS as mensagens da conversa atual (sem a mensagem inicial da Uni) para o backend
-- O backend recebe o historico completo e injeta no contexto da API
-
-**Renderizacao de markdown:**
-- Remover a funcao `cleanMarkdown` que stripava toda formatacao
-- Usar `ReactMarkdown` com classes de estilo `prose` para renderizar headers, negrito, listas, tabelas, code blocks
-- Estilizacao diferente para mensagens do usuario (texto simples) vs assistente (markdown)
-- Suporte a dark mode com classes `prose-invert`
-
-**Ajuste visual do loading:**
-- Remover o spinner de loading fixo
-- Mostrar cursor piscando no final da mensagem que esta sendo gerada
-
-### 3. Arquivos modificados
-
-1. **`supabase/functions/ai-assistant/index.ts`** - Reescrita completa: streaming SSE, historico de mensagens, contexto expandido
-2. **`src/pages/AIAssistant.tsx`** - Streaming frontend, ReactMarkdown, envio de historico completo, remocao do cleanMarkdown
-3. **`supabase/config.toml`** - Sem mudancas (verify_jwt ja e true)
-
-### 4. Fluxo de dados atualizado
+### 1. Nova tabela `ai_insights`
 
 ```text
-Frontend                        Edge Function                    Perplexity API
-   |                                |                                |
-   |-- POST { messages: [...] } --> |                                |
-   |                                |-- Valida JWT, quota           |
-   |                                |-- Busca dados expandidos     |
-   |                                |-- POST stream:true ---------> |
-   |                                |                                |
-   |   <-- SSE data: {"delta"} ---- | <-- SSE data: {"delta"} ----- |
-   |   (renderiza token)            |   (repassa stream)             |
-   |   <-- SSE data: {"delta"} ---- | <-- SSE data: {"delta"} ----- |
-   |   (atualiza msg)               |                                |
-   |   <-- SSE data: [DONE] ------- | <-- SSE data: [DONE] -------- |
-   |   (finaliza)                   |                                |
+ai_insights
+- id (uuid, PK)
+- organization_id (uuid, FK organizations)
+- user_id (uuid, FK auth.users)
+- insights (jsonb) - array de insights estruturados
+- generated_at (timestamptz)
+- expires_at (timestamptz) - generated_at + 12h
+- created_at (timestamptz)
 ```
 
-### 5. Tratamento de erros
+Cada insight no array jsonb tera:
+```text
+{
+  type: "stock_critical" | "low_margin" | "expansion_opportunity" | "trend_alert" | "cost_optimization",
+  severity: "critical" | "warning" | "opportunity",
+  title: string,
+  description: string,
+  action: string,
+  metric: string (ex: "5 dias", "R$ 2.400/mes", "8%"),
+  relatedProductId: string | null
+}
+```
 
-- **429 (Rate Limit)**: Retornado antes do stream; frontend exibe dialog de upgrade
-- **402 (Quota)**: Retornado antes do stream; frontend exibe dialog de upgrade  
-- **Stream interrompido**: Frontend detecta erro na leitura e exibe toast
-- **API offline**: Resposta JSON de erro padrao (nao SSE)
+### 2. Edge Function `generate-ai-insights`
 
-### 6. Deploy
+- Busca dados do usuario (produtos com margem, velocidade de vendas, estoque, despesas, pedidos recentes)
+- Usa Perplexity API com **tool calling** para retornar um JSON estruturado com ate 5 insights
+- Regras de analise no prompt do sistema:
+  - Produtos com menos de 7 dias de estoque em demanda alta = critico
+  - Margem abaixo de 10% = warning
+  - Produtos vendendo bem em 1 plataforma mas ausentes em outras = oportunidade
+  - Tendencia de queda de vendas mes a mes = alerta
+  - Despesas fixas crescendo mais rapido que receita = otimizacao
+- Salva os insights na tabela `ai_insights` com TTL de 12 horas
+- Cria notificacoes para insights criticos (apenas 1x por dia por tipo)
 
-- Instalar `react-markdown` como dependencia
-- Deploy da Edge Function `ai-assistant` apos reescrita
+### 3. Componente `ProactiveInsightsCard`
 
+- Renderizado no Dashboard abaixo dos cards de metricas
+- Ao montar, verifica se ha insights validos (nao expirados) na tabela
+- Se nao houver ou estiverem expirados, chama a Edge Function para gerar novos
+- Exibe ate 3 insights com:
+  - Icone de severidade (vermelho critico, amarelo warning, verde oportunidade)
+  - Titulo e descricao curta
+  - Metrica em destaque
+  - Botao "Discutir com Uni" que abre o chat com a pergunta pre-preenchida
+  - Botao "Atualizar insights" para forcar nova geracao
+- Loading state com skeleton durante geracao
+- Requer feature AI_ASSISTANT para exibir
+
+### 4. Fluxo de dados
+
+```text
+Dashboard carrega
+    |
+    v
+Verifica ai_insights (expires_at > now)
+    |
+   [cache valido?]
+    |         |
+   SIM       NAO
+    |         |
+    v         v
+  Exibe    Chama generate-ai-insights
+           (Edge Function)
+              |
+              v
+           Busca dados do usuario (produtos, pedidos, despesas)
+              |
+              v
+           Envia para Perplexity API com tool calling
+              |
+              v
+           Recebe JSON estruturado com insights
+              |
+              v
+           Salva na tabela ai_insights
+           Cria notificacoes para insights criticos
+              |
+              v
+           Retorna para o frontend
+              |
+              v
+           Exibe no card do Dashboard
+```
+
+### 5. Arquivos criados/modificados
+
+**Novos:**
+- `supabase/functions/generate-ai-insights/index.ts` - Edge Function para gerar insights
+- `src/components/dashboard/ProactiveInsightsCard.tsx` - Card de insights no Dashboard
+
+**Modificados:**
+- `src/pages/Dashboard.tsx` - Adicionar o ProactiveInsightsCard
+- Migration SQL para criar tabela `ai_insights` com RLS
+
+### 6. Controle de custos
+
+- Cache de 12 horas na tabela evita chamadas excessivas a API
+- Maximo de 2 geracoes por dia por organizacao (verificado no backend)
+- Usa modelo `sonar` (mais barato) ao inves do `sonar-pro`
+- Resposta limitada a 5 insights com max_tokens baixo
+- Apenas usuarios com feature AI_ASSISTANT veem o card
+
+### 7. Seguranca
+
+- RLS na tabela `ai_insights`: usuarios so veem insights da propria organizacao
+- Edge Function valida JWT e verifica plano/quota antes de gerar
+- Dados sensiveis nunca expostos nos insights (apenas recomendacoes)
