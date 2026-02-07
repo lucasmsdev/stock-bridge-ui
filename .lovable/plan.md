@@ -1,132 +1,111 @@
 
 
-# Implementacao Real do Sync de Rastreio - Shopify, Amazon e Mercado Livre
+# Upgrade Completo da Uni AI - Streaming, Memoria, Markdown e Contexto Expandido
 
 ## Resumo
 
-Reescrever a Edge Function `sync-tracking` para realizar chamadas reais as APIs de rastreio dos 3 marketplaces conectados. A funcao ira buscar pedidos pendentes de atualizacao, descriptografar tokens, chamar as APIs de cada plataforma e atualizar os campos `tracking_code`, `carrier`, `shipping_status`, `shipping_history`, `tracking_url` e `shipping_updated_at` na tabela `orders`.
+Transformar a Uni AI de um sistema "pergunta-resposta" bloqueante em um chat com streaming token por token, memoria conversacional completa, respostas formatadas com markdown, e contexto de dados expandido para dar respostas mais precisas.
 
 ---
 
-## Como funciona cada API
+## O que muda para o usuario
 
-### Mercado Livre
-- **Endpoint**: `GET /orders/{order_id}/shipments` retorna o `shipment_id`
-- **Detalhes**: `GET /shipments/{shipment_id}` retorna `tracking_number`, `tracking_url`, `status`, `substatus`, `date_created`, `last_updated`, e `tracking_method` (transportadora)
-- **Status possiveis**: `pending`, `handling`, `ready_to_ship`, `shipped`, `delivered`, `not_delivered`, `cancelled`
-- **Requer**: Header `X-Format-New: true` para o JSON atualizado
-
-### Amazon SP-API
-- **Limitacao importante**: A API de Orders (`GET /orders/v0/orders/{orderId}`) retorna o `FulfillmentChannel` (AFN = FBA, MFN = Seller) mas NAO retorna tracking numbers diretamente para pedidos MFN
-- **Para pedidos FBA**: O tracking esta disponivel via relatarios (`GET_AMAZON_FULFILLED_SHIPMENTS_DATA_GENERAL`)
-- **Abordagem pratica**: Buscar o campo `LatestShipDate`, `LatestDeliveryDate` e `OrderStatus` para inferir o estado de envio. Para pedidos FBA, verificar se o status e `Shipped` e marcar como em transito
-- **Status uteis**: `Pending`, `Unshipped`, `Shipped`, `Canceled`
-
-### Shopify
-- **Endpoint**: `GET /admin/api/2024-01/orders/{order_id}/fulfillments.json`
-- **Retorna**: Array de fulfillments, cada um com `tracking_number`, `tracking_url`, `tracking_company`, `shipment_status` e `updated_at`
-- **Status possiveis**: `confirmed`, `in_transit`, `out_for_delivery`, `attempted_delivery`, `delivered`, `failure`
-- API mais completa e direta para tracking
-
----
-
-## O que sera modificado
-
-### 1. `supabase/functions/sync-tracking/index.ts` (reescrita completa)
-
-A funcao sera reestruturada com:
-
-**Autenticacao e setup**:
-- Valida JWT do usuario
-- Cria cliente Supabase com service role key
-- Busca integracoes ativas do usuario (mercadolivre, shopify, amazon)
-- Busca pedidos com `shipping_status` em (`pending_shipment`, `shipped`, `in_transit`, `out_for_delivery`) OU pedidos com status `shipped`/`processing` sem `shipping_status`
-
-**Token handling** (reutilizando o padrao do `sync-orders`):
-- Descriptografa `encrypted_access_token` via `decrypt_token` RPC
-- Para Shopify: usa direto (nao expira)
-- Para ML e Amazon: descriptografa e usa (refresh e feito pelo cron separado)
-
-**Provider de rastreio para Mercado Livre**:
-- Para cada pedido ML: `GET /orders/{order_id_channel}/shipments` com Bearer token
-- Extrai `shipment_id` da resposta
-- Faz `GET /shipments/{shipment_id}` para obter detalhes completos
-- Mapeia status ML para nosso status: `handling`/`ready_to_ship` -> `pending_shipment`, `shipped` -> `in_transit`, `delivered` -> `delivered`, `not_delivered` -> `returned`
-- Extrai `tracking_number`, `tracking_url` (do campo `tracking_method`), e nome da transportadora
-- Constroi historico a partir dos dados de status
-
-**Provider de rastreio para Shopify**:
-- Para cada pedido Shopify: `GET /admin/api/2024-01/orders/{order_id_channel}/fulfillments.json`
-- Pega o primeiro fulfillment ativo (mais recente)
-- Extrai `tracking_number`, `tracking_url`, `tracking_company`
-- Mapeia `shipment_status`: `confirmed` -> `shipped`, `in_transit` -> `in_transit`, `out_for_delivery` -> `out_for_delivery`, `delivered` -> `delivered`
-- Se nao tem fulfillment, mantem `pending_shipment`
-
-**Provider de rastreio para Amazon**:
-- Para cada pedido Amazon: `GET /orders/v0/orders/{order_id_channel}` para verificar `OrderStatus`
-- Mapeia: `Unshipped`/`Pending` -> `pending_shipment`, `Shipped` -> `in_transit` (para FBA/AFN) ou `shipped` (para MFN), `Canceled` -> ignora
-- Atualiza `shipping_status` e `shipping_updated_at` baseado nos dados disponiveis
-
-**Atualizacao no banco**:
-- Para cada pedido atualizado, faz UPDATE na tabela `orders` com os novos dados
-- Adiciona eventos ao `shipping_history` (JSONB array) sem duplicar eventos existentes
-- Atualiza `shipping_updated_at` com timestamp atual
-
-**Resposta**:
-- Retorna resumo: total verificado, total atualizado, erros por plataforma
-
-### 2. `src/pages/Tracking.tsx` (ajuste menor)
-
-- Incluir pedidos com status `shipped` ou `processing` que ainda nao tem `shipping_status` preenchido na query, para que aparecam como "Aguardando Envio" na tela
-- Isso garante que pedidos recem-sincronizados (via sync-orders) aparecam na tela de rastreio mesmo antes do primeiro sync-tracking
+1. **Respostas em tempo real** - Os tokens aparecem conforme sao gerados, ao inves de esperar 5-10 segundos pela resposta completa
+2. **Memoria conversacional** - A Uni lembra do que foi discutido antes na mesma conversa e consegue fazer referencia a respostas anteriores
+3. **Respostas formatadas** - Titulos em negrito, listas organizadas, tabelas de dados, tudo renderizado visualmente no chat
+4. **Analises mais completas** - A Uni recebe ate 100 produtos e 200 pedidos, alem de dados de despesas e fornecedores para dar conselhos mais precisos
 
 ---
 
 ## Detalhes tecnicos
 
-### Mapeamento de status por plataforma
+### 1. Edge Function `ai-assistant` - Reescrita com streaming e memoria
 
+**Mudancas no body da requisicao:**
+- Recebe `messages` (array completo da conversa) ao inves de apenas `question` (string unica)
+- A funcao usa TODAS as mensagens anteriores na chamada a API, permitindo contexto conversacional
+
+**Streaming SSE:**
+- Habilita `stream: true` na chamada a Perplexity API
+- Retorna `text/event-stream` diretamente para o frontend, repassando o stream da Perplexity
+- Cada chunk SSE contem um token parcial que o frontend renderiza imediatamente
+- Tratamento de erros 429 e 402 antes de iniciar o stream
+
+**Contexto expandido:**
+- Produtos: de 50 para 100 (com margem, velocidade de vendas, dias ate esgotar)
+- Pedidos: de 30 para 200 na exibicao detalhada
+- Novas informacoes adicionadas: despesas fixas (da tabela `expenses`) e fornecedores (da tabela `suppliers`)
+- `max_tokens` aumentado de 1000 para 2000 para respostas mais detalhadas
+
+**Mensagens enviadas a API:**
 ```text
-Mercado Livre:
-  pending/handling/ready_to_ship -> pending_shipment
-  shipped                        -> in_transit
-  delivered                      -> delivered
-  not_delivered                  -> returned
-  cancelled                     -> (ignora)
-
-Shopify:
-  (sem fulfillment)              -> pending_shipment
-  confirmed                     -> shipped
-  in_transit                    -> in_transit
-  out_for_delivery              -> out_for_delivery
-  delivered                     -> delivered
-  failure                       -> returned
-
-Amazon:
-  Pending/Unshipped              -> pending_shipment
-  PartiallyShipped              -> shipped
-  Shipped                       -> in_transit
-  Canceled                      -> (ignora)
+[
+  { role: "system", content: "prompt do sistema + dados do usuario expandidos" },
+  { role: "user", content: "primeira pergunta" },
+  { role: "assistant", content: "primeira resposta" },
+  { role: "user", content: "segunda pergunta" },
+  ...
+]
 ```
 
-### Estrutura do shipping_history (JSONB)
+### 2. Frontend `AIAssistant.tsx` - Streaming + Markdown
 
-Cada evento segue o formato:
+**Instalacao de dependencia:**
+- Instalar `react-markdown` para renderizar respostas formatadas
+
+**Streaming no frontend:**
+- Substituir `supabase.functions.invoke` por `fetch` direto ao endpoint da Edge Function
+- Implementar parser SSE line-by-line conforme best practices
+- Cada token recebido atualiza o conteudo da ultima mensagem `assistant` no state
+- Indicador de "digitando" durante o streaming (cursor piscando)
+
+**Memoria conversacional:**
+- `handleSend` envia TODAS as mensagens da conversa atual (sem a mensagem inicial da Uni) para o backend
+- O backend recebe o historico completo e injeta no contexto da API
+
+**Renderizacao de markdown:**
+- Remover a funcao `cleanMarkdown` que stripava toda formatacao
+- Usar `ReactMarkdown` com classes de estilo `prose` para renderizar headers, negrito, listas, tabelas, code blocks
+- Estilizacao diferente para mensagens do usuario (texto simples) vs assistente (markdown)
+- Suporte a dark mode com classes `prose-invert`
+
+**Ajuste visual do loading:**
+- Remover o spinner de loading fixo
+- Mostrar cursor piscando no final da mensagem que esta sendo gerada
+
+### 3. Arquivos modificados
+
+1. **`supabase/functions/ai-assistant/index.ts`** - Reescrita completa: streaming SSE, historico de mensagens, contexto expandido
+2. **`src/pages/AIAssistant.tsx`** - Streaming frontend, ReactMarkdown, envio de historico completo, remocao do cleanMarkdown
+3. **`supabase/config.toml`** - Sem mudancas (verify_jwt ja e true)
+
+### 4. Fluxo de dados atualizado
+
 ```text
-{
-  "date": "2026-02-05T14:30:00Z",
-  "status": "in_transit",
-  "description": "Objeto em transito - Curitiba/PR",
-  "location": "Curitiba/PR"
-}
+Frontend                        Edge Function                    Perplexity API
+   |                                |                                |
+   |-- POST { messages: [...] } --> |                                |
+   |                                |-- Valida JWT, quota           |
+   |                                |-- Busca dados expandidos     |
+   |                                |-- POST stream:true ---------> |
+   |                                |                                |
+   |   <-- SSE data: {"delta"} ---- | <-- SSE data: {"delta"} ----- |
+   |   (renderiza token)            |   (repassa stream)             |
+   |   <-- SSE data: {"delta"} ---- | <-- SSE data: {"delta"} ----- |
+   |   (atualiza msg)               |                                |
+   |   <-- SSE data: [DONE] ------- | <-- SSE data: [DONE] -------- |
+   |   (finaliza)                   |                                |
 ```
 
-### Arquivos modificados
+### 5. Tratamento de erros
 
-1. **`supabase/functions/sync-tracking/index.ts`** - Reescrita com implementacao real
-2. **`src/pages/Tracking.tsx`** - Query ajustada para incluir pedidos sem shipping_status
+- **429 (Rate Limit)**: Retornado antes do stream; frontend exibe dialog de upgrade
+- **402 (Quota)**: Retornado antes do stream; frontend exibe dialog de upgrade  
+- **Stream interrompido**: Frontend detecta erro na leitura e exibe toast
+- **API offline**: Resposta JSON de erro padrao (nao SSE)
 
-### Deploy
+### 6. Deploy
 
-- Deploy da edge function `sync-tracking` apos as alteracoes
+- Instalar `react-markdown` como dependencia
+- Deploy da Edge Function `ai-assistant` apos reescrita
 
