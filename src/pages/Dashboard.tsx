@@ -656,7 +656,7 @@ export default function Dashboard() {
                       {formatCurrency(netProfit)}
                     </p>
                     <p className="text-xs text-muted-foreground mt-1">
-                      Lucro Bruto ({formatCurrency(grossProfit)}) - Despesas ({formatCurrency(totalMonthlyExpenses)})
+                      Faturamento ({formatCurrency(dashboardData.periodRevenue)}) - Custos e Despesas
                     </p>
                   </div>
                 </div>
@@ -807,12 +807,9 @@ export default function Dashboard() {
                               return (
                                 <div className="rounded-lg border bg-background p-3 shadow-md">
                                   <p className="font-medium mb-2">{label}</p>
-                                  <div className="space-y-1 text-sm">
+                                    <div className="space-y-1 text-sm">
                                     <p className="text-muted-foreground">
                                       Faturamento: <span className="font-medium text-foreground">{formatCurrency(data.revenue)}</span>
-                                    </p>
-                                    <p className="text-muted-foreground">
-                                      Lucro Bruto: <span className="font-medium text-foreground">{formatCurrency(data.grossProfit)}</span>
                                     </p>
                                     <p className="text-muted-foreground">
                                       Despesas: <span className="font-medium text-red-500">-{formatCurrency(data.expenses)}</span>
@@ -859,14 +856,10 @@ export default function Dashboard() {
               </CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+              <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
                 <div className="text-center p-4 rounded-lg bg-muted/50">
                   <p className="text-xs text-muted-foreground mb-1">Faturamento</p>
                   <p className="text-xl font-bold text-foreground">{formatCurrency(dashboardData.periodRevenue)}</p>
-                </div>
-                <div className="text-center p-4 rounded-lg bg-muted/50">
-                  <p className="text-xs text-muted-foreground mb-1">Lucro Bruto (30%)</p>
-                  <p className="text-xl font-bold text-foreground">{formatCurrency(grossProfit)}</p>
                 </div>
                 <div className="text-center p-4 rounded-lg bg-muted/50">
                   <p className="text-xs text-muted-foreground mb-1">Despesas Mensais</p>
