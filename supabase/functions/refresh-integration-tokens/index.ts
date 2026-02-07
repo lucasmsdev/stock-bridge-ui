@@ -14,6 +14,7 @@ const TOKEN_EXPIRY_HOURS: Record<string, number> = {
   shopee: 4,
   shopify: 0, // Não expira
   meta_ads: 1440, // 60 dias = 1440 horas
+  magalu: 2, // 2 horas (7200 segundos)
 };
 
 // Margem de segurança para refresh (em minutos)
@@ -125,6 +126,8 @@ serve(async (req) => {
           if (accessToken) {
             newTokenData = await refreshMetaAdsToken(accessToken);
           }
+        } else if (integration.platform === 'magalu') {
+          newTokenData = await refreshMagaluToken(refreshToken);
         } else {
           console.log(`⏭️ Pulando ${integration.platform} - Plataforma não suportada para refresh`);
           results.skipped++;
@@ -386,5 +389,45 @@ async function refreshMetaAdsToken(currentAccessToken: string) {
   return {
     access_token: data.access_token,
     // Meta long-lived tokens don't use refresh tokens
+  };
+}
+
+// Renovar token do Magalu
+async function refreshMagaluToken(refreshToken: string) {
+  const clientId = Deno.env.get('MAGALU_CLIENT_ID');
+  const clientSecret = Deno.env.get('MAGALU_CLIENT_SECRET');
+
+  if (!clientId || !clientSecret) {
+    throw new Error('Credenciais do Magalu não configuradas');
+  }
+
+  console.log('   🔄 Chamando API Magalu ID para renovar token...');
+
+  const response = await fetch('https://id.magalu.com/oauth/token', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/x-www-form-urlencoded',
+      'Accept': 'application/json',
+    },
+    body: new URLSearchParams({
+      grant_type: 'refresh_token',
+      client_id: clientId,
+      client_secret: clientSecret,
+      refresh_token: refreshToken,
+    }),
+  });
+
+  if (!response.ok) {
+    const errorText = await response.text();
+    console.error('   ❌ Erro API Magalu:', errorText);
+    throw new Error(`Magalu refresh failed: ${response.status} - ${errorText}`);
+  }
+
+  const data = await response.json();
+  console.log('   ✅ API Magalu respondeu com sucesso');
+
+  return {
+    access_token: data.access_token,
+    refresh_token: data.refresh_token || refreshToken,
   };
 }

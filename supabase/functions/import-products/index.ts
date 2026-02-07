@@ -1341,6 +1341,126 @@ serve(async (req) => {
           }
         );
       }
+    } else if (platform === 'magalu') {
+      // ================= IMPORTAÇÃO MAGALU =================
+      console.log('🟣 Importando produtos do Magalu...');
+
+      try {
+        const magaluHeaders = {
+          'Authorization': `Bearer ${accessToken}`,
+          'Content-Type': 'application/json',
+          'Accept': 'application/json',
+        };
+
+        // Step 1: Get all SKUs from portfolio
+        let allSkus: any[] = [];
+        let offset = 0;
+        const limit = 100;
+
+        do {
+          const skusUrl = `https://api.magalu.com/seller/v1/portfolios/skus?_limit=${limit}&_offset=${offset}`;
+          console.log(`📄 Buscando SKUs do Magalu (offset ${offset})...`);
+
+          const skusResponse = await fetch(skusUrl, { headers: magaluHeaders });
+
+          if (!skusResponse.ok) {
+            const errorText = await skusResponse.text();
+            console.error('❌ Erro ao buscar SKUs do Magalu:', errorText);
+            return new Response(
+              JSON.stringify({ error: `Falha ao buscar produtos do Magalu: ${skusResponse.status}` }),
+              { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+            );
+          }
+
+          const skusData = await skusResponse.json();
+          const pageSkus = Array.isArray(skusData) ? skusData : (skusData.results || skusData.data || []);
+          
+          if (pageSkus.length === 0) break;
+          
+          allSkus = allSkus.concat(pageSkus);
+          offset += limit;
+
+          // Safety limit
+          if (allSkus.length >= 500) break;
+        } while (true);
+
+        console.log(`✅ Encontrados ${allSkus.length} SKUs no Magalu`);
+
+        if (allSkus.length === 0) {
+          return new Response(
+            JSON.stringify({ message: 'Nenhum produto encontrado na sua conta Magalu', count: 0 }),
+            { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+          );
+        }
+
+        // Step 2: Get prices and stock for each SKU
+        for (const skuData of allSkus) {
+          const sku = skuData.sku || skuData.id;
+          if (!sku) continue;
+
+          let sellingPrice: number | null = null;
+          let stock = 0;
+
+          // Fetch price
+          try {
+            const priceResponse = await fetch(`https://api.magalu.com/seller/v1/portfolios/prices/${encodeURIComponent(sku)}`, {
+              headers: magaluHeaders,
+            });
+            if (priceResponse.ok) {
+              const priceData = await priceResponse.json();
+              sellingPrice = priceData.price || priceData.sale_price || null;
+            }
+          } catch (err) {
+            console.warn(`⚠️ Erro ao buscar preço do SKU ${sku}:`, err);
+          }
+
+          // Fetch stock
+          try {
+            const stockResponse = await fetch(`https://api.magalu.com/seller/v1/portfolios/stocks/${encodeURIComponent(sku)}`, {
+              headers: magaluHeaders,
+            });
+            if (stockResponse.ok) {
+              const stockData = await stockResponse.json();
+              stock = stockData.quantity || stockData.available_quantity || 0;
+            }
+          } catch (err) {
+            console.warn(`⚠️ Erro ao buscar estoque do SKU ${sku}:`, err);
+          }
+
+          // Process images
+          const allImages = (skuData.images || [])
+            .sort((a: any, b: any) => (a.order || 0) - (b.order || 0))
+            .map((img: any) => img.url || img.src)
+            .filter(Boolean);
+
+          productsToInsert.push({
+            user_id: user.id,
+            organization_id: organizationId,
+            name: skuData.title || skuData.name || sku,
+            sku: String(sku),
+            stock: stock,
+            selling_price: sellingPrice,
+            image_url: allImages[0] || null,
+            images: allImages.length > 0 ? allImages : null,
+            description: skuData.description || null,
+            brand: skuData.brand || null,
+            ean: skuData.ean || null,
+            weight: skuData.weight || null,
+          });
+        }
+
+        console.log(`📦 ${productsToInsert.length} produtos do Magalu preparados para importação`);
+
+      } catch (magaluError: any) {
+        console.error('💥 Erro na importação Magalu:', magaluError);
+        return new Response(
+          JSON.stringify({
+            error: 'Erro ao importar produtos do Magalu. Tente novamente.',
+            details: magaluError.message,
+          }),
+          { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
     }
 
     if (productsToInsert.length === 0) {

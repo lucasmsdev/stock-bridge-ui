@@ -84,7 +84,6 @@ const marketplaceIntegrations: IntegrationPlatform[] = [
     name: "Magalu",
     description: "Conecte-se ao marketplace da Magazine Luiza e expanda suas vendas",
     logoUrl: "/logos/magalu.png",
-    comingSoon: true,
   },
 ];
 
@@ -227,6 +226,10 @@ export default function Integrations() {
               const accountName = integration.shop_domain || "Loja Shopify";
               await supabase.from("integrations").update({ account_name: accountName }).eq("id", integration.id);
               integration.account_name = accountName;
+            } else if (integration.platform === "magalu") {
+              const accountName = "Conta Magalu";
+              await supabase.from("integrations").update({ account_name: accountName }).eq("id", integration.id);
+              integration.account_name = accountName;
             }
           } catch (err) {
             console.error(`Error updating account name for ${integration.platform}:`, err);
@@ -309,6 +312,39 @@ export default function Integrations() {
       console.log("🔄 Redirecionando para Shopify Admin...");
 
       // Redirect to Shopify authorization page
+      window.location.href = authUrl;
+    } else if (platformId === "magalu") {
+      // Magalu OAuth flow
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
+
+      if (!user) {
+        toast({
+          title: "Erro de autenticação",
+          description: "Faça login para conectar integrações.",
+          variant: "destructive",
+        });
+        return;
+      }
+
+      console.log("🟣 Iniciando fluxo OAuth Magalu...");
+
+      // Client ID público do Magalu (similar ao appId do Mercado Livre)
+      // TODO: Substituir pelo client_id real gerado via CLI idm
+      const magaluClientId = "YOUR_MAGALU_CLIENT_ID";
+      const redirectUri = `${window.location.origin}/callback/magalu`;
+      const scopes = "portfolios:read portfolios:write orders:read conversations:read conversations:write";
+
+      const authUrl =
+        `https://id.magalu.com/login` +
+        `?client_id=${encodeURIComponent(magaluClientId)}` +
+        `&redirect_uri=${encodeURIComponent(redirectUri)}` +
+        `&scope=${encodeURIComponent(scopes)}` +
+        `&response_type=code` +
+        `&choose_tenants=true`;
+
+      console.log("🔄 Redirecionando para Magalu ID...");
       window.location.href = authUrl;
     } else if (platformId === "meta_ads") {
       // Meta Ads OAuth flow
