@@ -79,23 +79,20 @@ const suppliers = [
 
 const expenses = [
   // Fixed costs
-  { name: 'Aluguel Escritório', category: 'fixed', amount: 1800, recurrence: 'monthly' },
-  { name: 'Contabilidade', category: 'fixed', amount: 600, recurrence: 'monthly' },
-  { name: 'Internet Fibra 300MB', category: 'fixed', amount: 149, recurrence: 'monthly' },
-  { name: 'Energia Elétrica', category: 'fixed', amount: 280, recurrence: 'monthly' },
-  { name: 'UniStock Pro', category: 'fixed', amount: 197, recurrence: 'monthly' },
-  { name: 'Funcionário - Operações', category: 'fixed', amount: 2200, recurrence: 'monthly' },
-  { name: 'Funcionário - Atendimento', category: 'fixed', amount: 1800, recurrence: 'monthly' },
+  { name: 'Aluguel Escritório', category: 'fixed', amount: 1200, recurrence: 'monthly' },
+  { name: 'Contabilidade', category: 'fixed', amount: 350, recurrence: 'monthly' },
+  { name: 'Internet Fibra', category: 'fixed', amount: 119, recurrence: 'monthly' },
+  { name: 'Energia Elétrica', category: 'fixed', amount: 180, recurrence: 'monthly' },
+  { name: 'UniStock Pro', category: 'fixed', amount: 97, recurrence: 'monthly' },
+  { name: 'Funcionário - Operações', category: 'fixed', amount: 1500, recurrence: 'monthly' },
   // Variable costs
-  { name: 'Google Ads', category: 'variable', amount: 1500, recurrence: 'monthly' },
-  { name: 'Meta Ads', category: 'variable', amount: 800, recurrence: 'monthly' },
-  { name: 'TikTok Ads', category: 'variable', amount: 450, recurrence: 'monthly' },
-  { name: 'Comissão Indicação', category: 'variable', amount: 300, recurrence: 'monthly' },
+  { name: 'Google Ads', category: 'variable', amount: 600, recurrence: 'monthly' },
+  { name: 'Meta Ads', category: 'variable', amount: 400, recurrence: 'monthly' },
+  { name: 'TikTok Ads', category: 'variable', amount: 200, recurrence: 'monthly' },
   // Operational costs
-  { name: 'Embalagens e Materiais', category: 'operational', amount: 650, recurrence: 'monthly' },
-  { name: 'Frete Correios/Transportadora', category: 'operational', amount: 1200, recurrence: 'monthly' },
-  { name: 'Telefonia/WhatsApp Business', category: 'operational', amount: 99, recurrence: 'monthly' },
-  { name: 'Impressora Etiquetas (manutenção)', category: 'operational', amount: 80, recurrence: 'monthly' },
+  { name: 'Embalagens e Materiais', category: 'operational', amount: 350, recurrence: 'monthly' },
+  { name: 'Frete Correios', category: 'operational', amount: 600, recurrence: 'monthly' },
+  { name: 'Telefonia/WhatsApp Business', category: 'operational', amount: 69, recurrence: 'monthly' },
 ];
 
 const notifications = [
