@@ -78,17 +78,24 @@ const suppliers = [
 ];
 
 const expenses = [
-  { name: 'Aluguel Escritório', category: 'Infraestrutura', amount: 1800, recurrence: 'monthly' },
-  { name: 'Contabilidade', category: 'Administrativo', amount: 600, recurrence: 'monthly' },
-  { name: 'Internet Fibra 300MB', category: 'Infraestrutura', amount: 149, recurrence: 'monthly' },
-  { name: 'Energia Elétrica', category: 'Infraestrutura', amount: 280, recurrence: 'monthly' },
-  { name: 'UniStock Pro', category: 'Ferramentas', amount: 197, recurrence: 'monthly' },
-  { name: 'Google Ads', category: 'Marketing', amount: 1500, recurrence: 'monthly' },
-  { name: 'Meta Ads', category: 'Marketing', amount: 800, recurrence: 'monthly' },
-  { name: 'Embalagens e Materiais', category: 'Operacional', amount: 650, recurrence: 'monthly' },
-  { name: 'Funcionário - Operações', category: 'Pessoal', amount: 1800, recurrence: 'monthly' },
-  { name: 'Funcionário - Atendimento', category: 'Pessoal', amount: 1500, recurrence: 'monthly' },
-  { name: 'Telefonia/WhatsApp Business', category: 'Operacional', amount: 99, recurrence: 'monthly' }
+  // Fixed costs
+  { name: 'Aluguel Escritório', category: 'fixed', amount: 1800, recurrence: 'monthly' },
+  { name: 'Contabilidade', category: 'fixed', amount: 600, recurrence: 'monthly' },
+  { name: 'Internet Fibra 300MB', category: 'fixed', amount: 149, recurrence: 'monthly' },
+  { name: 'Energia Elétrica', category: 'fixed', amount: 280, recurrence: 'monthly' },
+  { name: 'UniStock Pro', category: 'fixed', amount: 197, recurrence: 'monthly' },
+  { name: 'Funcionário - Operações', category: 'fixed', amount: 2200, recurrence: 'monthly' },
+  { name: 'Funcionário - Atendimento', category: 'fixed', amount: 1800, recurrence: 'monthly' },
+  // Variable costs
+  { name: 'Google Ads', category: 'variable', amount: 1500, recurrence: 'monthly' },
+  { name: 'Meta Ads', category: 'variable', amount: 800, recurrence: 'monthly' },
+  { name: 'TikTok Ads', category: 'variable', amount: 450, recurrence: 'monthly' },
+  { name: 'Comissão Indicação', category: 'variable', amount: 300, recurrence: 'monthly' },
+  // Operational costs
+  { name: 'Embalagens e Materiais', category: 'operational', amount: 650, recurrence: 'monthly' },
+  { name: 'Frete Correios/Transportadora', category: 'operational', amount: 1200, recurrence: 'monthly' },
+  { name: 'Telefonia/WhatsApp Business', category: 'operational', amount: 99, recurrence: 'monthly' },
+  { name: 'Impressora Etiquetas (manutenção)', category: 'operational', amount: 80, recurrence: 'monthly' },
 ];
 
 const notifications = [
@@ -475,23 +482,33 @@ serve(async (req) => {
         });
       }
       
-      // Link each campaign to 2-4 products
-      const numProducts = randomInt(2, 4);
-      const linkedProducts = insertedProducts!.slice(idx % 20, (idx % 20) + numProducts);
+      // Link each campaign to 3-5 products, spread across all 20 products
+      // Use different offsets per campaign to maximize coverage
+      const numProducts = randomInt(3, 5);
+      const startIdx = (idx * 3) % 20; // spread starting index
+      const linkedProductIds = new Set<string>();
+      for (let p = 0; p < numProducts; p++) {
+        const pIdx = (startIdx + p * 2) % insertedProducts!.length;
+        linkedProductIds.add(insertedProducts![pIdx].id);
+      }
       
-      linkedProducts.forEach(product => {
-        campaignLinks.push({
-          user_id: user.id,
-          organization_id: organizationId,
-          campaign_id: campaignId,
-          campaign_name: campaign.name,
-          platform: campaign.platform,
-          product_id: product.id,
-          sku: product.sku,
-          is_active: campaign.status === 'active',
-          link_type: 'manual',
-          start_date: new Date(now.getTime() - 60 * 24 * 60 * 60 * 1000).toISOString().split('T')[0]
-        });
+      linkedProductIds.forEach(productId => {
+        const product = insertedProducts!.find(p => p.id === productId)!;
+        // Avoid duplicate links for same campaign+product
+        if (!campaignLinks.some(l => l.campaign_id === campaignId && l.product_id === productId)) {
+          campaignLinks.push({
+            user_id: user.id,
+            organization_id: organizationId,
+            campaign_id: campaignId,
+            campaign_name: campaign.name,
+            platform: campaign.platform,
+            product_id: product.id,
+            sku: product.sku,
+            is_active: campaign.status === 'active',
+            link_type: 'manual',
+            start_date: new Date(now.getTime() - 60 * 24 * 60 * 60 * 1000).toISOString().split('T')[0]
+          });
+        }
       });
     });
 
@@ -509,23 +526,42 @@ serve(async (req) => {
     // Generate attributed conversions based on orders and campaign links
     console.log('Gerando atribuições de conversão...');
     
-    // For each order, check if the product has a linked campaign and create attribution
-    const ordersWithAttribution = orders.slice(0, Math.floor(orders.length * 0.35)); // ~35% of orders attributed
+    // Assign a performance tier to each product for realistic ROAS distribution
+    // ~30% excellent (3x-6x), ~40% good (1.5x-3x), ~20% neutral (0.8x-1.2x), ~10% poor (0.3x-0.8x)
+    const linkedProductIds = [...new Set(campaignLinks.map(l => l.product_id))];
+    const productTiers: Record<string, { minRoas: number; maxRoas: number; label: string }> = {};
+    
+    linkedProductIds.forEach((productId, i) => {
+      const ratio = i / linkedProductIds.length;
+      if (ratio < 0.3) {
+        productTiers[productId] = { minRoas: 3.0, maxRoas: 6.0, label: 'excellent' };
+      } else if (ratio < 0.7) {
+        productTiers[productId] = { minRoas: 1.5, maxRoas: 3.0, label: 'good' };
+      } else if (ratio < 0.9) {
+        productTiers[productId] = { minRoas: 0.8, maxRoas: 1.2, label: 'neutral' };
+      } else {
+        productTiers[productId] = { minRoas: 0.3, maxRoas: 0.8, label: 'poor' };
+      }
+    });
+    
+    // ~40% of orders get attribution
+    const ordersWithAttribution = orders.slice(0, Math.floor(orders.length * 0.40));
     
     for (const order of ordersWithAttribution) {
       const orderItems = order.items as { product_id: string; name: string; quantity: number; price: number }[];
       
       for (const item of orderItems) {
-        // Find if this product has a linked campaign
         const linkedCampaign = campaignLinks.find(link => link.product_id === item.product_id);
         
         if (linkedCampaign) {
           const orderDate = new Date(order.order_date);
           const orderValue = item.price * item.quantity;
+          const tier = productTiers[item.product_id];
           
-          // Calculate attributed spend (proportional to campaign daily spend)
-          const campaign = adCampaigns.find(c => `demo-campaign-${adCampaigns.indexOf(c) + 1}` === linkedCampaign.campaign_id);
-          const attributedSpend = campaign ? campaign.dailyBudget * randomFloat(0.02, 0.08) : randomFloat(5, 20);
+          // Calculate attributed_spend = order_value / target_roas
+          // This produces realistic ROAS values
+          const targetRoas = tier ? randomFloat(tier.minRoas, tier.maxRoas) : randomFloat(1.5, 3.0);
+          const attributedSpend = orderValue / targetRoas;
           
           attributedConversions.push({
             user_id: user.id,
@@ -535,7 +571,7 @@ serve(async (req) => {
             platform: linkedCampaign.platform,
             product_id: item.product_id,
             sku: linkedCampaign.sku,
-            order_id: null, // We don't have the actual order ID at this point
+            order_id: null,
             order_value: orderValue,
             quantity: item.quantity,
             attributed_spend: Math.round(attributedSpend * 100) / 100,
