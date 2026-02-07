@@ -1,5 +1,6 @@
 import { TrendingUp, Package, ShoppingCart, Plug2, DollarSign, Loader2, Receipt, Target, Store, Calendar, Wallet, AlertTriangle, Sparkles, Trash2, Megaphone } from "lucide-react";
 import { CriticalStockCard } from "@/components/dashboard/CriticalStockCard";
+import { ProactiveInsightsCard } from "@/components/dashboard/ProactiveInsightsCard";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -708,7 +709,10 @@ export default function Dashboard() {
           </Card>
 
           {/* Critical Stock Forecast Card */}
-          <CriticalStockCard />
+           <CriticalStockCard />
+
+           {/* Proactive AI Insights */}
+           <ProactiveInsightsCard />
 
           <div className="grid grid-cols-1 xl:grid-cols-2 gap-4 lg:gap-6">
             {/* Sales Chart */}
