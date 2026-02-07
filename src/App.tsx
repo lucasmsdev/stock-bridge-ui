@@ -38,6 +38,7 @@ import Team from "./pages/Team";
 import TermsOfService from "./pages/TermsOfService";
 import PrivacyPolicy from "./pages/PrivacyPolicy";
 import ProductROI from "./pages/ProductROI";
+import Tracking from "./pages/Tracking";
 
 const App = () => (
   <QueryClientProvider client={queryClient}>
@@ -64,6 +65,7 @@ const App = () => (
                 <Route path="products/new" element={<CreateProduct />} />
                 <Route path="products/:id" element={<ProductDetails />} />
                 <Route path="orders" element={<Orders />} />
+                <Route path="tracking" element={<Tracking />} />
                 <Route path="finance" element={<Finance />} />
                 <Route path="expenses" element={<Expenses />} />
                 <Route path="suppliers" element={<Suppliers />} />
