@@ -330,9 +330,7 @@ export default function Integrations() {
 
       console.log("🟣 Iniciando fluxo OAuth Magalu...");
 
-      // Client ID público do Magalu (similar ao appId do Mercado Livre)
-      // TODO: Substituir pelo client_id real gerado via CLI idm
-      const magaluClientId = "YOUR_MAGALU_CLIENT_ID";
+      const magaluClientId = "857769e2-779c-4ebd-a9ac-2e3ee7337a5b";
       const redirectUri = `${window.location.origin}/callback/magalu`;
       const scopes = "portfolios:read portfolios:write orders:read conversations:read conversations:write";
 
