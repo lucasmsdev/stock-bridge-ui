@@ -1,19 +1,26 @@
 
-# Fix: Feedback imediato e criacao de conversa nos Insights
+# Fix: Conversas da Uni AI nao sendo salvas no menu lateral
 
-## Problemas identificados
+## Problema raiz
 
-1. **Sem feedback visual**: Quando o usuario clica "Discutir com Uni" e a mensagem e enviada, nao ha indicacao de que a Uni esta processando. O usuario fica vendo a tela parada por varios segundos ate o streaming comecar.
+A tabela `ai_conversations` possui uma coluna `organization_id` que e obrigatoria nas politicas de seguranca (RLS). Todas as operacoes exigem que `organization_id = get_user_org_id(auth.uid())`:
 
-2. **Conversa nao e criada no painel lateral**: A funcao `createNewConversation` reseta as mensagens para a mensagem de boas-vindas (apagando a mensagem do usuario), e salva no banco apenas a mensagem inicial -- nunca registra a conversa do insight corretamente.
+- **INSERT**: `with_check` exige `organization_id` correto
+- **SELECT**: filtra por `organization_id` da organizacao do usuario
+- **UPDATE**: filtra por `organization_id`
+- **DELETE**: exige `organization_id` + ser admin
+
+O codigo atual **nunca envia** `organization_id` ao criar conversas (tanto em `createNewConversation` quanto em `ensureConversation`). Resultado: o insert e rejeitado silenciosamente pelo RLS, e a conversa nunca e persistida no banco.
+
+Alem disso, o `loadConversations` filtra por `user_id` mas o RLS filtra por `organization_id` -- sem o campo preenchido, as queries SELECT tambem retornam vazio.
 
 ---
 
 ## O que muda para o usuario
 
-- Ao clicar em "Discutir com Uni", a mensagem do usuario aparece instantaneamente no chat com um indicador visual de "Uni esta pensando..." (tres pontinhos animados) logo abaixo.
-- A conversa aparece imediatamente no painel lateral esquerdo com o titulo do insight.
-- A conversa fica salva e pode ser revisitada depois.
+- Ao clicar no botao "+" ou enviar qualquer mensagem, a conversa sera criada e aparecera imediatamente no painel lateral.
+- As conversas ficam salvas e podem ser revisitadas.
+- O fluxo "Discutir com Uni" dos insights tambem cria e salva a conversa corretamente.
 
 ---
 
@@ -21,55 +28,53 @@
 
 ### Arquivo modificado: `src/pages/AIAssistant.tsx`
 
-**1. Adicionar indicador "pensando"**
+**1. Obter `organization_id` do usuario**
 
-Quando `isStreaming` for `true` e a ultima mensagem for do usuario (ou seja, a Uni ainda nao comecou a responder), exibir um bloco visual com animacao de tres pontinhos e texto "Uni esta analisando...". Isso aparece instantaneamente apos o envio da mensagem.
+Importar e usar o hook `useOrganization` (ja existente no projeto) para obter o `organizationId` do usuario logado. Caso o hook nao forneca diretamente, fazer uma query unica ao `organization_members` para buscar o `organization_id` do usuario.
 
-**2. Corrigir criacao de conversa no `sendMessage`**
+**2. Corrigir `createNewConversation`**
 
-O fluxo atual chama `createNewConversation()` que reseta tudo. A correcao:
+Adicionar `organization_id` ao insert:
 
-- Separar a logica de "criar registro no banco" da logica de "resetar UI"
-- Criar uma funcao `ensureConversation()` que:
-  - Se ja existe `conversationId`, nao faz nada
-  - Se nao existe, cria um novo registro no banco SEM resetar as mensagens na UI
-  - Seta o `conversationId` e atualiza a lista de conversas no painel lateral
-- Usar `ensureConversation()` dentro de `sendMessage` no lugar de `createNewConversation()`
-
-**3. Corrigir o auto-send dos insights**
-
-O `useEffect` de auto-send precisa:
-- Aguardar as conversas carregarem primeiro (verificar que `loadConversations` terminou)
-- Forcar criacao de uma nova conversa para o insight (nao reutilizar conversa existente)
-- Garantir que a mensagem do usuario e a primeira coisa salva na conversa
-
-### Fluxo corrigido
-
-```text
-Usuario clica "Discutir com Uni"
-    |
-    v
-Navega para /app/ai-assistant?q=...
-    |
-    v
-useEffect detecta ?q= e aguarda user e conversas carregarem
-    |
-    v
-Cria nova conversa no banco (sem resetar UI)
-    |
-    v
-Envia mensagem automaticamente via sendMessage()
-    |
-    v
-Mensagem do usuario aparece + indicador "pensando..."
-    |
-    v
-Streaming comeca, indicador some, resposta aparece token a token
-    |
-    v
-Conversa aparece no painel lateral com titulo do insight
+```
+const { data, error } = await supabase
+  .from('ai_conversations')
+  .insert({
+    user_id: user.id,
+    organization_id: orgId,    // <-- ADICIONAR
+    messages: messagesToStore
+  })
+  .select()
+  .single();
 ```
 
-### Nenhum outro arquivo precisa ser alterado
+**3. Corrigir `ensureConversation`**
 
-Todas as mudancas sao em `src/pages/AIAssistant.tsx`.
+Mesmo ajuste -- adicionar `organization_id` ao insert:
+
+```
+const { data, error } = await supabase
+  .from('ai_conversations')
+  .insert({
+    user_id: user.id,
+    organization_id: orgId,    // <-- ADICIONAR
+    messages: messagesToStore
+  })
+  .select()
+  .single();
+```
+
+**4. Atualizar sidebar apos salvar mensagens**
+
+Apos o `saveConversation` salvar no banco, atualizar o titulo da conversa no estado local `conversations` para refletir a primeira mensagem do usuario (sem precisar recarregar tudo do banco).
+
+**5. Corrigir a permissao de DELETE**
+
+A politica de DELETE exige `is_org_admin`. Para permitir que qualquer usuario delete suas proprias conversas, a funcao `deleteConversation` deve verificar se o usuario e o dono (`user_id`) alem do filtro por organizacao. Se necessario, ajustar a politica RLS para permitir que o dono da conversa tambem possa exclui-la.
+
+### Resumo das mudancas
+
+- Buscar `organization_id` ao montar o componente
+- Incluir `organization_id` em todos os inserts de conversas
+- Atualizar titulo da conversa no sidebar apos mensagens serem salvas
+- Ajustar politica RLS de DELETE para permitir exclusao pelo dono da conversa
