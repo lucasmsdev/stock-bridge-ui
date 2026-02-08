@@ -6,6 +6,7 @@ import { Input } from "@/components/ui/input";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/useAuth";
 import { useAIQuota } from "@/hooks/useAIQuota";
+import { useOrganization } from "@/hooks/useOrganization";
 import { supabase } from "@/integrations/supabase/client";
 import { Send, Bot, User, Sparkles, Plus, MessageSquare, Trash2 } from "lucide-react";
 import { ScrollArea } from "@/components/ui/scroll-area";
@@ -51,6 +52,7 @@ const AIAssistant = () => {
   const abortControllerRef = useRef<AbortController | null>(null);
   const { toast } = useToast();
   const { user } = useAuth();
+  const { organizationId } = useOrganization();
   
   const {
     hasAccess,
@@ -160,6 +162,11 @@ const AIAssistant = () => {
       setMessages([initialMessage]);
       setConversationId(null);
 
+      if (!organizationId) {
+        console.error('organization_id não disponível');
+        return;
+      }
+
       const messagesToStore = [{
         role: initialMessage.role,
         content: initialMessage.content,
@@ -170,6 +177,7 @@ const AIAssistant = () => {
         .from('ai_conversations')
         .insert({
           user_id: user!.id,
+          organization_id: organizationId,
           messages: messagesToStore as any
         })
         .select()
@@ -178,8 +186,16 @@ const AIAssistant = () => {
       if (error) throw error;
       
       setConversationId(data.id);
+      
+      // Update sidebar immediately
+      setConversations(prev => [{
+        id: data.id,
+        title: 'Nova Conversa',
+        created_at: data.created_at,
+        updated_at: data.updated_at
+      }, ...prev.slice(0, 9)]);
+
       await cleanupOldConversations();
-      await loadConversations();
     } catch (error) {
       console.error('Erro ao criar conversa:', error);
     }
@@ -245,6 +261,12 @@ const AIAssistant = () => {
         .eq('id', conversationId);
 
       if (error) throw error;
+
+      // Update the conversation title in sidebar based on first user message
+      const title = getConversationTitle(messagesToStore);
+      setConversations(prev => prev.map(c => 
+        c.id === conversationId ? { ...c, title, updated_at: new Date().toISOString() } : c
+      ));
     } catch (error) {
       console.error('Erro ao salvar conversa:', error);
     }
@@ -253,6 +275,11 @@ const AIAssistant = () => {
   // Create a conversation in the DB without resetting the UI messages
   const ensureConversation = useCallback(async (currentMessages: Message[]): Promise<string | null> => {
     if (conversationId) return conversationId;
+
+    if (!organizationId) {
+      console.error('organization_id não disponível para ensureConversation');
+      return null;
+    }
 
     try {
       const messagesToStore = currentMessages.map(msg => ({
@@ -265,6 +292,7 @@ const AIAssistant = () => {
         .from('ai_conversations')
         .insert({
           user_id: user!.id,
+          organization_id: organizationId,
           messages: messagesToStore as any
         })
         .select()
@@ -290,7 +318,7 @@ const AIAssistant = () => {
       console.error('Erro ao criar conversa:', error);
       return null;
     }
-  }, [conversationId, user]);
+  }, [conversationId, user, organizationId]);
 
   const cleanupOldConversations = async () => {
     try {
