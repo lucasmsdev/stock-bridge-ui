@@ -23,7 +23,8 @@ import {
   ScanLine,
   Users,
   PieChart,
-  PackageSearch
+  PackageSearch,
+  Zap
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -114,6 +115,11 @@ const navItems: NavItem[] = [
     href: "/app/ai-assistant", 
     icon: Sparkles, 
     requiresFeature: FeatureName.AI_ASSISTANT
+  },
+  { 
+    title: "Automações", 
+    href: "/app/automations", 
+    icon: Zap
   },
   { 
     title: "Equipe", 
