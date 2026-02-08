@@ -1,22 +1,39 @@
 
-# Wizard de Onboarding para Novos Usuarios
+# Sistema de Automacoes Configuravel pelo Usuario
 
 ## Resumo
 
-Um wizard guiado em 4 passos que aparece apenas na primeira vez que o usuario acessa o app apos o cadastro. O wizard e um dialog fullscreen com navegacao por steps, visual alinhado ao design system UNISTOCK.
+Criar uma pagina dedicada de "Automacoes" onde o usuario pode ativar/desativar regras automaticas com toggles simples. Cada automacao tem parametros configurados pelo usuario (ex: limite de estoque, margem minima) e execucao via cron job periodico que verifica as condicoes e gera notificacoes ou executa acoes.
 
 ---
 
-## Experiencia do usuario
+## Experiencia do Usuario
 
-Ao fazer login pela primeira vez, o usuario ve um dialog de tela cheia com 4 etapas:
+O usuario acessa a nova pagina "Automacoes" pelo menu lateral. La encontra cards com 3 automacoes iniciais, cada uma com:
 
-1. **Boas-vindas** - Saudacao personalizada com o nome do usuario, breve explicacao do que o UNISTOCK faz e o que sera configurado
-2. **Conectar Marketplace** - Cards dos marketplaces disponiveis (Mercado Livre, Shopee, Amazon, Shopify, Magalu) com botao para conectar. O usuario pode pular esta etapa
-3. **Importar Produtos** - Explicacao de como importar produtos (via marketplace conectado ou manualmente). Se conectou um marketplace no passo anterior, mostra botao de importar. Senao, mostra opcao de criar produto manualmente
-4. **Visao Geral** - Mini-tour visual do dashboard mostrando os cards principais (vendas, pedidos, estoque, lucro) e funcionalidades-chave. Botao "Comecar a usar" para finalizar
+- Um **toggle** para ativar/desativar
+- **Campos configurados** pelo usuario (ex: quantidade minima de estoque, margem minima aceitavel)
+- **Descricao clara** do que a automacao faz
+- **Historico** de quando foi acionada pela ultima vez
 
-Cada passo tem indicador de progresso (stepper), botoes "Voltar" e "Proximo/Pular", e o ultimo passo tem "Comecar a usar". Ao finalizar, o campo `has_completed_onboarding` no perfil do usuario e marcado como `true` e o dialog fecha permanentemente.
+### Automacoes disponiveis:
+
+1. **Pausa de anuncio quando estoque zera**
+   - Toggle: Ativo/Inativo
+   - Quando o estoque de um produto chega a 0, o sistema pausa automaticamente os anuncios nos marketplaces conectados e notifica o usuario
+   - Quando o estoque e reposto (acima de 0), o sistema reativa automaticamente
+
+2. **Alerta de reposicao de estoque**
+   - Toggle: Ativo/Inativo
+   - Campo: "Alertar quando estoque for menor ou igual a ___" (padrao: 10)
+   - Gera notificacao quando qualquer produto atinge o limite configurado
+   - Diferente do alerta fixo atual (que e sempre <=5), este e personalizado
+
+3. **Alerta de margem baixa**
+   - Toggle: Ativo/Inativo
+   - Campo: "Alertar quando margem for menor que ___%" (padrao: 15)
+   - Calcula margem = ((selling_price - cost_price) / selling_price) * 100
+   - Notifica sobre produtos com margem abaixo do limite configurado
 
 ---
 
@@ -24,60 +41,158 @@ Cada passo tem indicador de progresso (stepper), botoes "Voltar" e "Proximo/Pula
 
 ### 1. Migracao de banco de dados
 
-Adicionar coluna `has_completed_onboarding` na tabela `profiles`:
+Criar tabela `automation_rules`:
 
 ```sql
-ALTER TABLE public.profiles 
-ADD COLUMN has_completed_onboarding boolean DEFAULT false;
+CREATE TABLE public.automation_rules (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  organization_id uuid REFERENCES public.organizations(id),
+  user_id uuid NOT NULL REFERENCES auth.users(id),
+  rule_type text NOT NULL, -- 'pause_zero_stock', 'low_stock_alert', 'low_margin_alert'
+  is_active boolean DEFAULT false,
+  config jsonb DEFAULT '{}', -- parametros configurados (ex: {"threshold": 10, "min_margin": 15})
+  last_triggered_at timestamptz,
+  created_at timestamptz DEFAULT now(),
+  updated_at timestamptz DEFAULT now(),
+  UNIQUE(organization_id, rule_type)
+);
+
+ALTER TABLE public.automation_rules ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY "Users can view own org automation rules"
+  ON public.automation_rules FOR SELECT
+  USING (organization_id = get_user_org_id(auth.uid()));
+
+CREATE POLICY "Admins and operators can manage automation rules"
+  ON public.automation_rules FOR ALL
+  USING (organization_id = get_user_org_id(auth.uid()) AND can_write_in_org(auth.uid()));
 ```
 
-Valor padrao `false` garante que todos os novos usuarios vejam o wizard. Usuarios existentes tambem verao o wizard na proxima vez que acessarem (comportamento aceitavel para apresentar o recurso).
+Criar tabela `automation_logs` para historico:
 
-### 2. Novo componente: `src/components/onboarding/OnboardingWizard.tsx`
+```sql
+CREATE TABLE public.automation_logs (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  automation_rule_id uuid REFERENCES public.automation_rules(id) ON DELETE CASCADE,
+  organization_id uuid REFERENCES public.organizations(id),
+  action_taken text NOT NULL,
+  details jsonb DEFAULT '{}',
+  created_at timestamptz DEFAULT now()
+);
 
-Componente principal do wizard com:
+ALTER TABLE public.automation_logs ENABLE ROW LEVEL SECURITY;
 
-- Estado local para controlar o step atual (0-3)
-- Query ao Supabase para verificar `has_completed_onboarding` do perfil
-- Se `true`, nao renderiza nada
-- Se `false`, renderiza o Dialog fullscreen
-- Ao finalizar (ultimo passo ou "Pular tudo"), faz UPDATE no perfil e fecha o dialog
-- Usa `Dialog` do Radix UI para o overlay
-- Stepper visual com circulos numerados e barra de progresso
+CREATE POLICY "Users can view own org automation logs"
+  ON public.automation_logs FOR SELECT
+  USING (organization_id = get_user_org_id(auth.uid()));
 
-Subcomponentes internos por step:
-
-- **WelcomeStep**: Icone UNISTOCK, saudacao com nome, lista de beneficios
-- **ConnectMarketplaceStep**: Grid de cards de marketplace com logos (reutiliza `PlatformLogo`). Ao clicar, redireciona para `/app/integrations` com `onboarding=true` na URL e fecha o wizard (marcando onboarding como completo)
-- **ImportProductsStep**: Opcoes de importar via marketplace ou criar manualmente. Links para `/app/products` e `/app/integrations`
-- **DashboardOverviewStep**: Preview visual das funcionalidades com icones e descricoes curtas (vendas, estoque, financeiro, Uni AI)
-
-### 3. Integracao no `src/components/layout/AppLayout.tsx`
-
-Importar e renderizar `<OnboardingWizard />` apos o conteudo principal:
-
-```tsx
-<OnboardingWizard userName={user?.user_metadata?.name} />
+CREATE POLICY "System can insert automation logs"
+  ON public.automation_logs FOR INSERT
+  WITH CHECK (organization_id = get_user_org_id(auth.uid()));
 ```
 
-O componente internamente faz a query de verificacao e decide se mostra ou nao.
+### 2. Edge Function: `process-automations/index.ts`
 
-### 4. Atualizacao do `src/integrations/supabase/types.ts`
+Nova edge function executada periodicamente (a cada 30 minutos via cron job existente ou novo). Para cada organizacao com regras ativas:
 
-Adicionar `has_completed_onboarding` nos tipos Row, Insert e Update da tabela `profiles`.
+**Pausa de estoque zero:**
+- Busca produtos com `stock = 0` que tem `product_listings` ativos
+- Para cada produto, marca o listing como `sync_status = 'paused'` e gera notificacao
+- Busca produtos com `stock > 0` que tem listings pausados pela automacao, e reativa
 
-### Arquivos modificados
+**Alerta de reposicao:**
+- Busca produtos com `stock <= threshold` configurado pelo usuario
+- Gera notificacao para cada produto encontrado (com deduplicacao de 24h igual ao sistema existente)
 
-1. **Nova migracao SQL** - Adicionar coluna `has_completed_onboarding`
-2. **`src/components/onboarding/OnboardingWizard.tsx`** (novo) - Componente do wizard completo
-3. **`src/components/layout/AppLayout.tsx`** - Renderizar o wizard
-4. **`src/integrations/supabase/types.ts`** - Tipos atualizados
+**Alerta de margem baixa:**
+- Busca produtos com `cost_price` e `selling_price` preenchidos
+- Calcula margem e filtra os que estao abaixo do limite configurado
+- Gera notificacao com detalhes do produto e margem atual
+
+A funcao usa `SUPABASE_SERVICE_ROLE_KEY` para acessar dados de todas as organizacoes e reutiliza o padrao `insertNotificationIfNotExists` do `generate-notifications`.
+
+### 3. Nova pagina: `src/pages/Automations.tsx`
+
+Pagina com cards para cada tipo de automacao:
+
+- Busca regras da tabela `automation_rules` para a organizacao do usuario
+- Se nao existem regras, cria os registros default (inativos) no primeiro acesso
+- Cada card tem Switch para ativar/desativar e campos de configuracao (Input numerico)
+- Ao alterar toggle ou config, faz upsert na tabela
+- Secao inferior mostra log das ultimas execucoes
+
+Usa os hooks existentes:
+- `useOrganization()` para pegar `organization_id`
+- `useOrgRole()` para verificar `canWrite` (viewers nao podem alterar)
+- `useAuth()` para o `user_id`
+
+### 4. Integracao no sidebar e rotas
+
+- Adicionar item "Automacoes" no `AppSidebar.tsx` com icone `Zap` do lucide-react, posicionado apos "Assistente de IA"
+- Adicionar rota `/app/automations` no `App.tsx`
+
+### 5. Config.toml
+
+Adicionar configuracao da nova edge function:
+
+```toml
+[functions.process-automations]
+verify_jwt = false
+```
+
+### Fluxo completo
+
+```text
+Usuario acessa /app/automations
+    |
+    v
+Pagina carrega regras da tabela automation_rules
+(cria defaults se primeiro acesso)
+    |
+    v
+Usuario ativa "Alerta de estoque baixo" e define limite = 10
+    |
+    v
+Frontend faz UPSERT na automation_rules:
+{rule_type: 'low_stock_alert', is_active: true, config: {threshold: 10}}
+    |
+    v
+A cada 30min, cron job chama process-automations
+    |
+    v
+Edge function verifica regras ativas de cada org:
+- Busca produtos com stock <= 10
+- Gera notificacoes (com deduplicacao de 24h)
+- Registra log em automation_logs
+    |
+    v
+Usuario recebe notificacao via Realtime no sino do header
++ email se habilitado nas preferencias
+```
+
+### Arquivos modificados/criados
+
+1. **Nova migracao SQL** - Tabelas `automation_rules` e `automation_logs` com RLS
+2. **`supabase/functions/process-automations/index.ts`** (novo) - Edge function de processamento
+3. **`src/pages/Automations.tsx`** (novo) - Pagina de configuracao das automacoes
+4. **`src/components/layout/AppSidebar.tsx`** - Adicionar item no menu
+5. **`src/App.tsx`** - Adicionar rota
+6. **`supabase/config.toml`** - Config da nova edge function
+7. **`src/integrations/supabase/types.ts`** - Tipos atualizados
+
+### Seguranca
+
+- RLS garante isolamento por organizacao
+- Apenas admins e operators podem alterar regras (viewers so visualizam)
+- Edge function usa service role key para acessar dados cross-org
+- Notificacoes respeitam preferencias do usuario (email_enabled, etc.)
+- Deduplicacao de 24h evita spam de notificacoes repetidas
 
 ### Design visual
 
-- Dialog com fundo `bg-background` e overlay semi-transparente
-- Stepper no topo com 4 circulos conectados por linha, step ativo em `primary` (laranja)
-- Cards de marketplace com hover effect e borda `border-primary` ao selecionar
-- Botoes seguem o design system: primario (laranja) para avancar, outline para voltar/pular
-- Responsivo: layout em coluna no mobile, grid no desktop
-- Animacao de transicao suave entre steps usando `animate-fade-in`
+- Cards com borda lateral colorida por tipo (verde para estoque, laranja para margem, vermelho para pausa)
+- Switch alinhado no canto superior direito do card
+- Inputs numericos com labels descritivos e placeholders
+- Badge "Ultima execucao: ha X minutos" no rodape de cada card
+- Secao de logs com tabela compacta mostrando data, tipo e detalhes
+- Responsivo: cards empilhados no mobile, grid 1x3 no desktop
