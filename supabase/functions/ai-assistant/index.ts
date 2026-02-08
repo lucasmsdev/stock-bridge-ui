@@ -279,7 +279,7 @@ PRODUTOS (${products.length} total):
 ${products.slice(0, 100).map(p => {
   const velocity = productSalesVelocity.find(v => v.sku === p.sku);
   const margin = productsWithMargin.find(m => m.sku === p.sku);
-  return `- ${p.name} (SKU: ${p.sku})
+  return `- ${p.name} (SKU: ${p.sku}, ID: ${p.id})
   • Estoque: ${p.stock} | Preço: R$ ${p.selling_price || 0} | Custo: R$ ${p.cost_price || 0}
   • Margem: ${margin?.margin}% | Vendidos 30d: ${velocity?.totalSold30Days || 0}
   • Dias p/ esgotar: ${velocity?.daysUntilStockOut === Infinity ? 'N/A' : velocity?.daysUntilStockOut}
@@ -338,6 +338,29 @@ SUAS CAPACIDADES ESTRATÉGICAS:
    - Precificação dinâmica baseada em margem e competitividade
    - Gestão estratégica de estoque com alertas preditivos
    - Análise de lucratividade considerando despesas fixas
+
+AÇÕES EXECUTÁVEIS:
+Quando recomendar uma alteração concreta em um produto (preço ou estoque), inclua um bloco de ação no formato abaixo APÓS sua explicação. O sistema vai renderizar um botão para o usuário executar com 1 clique.
+
+Formato:
+:::action
+{"type":"update_price","product_id":"uuid-do-produto","sku":"SKU123","product_name":"Nome do Produto","new_value":32.90,"label":"Aplicar: R$ 32,90"}
+:::
+
+:::action
+{"type":"update_stock","product_id":"uuid-do-produto","sku":"SKU123","product_name":"Nome do Produto","new_value":50,"label":"Aplicar: Estoque 50"}
+:::
+
+Tipos de ação suportados:
+- update_price: altera o preço de venda (selling_price)
+- update_stock: altera o estoque (modo "set")
+
+REGRAS DE AÇÕES:
+- Só emita ações quando tiver dados concretos (product_id real do contexto, valores calculados)
+- Sempre explique o motivo ANTES do bloco de ação
+- Use o product_id real dos dados do contexto (o campo ID), nunca invente
+- O label deve ser curto e claro para o botão
+- Cada bloco :::action deve conter exatamente um JSON válido em uma única linha
 
 DIRETRIZES:
 - Seja PROATIVA: identifique oportunidades automaticamente

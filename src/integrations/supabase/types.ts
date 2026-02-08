@@ -295,6 +295,92 @@ export type Database = {
           },
         ]
       }
+      automation_logs: {
+        Row: {
+          action_taken: string
+          automation_rule_id: string | null
+          created_at: string | null
+          details: Json | null
+          id: string
+          organization_id: string | null
+        }
+        Insert: {
+          action_taken: string
+          automation_rule_id?: string | null
+          created_at?: string | null
+          details?: Json | null
+          id?: string
+          organization_id?: string | null
+        }
+        Update: {
+          action_taken?: string
+          automation_rule_id?: string | null
+          created_at?: string | null
+          details?: Json | null
+          id?: string
+          organization_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "automation_logs_automation_rule_id_fkey"
+            columns: ["automation_rule_id"]
+            isOneToOne: false
+            referencedRelation: "automation_rules"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "automation_logs_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      automation_rules: {
+        Row: {
+          config: Json | null
+          created_at: string | null
+          id: string
+          is_active: boolean | null
+          last_triggered_at: string | null
+          organization_id: string | null
+          rule_type: string
+          updated_at: string | null
+          user_id: string
+        }
+        Insert: {
+          config?: Json | null
+          created_at?: string | null
+          id?: string
+          is_active?: boolean | null
+          last_triggered_at?: string | null
+          organization_id?: string | null
+          rule_type: string
+          updated_at?: string | null
+          user_id: string
+        }
+        Update: {
+          config?: Json | null
+          created_at?: string | null
+          id?: string
+          is_active?: boolean | null
+          last_triggered_at?: string | null
+          organization_id?: string | null
+          rule_type?: string
+          updated_at?: string | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "automation_rules_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       campaign_product_links: {
         Row: {
           campaign_id: string
@@ -1087,6 +1173,7 @@ export type Database = {
           created_at: string
           email: string
           full_name: string | null
+          has_completed_onboarding: boolean | null
           id: string
           plan: Database["public"]["Enums"]["subscription_plan"] | null
           role: string
@@ -1099,6 +1186,7 @@ export type Database = {
           created_at?: string
           email: string
           full_name?: string | null
+          has_completed_onboarding?: boolean | null
           id: string
           plan?: Database["public"]["Enums"]["subscription_plan"] | null
           role?: string
@@ -1111,6 +1199,7 @@ export type Database = {
           created_at?: string
           email?: string
           full_name?: string | null
+          has_completed_onboarding?: boolean | null
           id?: string
           plan?: Database["public"]["Enums"]["subscription_plan"] | null
           role?: string

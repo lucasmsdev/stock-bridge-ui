@@ -1,147 +1,198 @@
 
-# Uni AI Proativa - Insights Automaticos no Dashboard
+# Sistema de Automacoes Configuravel pelo Usuario
 
 ## Resumo
 
-Criar um sistema onde a Uni AI analisa automaticamente os dados do usuario e gera insights proativos que aparecem diretamente no Dashboard, sem o usuario precisar abrir o chat e perguntar. A Uni identifica oportunidades, problemas e recomendacoes acionaveis baseadas nos dados reais do negocio.
+Criar uma pagina dedicada de "Automacoes" onde o usuario pode ativar/desativar regras automaticas com toggles simples. Cada automacao tem parametros configurados pelo usuario (ex: limite de estoque, margem minima) e execucao via cron job periodico que verifica as condicoes e gera notificacoes ou executa acoes.
 
 ---
 
-## O que muda para o usuario
+## Experiencia do Usuario
 
-Ao abrir o Dashboard, o usuario vera um card "Insights da Uni" com ate 3 recomendacoes estrategicas geradas automaticamente pela IA. Exemplos:
+O usuario acessa a nova pagina "Automacoes" pelo menu lateral. La encontra cards com 3 automacoes iniciais, cada uma com:
 
-- "Seu produto **Capa iPhone 15** vai esgotar em 5 dias e a demanda esta em alta. Recomendo repor 200 unidades agora."
-- "Margem do **Kit Pelicula + Capa** esta em 8% - abaixo do minimo saudavel. Considere reajustar o preco de R$ 29,90 para R$ 34,90."
-- "Voce nao vende na Amazon. Seus 3 produtos mais vendidos no Mercado Livre tem demanda la. Potencial de +R$ 2.400/mes."
+- Um **toggle** para ativar/desativar
+- **Campos configurados** pelo usuario (ex: quantidade minima de estoque, margem minima aceitavel)
+- **Descricao clara** do que a automacao faz
+- **Historico** de quando foi acionada pela ultima vez
 
-Os insights sao renovados automaticamente a cada 12 horas e podem ser atualizados manualmente.
+### Automacoes disponiveis:
 
----
+1. **Pausa de anuncio quando estoque zera**
+   - Toggle: Ativo/Inativo
+   - Quando o estoque de um produto chega a 0, o sistema pausa automaticamente os anuncios nos marketplaces conectados e notifica o usuario
+   - Quando o estoque e reposto (acima de 0), o sistema reativa automaticamente
 
-## Como funciona
+2. **Alerta de reposicao de estoque**
+   - Toggle: Ativo/Inativo
+   - Campo: "Alertar quando estoque for menor ou igual a ___" (padrao: 10)
+   - Gera notificacao quando qualquer produto atinge o limite configurado
+   - Diferente do alerta fixo atual (que e sempre <=5), este e personalizado
 
-1. **Edge Function `generate-ai-insights`**: Roda sob demanda (quando o Dashboard carrega e o cache esta expirado). Analisa produtos, pedidos, despesas e gera insights via Perplexity API usando tool calling para retornar JSON estruturado.
-
-2. **Tabela `ai_insights`**: Armazena os insights gerados com TTL de 12 horas. Evita chamadas desnecessarias a API.
-
-3. **Componente `ProactiveInsightsCard`**: Card no Dashboard que exibe os insights com icones de urgencia, acoes sugeridas e link para discutir com a Uni no chat.
-
-4. **Integracao com Notificacoes**: Insights criticos (estoque esgotando, margem negativa) tambem criam notificacoes automaticas que aparecem no sino de notificacoes.
+3. **Alerta de margem baixa**
+   - Toggle: Ativo/Inativo
+   - Campo: "Alertar quando margem for menor que ___%" (padrao: 15)
+   - Calcula margem = ((selling_price - cost_price) / selling_price) * 100
+   - Notifica sobre produtos com margem abaixo do limite configurado
 
 ---
 
 ## Detalhes tecnicos
 
-### 1. Nova tabela `ai_insights`
+### 1. Migracao de banco de dados
 
-```text
-ai_insights
-- id (uuid, PK)
-- organization_id (uuid, FK organizations)
-- user_id (uuid, FK auth.users)
-- insights (jsonb) - array de insights estruturados
-- generated_at (timestamptz)
-- expires_at (timestamptz) - generated_at + 12h
-- created_at (timestamptz)
+Criar tabela `automation_rules`:
+
+```sql
+CREATE TABLE public.automation_rules (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  organization_id uuid REFERENCES public.organizations(id),
+  user_id uuid NOT NULL REFERENCES auth.users(id),
+  rule_type text NOT NULL, -- 'pause_zero_stock', 'low_stock_alert', 'low_margin_alert'
+  is_active boolean DEFAULT false,
+  config jsonb DEFAULT '{}', -- parametros configurados (ex: {"threshold": 10, "min_margin": 15})
+  last_triggered_at timestamptz,
+  created_at timestamptz DEFAULT now(),
+  updated_at timestamptz DEFAULT now(),
+  UNIQUE(organization_id, rule_type)
+);
+
+ALTER TABLE public.automation_rules ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY "Users can view own org automation rules"
+  ON public.automation_rules FOR SELECT
+  USING (organization_id = get_user_org_id(auth.uid()));
+
+CREATE POLICY "Admins and operators can manage automation rules"
+  ON public.automation_rules FOR ALL
+  USING (organization_id = get_user_org_id(auth.uid()) AND can_write_in_org(auth.uid()));
 ```
 
-Cada insight no array jsonb tera:
-```text
-{
-  type: "stock_critical" | "low_margin" | "expansion_opportunity" | "trend_alert" | "cost_optimization",
-  severity: "critical" | "warning" | "opportunity",
-  title: string,
-  description: string,
-  action: string,
-  metric: string (ex: "5 dias", "R$ 2.400/mes", "8%"),
-  relatedProductId: string | null
-}
+Criar tabela `automation_logs` para historico:
+
+```sql
+CREATE TABLE public.automation_logs (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  automation_rule_id uuid REFERENCES public.automation_rules(id) ON DELETE CASCADE,
+  organization_id uuid REFERENCES public.organizations(id),
+  action_taken text NOT NULL,
+  details jsonb DEFAULT '{}',
+  created_at timestamptz DEFAULT now()
+);
+
+ALTER TABLE public.automation_logs ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY "Users can view own org automation logs"
+  ON public.automation_logs FOR SELECT
+  USING (organization_id = get_user_org_id(auth.uid()));
+
+CREATE POLICY "System can insert automation logs"
+  ON public.automation_logs FOR INSERT
+  WITH CHECK (organization_id = get_user_org_id(auth.uid()));
 ```
 
-### 2. Edge Function `generate-ai-insights`
+### 2. Edge Function: `process-automations/index.ts`
 
-- Busca dados do usuario (produtos com margem, velocidade de vendas, estoque, despesas, pedidos recentes)
-- Usa Perplexity API com **tool calling** para retornar um JSON estruturado com ate 5 insights
-- Regras de analise no prompt do sistema:
-  - Produtos com menos de 7 dias de estoque em demanda alta = critico
-  - Margem abaixo de 10% = warning
-  - Produtos vendendo bem em 1 plataforma mas ausentes em outras = oportunidade
-  - Tendencia de queda de vendas mes a mes = alerta
-  - Despesas fixas crescendo mais rapido que receita = otimizacao
-- Salva os insights na tabela `ai_insights` com TTL de 12 horas
-- Cria notificacoes para insights criticos (apenas 1x por dia por tipo)
+Nova edge function executada periodicamente (a cada 30 minutos via cron job existente ou novo). Para cada organizacao com regras ativas:
 
-### 3. Componente `ProactiveInsightsCard`
+**Pausa de estoque zero:**
+- Busca produtos com `stock = 0` que tem `product_listings` ativos
+- Para cada produto, marca o listing como `sync_status = 'paused'` e gera notificacao
+- Busca produtos com `stock > 0` que tem listings pausados pela automacao, e reativa
 
-- Renderizado no Dashboard abaixo dos cards de metricas
-- Ao montar, verifica se ha insights validos (nao expirados) na tabela
-- Se nao houver ou estiverem expirados, chama a Edge Function para gerar novos
-- Exibe ate 3 insights com:
-  - Icone de severidade (vermelho critico, amarelo warning, verde oportunidade)
-  - Titulo e descricao curta
-  - Metrica em destaque
-  - Botao "Discutir com Uni" que abre o chat com a pergunta pre-preenchida
-  - Botao "Atualizar insights" para forcar nova geracao
-- Loading state com skeleton durante geracao
-- Requer feature AI_ASSISTANT para exibir
+**Alerta de reposicao:**
+- Busca produtos com `stock <= threshold` configurado pelo usuario
+- Gera notificacao para cada produto encontrado (com deduplicacao de 24h igual ao sistema existente)
 
-### 4. Fluxo de dados
+**Alerta de margem baixa:**
+- Busca produtos com `cost_price` e `selling_price` preenchidos
+- Calcula margem e filtra os que estao abaixo do limite configurado
+- Gera notificacao com detalhes do produto e margem atual
+
+A funcao usa `SUPABASE_SERVICE_ROLE_KEY` para acessar dados de todas as organizacoes e reutiliza o padrao `insertNotificationIfNotExists` do `generate-notifications`.
+
+### 3. Nova pagina: `src/pages/Automations.tsx`
+
+Pagina com cards para cada tipo de automacao:
+
+- Busca regras da tabela `automation_rules` para a organizacao do usuario
+- Se nao existem regras, cria os registros default (inativos) no primeiro acesso
+- Cada card tem Switch para ativar/desativar e campos de configuracao (Input numerico)
+- Ao alterar toggle ou config, faz upsert na tabela
+- Secao inferior mostra log das ultimas execucoes
+
+Usa os hooks existentes:
+- `useOrganization()` para pegar `organization_id`
+- `useOrgRole()` para verificar `canWrite` (viewers nao podem alterar)
+- `useAuth()` para o `user_id`
+
+### 4. Integracao no sidebar e rotas
+
+- Adicionar item "Automacoes" no `AppSidebar.tsx` com icone `Zap` do lucide-react, posicionado apos "Assistente de IA"
+- Adicionar rota `/app/automations` no `App.tsx`
+
+### 5. Config.toml
+
+Adicionar configuracao da nova edge function:
+
+```toml
+[functions.process-automations]
+verify_jwt = false
+```
+
+### Fluxo completo
 
 ```text
-Dashboard carrega
+Usuario acessa /app/automations
     |
     v
-Verifica ai_insights (expires_at > now)
+Pagina carrega regras da tabela automation_rules
+(cria defaults se primeiro acesso)
     |
-   [cache valido?]
-    |         |
-   SIM       NAO
-    |         |
-    v         v
-  Exibe    Chama generate-ai-insights
-           (Edge Function)
-              |
-              v
-           Busca dados do usuario (produtos, pedidos, despesas)
-              |
-              v
-           Envia para Perplexity API com tool calling
-              |
-              v
-           Recebe JSON estruturado com insights
-              |
-              v
-           Salva na tabela ai_insights
-           Cria notificacoes para insights criticos
-              |
-              v
-           Retorna para o frontend
-              |
-              v
-           Exibe no card do Dashboard
+    v
+Usuario ativa "Alerta de estoque baixo" e define limite = 10
+    |
+    v
+Frontend faz UPSERT na automation_rules:
+{rule_type: 'low_stock_alert', is_active: true, config: {threshold: 10}}
+    |
+    v
+A cada 30min, cron job chama process-automations
+    |
+    v
+Edge function verifica regras ativas de cada org:
+- Busca produtos com stock <= 10
+- Gera notificacoes (com deduplicacao de 24h)
+- Registra log em automation_logs
+    |
+    v
+Usuario recebe notificacao via Realtime no sino do header
++ email se habilitado nas preferencias
 ```
 
-### 5. Arquivos criados/modificados
+### Arquivos modificados/criados
 
-**Novos:**
-- `supabase/functions/generate-ai-insights/index.ts` - Edge Function para gerar insights
-- `src/components/dashboard/ProactiveInsightsCard.tsx` - Card de insights no Dashboard
+1. **Nova migracao SQL** - Tabelas `automation_rules` e `automation_logs` com RLS
+2. **`supabase/functions/process-automations/index.ts`** (novo) - Edge function de processamento
+3. **`src/pages/Automations.tsx`** (novo) - Pagina de configuracao das automacoes
+4. **`src/components/layout/AppSidebar.tsx`** - Adicionar item no menu
+5. **`src/App.tsx`** - Adicionar rota
+6. **`supabase/config.toml`** - Config da nova edge function
+7. **`src/integrations/supabase/types.ts`** - Tipos atualizados
 
-**Modificados:**
-- `src/pages/Dashboard.tsx` - Adicionar o ProactiveInsightsCard
-- Migration SQL para criar tabela `ai_insights` com RLS
+### Seguranca
 
-### 6. Controle de custos
+- RLS garante isolamento por organizacao
+- Apenas admins e operators podem alterar regras (viewers so visualizam)
+- Edge function usa service role key para acessar dados cross-org
+- Notificacoes respeitam preferencias do usuario (email_enabled, etc.)
+- Deduplicacao de 24h evita spam de notificacoes repetidas
 
-- Cache de 12 horas na tabela evita chamadas excessivas a API
-- Maximo de 2 geracoes por dia por organizacao (verificado no backend)
-- Usa modelo `sonar` (mais barato) ao inves do `sonar-pro`
-- Resposta limitada a 5 insights com max_tokens baixo
-- Apenas usuarios com feature AI_ASSISTANT veem o card
+### Design visual
 
-### 7. Seguranca
-
-- RLS na tabela `ai_insights`: usuarios so veem insights da propria organizacao
-- Edge Function valida JWT e verifica plano/quota antes de gerar
-- Dados sensiveis nunca expostos nos insights (apenas recomendacoes)
+- Cards com borda lateral colorida por tipo (verde para estoque, laranja para margem, vermelho para pausa)
+- Switch alinhado no canto superior direito do card
+- Inputs numericos com labels descritivos e placeholders
+- Badge "Ultima execucao: ha X minutos" no rodape de cada card
+- Secao de logs com tabela compacta mostrando data, tipo e detalhes
+- Responsivo: cards empilhados no mobile, grid 1x3 no desktop
