@@ -44,6 +44,7 @@ const AIAssistant = () => {
   const [isStreaming, setIsStreaming] = useState(false);
   const [conversationId, setConversationId] = useState<string | null>(null);
   const [conversations, setConversations] = useState<Conversation[]>([]);
+  const [conversationsLoaded, setConversationsLoaded] = useState(false);
   const [showUpgradeDialog, setShowUpgradeDialog] = useState(false);
   const [upgradeReason, setUpgradeReason] = useState<'no_access' | 'quota_exceeded'>('no_access');
   const scrollRef = useRef<HTMLDivElement>(null);
@@ -112,6 +113,8 @@ const AIAssistant = () => {
       }
     } catch (error) {
       console.error('Erro ao carregar conversas:', error);
+    } finally {
+      setConversationsLoaded(true);
     }
   };
 
@@ -246,6 +249,48 @@ const AIAssistant = () => {
       console.error('Erro ao salvar conversa:', error);
     }
   };
+
+  // Create a conversation in the DB without resetting the UI messages
+  const ensureConversation = useCallback(async (currentMessages: Message[]): Promise<string | null> => {
+    if (conversationId) return conversationId;
+
+    try {
+      const messagesToStore = currentMessages.map(msg => ({
+        role: msg.role,
+        content: msg.content,
+        timestamp: msg.timestamp.toISOString()
+      }));
+
+      const { data, error } = await supabase
+        .from('ai_conversations')
+        .insert({
+          user_id: user!.id,
+          messages: messagesToStore as any
+        })
+        .select()
+        .single();
+
+      if (error) throw error;
+
+      const newId = data.id;
+      setConversationId(newId);
+
+      // Update sidebar with the new conversation
+      const title = getConversationTitle(currentMessages as any[]);
+      setConversations(prev => [{
+        id: newId,
+        title,
+        created_at: data.created_at,
+        updated_at: data.updated_at
+      }, ...prev.slice(0, 9)]);
+
+      await cleanupOldConversations();
+      return newId;
+    } catch (error) {
+      console.error('Erro ao criar conversa:', error);
+      return null;
+    }
+  }, [conversationId, user]);
 
   const cleanupOldConversations = async () => {
     try {
@@ -425,9 +470,8 @@ const AIAssistant = () => {
     setInput('');
     setIsStreaming(true);
 
-    if (!conversationId) {
-      await createNewConversation();
-    }
+    // Ensure a conversation exists in DB without resetting UI
+    await ensureConversation(updatedMessages);
 
     try {
       await streamResponse(updatedMessages);
@@ -458,7 +502,7 @@ const AIAssistant = () => {
       setIsStreaming(false);
       abortControllerRef.current = null;
     }
-  }, [isStreaming, hasAccess, isAtLimit, messages, conversationId, streamResponse, incrementUsage, toast]);
+  }, [isStreaming, hasAccess, isAtLimit, messages, conversationId, streamResponse, incrementUsage, toast, ensureConversation]);
 
   const handleSend = async () => {
     await sendMessage(input);
@@ -467,14 +511,16 @@ const AIAssistant = () => {
   // Auto-send from URL query param (insight discussions)
   useEffect(() => {
     const query = searchParams.get('q');
-    if (query && query.trim() && !autoSendProcessedRef.current && !isStreaming && hasAccess && user?.id) {
+    if (query && query.trim() && !autoSendProcessedRef.current && !isStreaming && hasAccess && user?.id && conversationsLoaded) {
       autoSendProcessedRef.current = true;
       // Clear the param from URL immediately
       setSearchParams({}, { replace: true });
-      // Send the message
+      // Force a new conversation for the insight (don't reuse existing)
+      setConversationId(null);
+      // Send the message — ensureConversation will create a fresh one
       sendMessage(query);
     }
-  }, [searchParams, isStreaming, hasAccess, user?.id, sendMessage, setSearchParams]);
+  }, [searchParams, isStreaming, hasAccess, user?.id, conversationsLoaded, sendMessage, setSearchParams]);
 
   const handleKeyPress = (e: React.KeyboardEvent) => {
     if (e.key === 'Enter' && !e.shiftKey) {
@@ -642,11 +688,14 @@ const AIAssistant = () => {
                     <Bot className="h-5 w-5 text-primary-foreground" />
                   </div>
                   <div className="bg-muted rounded-lg p-4">
-                    <span className="inline-flex gap-1">
-                      <span className="w-2 h-2 rounded-full bg-primary animate-bounce" style={{ animationDelay: '0ms' }} />
-                      <span className="w-2 h-2 rounded-full bg-primary animate-bounce" style={{ animationDelay: '150ms' }} />
-                      <span className="w-2 h-2 rounded-full bg-primary animate-bounce" style={{ animationDelay: '300ms' }} />
-                    </span>
+                    <div className="flex items-center gap-2">
+                      <span className="inline-flex gap-1">
+                        <span className="w-2 h-2 rounded-full bg-primary animate-bounce" style={{ animationDelay: '0ms' }} />
+                        <span className="w-2 h-2 rounded-full bg-primary animate-bounce" style={{ animationDelay: '150ms' }} />
+                        <span className="w-2 h-2 rounded-full bg-primary animate-bounce" style={{ animationDelay: '300ms' }} />
+                      </span>
+                      <span className="text-xs text-muted-foreground">Uni está analisando...</span>
+                    </div>
                   </div>
                 </div>
               )}
