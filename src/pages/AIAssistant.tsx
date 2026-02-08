@@ -12,6 +12,7 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { AIQuotaBar } from "@/components/ai/AIQuotaBar";
 import { AIUpgradeDialog } from "@/components/ai/AIUpgradeDialog";
 import ReactMarkdown from "react-markdown";
+import { useSearchParams } from "react-router-dom";
 
 interface Message {
   role: 'user' | 'assistant';
@@ -29,6 +30,9 @@ interface Conversation {
 const STREAM_URL = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/ai-assistant`;
 
 const AIAssistant = () => {
+  const [searchParams, setSearchParams] = useSearchParams();
+  const autoSendProcessedRef = useRef(false);
+
   const initialMessage: Message = {
     role: 'assistant',
     content: 'Olá! 👋 Sou a Uni, sua Estrategista de Crescimento Autônomo.\n\nComo sua consultora estratégica, posso ajudar você a:\n\n✓ Expandir para Novos Mercados: Identificar oportunidades de produtos em outras plataformas\n✓ Criar Kits e Bundles: Aumentar ticket médio com combinações inteligentes\n✓ Análise de Concorrência: Monitorar tendências e ações dos concorrentes\n✓ Otimização Avançada: Precificação dinâmica e gestão de estoque estratégica\n✓ Insights Proativos: Identificar oportunidades que você ainda não viu\n\nQual área do seu negócio você gostaria de crescer hoje?',
@@ -394,8 +398,9 @@ const AIAssistant = () => {
     }
   }, []);
 
-  const handleSend = async () => {
-    if (!input.trim() || isStreaming) return;
+  const sendMessage = useCallback(async (messageText: string) => {
+    const trimmed = messageText.trim();
+    if (!trimmed || isStreaming) return;
 
     if (!hasAccess) {
       setUpgradeReason('no_access');
@@ -411,7 +416,7 @@ const AIAssistant = () => {
 
     const userMessage: Message = {
       role: 'user',
-      content: input.trim(),
+      content: trimmed,
       timestamp: new Date()
     };
 
@@ -426,7 +431,6 @@ const AIAssistant = () => {
 
     try {
       await streamResponse(updatedMessages);
-      // Incrementar uso local
       await incrementUsage();
     } catch (error: any) {
       if (error.name === 'AbortError') return;
@@ -454,7 +458,23 @@ const AIAssistant = () => {
       setIsStreaming(false);
       abortControllerRef.current = null;
     }
+  }, [isStreaming, hasAccess, isAtLimit, messages, conversationId, streamResponse, incrementUsage, toast]);
+
+  const handleSend = async () => {
+    await sendMessage(input);
   };
+
+  // Auto-send from URL query param (insight discussions)
+  useEffect(() => {
+    const query = searchParams.get('q');
+    if (query && query.trim() && !autoSendProcessedRef.current && !isStreaming && hasAccess && user?.id) {
+      autoSendProcessedRef.current = true;
+      // Clear the param from URL immediately
+      setSearchParams({}, { replace: true });
+      // Send the message
+      sendMessage(query);
+    }
+  }, [searchParams, isStreaming, hasAccess, user?.id, sendMessage, setSearchParams]);
 
   const handleKeyPress = (e: React.KeyboardEvent) => {
     if (e.key === 'Enter' && !e.shiftKey) {
