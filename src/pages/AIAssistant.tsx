@@ -14,6 +14,7 @@ import { AIQuotaBar } from "@/components/ai/AIQuotaBar";
 import { AIUpgradeDialog } from "@/components/ai/AIUpgradeDialog";
 import ReactMarkdown from "react-markdown";
 import { useSearchParams } from "react-router-dom";
+import { AIActionButton, parseAIActions } from "@/components/ai/AIActionButton";
 
 interface Message {
   role: 'user' | 'assistant';
@@ -687,12 +688,29 @@ const AIAssistant = () => {
                     }`}
                   >
                     {message.role === 'assistant' ? (
-                      <div className="text-xs md:text-sm leading-relaxed prose prose-sm dark:prose-invert max-w-none prose-p:my-1 prose-ul:my-1 prose-ol:my-1 prose-li:my-0.5 prose-headings:my-2 prose-headings:text-foreground prose-strong:text-foreground prose-a:text-primary">
-                        <ReactMarkdown>{message.content}</ReactMarkdown>
-                        {isStreaming && index === messages.length - 1 && (
-                          <span className="inline-block w-2 h-4 bg-primary animate-pulse ml-0.5 align-text-bottom" />
-                        )}
-                      </div>
+                      (() => {
+                        const isCurrentlyStreaming = isStreaming && index === messages.length - 1;
+                        const { text, actions } = isCurrentlyStreaming
+                          ? { text: message.content, actions: [] }
+                          : parseAIActions(message.content);
+                        return (
+                          <>
+                            <div className="text-xs md:text-sm leading-relaxed prose prose-sm dark:prose-invert max-w-none prose-p:my-1 prose-ul:my-1 prose-ol:my-1 prose-li:my-0.5 prose-headings:my-2 prose-headings:text-foreground prose-strong:text-foreground prose-a:text-primary">
+                              <ReactMarkdown>{text}</ReactMarkdown>
+                              {isCurrentlyStreaming && (
+                                <span className="inline-block w-2 h-4 bg-primary animate-pulse ml-0.5 align-text-bottom" />
+                              )}
+                            </div>
+                            {actions.length > 0 && (
+                              <div className="flex flex-wrap gap-2 mt-3 pt-3 border-t border-border/50">
+                                {actions.map((action, actionIdx) => (
+                                  <AIActionButton key={`${action.product_id}-${actionIdx}`} action={action} />
+                                ))}
+                              </div>
+                            )}
+                          </>
+                        );
+                      })()
                     ) : (
                       <p className="text-xs md:text-sm whitespace-pre-wrap break-words leading-relaxed">{message.content}</p>
                     )}
