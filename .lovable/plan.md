@@ -1,179 +1,83 @@
 
-# Uni AI com Ações Executáveis - "Sugestão com 1 Clique"
+# Wizard de Onboarding para Novos Usuarios
 
 ## Resumo
 
-Permitir que a Uni AI sugira alterações concretas em produtos (preço, estoque, etc.) e o usuário execute essas alterações com um único clique direto no chat, sem precisar navegar para outras páginas ou preencher formulários.
+Um wizard guiado em 4 passos que aparece apenas na primeira vez que o usuario acessa o app apos o cadastro. O wizard e um dialog fullscreen com navegacao por steps, visual alinhado ao design system UNISTOCK.
 
 ---
 
-## Como funciona para o usuário
+## Experiencia do usuario
 
-1. O usuário pergunta algo como "quais produtos precisam de ajuste de preço?" ou a Uni identifica proativamente uma oportunidade
-2. A Uni responde com a análise e inclui **botões de ação** inline na resposta
-3. O usuário clica no botão para executar a alteração
-4. Um toast confirma que a alteração foi aplicada (inclusive nos marketplaces vinculados)
+Ao fazer login pela primeira vez, o usuario ve um dialog de tela cheia com 4 etapas:
 
-Exemplo visual no chat:
+1. **Boas-vindas** - Saudacao personalizada com o nome do usuario, breve explicacao do que o UNISTOCK faz e o que sera configurado
+2. **Conectar Marketplace** - Cards dos marketplaces disponiveis (Mercado Livre, Shopee, Amazon, Shopify, Magalu) com botao para conectar. O usuario pode pular esta etapa
+3. **Importar Produtos** - Explicacao de como importar produtos (via marketplace conectado ou manualmente). Se conectou um marketplace no passo anterior, mostra botao de importar. Senao, mostra opcao de criar produto manualmente
+4. **Visao Geral** - Mini-tour visual do dashboard mostrando os cards principais (vendas, pedidos, estoque, lucro) e funcionalidades-chave. Botao "Comecar a usar" para finalizar
 
-```text
-Uni: Identifiquei 2 produtos com margem abaixo de 10%:
-
-1. **Capa iPhone 15** (SKU: CIP15)
-   Preço atual: R$ 25,00 | Custo: R$ 23,50 | Margem: 6%
-   Sugestão: Aumentar para R$ 32,90 (margem ~28%)
-
-   [Aplicar: R$ 32,90]
-
-2. **Película Samsung S24** (SKU: PLS24)
-   Estoque: 3 unidades | Vendas 30d: 15 unidades
-   Sugestão: Repor estoque para 50 unidades
-
-   [Aplicar: Estoque 50]
-```
+Cada passo tem indicador de progresso (stepper), botoes "Voltar" e "Proximo/Pular", e o ultimo passo tem "Comecar a usar". Ao finalizar, o campo `has_completed_onboarding` no perfil do usuario e marcado como `true` e o dialog fecha permanentemente.
 
 ---
 
 ## Detalhes tecnicos
 
-### Limitação da Perplexity API
+### 1. Migracao de banco de dados
 
-A Perplexity nao suporta "function calling" nativo. A solução é usar o **system prompt** para instruir a IA a emitir blocos de ação em formato JSON delimitado quando identificar alterações concretas, e o frontend parseia esses blocos.
+Adicionar coluna `has_completed_onboarding` na tabela `profiles`:
 
-### 1. Modificar o system prompt da Edge Function `ai-assistant/index.ts`
-
-Adicionar instrução ao system prompt para que a Uni emita blocos de ação estruturados quando sugerir mudanças concretas:
-
-```text
-AÇÕES EXECUTÁVEIS:
-Quando recomendar uma alteração concreta em um produto, inclua um bloco de ação
-no formato abaixo APÓS sua explicação. O sistema vai renderizar um botão para o
-usuário executar com 1 clique.
-
-Formato:
-:::action
-{"type":"update_price","product_id":"uuid","sku":"SKU123","product_name":"Nome","new_value":32.90,"label":"Aplicar: R$ 32,90"}
-:::
-
-:::action
-{"type":"update_stock","product_id":"uuid","sku":"SKU123","product_name":"Nome","new_value":50,"label":"Aplicar: Estoque 50"}
-:::
-
-Tipos de ação suportados:
-- update_price: altera selling_price
-- update_stock: altera stock (modo "set")
-
-REGRAS:
-- Só emita ações quando tiver dados concretos (product_id real, valores calculados)
-- Sempre explique o motivo ANTES do bloco de ação
-- Use o product_id real dos dados do contexto, nunca invente
-- O label deve ser curto e claro para o botão
+```sql
+ALTER TABLE public.profiles 
+ADD COLUMN has_completed_onboarding boolean DEFAULT false;
 ```
 
-### 2. Modificar o frontend `src/pages/AIAssistant.tsx`
+Valor padrao `false` garante que todos os novos usuarios vejam o wizard. Usuarios existentes tambem verao o wizard na proxima vez que acessarem (comportamento aceitavel para apresentar o recurso).
 
-**a) Parser de blocos de ação**
+### 2. Novo componente: `src/components/onboarding/OnboardingWizard.tsx`
 
-Criar uma função que detecta blocos `:::action ... :::` no conteúdo da mensagem da Uni e os separa do texto normal.
+Componente principal do wizard com:
 
-```typescript
-interface AIAction {
-  type: 'update_price' | 'update_stock';
-  product_id: string;
-  sku: string;
-  product_name: string;
-  new_value: number;
-  label: string;
-}
+- Estado local para controlar o step atual (0-3)
+- Query ao Supabase para verificar `has_completed_onboarding` do perfil
+- Se `true`, nao renderiza nada
+- Se `false`, renderiza o Dialog fullscreen
+- Ao finalizar (ultimo passo ou "Pular tudo"), faz UPDATE no perfil e fecha o dialog
+- Usa `Dialog` do Radix UI para o overlay
+- Stepper visual com circulos numerados e barra de progresso
 
-function parseActions(content: string): { text: string; actions: AIAction[] } {
-  const actionRegex = /:::action\n([\s\S]*?)\n:::/g;
-  const actions: AIAction[] = [];
-  const text = content.replace(actionRegex, (_, json) => {
-    try {
-      actions.push(JSON.parse(json.trim()));
-    } catch {}
-    return '';
-  });
-  return { text: text.trim(), actions };
-}
+Subcomponentes internos por step:
+
+- **WelcomeStep**: Icone UNISTOCK, saudacao com nome, lista de beneficios
+- **ConnectMarketplaceStep**: Grid de cards de marketplace com logos (reutiliza `PlatformLogo`). Ao clicar, redireciona para `/app/integrations` com `onboarding=true` na URL e fecha o wizard (marcando onboarding como completo)
+- **ImportProductsStep**: Opcoes de importar via marketplace ou criar manualmente. Links para `/app/products` e `/app/integrations`
+- **DashboardOverviewStep**: Preview visual das funcionalidades com icones e descricoes curtas (vendas, estoque, financeiro, Uni AI)
+
+### 3. Integracao no `src/components/layout/AppLayout.tsx`
+
+Importar e renderizar `<OnboardingWizard />` apos o conteudo principal:
+
+```tsx
+<OnboardingWizard userName={user?.user_metadata?.name} />
 ```
 
-**b) Componente ActionButton**
+O componente internamente faz a query de verificacao e decide se mostra ou nao.
 
-Criar um componente inline que renderiza o botão de ação com estados: idle, loading, success, error.
+### 4. Atualizacao do `src/integrations/supabase/types.ts`
 
-- Ao clicar, chama a edge function `update-product` (para preço) ou `bulk-update-products` (para estoque) via Supabase client
-- Mostra feedback visual (loading spinner, checkmark verde, ou erro)
-- Desabilita o botão após sucesso para evitar cliques duplos
-
-**c) Renderização no chat**
-
-No bloco que renderiza mensagens do assistant, após o `ReactMarkdown`, verificar se existem ações parseadas e renderizar os botões correspondentes.
-
-### 3. Edge Function de execução (reutilização)
-
-Não é necessário criar nova edge function. As ações usam as funções existentes:
-
-- `update_price` chama `update-product` com `{ productId, selling_price, name, sku }`
-- `update_stock` chama `bulk-update-products` com `{ productIds: [id], updates: { stock_mode: 'set', stock_value: N } }`
-
-Ambas já sincronizam automaticamente com os marketplaces vinculados.
-
-### 4. Inclusão dos product_id no contexto da IA
-
-O system prompt já inclui nome e SKU dos produtos, mas precisa incluir também o `id` (UUID) para que a IA possa referenciá-los nos blocos de ação. Ajustar a linha no `dataContext`:
-
-```
-- ${p.name} (SKU: ${p.sku}, ID: ${p.id})
-```
-
-### Fluxo completo
-
-```text
-Usuário pergunta: "quais produtos precisam de ajuste de preço?"
-    |
-    v
-Edge Function ai-assistant:
-  - Busca dados reais dos produtos (com IDs)
-  - Envia para Perplexity com system prompt incluindo instrução de ações
-  - Perplexity responde com análise + blocos :::action:::
-    |
-    v
-Frontend AIAssistant.tsx:
-  - Recebe stream SSE
-  - Ao finalizar, parseia o conteúdo separando texto e ações
-  - Renderiza markdown normalmente + botões de ação abaixo
-    |
-    v
-Usuário clica no botão "Aplicar: R$ 32,90"
-    |
-    v
-Frontend chama supabase.functions.invoke('update-product', {...})
-    |
-    v
-Edge Function update-product:
-  - Atualiza produto no banco
-  - Sincroniza com marketplaces vinculados
-  - Retorna resultado
-    |
-    v
-Frontend mostra toast: "Preço atualizado para R$ 32,90 e sincronizado com 2 marketplaces"
-```
+Adicionar `has_completed_onboarding` nos tipos Row, Insert e Update da tabela `profiles`.
 
 ### Arquivos modificados
 
-1. `supabase/functions/ai-assistant/index.ts` - System prompt + incluir product_id no contexto
-2. `src/pages/AIAssistant.tsx` - Parser de ações + componente de botão + renderização inline
+1. **Nova migracao SQL** - Adicionar coluna `has_completed_onboarding`
+2. **`src/components/onboarding/OnboardingWizard.tsx`** (novo) - Componente do wizard completo
+3. **`src/components/layout/AppLayout.tsx`** - Renderizar o wizard
+4. **`src/integrations/supabase/types.ts`** - Tipos atualizados
 
-### Segurança
+### Design visual
 
-- O usuário SEMPRE tem que clicar para confirmar -- a IA nunca executa automaticamente
-- As edge functions de update já validam autenticação e propriedade do produto (RLS + user_id check)
-- Os product_id no contexto são reais e verificados
-
-### Limitações e evolução futura
-
-- Perplexity pode ocasionalmente emitir blocos de ação mal formatados -- o parser ignora silenciosamente
-- Futuramente, se migrar para um provider com function calling (OpenAI, Anthropic), o sistema pode ser aprimorado para execução mais confiável
-- Tipos de ação podem ser expandidos (ex: `create_kit`, `pause_listing`, `reorder_stock`)
+- Dialog com fundo `bg-background` e overlay semi-transparente
+- Stepper no topo com 4 circulos conectados por linha, step ativo em `primary` (laranja)
+- Cards de marketplace com hover effect e borda `border-primary` ao selecionar
+- Botoes seguem o design system: primario (laranja) para avancar, outline para voltar/pular
+- Responsivo: layout em coluna no mobile, grid no desktop
+- Animacao de transicao suave entre steps usando `animate-fade-in`
