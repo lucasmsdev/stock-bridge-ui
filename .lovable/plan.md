@@ -1,34 +1,37 @@
 
 
-# Atualizar credenciais do TikTok Ads e corrigir redirect
+# Configurar chave de criptografia no banco de dados
 
-## Problema
+## Problema atual
 
-O erro `40002` ("app_id does not exist or secret key is incorrect") indica que os secrets armazenados no Supabase nao correspondem aos valores reais do portal TikTok Business Developer.
+O OAuth do TikTok Ads agora funciona corretamente (token obtido com sucesso). Porem, ao tentar salvar o token criptografado no banco, a funcao `encrypt_token()` falha porque a configuracao `app.settings.encryption_key` nao existe no banco de dados.
 
-## Acoes
+## Solucao
 
-### 1. Atualizar secrets
-
-| Secret | Valor |
-|---|---|
-| `TIKTOK_ADS_APP_ID` | `7604695140725751824` |
-| `TIKTOK_ADS_APP_SECRET` | `0a1aeb34b966d16e53d75fcbd7c4e6658c3530df` |
-
-### 2. Corrigir barra dupla no redirect
-
-Na edge function `tiktok-ads-auth/index.ts`, sanitizar o `APP_URL` removendo barra final para evitar URLs com `//`:
+Executar o seguinte comando SQL no Supabase para configurar a chave de criptografia:
 
 ```text
-Antes:  const appUrl = Deno.env.get('APP_URL') || '...';
-Depois: const appUrl = (Deno.env.get('APP_URL') || '...').replace(/\/+$/, '');
+ALTER DATABASE postgres SET app.settings.encryption_key = 'UMA_CHAVE_SEGURA_DE_32_CARACTERES';
 ```
 
-### 3. Re-deploy e teste
+Apos isso, reiniciar as conexoes do banco para que a configuracao seja aplicada.
 
-- Re-deploy da edge function `tiktok-ads-auth`
-- Testar o fluxo OAuth novamente
+## Passos
 
-## Resultado esperado
+1. Gerar uma chave segura de 32 caracteres para criptografia AES
+2. Executar o SQL acima no banco de dados via migration
+3. Re-deploy da edge function `tiktok-ads-auth` (ou apenas re-testar o fluxo)
+4. Testar a conexao do TikTok Ads novamente
 
-Com as credenciais corretas, a troca do `auth_code` por `access_token` deve funcionar e o usuario sera redirecionado de volta para `/app/integrations?status=success`.
+## Detalhe tecnico
+
+| Recurso | Acao |
+|---|---|
+| Banco de dados (SQL) | Configurar `app.settings.encryption_key` com uma chave segura |
+| Edge function `tiktok-ads-auth` | Nenhuma alteracao de codigo necessaria |
+| Teste | Re-tentar o fluxo OAuth do TikTok Ads |
+
+## Nota de seguranca
+
+A chave de criptografia deve ser uma string forte e unica. Ela sera usada por todas as integracoes que criptografam tokens (Mercado Livre, Shopee, Amazon, etc). Se outras integracoes ja funcionam com criptografia, essa chave ja deveria estar configurada — o que sugere que pode ter sido removida ou nunca configurada neste ambiente.
+
