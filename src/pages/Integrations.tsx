@@ -77,7 +77,6 @@ const marketplaceIntegrations: IntegrationPlatform[] = [
     name: "TikTok Shop",
     description: "Venda diretamente pelo TikTok com integração de catálogo e pedidos",
     logoUrl: "/logos/tiktok-shop.png",
-    comingSoon: true,
   },
   {
     id: "magalu",
@@ -230,6 +229,10 @@ export default function Integrations() {
               const accountName = "Conta Magalu";
               await supabase.from("integrations").update({ account_name: accountName }).eq("id", integration.id);
               integration.account_name = accountName;
+            } else if (integration.platform === "tiktokshop") {
+              const accountName = "Conta TikTok Shop";
+              await supabase.from("integrations").update({ account_name: accountName }).eq("id", integration.id);
+              integration.account_name = accountName;
             }
           } catch (err) {
             console.error(`Error updating account name for ${integration.platform}:`, err);
@@ -375,6 +378,32 @@ export default function Integrations() {
         `&state=${user.id}`;
 
       console.log("🔄 Redirecionando para Facebook Login...");
+      window.location.href = authUrl;
+    } else if (platformId === "tiktokshop") {
+      // TikTok Shop OAuth flow
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
+
+      if (!user) {
+        toast({
+          title: "Erro de autenticação",
+          description: "Faça login para conectar integrações.",
+          variant: "destructive",
+        });
+        return;
+      }
+
+      console.log("🎵 Iniciando fluxo OAuth TikTok Shop...");
+
+      // TikTok Shop App Key - chave pública da aplicação UNISTOCK
+      const tiktokAppKey = "6j0biv1696bcn";
+
+      const authUrl =
+        `https://services.tiktokshop.com/open/authorize` +
+        `?service_id=${tiktokAppKey}`;
+
+      console.log("🔄 Redirecionando para TikTok Shop...");
       window.location.href = authUrl;
     } else {
       // Mock connection logic for other platforms
@@ -970,10 +999,10 @@ export default function Integrations() {
             return (
               <Card
                 key={platform.id}
-                className={`shadow-soft hover:shadow-medium transition-all duration-200 group hover:scale-[1.02] hover:-translate-y-1 ${platform.comingSoon ? 'opacity-70' : ''}`}
+                className={`shadow-soft hover:shadow-medium transition-all duration-200 group hover:scale-[1.02] hover:-translate-y-1 flex flex-col ${platform.comingSoon ? 'opacity-70' : ''}`}
                 style={{ animationDelay: `${index * 0.1}s` }}
               >
-                <CardHeader className="pb-3">
+                <CardHeader className="pb-3 flex-1">
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-3">
                       <div className="group-hover:scale-110 transition-transform">
@@ -1003,7 +1032,7 @@ export default function Integrations() {
                   <CardDescription className="text-sm">{platform.description}</CardDescription>
                 </CardHeader>
 
-                <CardContent>
+                <CardContent className="mt-auto">
                   {platform.comingSoon ? (
                     <Button
                       disabled
@@ -1044,10 +1073,10 @@ export default function Integrations() {
             return (
               <Card
                 key={platform.id}
-                className={`shadow-soft hover:shadow-medium transition-all duration-200 group hover:scale-[1.02] hover:-translate-y-1 ${platform.comingSoon ? 'opacity-70' : ''}`}
+                className={`shadow-soft hover:shadow-medium transition-all duration-200 group hover:scale-[1.02] hover:-translate-y-1 flex flex-col ${platform.comingSoon ? 'opacity-70' : ''}`}
                 style={{ animationDelay: `${index * 0.1}s` }}
               >
-                <CardHeader className="pb-3">
+                <CardHeader className="pb-3 flex-1">
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-3">
                       <div className="group-hover:scale-110 transition-transform">
@@ -1077,7 +1106,7 @@ export default function Integrations() {
                   <CardDescription className="text-sm">{platform.description}</CardDescription>
                 </CardHeader>
 
-                <CardContent>
+                <CardContent className="mt-auto">
                   {platform.comingSoon ? (
                     <Button
                       disabled

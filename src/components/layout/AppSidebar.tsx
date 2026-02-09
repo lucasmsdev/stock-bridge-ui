@@ -22,7 +22,6 @@ import {
   Tag,
   ScanLine,
   Users,
-  PieChart,
   PackageSearch,
   Zap
 } from "lucide-react";
@@ -97,12 +96,6 @@ const navItems: NavItem[] = [
     href: "/app/integrations", 
     icon: Plug, 
     requiresFeature: FeatureName.MULTI_MARKETPLACE
-  },
-  {
-    title: "ROI de Produtos",
-    href: "/app/product-roi",
-    icon: PieChart,
-    requiresFeature: FeatureName.FINANCIAL_CALCULATOR
   },
   { 
     title: "Relatórios", 

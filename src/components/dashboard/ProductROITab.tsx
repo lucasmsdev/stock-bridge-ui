@@ -37,14 +37,16 @@ const formatCurrency = (value: number) => {
   }).format(value);
 };
 
-export default function ProductROI() {
+type SortField = 'roas' | 'revenue' | 'spend' | 'sales' | 'cpa';
+
+export function ProductROITab() {
   const { roiData, summary, isLoading, refetch } = useProductROI();
   const [search, setSearch] = useState("");
-  const [sortBy, setSortBy] = useState<'roas' | 'revenue' | 'spend' | 'sales' | 'cpa'>('roas');
+  const [sortBy, setSortBy] = useState<SortField>('roas');
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc');
   const navigate = useNavigate();
 
-  const getSortValue = (p: typeof roiData[number], field: typeof sortBy) => {
+  const getSortValue = (p: typeof roiData[number], field: SortField) => {
     switch (field) {
       case 'roas': return p.roas;
       case 'revenue': return p.total_attributed_revenue;
@@ -65,7 +67,7 @@ export default function ProductROI() {
       return sortOrder === 'desc' ? bVal - aVal : aVal - bVal;
     });
 
-  const toggleSort = (field: typeof sortBy) => {
+  const toggleSort = (field: SortField) => {
     if (sortBy === field) {
       setSortOrder(sortOrder === 'desc' ? 'asc' : 'desc');
     } else {
@@ -74,7 +76,7 @@ export default function ProductROI() {
     }
   };
 
-  const SortIcon = ({ field }: { field: typeof sortBy }) => {
+  const SortIcon = ({ field }: { field: SortField }) => {
     if (sortBy !== field) return <ArrowUpDown className="h-3 w-3 text-muted-foreground/50" />;
     return sortOrder === 'desc' 
       ? <ArrowDown className="h-3 w-3 text-primary" /> 
@@ -91,10 +93,6 @@ export default function ProductROI() {
   if (isLoading) {
     return (
       <div className="space-y-6">
-        <div className="flex items-center justify-between">
-          <Skeleton className="h-8 w-48" />
-          <Skeleton className="h-10 w-32" />
-        </div>
         <div className="grid gap-4 md:grid-cols-4">
           {[1, 2, 3, 4].map(i => (
             <Card key={i}>
@@ -115,20 +113,6 @@ export default function ProductROI() {
 
   return (
     <div className="space-y-6">
-      {/* Header */}
-      <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
-        <div>
-          <h1 className="text-3xl font-bold tracking-tight">Análise de ROI por Produto</h1>
-          <p className="text-muted-foreground">
-            Visualize o retorno real dos seus investimentos em anúncios por SKU
-          </p>
-        </div>
-        <Button onClick={() => refetch()} variant="outline" className="gap-2">
-          <RefreshCcw className="h-4 w-4" />
-          Atualizar
-        </Button>
-      </div>
-
       {/* Summary Cards */}
       <div className="grid gap-4 md:grid-cols-4">
         <Card className="shadow-soft">
@@ -249,14 +233,19 @@ export default function ProductROI() {
                 Clique em um produto para ver detalhes e vincular campanhas
               </CardDescription>
             </div>
-            <div className="relative w-full md:w-64">
-              <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-              <Input
-                placeholder="Buscar por nome ou SKU..."
-                value={search}
-                onChange={(e) => setSearch(e.target.value)}
-                className="pl-9"
-              />
+            <div className="flex items-center gap-2">
+              <div className="relative w-full md:w-64">
+                <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+                <Input
+                  placeholder="Buscar por nome ou SKU..."
+                  value={search}
+                  onChange={(e) => setSearch(e.target.value)}
+                  className="pl-9"
+                />
+              </div>
+              <Button onClick={() => refetch()} variant="outline" size="icon" title="Atualizar">
+                <RefreshCcw className="h-4 w-4" />
+              </Button>
             </div>
           </div>
         </CardHeader>

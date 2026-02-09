@@ -27,6 +27,7 @@ import Profile from "./pages/Profile";
 import Billing from "./pages/Billing";
 import MercadoLivreCallback from "./pages/callback/MercadoLivreCallback";
 import MagaluCallback from "./pages/callback/MagaluCallback";
+import TikTokShopCallback from "./pages/callback/TikTokShopCallback";
 import Landing from "./pages/Landing";
 import Reports from "./pages/Reports";
 import Checkout from "./pages/Checkout";
@@ -37,7 +38,7 @@ import Scanner from "./pages/Scanner";
 import Team from "./pages/Team";
 import TermsOfService from "./pages/TermsOfService";
 import PrivacyPolicy from "./pages/PrivacyPolicy";
-import ProductROI from "./pages/ProductROI";
+
 import Tracking from "./pages/Tracking";
 import Automations from "./pages/Automations";
 
@@ -57,6 +58,7 @@ const App = () => (
               <Route path="/checkout" element={<Checkout />} />
               <Route path="/callback/mercadolivre" element={<MercadoLivreCallback />} />
               <Route path="/callback/magalu" element={<MagaluCallback />} />
+              <Route path="/callback/tiktokshop" element={<TikTokShopCallback />} />
               
               {/* Protected Routes */}
               <Route path="/app" element={<AppLayout />}>
@@ -82,7 +84,7 @@ const App = () => (
                 <Route path="labels" element={<Labels />} />
                 <Route path="scanner" element={<Scanner />} />
                 <Route path="team" element={<Team />} />
-                <Route path="product-roi" element={<ProductROI />} />
+                <Route path="product-roi" element={<Navigate to="/app/dashboard" replace />} />
                 <Route path="automations" element={<Automations />} />
                 {/* Redirect old stock-forecast route to products tab */}
                 <Route path="stock-forecast" element={<Navigate to="/app/products?tab=forecast" replace />} />

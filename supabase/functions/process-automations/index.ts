@@ -90,6 +90,12 @@ serve(async (req) => {
             case "low_margin_alert":
               actionsCount = await processLowMarginAlert(supabase, rule, products, orgId);
               break;
+            case "stale_tracking":
+              actionsCount = await processStaleTracking(supabase, rule, orgId);
+              break;
+            case "no_sales_alert":
+              actionsCount = await processNoSalesAlert(supabase, rule, products, orgId);
+              break;
           }
 
           if (actionsCount > 0) {
@@ -347,6 +353,151 @@ async function processLowMarginAlert(
         });
         actions++;
       }
+    }
+  }
+
+  return actions;
+}
+
+// ==========================================
+// STALE TRACKING (orders without tracking code)
+// ==========================================
+async function processStaleTracking(
+  supabase: ReturnType<typeof createClient>,
+  rule: AutomationRule,
+  orgId: string
+): Promise<number> {
+  const hours = (rule.config as Record<string, number>).hours ?? 48;
+  let actions = 0;
+
+  const cutoffDate = new Date(Date.now() - hours * 60 * 60 * 1000).toISOString();
+
+  // Find orders that are shipped/processing but have no tracking code
+  const { data: staleOrders, error } = await supabase
+    .from("orders")
+    .select("id, order_id_channel, platform, order_date, customer_name")
+    .eq("organization_id", orgId)
+    .in("status", ["shipped", "processing", "pending"])
+    .is("tracking_code", null)
+    .lte("order_date", cutoffDate)
+    .limit(50);
+
+  if (error) {
+    console.error("Erro ao buscar pedidos sem rastreio:", error);
+    return 0;
+  }
+
+  if (!staleOrders || staleOrders.length === 0) return 0;
+
+  for (const order of staleOrders) {
+    const orderLabel = order.order_id_channel || order.id.slice(0, 8);
+    const inserted = await insertNotificationIfNotExists(
+      supabase,
+      rule.user_id,
+      `📦 Sem rastreio: Pedido ${orderLabel}`,
+      `O pedido "${orderLabel}" (${order.platform}) está há mais de ${hours}h sem código de rastreio. Adicione o rastreio para evitar penalizações.`,
+      "automation_stale_tracking"
+    );
+
+    if (inserted) {
+      await logAutomationAction(supabase, rule.id, orgId, "stale_tracking_alert", {
+        order_id: order.id,
+        order_id_channel: order.order_id_channel,
+        platform: order.platform,
+        hours_without_tracking: hours,
+      });
+      actions++;
+    }
+  }
+
+  return actions;
+}
+
+// ==========================================
+// NO SALES ALERT (products without sales for X days)
+// ==========================================
+async function processNoSalesAlert(
+  supabase: ReturnType<typeof createClient>,
+  rule: AutomationRule,
+  products: Array<Record<string, unknown>>,
+  orgId: string
+): Promise<number> {
+  const days = (rule.config as Record<string, number>).days ?? 30;
+  let actions = 0;
+
+  // Only check products with stock > 0
+  const activeProducts = products.filter((p) => (p.stock as number) > 0);
+  if (activeProducts.length === 0) return 0;
+
+  const cutoffDate = new Date(Date.now() - days * 24 * 60 * 60 * 1000).toISOString();
+
+  // Get all orders in the period for this org to find which products sold
+  const { data: recentOrders, error } = await supabase
+    .from("orders")
+    .select("items")
+    .eq("organization_id", orgId)
+    .gte("order_date", cutoffDate);
+
+  if (error) {
+    console.error("Erro ao buscar pedidos recentes:", error);
+    return 0;
+  }
+
+  // Extract product IDs/SKUs that had recent sales
+  const soldProductIds = new Set<string>();
+  const soldSkus = new Set<string>();
+  
+  for (const order of (recentOrders || [])) {
+    const items = order.items as Array<Record<string, unknown>> | null;
+    if (Array.isArray(items)) {
+      for (const item of items) {
+        if (item.product_id) soldProductIds.add(item.product_id as string);
+        if (item.sku) soldSkus.add((item.sku as string).toLowerCase());
+      }
+    }
+  }
+
+  // Use 7-day dedup for no-sales alerts to avoid spam
+  const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString();
+
+  for (const product of activeProducts) {
+    const productId = product.id as string;
+    const productSku = ((product.sku as string) || "").toLowerCase();
+    
+    // Check if product had any sales
+    if (soldProductIds.has(productId) || soldSkus.has(productSku)) continue;
+
+    const title = `🛑 Sem vendas: ${product.name}`;
+
+    // Check dedup (7 days)
+    const { data: existing } = await supabase
+      .from("notifications")
+      .select("id")
+      .eq("user_id", rule.user_id)
+      .eq("type", "automation_no_sales")
+      .eq("title", title)
+      .gte("created_at", sevenDaysAgo)
+      .limit(1);
+
+    if (existing && existing.length > 0) continue;
+
+    const { error: insertError } = await supabase
+      .from("notifications")
+      .insert({
+        user_id: rule.user_id,
+        title,
+        message: `O produto "${product.name}" (SKU: ${product.sku || "N/A"}) está com ${product.stock} unidades em estoque e não teve nenhuma venda nos últimos ${days} dias.`,
+        type: "automation_no_sales",
+      });
+
+    if (!insertError) {
+      await logAutomationAction(supabase, rule.id, orgId, "no_sales_alert", {
+        product_id: productId,
+        product_name: product.name,
+        current_stock: product.stock,
+        days_without_sales: days,
+      });
+      actions++;
     }
   }
 
