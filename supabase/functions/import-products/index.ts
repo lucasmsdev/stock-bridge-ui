@@ -1461,6 +1461,149 @@ serve(async (req) => {
           { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
         );
       }
+    } else if (platform === 'tiktokshop') {
+      // ================= IMPORTAÇÃO TIKTOK SHOP =================
+      console.log('🎵 Importando produtos do TikTok Shop...');
+
+      try {
+        const appKey = Deno.env.get('TIKTOK_SHOP_APP_KEY');
+        const appSecret = Deno.env.get('TIKTOK_SHOP_APP_SECRET');
+
+        if (!appKey || !appSecret) {
+          return new Response(
+            JSON.stringify({ error: 'TikTok Shop credentials not configured' }),
+            { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+          );
+        }
+
+        const shopCipher = integration.selling_partner_id;
+        if (!shopCipher) {
+          return new Response(
+            JSON.stringify({ error: 'Shop cipher not found. Reconnect your TikTok Shop account.' }),
+            { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+          );
+        }
+
+        // Helper to generate TikTok sign
+        async function generateTikTokSign(path: string, params: Record<string, string>, secret: string): Promise<string> {
+          const sortedKeys = Object.keys(params).sort();
+          const paramString = sortedKeys.map(key => `${key}${params[key]}`).join('');
+          const baseString = `${secret}${path}${paramString}${secret}`;
+          const encoder = new TextEncoder();
+          const keyData = encoder.encode(secret);
+          const messageData = encoder.encode(baseString);
+          const cryptoKey = await crypto.subtle.importKey('raw', keyData, { name: 'HMAC', hash: 'SHA-256' }, false, ['sign']);
+          const signature = await crypto.subtle.sign('HMAC', cryptoKey, messageData);
+          return Array.from(new Uint8Array(signature)).map(b => b.toString(16).padStart(2, '0')).join('');
+        }
+
+        // Search products
+        const path = '/api/products/search';
+        const timestamp = Math.floor(Date.now() / 1000);
+        const queryParams: Record<string, string> = {
+          app_key: appKey,
+          timestamp: timestamp.toString(),
+          shop_cipher: shopCipher,
+        };
+        const sign = await generateTikTokSign(path, queryParams, appSecret);
+
+        const searchUrl = `https://open-api.tiktokglobalshop.com${path}?app_key=${appKey}&timestamp=${timestamp}&sign=${sign}&shop_cipher=${shopCipher}&access_token=${accessToken}`;
+
+        console.log('📄 Buscando produtos do TikTok Shop...');
+        const searchResponse = await fetch(searchUrl, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ page_size: 100 }),
+        });
+
+        if (!searchResponse.ok) {
+          const errorText = await searchResponse.text();
+          console.error('❌ Erro ao buscar produtos do TikTok Shop:', errorText);
+          return new Response(
+            JSON.stringify({ error: `Falha ao buscar produtos do TikTok Shop: ${searchResponse.status}` }),
+            { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+          );
+        }
+
+        const searchResult = await searchResponse.json();
+        const productIds = searchResult.data?.products?.map((p: any) => p.id) || [];
+
+        if (productIds.length === 0) {
+          return new Response(
+            JSON.stringify({ message: 'Nenhum produto encontrado na sua conta TikTok Shop', count: 0 }),
+            { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+          );
+        }
+
+        console.log(`✅ Encontrados ${productIds.length} produtos no TikTok Shop`);
+
+        // Fetch details for each product
+        for (const productId of productIds) {
+          try {
+            const detailPath = `/api/products/details`;
+            const detailTimestamp = Math.floor(Date.now() / 1000);
+            const detailParams: Record<string, string> = {
+              app_key: appKey,
+              timestamp: detailTimestamp.toString(),
+              shop_cipher: shopCipher,
+            };
+            const detailSign = await generateTikTokSign(detailPath, detailParams, appSecret);
+
+            const detailUrl = `https://open-api.tiktokglobalshop.com${detailPath}?app_key=${appKey}&timestamp=${detailTimestamp}&sign=${detailSign}&shop_cipher=${shopCipher}&access_token=${accessToken}&product_id=${productId}`;
+
+            const detailResponse = await fetch(detailUrl, {
+              method: 'GET',
+              headers: { 'Content-Type': 'application/json' },
+            });
+
+            if (!detailResponse.ok) continue;
+
+            const detailResult = await detailResponse.json();
+            const product = detailResult.data;
+
+            if (!product) continue;
+
+            // Extract SKU info from first variant
+            const firstSku = product.skus?.[0];
+            const sku = firstSku?.seller_sku || firstSku?.id || productId;
+            const stock = firstSku?.stock_infos?.[0]?.available_stock || 0;
+            const sellingPrice = firstSku?.price?.sale_price 
+              ? parseFloat(firstSku.price.sale_price) / 100 // Price comes in cents
+              : null;
+
+            // Extract images
+            const allImages = (product.images || product.main_images || [])
+              .map((img: any) => img.url || img.uri)
+              .filter(Boolean);
+
+            productsToInsert.push({
+              user_id: user.id,
+              organization_id: organizationId,
+              name: product.title || product.name || sku,
+              sku: String(sku),
+              stock: stock,
+              selling_price: sellingPrice,
+              image_url: allImages[0] || null,
+              images: allImages.length > 0 ? allImages : null,
+              description: product.description || null,
+            });
+          } catch (detailError: any) {
+            console.warn(`⚠️ Erro ao buscar detalhes do produto ${productId}:`, detailError?.message);
+          }
+        }
+
+        console.log(`📦 ${productsToInsert.length} produtos do TikTok Shop preparados para importação`);
+
+      } catch (tiktokError: any) {
+        console.error('💥 Erro na importação TikTok Shop:', tiktokError);
+        return new Response(
+          JSON.stringify({
+            error: 'Erro ao importar produtos do TikTok Shop. Tente novamente.',
+            details: tiktokError.message,
+          }),
+          { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
     }
 
     if (productsToInsert.length === 0) {

@@ -15,6 +15,7 @@ const TOKEN_EXPIRY_HOURS: Record<string, number> = {
   shopify: 0, // Não expira
   meta_ads: 1440, // 60 dias = 1440 horas
   magalu: 2, // 2 horas (7200 segundos)
+  tiktokshop: 24, // 24 horas
 };
 
 // Margem de segurança para refresh (em minutos)
@@ -128,6 +129,8 @@ serve(async (req) => {
           }
         } else if (integration.platform === 'magalu') {
           newTokenData = await refreshMagaluToken(refreshToken);
+        } else if (integration.platform === 'tiktokshop') {
+          newTokenData = await refreshTikTokShopToken(refreshToken);
         } else {
           console.log(`⏭️ Pulando ${integration.platform} - Plataforma não suportada para refresh`);
           results.skipped++;
@@ -425,6 +428,51 @@ async function refreshMagaluToken(refreshToken: string) {
 
   const data = await response.json();
   console.log('   ✅ API Magalu respondeu com sucesso');
+
+  return {
+    access_token: data.access_token,
+    refresh_token: data.refresh_token || refreshToken,
+  };
+}
+
+// Renovar token do TikTok Shop
+async function refreshTikTokShopToken(refreshToken: string) {
+  const appKey = Deno.env.get('TIKTOK_SHOP_APP_KEY');
+  const appSecret = Deno.env.get('TIKTOK_SHOP_APP_SECRET');
+
+  if (!appKey || !appSecret) {
+    throw new Error('Credenciais do TikTok Shop não configuradas');
+  }
+
+  console.log('   🔄 Chamando API TikTok Shop para renovar token...');
+
+  const response = await fetch('https://auth.tiktok-shops.com/api/v2/token/refresh', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({
+      app_key: appKey,
+      app_secret: appSecret,
+      refresh_token: refreshToken,
+      grant_type: 'refresh_token',
+    }),
+  });
+
+  if (!response.ok) {
+    const errorText = await response.text();
+    console.error('   ❌ Erro API TikTok Shop:', errorText);
+    throw new Error(`TikTok Shop refresh failed: ${response.status} - ${errorText}`);
+  }
+
+  const result = await response.json();
+  const data = result.data;
+  
+  if (!data?.access_token) {
+    throw new Error(`TikTok Shop refresh failed: ${result.message || 'No access token in response'}`);
+  }
+
+  console.log('   ✅ API TikTok Shop respondeu com sucesso');
 
   return {
     access_token: data.access_token,

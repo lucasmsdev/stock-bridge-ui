@@ -77,7 +77,6 @@ const marketplaceIntegrations: IntegrationPlatform[] = [
     name: "TikTok Shop",
     description: "Venda diretamente pelo TikTok com integração de catálogo e pedidos",
     logoUrl: "/logos/tiktok-shop.png",
-    comingSoon: true,
   },
   {
     id: "magalu",
@@ -230,6 +229,10 @@ export default function Integrations() {
               const accountName = "Conta Magalu";
               await supabase.from("integrations").update({ account_name: accountName }).eq("id", integration.id);
               integration.account_name = accountName;
+            } else if (integration.platform === "tiktokshop") {
+              const accountName = "Conta TikTok Shop";
+              await supabase.from("integrations").update({ account_name: accountName }).eq("id", integration.id);
+              integration.account_name = accountName;
             }
           } catch (err) {
             console.error(`Error updating account name for ${integration.platform}:`, err);
@@ -375,6 +378,45 @@ export default function Integrations() {
         `&state=${user.id}`;
 
       console.log("🔄 Redirecionando para Facebook Login...");
+      window.location.href = authUrl;
+    } else if (platformId === "tiktokshop") {
+      // TikTok Shop OAuth flow
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
+
+      if (!user) {
+        toast({
+          title: "Erro de autenticação",
+          description: "Faça login para conectar integrações.",
+          variant: "destructive",
+        });
+        return;
+      }
+
+      console.log("🎵 Iniciando fluxo OAuth TikTok Shop...");
+
+      // TikTok Shop App Key - prompt user since it's stored as a secret
+      // In production, this could be a known public key
+      const appKey = prompt(
+        "Digite o App Key do TikTok Shop Partner Center:\n\n" +
+        "Você pode encontrá-lo em https://partner.tiktokshop.com/"
+      );
+
+      if (!appKey || appKey.trim() === "") {
+        toast({
+          title: "App Key necessário",
+          description: "Você precisa informar o App Key do TikTok Shop.",
+          variant: "destructive",
+        });
+        return;
+      }
+
+      const authUrl =
+        `https://services.tiktokshop.com/open/authorize` +
+        `?service_id=${appKey.trim()}`;
+
+      console.log("🔄 Redirecionando para TikTok Shop...");
       window.location.href = authUrl;
     } else {
       // Mock connection logic for other platforms
