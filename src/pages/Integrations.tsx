@@ -399,7 +399,7 @@ export default function Integrations() {
 
       console.log("🟢 Iniciando fluxo OAuth Google Ads...");
 
-      const googleClientId = "GOOGLE_ADS_CLIENT_ID_PLACEHOLDER";
+      const googleClientId = "92454322738-oukciv82rs0h2fg75hhg65hdl87h17rh.apps.googleusercontent.com";
       const callbackUrl = `https://fcvwogaqarkuqvumyqqm.supabase.co/functions/v1/google-ads-auth`;
       const scopes = "https://www.googleapis.com/auth/adwords";
 
