@@ -11,7 +11,7 @@ serve(async (req) => {
     const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
     const tiktokAppId = Deno.env.get('TIKTOK_ADS_APP_ID');
     const tiktokAppSecret = Deno.env.get('TIKTOK_ADS_APP_SECRET');
-    const appUrl = Deno.env.get('APP_URL') || 'https://id-preview--be7c1eba-2174-4e2e-a9f0-aa07602a3be7.lovable.app';
+    const appUrl = (Deno.env.get('APP_URL') || 'https://id-preview--be7c1eba-2174-4e2e-a9f0-aa07602a3be7.lovable.app').replace(/\/+$/, '');
 
     const redirectUrl = `${appUrl}/app/integrations`;
 
@@ -165,7 +165,7 @@ serve(async (req) => {
 
   } catch (error: any) {
     console.error('❌ Unexpected error in TikTok Ads OAuth:', error.message, error.stack);
-    const appUrl = Deno.env.get('APP_URL') || 'https://id-preview--be7c1eba-2174-4e2e-a9f0-aa07602a3be7.lovable.app';
+    const appUrl = (Deno.env.get('APP_URL') || 'https://id-preview--be7c1eba-2174-4e2e-a9f0-aa07602a3be7.lovable.app').replace(/\/+$/, '');
     return Response.redirect(`${appUrl}/app/integrations?status=error&message=unexpected_error`, 302);
   }
 });
