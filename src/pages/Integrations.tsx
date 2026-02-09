@@ -462,7 +462,7 @@ export default function Integrations() {
       console.log("🎵 Iniciando fluxo OAuth TikTok Ads...");
 
       // TikTok Ads App ID - chave pública (mesmo padrão do Meta Ads)
-      const tiktokAdsAppId = "7604988152943558664";
+      const tiktokAdsAppId = "7604695140725751824";
       const callbackUrl = `https://fcvwogaqarkuqvumyqqm.supabase.co/functions/v1/tiktok-ads-auth`;
 
       const authUrl =
