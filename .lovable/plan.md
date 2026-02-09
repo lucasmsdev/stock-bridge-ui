@@ -1,28 +1,30 @@
 
-# Integracao TikTok Shop
+
+# Integrar TikTok Ads
 
 ## Resumo
 
-Implementar a integracao com o TikTok Shop Open Platform para importar produtos, sincronizar estoque/preco e gerenciar pedidos. O fluxo segue o padrao das integracoes de marketplace existentes (Mercado Livre, Shopify, Amazon, Magalu).
+Implementar a integracao completa com TikTok Ads (Marketing API) para importar metricas de campanhas reais no Dashboard de Ads, seguindo o mesmo padrao do Meta Ads.
+
+Atualmente o card "TikTok Ads" esta marcado como `comingSoon: true` e so exibe dados demo. Apos a implementacao, o usuario podera conectar sua conta do TikTok Ads via OAuth, sincronizar metricas reais e visualizar tudo no Dashboard de Ads.
 
 ---
 
 ## Pre-requisitos do usuario
 
-1. Criar conta no TikTok Shop Partner Center (https://partner.tiktokshop.com/)
-2. Criar um app com permissoes de Product, Order e Inventory
-3. Configurar o Redirect URI: `https://fcvwogaqarkuqvumyqqm.supabase.co/functions/v1/tiktok-shop-auth`
-4. Obter o **App Key** e **App Secret**
+1. Ter uma conta no TikTok for Business (https://ads.tiktok.com/)
+2. O app do UNISTOCK ja deve estar registrado no TikTok Marketing API (https://business-api.tiktok.com/portal/docs)
+3. O App ID e Secret do TikTok Marketing API precisam estar como secrets no Supabase
 
 ---
 
 ## Experiencia do usuario
 
-1. Na pagina de Integracoes, o card "TikTok Shop" deixa de mostrar "Em breve" e exibe o botao "Conectar"
-2. Ao clicar, o usuario e redirecionado para o TikTok Shop para autorizar acesso
+1. Na pagina de Integracoes, o card "TikTok Ads" exibe o botao "Conectar" (sem "Em breve")
+2. Ao clicar, o usuario e redirecionado para o TikTok para autorizar acesso de leitura de ads
 3. Apos autorizar, retorna para `/app/integrations?status=success`
-4. Pode importar produtos, sincronizar pedidos, e criar listings - como qualquer outro marketplace
-5. O card mostra status de conexao, botoes de importar e sincronizar pedidos
+4. No Dashboard de Ads, as metricas reais do TikTok aparecem junto com Meta Ads e Google Ads
+5. Pode sincronizar dados a qualquer momento
 
 ---
 
@@ -30,171 +32,80 @@ Implementar a integracao com o TikTok Shop Open Platform para importar produtos,
 
 ### 1. Secrets necessarios
 
-Armazenar via Supabase Secrets:
-- `TIKTOK_SHOP_APP_KEY` - App Key do TikTok Shop Partner Center
-- `TIKTOK_SHOP_APP_SECRET` - App Secret do TikTok Shop Partner Center
+Dois novos secrets precisam ser configurados no Supabase (semelhante ao Meta Ads):
+- `TIKTOK_ADS_APP_ID` - App ID do TikTok Marketing API
+- `TIKTOK_ADS_APP_SECRET` - Secret do TikTok Marketing API
 
-### 2. Edge Function: `tiktok-shop-auth/index.ts` (nova)
+Nota: estes sao DIFERENTES dos `TIKTOK_SHOP_APP_KEY` / `TIKTOK_SHOP_APP_SECRET` ja existentes. TikTok Shop e TikTok Ads sao plataformas separadas com APIs e credenciais distintas.
 
-Callback OAuth para troca de tokens, seguindo o padrao do `magalu-auth`:
+### 2. Nova Edge Function: `tiktok-ads-auth/index.ts`
 
-- Recebe `code` via callback redirect do TikTok Shop
-- Valida JWT do usuario logado (recebido do frontend via POST)
-- Busca `organization_id` do usuario para conformidade com RLS
-- Troca o `code` por tokens via `POST https://auth.tiktok-shops.com/api/v2/token/get`
-  - Parametros: `app_key`, `app_secret`, `auth_code`, `grant_type: authorized_code`
-  - Retorna: `access_token`, `refresh_token`, `access_token_expire_in`, `refresh_token_expire_in`
-- Obtem `shop_cipher` e `shop_name` via API de lojas autorizadas
-- Encripta ambos os tokens via `encrypt_token()`
-- Salva na tabela `integrations` com `platform = 'tiktokshop'`
-- Armazena `shop_cipher` no campo `selling_partner_id` (necessario para todas as chamadas de API)
-- Verifica duplicata por `account_name` antes de inserir
-- Retorna sucesso para o frontend (padrao Magalu: POST com JSON response)
+Callback OAuth para troca de tokens, seguindo o padrao do `meta-ads-auth`:
 
-### 3. Edge Function: Atualizacao do `import-products/index.ts`
+- Recebe `auth_code` e `state` (user_id) via redirect do TikTok
+- Como o Meta Ads, usa redirect direto (nao POST do frontend), entao `verify_jwt = false`
+- Troca o code por access_token via `POST https://business-api.tiktok.com/open_api/v1.3/oauth2/access_token/`
+  - Parametros: `app_id`, `secret`, `auth_code`
+  - Retorna: `access_token` (permanente no TikTok Ads, nao expira), `advertiser_ids`
+- Busca `organization_id` do usuario via `get_user_org_id`
+- Encripta token via `encrypt_token()` e salva na tabela `integrations` com `platform = 'tiktok_ads'`
+- Armazena o primeiro `advertiser_id` no campo `marketplace_id`
+- Verifica duplicata antes de inserir
+- Redireciona para `/app/integrations?status=success`
 
-Adicionar provider TikTok Shop ao import de produtos existente:
+### 3. Nova Edge Function: `sync-tiktok-ads/index.ts`
 
-- Novo bloco `else if (platform === 'tiktokshop')` no fluxo principal
-- Chama `GET https://open-api.tiktokglobalshop.com/api/products/search` (versao 202309)
-  - Requer: `access_token`, `app_key`, `shop_cipher`, `sign` (assinatura HMAC-SHA256)
-- Para cada produto retornado, busca detalhes completos via API de detalhes do produto
-- Mapeia campos para o formato UNISTOCK:
-  - `title` -> `name`
-  - `skus[0].seller_sku` -> `sku`
-  - `skus[0].stock_infos[0].available_stock` -> `stock`
-  - `skus[0].price.sale_price` -> `selling_price`
-  - `images[0].url` -> `image_url`
-  - `images` -> `images`
-  - `description` -> `description`
-- Inclui `organization_id` em todos os inserts
-- Cria registros em `product_listings` para manter vinculo bidirecional
+Sincronizacao de metricas, seguindo o padrao do `sync-meta-ads`:
 
-### 4. Edge Function: Atualizacao do `sync-orders/index.ts`
+- Valida JWT manualmente (mesmo padrao do sync-meta-ads)
+- Busca integracao `tiktok_ads` e decripta token
+- Chama `GET https://business-api.tiktok.com/open_api/v1.3/report/integrated/get/`
+  - Parametros: `advertiser_id`, `report_type=BASIC`, `data_level=AUCTION_CAMPAIGN`
+  - Dimensoes: `campaign_id`
+  - Metricas: `campaign_name`, `spend`, `impressions`, `clicks`, `conversion`, `complete_payment`
+  - Filtro por data (ultimos N dias)
+- Mapeia resultados para a tabela `ad_metrics`:
+  - `platform = 'tiktok_ads'`
+  - `campaign_id`, `campaign_name`, `spend`, `impressions`, `clicks`, `conversions`
+- Upsert na tabela `ad_metrics` com conflict em `integration_id,campaign_id,date`
 
-Adicionar TikTok Shop provider ao sync de pedidos:
+### 4. Modificar: `src/pages/Integrations.tsx`
 
-- Novo `TikTokShopProvider` implementando a interface `MarketplaceOrderProvider`
-- `fetchOrders()`:
-  - Chama `GET https://open-api.tiktokglobalshop.com/api/orders/search` (versao 202309)
-  - Parametros: `create_time_from`, `create_time_to`, `page_size`
-  - Para cada pedido, busca detalhes com itens via API de detalhes
-- `mapStatus()`:
-  - `UNPAID` -> `pending`
-  - `ON_HOLD` / `AWAITING_SHIPMENT` -> `paid`
-  - `AWAITING_COLLECTION` / `IN_TRANSIT` -> `shipped`
-  - `DELIVERED` -> `delivered`
-  - `CANCELLED` -> `cancelled`
-  - `COMPLETED` -> `delivered`
-- Mapeia items: `sku_id`, `sku_name`, `quantity`, `sale_price`
-- Registrar no `providers` registry: `'tiktokshop': TikTokShopProvider`
-
-### 5. Edge Function: `create-tiktokshop-product/index.ts` (nova)
-
-Criar produto no TikTok Shop a partir do UNISTOCK:
-
-- Autentica usuario via JWT
-- Busca integracao `tiktokshop` e decripta token
-- Gera assinatura HMAC-SHA256 para a request (obrigatorio pela API TikTok Shop)
-- Chama `POST /api/products` da API TikTok Shop com dados do produto
-- Mapeia campos UNISTOCK para o formato TikTok:
-  - `name` -> `title`
-  - `description` -> `description`
-  - `selling_price` -> `skus[0].price.sale_price`
-  - `stock` -> `skus[0].stock_infos[0].available_stock`
-  - `images` -> `main_images`
-- Salva listing em `product_listings` com `platform = 'tiktokshop'`
-
-### 6. Helper: Funcao de assinatura TikTok Shop
-
-A API do TikTok Shop exige assinatura HMAC-SHA256 em todas as requests. Incluir funcao helper nas Edge Functions que precisam:
-
-```text
-Algoritmo:
-1. Ordenar parametros query alfabeticamente
-2. Concatenar: app_secret + path + parametros_ordenados + app_secret
-3. Gerar HMAC-SHA256 com app_secret como chave
-4. Resultado em hex lowercase = parametro "sign"
-```
-
-### 7. Pagina de Integracoes (`src/pages/Integrations.tsx`)
-
-- Remover `comingSoon: true` do objeto `tiktokshop` no array `marketplaceIntegrations`
-- Adicionar handler `handleConnect` para `tiktokshop`:
+- Remover `comingSoon: true` do objeto `tiktok_ads` no array `adsIntegrations` (linha ~106)
+- Adicionar handler `handleConnect` para `tiktok_ads`:
   - Obtem usuario autenticado
-  - Monta URL de autorizacao: `https://services.tiktokshop.com/open/authorize?service_id=APP_KEY`
+  - Monta URL OAuth: `https://business-api.tiktok.com/portal/auth?app_id=APP_ID&state=USER_ID&redirect_uri=CALLBACK_URL`
   - Redireciona o usuario
-- Na secao de cards conectados, habilitar botoes de "Importar" e "Sincronizar Pedidos" para `tiktokshop`
+- Adicionar handler de sync para tiktok_ads (chamar `sync-tiktok-ads` edge function)
 
-### 8. Callback Page: `src/pages/callback/TikTokShopCallback.tsx` (nova)
+### 5. Modificar: `src/components/ads/AdsDashboard.tsx`
 
-Pagina de callback seguindo o padrao `MagaluCallback.tsx`:
+- Adicionar hook para detectar integracao `tiktok_ads` (similar ao `useMetaAdsIntegration`)
+- Atualizar `isConnected` para incluir TikTok Ads
+- Atualizar o filtro de plataforma para incluir `tiktok_ads` no `platformMap` (linha ~50)
 
-- Recebe `code` e `state` da URL de redirect
-- Exibe loading spinner enquanto processa
-- Chama a edge function `tiktok-shop-auth` via POST com `code` e `redirect_uri`
-- Em caso de sucesso, redireciona para `/app/integrations?status=success`
-- Em caso de erro, redireciona para `/app/integrations?status=error`
+### 6. Modificar: `src/components/ads/useMetaAdsData.ts`
 
-### 9. Rota no App.tsx
+- Adicionar hook `useTikTokAdsIntegration()` seguindo o padrao de `useMetaAdsIntegration()`
+- Adicionar hook `useSyncTikTokAds()` seguindo o padrao de `useSyncMetaAds()`
 
-- Adicionar rota `/callback/tiktokshop` apontando para `TikTokShopCallback`
-
-### 10. Config.toml
+### 7. Modificar: `supabase/config.toml`
 
 ```text
-[functions.tiktok-shop-auth]
-verify_jwt = true
+[functions.tiktok-ads-auth]
+verify_jwt = false
 
-[functions.create-tiktokshop-product]
-verify_jwt = true
+[functions.sync-tiktok-ads]
+verify_jwt = false
 ```
 
-### 11. Refresh de tokens
+Ambos com `verify_jwt = false` porque:
+- `tiktok-ads-auth`: recebe redirect direto do TikTok (sem JWT do usuario)
+- `sync-tiktok-ads`: valida JWT manualmente no codigo (mesmo padrao do sync-meta-ads)
 
-Os tokens do TikTok Shop expiram (access_token em ~24h, refresh_token em meses). Atualizar `refresh-integration-tokens` edge function:
+### 8. Token refresh
 
-- Adicionar bloco para `tiktokshop`
-- Chamar `POST https://auth.tiktok-shops.com/api/v2/token/refresh` com `app_key`, `app_secret`, `refresh_token`, `grant_type: refresh_token`
-- Atualizar tokens encriptados e `token_expires_at` no banco
-
----
-
-## Fluxo completo
-
-```text
-Usuario clica "Conectar" no card TikTok Shop
-    |
-    v
-Redirect para TikTok Shop OAuth
-(https://services.tiktokshop.com/open/authorize)
-    |
-    v
-Usuario autoriza acesso a loja
-    |
-    v
-TikTok redireciona para /callback/tiktokshop
-com code na URL
-    |
-    v
-Frontend chama tiktok-shop-auth Edge Function
-com code + redirect_uri via POST
-    |
-    v
-Edge Function troca code por access_token + refresh_token
-    |
-    v
-Obtem shop_cipher e shop_name via API
-    |
-    v
-Tokens encriptados e salvos em integrations (platform = 'tiktokshop')
-    |
-    v
-Redirect para /app/integrations?status=success
-    |
-    v
-Usuario pode: Importar Produtos | Sincronizar Pedidos | Criar Listings
-```
+Os tokens do TikTok Ads Marketing API sao permanentes (nao expiram). Nao e necessario adicionar logica de refresh ao `refresh-integration-tokens`. O campo `token_expires_at` sera salvo como `null`.
 
 ---
 
@@ -202,31 +113,20 @@ Usuario pode: Importar Produtos | Sincronizar Pedidos | Criar Listings
 
 | Arquivo | Acao |
 |---------|------|
-| `supabase/functions/tiktok-shop-auth/index.ts` | Criar (OAuth callback) |
-| `supabase/functions/create-tiktokshop-product/index.ts` | Criar (criar produto no TikTok) |
-| `supabase/functions/import-products/index.ts` | Modificar (adicionar provider TikTok Shop) |
-| `supabase/functions/sync-orders/index.ts` | Modificar (adicionar TikTok Shop provider) |
-| `supabase/functions/refresh-integration-tokens/index.ts` | Modificar (adicionar refresh TikTok) |
+| `supabase/functions/tiktok-ads-auth/index.ts` | Criar (OAuth callback) |
+| `supabase/functions/sync-tiktok-ads/index.ts` | Criar (sync metricas) |
 | `supabase/config.toml` | Modificar (2 novas funcoes) |
-| `src/pages/callback/TikTokShopCallback.tsx` | Criar (pagina de callback) |
-| `src/pages/Integrations.tsx` | Modificar (remover comingSoon, OAuth flow) |
-| `src/App.tsx` | Modificar (adicionar rota callback) |
+| `src/pages/Integrations.tsx` | Modificar (remover comingSoon, OAuth flow, sync handler) |
+| `src/components/ads/AdsDashboard.tsx` | Modificar (detectar TikTok Ads conectado) |
+| `src/components/ads/useMetaAdsData.ts` | Modificar (hooks TikTok Ads) |
 
 ---
 
 ## Seguranca
 
 - App Secret armazenado como Supabase Secret, nunca exposto no frontend
-- App Key e publico e pode ficar no frontend (mesmo padrao dos outros marketplaces)
+- App ID e publico e pode ficar no frontend (mesmo padrao do Meta Ads)
 - Tokens encriptados em repouso via `encrypt_token()`
-- Edge function de auth com `verify_jwt = true` (diferente do Meta Ads, pois o callback e POST do frontend, nao redirect direto)
-- Assinatura HMAC-SHA256 em todas as chamadas de API garante integridade
+- Edge function de auth com `verify_jwt = false` pois recebe redirect direto do TikTok (mesmo padrao Meta Ads)
 - RLS nas tabelas garante isolamento por organizacao
 
----
-
-## Proximos passos apos implementacao
-
-1. Configurar secrets (App Key e App Secret) quando o app for aprovado
-2. Testar fluxo completo de conexao
-3. Futuramente: sincronizacao de imagens bidirecional e tracking de envios (seguindo padrao das outras plataformas)
