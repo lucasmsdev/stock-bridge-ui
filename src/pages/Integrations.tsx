@@ -396,25 +396,12 @@ export default function Integrations() {
 
       console.log("🎵 Iniciando fluxo OAuth TikTok Shop...");
 
-      // TikTok Shop App Key - prompt user since it's stored as a secret
-      // In production, this could be a known public key
-      const appKey = prompt(
-        "Digite o App Key do TikTok Shop Partner Center:\n\n" +
-        "Você pode encontrá-lo em https://partner.tiktokshop.com/"
-      );
-
-      if (!appKey || appKey.trim() === "") {
-        toast({
-          title: "App Key necessário",
-          description: "Você precisa informar o App Key do TikTok Shop.",
-          variant: "destructive",
-        });
-        return;
-      }
+      // TikTok Shop App Key - chave pública da aplicação UNISTOCK
+      const tiktokAppKey = "6j0biv1696bcn";
 
       const authUrl =
         `https://services.tiktokshop.com/open/authorize` +
-        `?service_id=${appKey.trim()}`;
+        `?service_id=${tiktokAppKey}`;
 
       console.log("🔄 Redirecionando para TikTok Shop...");
       window.location.href = authUrl;
