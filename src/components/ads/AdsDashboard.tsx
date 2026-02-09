@@ -14,6 +14,7 @@ import {
 } from "./mockAdsData";
 import {
   useMetaAdsIntegration,
+  useTikTokAdsIntegration,
   useAdMetrics,
   useAggregatedMetrics,
   groupMetricsByCampaign,
@@ -27,13 +28,16 @@ export function AdsDashboard() {
   const [period, setPeriod] = useState<AdsPeriod>('30days');
 
   // Real data hooks
-  const { data: integration, isLoading: integrationLoading } = useMetaAdsIntegration();
+  const { data: metaIntegration, isLoading: metaLoading } = useMetaAdsIntegration();
+  const { data: tiktokIntegration, isLoading: tiktokLoading } = useTikTokAdsIntegration();
+  const integrationLoading = metaLoading || tiktokLoading;
   const daysMap = { '7days': 7, '30days': 30, '90days': 90 };
   const { data: realMetrics = [], isLoading: metricsLoading } = useAdMetrics(daysMap[period]);
 
   // Calculate if we have real data
   const hasRealData = realMetrics.length > 0;
-  const isConnected = !!integration;
+  const isConnected = !!metaIntegration || !!tiktokIntegration;
+  const integration = metaIntegration || tiktokIntegration;
 
   // Get last sync date from metrics
   const lastSyncDate = useMemo(() => {
@@ -47,7 +51,7 @@ export function AdsDashboard() {
   // Filter metrics by platform
   const filteredRealMetrics = useMemo(() => {
     if (platform === 'all') return realMetrics;
-    const platformMap = { 'meta_ads': 'meta_ads', 'google_ads': 'google_ads' };
+    const platformMap: Record<string, string> = { 'meta_ads': 'meta_ads', 'google_ads': 'google_ads', 'tiktok_ads': 'tiktok_ads' };
     return realMetrics.filter(m => m.platform === platformMap[platform]);
   }, [realMetrics, platform]);
 
@@ -87,7 +91,7 @@ export function AdsDashboard() {
   const displayCampaigns = hasRealData ? realCampaigns.map(c => ({
     id: c.campaign_id,
     name: c.campaign_name,
-    platform: c.platform as 'meta_ads' | 'google_ads',
+    platform: c.platform as 'meta_ads' | 'google_ads' | 'tiktok_ads',
     status: 'active' as const,
     spend: c.totalSpend,
     impressions: c.totalImpressions,
@@ -160,10 +164,10 @@ export function AdsDashboard() {
             <Badge variant="secondary" className="gap-1">
               <div 
                 className={`w-2 h-2 rounded-full ${
-                  platform === 'meta_ads' ? 'bg-blue-500' : 'bg-green-500'
+                  platform === 'meta_ads' ? 'bg-blue-500' : platform === 'tiktok_ads' ? 'bg-pink-500' : 'bg-green-500'
                 }`}
               />
-              {platform === 'meta_ads' ? 'Meta Ads' : 'Google Ads'}
+              {platform === 'meta_ads' ? 'Meta Ads' : platform === 'tiktok_ads' ? 'TikTok Ads' : 'Google Ads'}
             </Badge>
           )}
           <Badge variant="secondary">
