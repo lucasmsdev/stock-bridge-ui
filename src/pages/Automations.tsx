@@ -12,7 +12,7 @@ import { useOrgRole } from "@/hooks/useOrgRole";
 import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { Zap, Package, TrendingDown, PauseCircle, Clock, AlertTriangle } from "lucide-react";
+import { Zap, Package, TrendingDown, PauseCircle, Clock, AlertTriangle, PackageSearch, ShoppingCart } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
 import { ptBR } from "date-fns/locale";
 
@@ -68,6 +68,28 @@ const RULE_TYPES = [
       { key: "min_margin", label: "Alertar quando margem for menor que (%)", placeholder: "15", defaultValue: 15 },
     ],
   },
+  {
+    type: "stale_tracking",
+    title: "Pedido sem rastreio",
+    description: "Alerta quando um pedido fica sem código de rastreio por muito tempo. Evita penalizações nos marketplaces por atraso de envio.",
+    icon: PackageSearch,
+    color: "border-l-blue-500",
+    iconColor: "text-blue-500",
+    configFields: [
+      { key: "hours", label: "Alertar após quantas horas sem rastreio", placeholder: "48", defaultValue: 48 },
+    ],
+  },
+  {
+    type: "no_sales_alert",
+    title: "Produto sem venda",
+    description: "Alerta quando um produto com estoque fica muitos dias sem nenhuma venda. Identifica itens encalhados que ocupam espaço e capital.",
+    icon: ShoppingCart,
+    color: "border-l-purple-500",
+    iconColor: "text-purple-500",
+    configFields: [
+      { key: "days", label: "Alertar quando ficar sem venda por ___ dias", placeholder: "30", defaultValue: 30 },
+    ],
+  },
 ];
 
 const ACTION_LABELS: Record<string, string> = {
@@ -75,6 +97,8 @@ const ACTION_LABELS: Record<string, string> = {
   listing_reactivated: "Anúncio reativado",
   low_stock_alert: "Alerta de estoque baixo",
   low_margin_alert: "Alerta de margem baixa",
+  stale_tracking_alert: "Pedido sem rastreio",
+  no_sales_alert: "Produto sem venda",
 };
 
 const Automations = () => {
@@ -116,10 +140,15 @@ const Automations = () => {
     enabled: !!organizationId,
   });
 
-  // Create default rules if none exist
+  // Create default rules for missing types
   useEffect(() => {
-    if (!rulesLoading && rules && rules.length === 0 && organizationId && user?.id && canWrite) {
-      const defaults = RULE_TYPES.map((rt) => ({
+    if (!rulesLoading && rules && organizationId && user?.id && canWrite) {
+      const existingTypes = new Set(rules.map(r => r.rule_type));
+      const missingTypes = RULE_TYPES.filter(rt => !existingTypes.has(rt.type));
+      
+      if (missingTypes.length === 0) return;
+
+      const defaults = missingTypes.map((rt) => ({
         organization_id: organizationId,
         user_id: user.id,
         rule_type: rt.type,

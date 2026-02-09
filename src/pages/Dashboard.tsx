@@ -1,6 +1,7 @@
-import { TrendingUp, Package, ShoppingCart, Plug2, DollarSign, Loader2, Receipt, Target, Store, Calendar, Wallet, AlertTriangle, Sparkles, Trash2, Megaphone } from "lucide-react";
+import { TrendingUp, Package, ShoppingCart, Plug2, DollarSign, Loader2, Receipt, Target, Store, Calendar, Wallet, AlertTriangle, Sparkles, Trash2, Megaphone, PieChart } from "lucide-react";
 import { CriticalStockCard } from "@/components/dashboard/CriticalStockCard";
 import { ProactiveInsightsCard } from "@/components/dashboard/ProactiveInsightsCard";
+import { ProductROITab } from "@/components/dashboard/ProductROITab";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -563,7 +564,7 @@ export default function Dashboard() {
 
       {/* Tabs Navigation */}
       <Tabs defaultValue="vendas" className="w-full">
-        <TabsList className="grid w-full max-w-md grid-cols-2">
+        <TabsList className="grid w-full max-w-lg grid-cols-3">
           <TabsTrigger value="vendas" className="gap-2">
             <DollarSign className="h-4 w-4" />
             Vendas
@@ -571,6 +572,10 @@ export default function Dashboard() {
           <TabsTrigger value="ads" className="gap-2">
             <Megaphone className="h-4 w-4" />
             Ads
+          </TabsTrigger>
+          <TabsTrigger value="roi" className="gap-2">
+            <PieChart className="h-4 w-4" />
+            ROI
           </TabsTrigger>
         </TabsList>
 
@@ -885,6 +890,11 @@ export default function Dashboard() {
         {/* Ads Tab Content */}
         <TabsContent value="ads" className="mt-6">
           <AdsDashboard />
+        </TabsContent>
+
+        {/* ROI Tab Content */}
+        <TabsContent value="roi" className="mt-6">
+          <ProductROITab />
         </TabsContent>
       </Tabs>
     </div>
