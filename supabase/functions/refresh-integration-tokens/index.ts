@@ -16,6 +16,7 @@ const TOKEN_EXPIRY_HOURS: Record<string, number> = {
   meta_ads: 1440, // 60 dias = 1440 horas
   magalu: 2, // 2 horas (7200 segundos)
   tiktokshop: 24, // 24 horas
+  google_ads: 1, // 1 hora
 };
 
 // Margem de segurança para refresh (em minutos)
@@ -131,6 +132,8 @@ serve(async (req) => {
           newTokenData = await refreshMagaluToken(refreshToken);
         } else if (integration.platform === 'tiktokshop') {
           newTokenData = await refreshTikTokShopToken(refreshToken);
+        } else if (integration.platform === 'google_ads') {
+          newTokenData = await refreshGoogleAdsToken(refreshToken);
         } else {
           console.log(`⏭️ Pulando ${integration.platform} - Plataforma não suportada para refresh`);
           results.skipped++;
@@ -477,5 +480,44 @@ async function refreshTikTokShopToken(refreshToken: string) {
   return {
     access_token: data.access_token,
     refresh_token: data.refresh_token || refreshToken,
+  };
+}
+
+// Renovar token do Google Ads
+async function refreshGoogleAdsToken(refreshToken: string) {
+  const clientId = Deno.env.get('GOOGLE_ADS_CLIENT_ID');
+  const clientSecret = Deno.env.get('GOOGLE_ADS_CLIENT_SECRET');
+
+  if (!clientId || !clientSecret) {
+    throw new Error('Credenciais do Google Ads não configuradas');
+  }
+
+  console.log('   🔄 Chamando API Google para renovar token...');
+
+  const response = await fetch('https://oauth2.googleapis.com/token', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/x-www-form-urlencoded',
+    },
+    body: new URLSearchParams({
+      grant_type: 'refresh_token',
+      client_id: clientId,
+      client_secret: clientSecret,
+      refresh_token: refreshToken,
+    }),
+  });
+
+  if (!response.ok) {
+    const errorText = await response.text();
+    console.error('   ❌ Erro API Google:', errorText);
+    throw new Error(`Google Ads refresh failed: ${response.status} - ${errorText}`);
+  }
+
+  const data = await response.json();
+  console.log('   ✅ API Google respondeu com sucesso');
+
+  return {
+    access_token: data.access_token,
+    // Google doesn't return a new refresh_token on refresh
   };
 }

@@ -97,7 +97,6 @@ const adsIntegrations: IntegrationPlatform[] = [
     id: "google_ads",
     name: "Google Ads",
     description: "Métricas de campanhas do Google Ads - pesquisa, display e shopping",
-    comingSoon: true,
     logoUrl: "https://upload.wikimedia.org/wikipedia/commons/c/c7/Google_Ads_logo.svg",
   },
   {
@@ -231,6 +230,10 @@ export default function Integrations() {
               integration.account_name = accountName;
             } else if (integration.platform === "tiktokshop") {
               const accountName = "Conta TikTok Shop";
+              await supabase.from("integrations").update({ account_name: accountName }).eq("id", integration.id);
+              integration.account_name = accountName;
+            } else if (integration.platform === "google_ads") {
+              const accountName = "Conta Google Ads";
               await supabase.from("integrations").update({ account_name: accountName }).eq("id", integration.id);
               integration.account_name = accountName;
             }
@@ -378,6 +381,39 @@ export default function Integrations() {
         `&state=${user.id}`;
 
       console.log("🔄 Redirecionando para Facebook Login...");
+      window.location.href = authUrl;
+    } else if (platformId === "google_ads") {
+      // Google Ads OAuth flow
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
+
+      if (!user) {
+        toast({
+          title: "Erro de autenticação",
+          description: "Faça login para conectar integrações.",
+          variant: "destructive",
+        });
+        return;
+      }
+
+      console.log("🟢 Iniciando fluxo OAuth Google Ads...");
+
+      const googleClientId = "92454322738-oukciv82rs0h2fg75hhg65hdl87h17rh.apps.googleusercontent.com";
+      const callbackUrl = `https://fcvwogaqarkuqvumyqqm.supabase.co/functions/v1/google-ads-auth`;
+      const scopes = "https://www.googleapis.com/auth/adwords";
+
+      const authUrl =
+        `https://accounts.google.com/o/oauth2/v2/auth` +
+        `?client_id=${googleClientId}` +
+        `&redirect_uri=${encodeURIComponent(callbackUrl)}` +
+        `&scope=${encodeURIComponent(scopes)}` +
+        `&response_type=code` +
+        `&access_type=offline` +
+        `&prompt=consent` +
+        `&state=${user.id}`;
+
+      console.log("🔄 Redirecionando para Google OAuth...");
       window.location.href = authUrl;
     } else if (platformId === "tiktokshop") {
       // TikTok Shop OAuth flow
