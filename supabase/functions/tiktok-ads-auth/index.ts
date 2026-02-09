@@ -18,6 +18,10 @@ serve(async (req) => {
     console.log('🎵 TikTok Ads OAuth Callback');
     console.log('   auth_code received:', !!authCode);
     console.log('   State (user_id):', state);
+    console.log('   APP_URL:', appUrl);
+    console.log('   Redirect URL:', redirectUrl);
+    console.log('   TIKTOK_ADS_APP_ID set:', !!tiktokAppId);
+    console.log('   TIKTOK_ADS_APP_SECRET set:', !!tiktokAppSecret);
 
     if (!authCode || !state) {
       console.error('❌ Missing auth_code or state parameter');
@@ -33,54 +37,79 @@ serve(async (req) => {
     const userId = state;
 
     // Get user's organization
-    const { data: orgId } = await supabase.rpc('get_user_org_id', { user_uuid: userId });
+    console.log('🔍 Getting user organization...');
+    const { data: orgId, error: orgError } = await supabase.rpc('get_user_org_id', { user_uuid: userId });
+    console.log('   org_id:', orgId, 'error:', orgError);
 
     // Exchange auth_code for access_token
     console.log('📤 Exchanging auth_code for access token...');
-    const tokenResponse = await fetch(
-      'https://business-api.tiktok.com/open_api/v1.3/oauth2/access_token/',
-      {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          app_id: tiktokAppId,
-          secret: tiktokAppSecret,
-          auth_code: authCode,
-        }),
-      }
-    );
+    
+    let tokenResponse;
+    try {
+      tokenResponse = await fetch(
+        'https://business-api.tiktok.com/open_api/v1.3/oauth2/access_token/',
+        {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            app_id: tiktokAppId,
+            secret: tiktokAppSecret,
+            auth_code: authCode,
+          }),
+        }
+      );
+    } catch (fetchError: any) {
+      console.error('❌ Fetch failed (network error):', fetchError.message);
+      return Response.redirect(`${redirectUrl}?status=error&message=network_error`, 302);
+    }
+
+    console.log('📥 Token response status:', tokenResponse.status);
+    
+    const responseText = await tokenResponse.text();
+    console.log('📥 Token response body:', responseText);
 
     if (!tokenResponse.ok) {
-      const errorData = await tokenResponse.text();
-      console.error('❌ Token exchange failed:', errorData);
+      console.error('❌ Token exchange failed with HTTP', tokenResponse.status);
       return Response.redirect(`${redirectUrl}?status=error&message=token_exchange_failed`, 302);
     }
 
-    const tokenData = await tokenResponse.json();
-    console.log('📦 Token response code:', tokenData.code);
+    let tokenData;
+    try {
+      tokenData = JSON.parse(responseText);
+    } catch (parseError) {
+      console.error('❌ Failed to parse token response as JSON');
+      return Response.redirect(`${redirectUrl}?status=error&message=invalid_response`, 302);
+    }
+
+    console.log('📦 Token response code:', tokenData.code, 'message:', tokenData.message);
 
     if (tokenData.code !== 0) {
-      console.error('❌ TikTok API error:', tokenData.message);
+      console.error('❌ TikTok API error code:', tokenData.code, 'message:', tokenData.message);
       return Response.redirect(`${redirectUrl}?status=error&message=${encodeURIComponent(tokenData.message || 'api_error')}`, 302);
     }
 
-    const accessToken = tokenData.data.access_token;
-    const advertiserIds = tokenData.data.advertiser_ids || [];
-    console.log('✅ Access token obtained, advertiser_ids:', advertiserIds.length);
+    const accessToken = tokenData.data?.access_token;
+    const advertiserIds = tokenData.data?.advertiser_ids || [];
+    console.log('✅ Access token obtained:', !!accessToken, 'advertiser_ids:', advertiserIds.length);
+
+    if (!accessToken) {
+      console.error('❌ No access_token in response data');
+      return Response.redirect(`${redirectUrl}?status=error&message=no_access_token`, 302);
+    }
 
     // Check for existing integration
-    const { data: existingIntegration } = await supabase
+    console.log('🔍 Checking existing integration...');
+    const { data: existingIntegration, error: findError } = await supabase
       .from('integrations')
       .select('id')
       .eq('user_id', userId)
       .eq('platform', 'tiktok_ads')
       .maybeSingle();
-
-    if (existingIntegration) {
-      console.log('⚠️ Integration already exists, updating...');
-    }
+    
+    console.log('   Existing:', !!existingIntegration, 'findError:', findError);
 
     // Encrypt token
+    console.log('🔐 Encrypting token...');
     const { data: encryptedAccessToken, error: encryptError } = await supabase.rpc('encrypt_token', {
       token: accessToken,
     });
@@ -89,6 +118,7 @@ serve(async (req) => {
       console.error('❌ Failed to encrypt token:', encryptError);
       return Response.redirect(`${redirectUrl}?status=error&message=encryption_failed`, 302);
     }
+    console.log('✅ Token encrypted successfully');
 
     // Save or update integration
     const integrationData = {
@@ -98,11 +128,12 @@ serve(async (req) => {
       encrypted_access_token: encryptedAccessToken,
       encrypted_refresh_token: null,
       account_name: 'Conta TikTok Ads',
-      token_expires_at: null, // TikTok Ads tokens are permanent
+      token_expires_at: null,
       marketplace_id: advertiserIds.length > 0 ? String(advertiserIds[0]) : null,
     };
 
     if (existingIntegration) {
+      console.log('📝 Updating existing integration:', existingIntegration.id);
       const { error: updateError } = await supabase
         .from('integrations')
         .update({
@@ -117,6 +148,7 @@ serve(async (req) => {
       }
       console.log('✅ Integration updated successfully');
     } else {
+      console.log('📝 Creating new integration...');
       const { error: insertError } = await supabase
         .from('integrations')
         .insert(integrationData);
@@ -128,11 +160,11 @@ serve(async (req) => {
       console.log('✅ Integration created successfully');
     }
 
-    console.log('🎉 TikTok Ads OAuth completed successfully!');
+    console.log('🎉 TikTok Ads OAuth completed! Redirecting to:', `${redirectUrl}?status=success`);
     return Response.redirect(`${redirectUrl}?status=success`, 302);
 
   } catch (error: any) {
-    console.error('❌ Unexpected error in TikTok Ads OAuth:', error);
+    console.error('❌ Unexpected error in TikTok Ads OAuth:', error.message, error.stack);
     const appUrl = Deno.env.get('APP_URL') || 'https://id-preview--be7c1eba-2174-4e2e-a9f0-aa07602a3be7.lovable.app';
     return Response.redirect(`${appUrl}/app/integrations?status=error&message=unexpected_error`, 302);
   }
