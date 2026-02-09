@@ -103,7 +103,6 @@ const adsIntegrations: IntegrationPlatform[] = [
     id: "tiktok_ads",
     name: "TikTok Ads",
     description: "Métricas de campanhas do TikTok Ads - vídeos e performance",
-    comingSoon: true,
     logoUrl: "https://sf-tb-sg.ibytedtos.com/obj/eden-sg/uhtyvueh7nulogpoguhm/tiktok-icon2.png",
   },
 ];
@@ -234,6 +233,10 @@ export default function Integrations() {
               integration.account_name = accountName;
             } else if (integration.platform === "google_ads") {
               const accountName = "Conta Google Ads";
+              await supabase.from("integrations").update({ account_name: accountName }).eq("id", integration.id);
+              integration.account_name = accountName;
+            } else if (integration.platform === "tiktok_ads") {
+              const accountName = "Conta TikTok Ads";
               await supabase.from("integrations").update({ account_name: accountName }).eq("id", integration.id);
               integration.account_name = accountName;
             }
@@ -440,6 +443,36 @@ export default function Integrations() {
         `?service_id=${tiktokAppKey}`;
 
       console.log("🔄 Redirecionando para TikTok Shop...");
+      window.location.href = authUrl;
+    } else if (platformId === "tiktok_ads") {
+      // TikTok Ads OAuth flow
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
+
+      if (!user) {
+        toast({
+          title: "Erro de autenticação",
+          description: "Faça login para conectar integrações.",
+          variant: "destructive",
+        });
+        return;
+      }
+
+      console.log("🎵 Iniciando fluxo OAuth TikTok Ads...");
+
+      // TikTok Ads App ID - chave pública (mesmo padrão do Meta Ads)
+      // TODO: Substituir pelo App ID real do TikTok Marketing API
+      const tiktokAdsAppId = import.meta.env.VITE_TIKTOK_ADS_APP_ID || '';
+      const callbackUrl = `https://fcvwogaqarkuqvumyqqm.supabase.co/functions/v1/tiktok-ads-auth`;
+
+      const authUrl =
+        `https://business-api.tiktok.com/portal/auth` +
+        `?app_id=${tiktokAdsAppId}` +
+        `&state=${user.id}` +
+        `&redirect_uri=${encodeURIComponent(callbackUrl)}`;
+
+      console.log("🔄 Redirecionando para TikTok Business...");
       window.location.href = authUrl;
     } else {
       // Mock connection logic for other platforms

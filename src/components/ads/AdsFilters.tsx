@@ -55,6 +55,12 @@ export function AdsFilters({
                 Google Ads
               </div>
             </SelectItem>
+            <SelectItem value="tiktok_ads">
+              <div className="flex items-center gap-2">
+                <div className="w-3 h-3 rounded-full bg-pink-500" />
+                TikTok Ads
+              </div>
+            </SelectItem>
           </SelectContent>
         </Select>
 

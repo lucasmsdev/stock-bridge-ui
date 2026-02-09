@@ -170,6 +170,76 @@ export function useSyncMetaAds() {
   });
 }
 
+export function useTikTokAdsIntegration() {
+  return useQuery({
+    queryKey: ['tiktok-ads-integration'],
+    queryFn: async () => {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return null;
+
+      const { data, error } = await supabase
+        .from('integrations')
+        .select('id, account_name, marketplace_id, token_expires_at, updated_at')
+        .eq('platform', 'tiktok_ads')
+        .maybeSingle();
+
+      if (error) {
+        console.error('Error fetching TikTok Ads integration:', error);
+        return null;
+      }
+
+      return data as MetaIntegration | null;
+    },
+  });
+}
+
+export function useSyncTikTokAds() {
+  const { toast } = useToast();
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async (days: number = 30) => {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session?.access_token) {
+        throw new Error('Não autenticado');
+      }
+
+      const response = await fetch(
+        `https://fcvwogaqarkuqvumyqqm.supabase.co/functions/v1/sync-tiktok-ads`,
+        {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${session.access_token}`,
+          },
+          body: JSON.stringify({ days }),
+        }
+      );
+
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.error || 'Falha ao sincronizar');
+      }
+
+      return response.json();
+    },
+    onSuccess: () => {
+      toast({
+        title: 'Sincronização concluída',
+        description: 'As métricas do TikTok Ads foram atualizadas.',
+      });
+      queryClient.invalidateQueries({ queryKey: ['ad-metrics'] });
+    },
+    onError: (error: Error) => {
+      toast({
+        title: 'Erro ao sincronizar',
+        description: error.message,
+        variant: 'destructive',
+      });
+    },
+  });
+}
+
 // Helper to group metrics by campaign
 export function groupMetricsByCampaign(metrics: AdMetric[]) {
   const campaignMap = new Map<string, {

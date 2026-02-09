@@ -176,3 +176,9 @@ verify_jwt = false
 
 [functions.sync-google-ads]
 verify_jwt = false
+
+[functions.tiktok-ads-auth]
+verify_jwt = false
+
+[functions.sync-tiktok-ads]
+verify_jwt = false
