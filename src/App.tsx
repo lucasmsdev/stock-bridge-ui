@@ -28,6 +28,7 @@ import Billing from "./pages/Billing";
 import MercadoLivreCallback from "./pages/callback/MercadoLivreCallback";
 import MagaluCallback from "./pages/callback/MagaluCallback";
 import TikTokShopCallback from "./pages/callback/TikTokShopCallback";
+import GoogleAdsCallback from "./pages/callback/GoogleAdsCallback";
 import Landing from "./pages/Landing";
 import Reports from "./pages/Reports";
 import Checkout from "./pages/Checkout";
@@ -59,6 +60,7 @@ const App = () => (
               <Route path="/callback/mercadolivre" element={<MercadoLivreCallback />} />
               <Route path="/callback/magalu" element={<MagaluCallback />} />
               <Route path="/callback/tiktokshop" element={<TikTokShopCallback />} />
+              <Route path="/callback/google-ads" element={<GoogleAdsCallback />} />
               
               {/* Protected Routes */}
               <Route path="/app" element={<AppLayout />}>

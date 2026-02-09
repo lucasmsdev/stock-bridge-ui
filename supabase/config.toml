@@ -170,3 +170,9 @@ verify_jwt = true
 
 [functions.create-tiktokshop-product]
 verify_jwt = true
+
+[functions.google-ads-auth]
+verify_jwt = false
+
+[functions.sync-google-ads]
+verify_jwt = false
