@@ -463,16 +463,7 @@ export default function Integrations() {
 
       console.log("🎵 Iniciando fluxo TikTok Ads...");
 
-      const isSandbox = import.meta.env.VITE_TIKTOK_ADS_SANDBOX === 'true';
-
-      if (isSandbox) {
-        // Sandbox: abrir dialog para token manual
-        console.log('🔧 Modo sandbox detectado - abrindo dialog para token manual');
-        setTiktokSandboxOpen(true);
-        return;
-      }
-
-      // Produção: fluxo OAuth padrão
+      // Fluxo OAuth de produção
       const tiktokAdsAppId = "7604695140725751824";
       const callbackUrl = `https://fcvwogaqarkuqvumyqqm.supabase.co/functions/v1/tiktok-ads-auth`;
       const stateParam = `${user.id}`;

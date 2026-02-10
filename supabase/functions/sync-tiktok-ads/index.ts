@@ -118,13 +118,9 @@ serve(async (req) => {
       const startDateStr = startDate.toISOString().split('T')[0];
       const endDateStr = endDate.toISOString().split('T')[0];
 
-      // Detect sandbox mode from shop_domain flag or env
-      const isSandbox = integration.shop_domain === 'sandbox' || Deno.env.get('TIKTOK_ADS_SANDBOX') === 'true';
-      const tiktokBaseUrl = isSandbox
-        ? 'https://sandbox-ads.tiktok.com'
-        : 'https://business-api.tiktok.com';
+      const tiktokBaseUrl = 'https://business-api.tiktok.com';
 
-      console.log('📤 Fetching TikTok Ads report for advertiser:', advertiserId, '(sandbox:', isSandbox, ')');
+      console.log('📤 Fetching TikTok Ads report for advertiser:', advertiserId);
 
       // Fetch campaign report
       const reportUrl = new URL(`${tiktokBaseUrl}/open_api/v1.3/report/integrated/get/`);
