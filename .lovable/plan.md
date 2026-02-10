@@ -1,37 +1,53 @@
 
-# Mudar TikTok Ads para modo de producao
 
-## O que precisa mudar
+# Corrigir Customer ID do Google Ads e garantir sync funcional
 
-O sandbox esta ativo em **3 pontos** independentes. Todos precisam ser atualizados:
+## Problema
 
-### 1. Frontend: `src/pages/Integrations.tsx` (linha 466)
-- Remover a checagem `VITE_TIKTOK_ADS_SANDBOX` que abre o dialog de token manual
-- Ir direto para o fluxo OAuth padrao (que ja existe nas linhas 475-487)
-- O dialog `TikTokSandboxDialog` pode ser mantido no codigo mas nao sera mais acionado
+A API do Google Ads **v18 foi descontinuada**. O endpoint `https://googleads.googleapis.com/v18/customers:listAccessibleCustomers` retorna **404 Not Found**, por isso o `customer_id` ficou `null` durante a conexao OAuth. A versao atual da API e a **v20**.
 
-### 2. `.env` (linha 4)
-- Remover `VITE_TIKTOK_ADS_SANDBOX="true"` ou mudar para `"false"`
+Isso afeta dois arquivos:
+- `google-ads-auth` -- nao conseguiu buscar o Customer ID durante o OAuth
+- `sync-google-ads` -- usa v18 tanto para `listAccessibleCustomers` quanto para `searchStream`
 
-### 3. Edge Function: `supabase/functions/sync-tiktok-ads/index.ts` (linha 122)
-- Remover a checagem de `TIKTOK_ADS_SANDBOX` e `shop_domain === 'sandbox'`
-- Usar sempre a URL de producao: `https://business-api.tiktok.com`
+## Mudancas
 
-### 4. Edge Function: `supabase/functions/tiktok-ads-auth/index.ts` (linha 115)
-- Remover a logica de sandbox que checa `TIKTOK_ADS_SANDBOX` e `:sandbox` no state
-- Usar sempre a URL de producao para troca de token
+### 1. `supabase/functions/google-ads-auth/index.ts` (linha 110)
 
-### 5. Reconectar a integracao
-- Como a integracao atual foi criada em modo sandbox (com `shop_domain: 'sandbox'`), sera necessario **reconectar** via OAuth de producao para obter um token valido da API real do TikTok Business
+Atualizar a URL da API de v18 para v20:
 
-## Secao tecnica
+```
+// Antes
+'https://googleads.googleapis.com/v18/customers:listAccessibleCustomers'
 
-**Arquivos modificados:**
-- `src/pages/Integrations.tsx` -- remover condicional de sandbox, ir direto pro OAuth
-- `.env` -- remover `VITE_TIKTOK_ADS_SANDBOX`
-- `supabase/functions/sync-tiktok-ads/index.ts` -- hardcode URL de producao
-- `supabase/functions/tiktok-ads-auth/index.ts` -- hardcode URL de producao, remover logica sandbox
+// Depois
+'https://googleads.googleapis.com/v20/customers:listAccessibleCustomers'
+```
 
-**Secret `TIKTOK_ADS_SANDBOX`** no Supabase: sera ignorada apos as mudancas (nao precisa deletar, mas pode ser removida futuramente)
+### 2. `supabase/functions/sync-google-ads/index.ts` (linhas 120 e 188)
 
-**Apos implementar:** voce precisara desconectar e reconectar o TikTok Ads na pagina de integracoes para gerar um token OAuth de producao valido.
+Atualizar ambas as chamadas de API de v18 para v20:
+
+- Linha 120: `listAccessibleCustomers` (fallback quando nao tem customer_id salvo)
+- Linha 188: `searchStream` (busca de metricas de campanhas)
+
+```
+// Antes
+'https://googleads.googleapis.com/v18/customers:listAccessibleCustomers'
+`https://googleads.googleapis.com/v18/customers/${customerId}/googleAds:searchStream`
+
+// Depois
+'https://googleads.googleapis.com/v20/customers:listAccessibleCustomers'
+`https://googleads.googleapis.com/v20/customers/${customerId}/googleAds:searchStream`
+```
+
+### 3. Redeploy das duas Edge Functions
+
+Apos as mudancas, redeploy de `google-ads-auth` e `sync-google-ads`.
+
+## Apos implementar
+
+Como o Customer ID ficou `null` na conexao atual, voce precisara:
+1. **Desconectar e reconectar** o Google Ads na pagina de integracoes (para buscar o Customer ID com a API v20)
+2. Ou sincronizar manualmente -- o `sync-google-ads` tambem tenta buscar o Customer ID como fallback
+
