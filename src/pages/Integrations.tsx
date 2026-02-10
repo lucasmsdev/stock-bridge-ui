@@ -27,6 +27,7 @@ import { AmazonSelfAuthDialog } from "@/components/integrations/AmazonSelfAuthDi
 import { AmazonSellerIdDialog } from "@/components/integrations/AmazonSellerIdDialog";
 import { TokenStatusBadge, getTimeUntilExpiry } from "@/components/integrations/TokenStatusBadge";
 import { useOrgRole } from "@/hooks/useOrgRole";
+import { TikTokSandboxDialog } from "@/components/integrations/TikTokSandboxDialog";
 
 // Integration type
 interface IntegrationPlatform {
@@ -120,6 +121,7 @@ export default function Integrations() {
   const [connectedIntegrations, setConnectedIntegrations] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [amazonSelfAuthOpen, setAmazonSelfAuthOpen] = useState(false);
+  const [tiktokSandboxOpen, setTiktokSandboxOpen] = useState(false);
   const [amazonSellerIdDialog, setAmazonSellerIdDialog] = useState<{ open: boolean; integrationId: string; currentSellerId?: string | null }>({
     open: false,
     integrationId: "",
@@ -459,15 +461,21 @@ export default function Integrations() {
         return;
       }
 
-      console.log("🎵 Iniciando fluxo OAuth TikTok Ads...");
+      console.log("🎵 Iniciando fluxo TikTok Ads...");
 
-      // TikTok Ads App ID - chave pública (mesmo padrão do Meta Ads)
+      const isSandbox = import.meta.env.VITE_TIKTOK_ADS_SANDBOX === 'true';
+
+      if (isSandbox) {
+        // Sandbox: abrir dialog para token manual
+        console.log('🔧 Modo sandbox detectado - abrindo dialog para token manual');
+        setTiktokSandboxOpen(true);
+        return;
+      }
+
+      // Produção: fluxo OAuth padrão
       const tiktokAdsAppId = "7604695140725751824";
       const callbackUrl = `https://fcvwogaqarkuqvumyqqm.supabase.co/functions/v1/tiktok-ads-auth`;
-
-      // OAuth portal é sempre no domínio de produção (sandbox só se aplica às APIs)
-      // O flag :sandbox no state informa a Edge Function para usar endpoints sandbox
-      const stateParam = `${user.id}:sandbox`;
+      const stateParam = `${user.id}`;
 
       const authUrl =
         `https://business-api.tiktok.com/portal/auth` +
@@ -475,7 +483,7 @@ export default function Integrations() {
         `&state=${stateParam}` +
         `&redirect_uri=${encodeURIComponent(callbackUrl)}`;
 
-      console.log('🔄 Redirecionando para TikTok Business (auth sempre em produção, sandbox via state)...');
+      console.log('🔄 Redirecionando para TikTok Business...');
       window.location.href = authUrl;
     } else {
       // Mock connection logic for other platforms
@@ -1240,6 +1248,13 @@ export default function Integrations() {
         onSuccess={loadConnectedIntegrations}
         integrationId={amazonSellerIdDialog.integrationId}
         currentSellerId={amazonSellerIdDialog.currentSellerId}
+      />
+
+      {/* TikTok Ads Sandbox Dialog */}
+      <TikTokSandboxDialog
+        open={tiktokSandboxOpen}
+        onOpenChange={setTiktokSandboxOpen}
+        onSuccess={loadConnectedIntegrations}
       />
     </div>
   );
