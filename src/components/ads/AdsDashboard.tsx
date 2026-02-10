@@ -127,6 +127,7 @@ export function AdsDashboard() {
         isLoading={integrationLoading}
         hasRealData={hasRealData}
         lastSyncDate={lastSyncDate}
+        platform={tiktokIntegration ? 'tiktok_ads' : 'meta_ads'}
       />
 
       {/* Header info banner - only show if using mock data */}
