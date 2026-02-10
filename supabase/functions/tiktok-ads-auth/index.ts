@@ -1,23 +1,119 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.57.0';
 
-serve(async (req) => {
-  try {
-    const url = new URL(req.url);
-    const authCode = url.searchParams.get('auth_code');
-    const state = url.searchParams.get('state'); // "user_id" or "user_id:sandbox"
+const corsHeaders = {
+  'Access-Control-Allow-Origin': '*',
+  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+};
 
+serve(async (req) => {
+  // Handle CORS preflight
+  if (req.method === 'OPTIONS') {
+    return new Response(null, { headers: corsHeaders });
+  }
+
+  try {
     const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
     const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
-    const tiktokAppId = Deno.env.get('TIKTOK_ADS_APP_ID');
-    const tiktokAppSecret = Deno.env.get('TIKTOK_ADS_APP_SECRET');
     const appUrl = (Deno.env.get('APP_URL') || 'https://id-preview--be7c1eba-2174-4e2e-a9f0-aa07602a3be7.lovable.app').replace(/\/+$/, '');
-    // Sandbox pode ser forçado via env ou detectado pelo state
-    const envSandbox = Deno.env.get('TIKTOK_ADS_SANDBOX') === 'true';
-
     const redirectUrl = `${appUrl}/app/integrations`;
 
-    // Parse state: "userId" or "userId:sandbox"
+    // ========== POST: Sandbox manual token ==========
+    if (req.method === 'POST') {
+      const { access_token, advertiser_id, user_id } = await req.json();
+
+      if (!access_token || !advertiser_id || !user_id) {
+        return new Response(JSON.stringify({ error: 'Missing access_token, advertiser_id or user_id' }), {
+          status: 400,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        });
+      }
+
+      console.log('🎵 TikTok Ads Sandbox - POST manual token');
+      console.log('   user_id:', user_id);
+      console.log('   advertiser_id:', advertiser_id);
+
+      const supabase = createClient(supabaseUrl, supabaseServiceKey);
+
+      // Get user's organization
+      const { data: orgId } = await supabase.rpc('get_user_org_id', { user_uuid: user_id });
+
+      // Check for existing integration
+      const { data: existingIntegration } = await supabase
+        .from('integrations')
+        .select('id')
+        .eq('user_id', user_id)
+        .eq('platform', 'tiktok_ads')
+        .maybeSingle();
+
+      // Encrypt token
+      const { data: encryptedAccessToken, error: encryptError } = await supabase.rpc('encrypt_token', {
+        token: access_token,
+      });
+
+      if (encryptError) {
+        console.error('❌ Failed to encrypt token:', encryptError);
+        return new Response(JSON.stringify({ error: 'Encryption failed' }), {
+          status: 500,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        });
+      }
+
+      const integrationData = {
+        user_id,
+        organization_id: orgId || null,
+        platform: 'tiktok_ads',
+        encrypted_access_token: encryptedAccessToken,
+        encrypted_refresh_token: null,
+        account_name: 'Conta TikTok Ads (Sandbox)',
+        token_expires_at: null,
+        marketplace_id: advertiser_id,
+        shop_domain: 'sandbox',
+      };
+
+      if (existingIntegration) {
+        const { error: updateError } = await supabase
+          .from('integrations')
+          .update({ ...integrationData, updated_at: new Date().toISOString() })
+          .eq('id', existingIntegration.id);
+
+        if (updateError) {
+          console.error('❌ Failed to update integration:', updateError);
+          return new Response(JSON.stringify({ error: 'Update failed' }), {
+            status: 500,
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+          });
+        }
+        console.log('✅ Sandbox integration updated');
+      } else {
+        const { error: insertError } = await supabase
+          .from('integrations')
+          .insert(integrationData);
+
+        if (insertError) {
+          console.error('❌ Failed to create integration:', insertError);
+          return new Response(JSON.stringify({ error: 'Insert failed' }), {
+            status: 500,
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+          });
+        }
+        console.log('✅ Sandbox integration created');
+      }
+
+      return new Response(JSON.stringify({ success: true }), {
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
+
+    // ========== GET: Standard OAuth callback ==========
+    const url = new URL(req.url);
+    const authCode = url.searchParams.get('auth_code');
+    const state = url.searchParams.get('state');
+
+    const tiktokAppId = Deno.env.get('TIKTOK_ADS_APP_ID');
+    const tiktokAppSecret = Deno.env.get('TIKTOK_ADS_APP_SECRET');
+    const envSandbox = Deno.env.get('TIKTOK_ADS_SANDBOX') === 'true';
+
     let userId = state || '';
     let isSandbox = envSandbox;
     if (state?.includes(':sandbox')) {
@@ -47,11 +143,9 @@ serve(async (req) => {
 
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
-    // Get user's organization
     const { data: orgId, error: orgError } = await supabase.rpc('get_user_org_id', { user_uuid: userId });
     console.log('   org_id:', orgId, 'error:', orgError);
 
-    // Exchange auth_code for access_token using correct base URL
     console.log('📤 Exchanging auth_code for access token...');
     
     let tokenResponse;
@@ -105,7 +199,6 @@ serve(async (req) => {
       return Response.redirect(`${redirectUrl}?status=error&message=no_access_token`, 302);
     }
 
-    // Check for existing integration
     const { data: existingIntegration } = await supabase
       .from('integrations')
       .select('id')
@@ -113,7 +206,6 @@ serve(async (req) => {
       .eq('platform', 'tiktok_ads')
       .maybeSingle();
 
-    // Encrypt token
     const { data: encryptedAccessToken, error: encryptError } = await supabase.rpc('encrypt_token', {
       token: accessToken,
     });
@@ -123,7 +215,6 @@ serve(async (req) => {
       return Response.redirect(`${redirectUrl}?status=error&message=encryption_failed`, 302);
     }
 
-    // Save or update integration with is_sandbox flag in account_name
     const accountLabel = isSandbox ? 'Conta TikTok Ads (Sandbox)' : 'Conta TikTok Ads';
     const integrationData = {
       user_id: userId,
@@ -134,7 +225,6 @@ serve(async (req) => {
       account_name: accountLabel,
       token_expires_at: null,
       marketplace_id: advertiserIds.length > 0 ? String(advertiserIds[0]) : null,
-      // Store sandbox flag in shop_domain field (reused for metadata)
       shop_domain: isSandbox ? 'sandbox' : null,
     };
 
