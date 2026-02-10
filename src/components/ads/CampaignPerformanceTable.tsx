@@ -56,7 +56,13 @@ export function CampaignPerformanceTable({ campaigns }: CampaignPerformanceTable
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {sortedCampaigns.map((campaign) => {
+                {sortedCampaigns.length === 0 ? (
+                  <TableRow>
+                    <TableCell colSpan={9} className="h-24 text-center text-muted-foreground">
+                      Nenhuma campanha encontrada. Clique em Sincronizar para buscar dados.
+                    </TableCell>
+                  </TableRow>
+                ) : sortedCampaigns.map((campaign) => {
                   const status = getCampaignStatus(campaign.roas);
                   return (
                     <TableRow key={campaign.id}>
@@ -66,11 +72,13 @@ export function CampaignPerformanceTable({ campaigns }: CampaignPerformanceTable
                             className={`w-3 h-3 rounded-full ${
                               campaign.platform === 'meta_ads' 
                                 ? 'bg-blue-500' 
+                                : campaign.platform === 'tiktok_ads'
+                                ? 'bg-pink-500'
                                 : 'bg-green-500'
                             }`}
                           />
                           <span className="text-sm">
-                            {campaign.platform === 'meta_ads' ? 'Meta' : 'Google'}
+                            {campaign.platform === 'meta_ads' ? 'Meta' : campaign.platform === 'tiktok_ads' ? 'TikTok' : 'Google'}
                           </span>
                         </div>
                       </TableCell>

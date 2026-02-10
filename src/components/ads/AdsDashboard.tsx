@@ -66,8 +66,8 @@ export function AdsDashboard() {
   const mockDailyData = getAggregatedDailyData(platform);
   const mockPlatformBreakdown = getPlatformBreakdown();
 
-  // Use real data if available, otherwise mock
-  const displayTotals = hasRealData ? {
+  // Use real data when connected, mock only when disconnected
+  const displayTotals = isConnected ? {
     spend: realTotals.totalSpend,
     impressions: realTotals.totalImpressions,
     clicks: realTotals.totalClicks,
@@ -78,7 +78,7 @@ export function AdsDashboard() {
     roas: realTotals.roas,
   } : mockTotals;
 
-  const displayDailyData = hasRealData ? realDailyData.map(d => ({
+  const displayDailyData = isConnected ? realDailyData.map(d => ({
     date: d.date,
     displayDate: new Date(d.date).toLocaleDateString('pt-BR', { day: '2-digit', month: 'short' }),
     spend: d.spend,
@@ -88,7 +88,7 @@ export function AdsDashboard() {
     return mockDailyData.slice(-days);
   })();
 
-  const displayCampaigns = hasRealData ? realCampaigns.map(c => ({
+  const displayCampaigns = isConnected ? realCampaigns.map(c => ({
     id: c.campaign_id,
     name: c.campaign_name,
     platform: c.platform as 'meta_ads' | 'google_ads' | 'tiktok_ads',
@@ -105,12 +105,14 @@ export function AdsDashboard() {
   })) : mockCampaigns;
 
   // Platform breakdown - real or mock
-  const displayPlatformBreakdown = hasRealData ? [
+  const connectedPlatformName = tiktokIntegration ? 'TikTok Ads' : 'Meta Ads';
+  const connectedPlatformColor = tiktokIntegration ? '#EE1D52' : '#1877F2';
+  const displayPlatformBreakdown = isConnected ? [
     {
-      platform: 'Meta Ads' as const,
+      platform: connectedPlatformName,
       spend: realTotals.totalSpend,
-      percentage: 100, // Only Meta Ads for now
-      color: '#1877F2',
+      percentage: 100,
+      color: connectedPlatformColor,
     },
   ] : mockPlatformBreakdown;
 
@@ -130,8 +132,8 @@ export function AdsDashboard() {
         platform={tiktokIntegration ? 'tiktok_ads' : 'meta_ads'}
       />
 
-      {/* Header info banner - only show if using mock data */}
-      {!hasRealData && (
+      {/* Header info banner - only show if using mock data (not connected) */}
+      {!isConnected && (
         <div className="flex items-center gap-3 p-4 rounded-lg bg-primary/5 border border-primary/20">
           <Megaphone className="h-5 w-5 text-primary shrink-0" />
           <div className="flex-1">
