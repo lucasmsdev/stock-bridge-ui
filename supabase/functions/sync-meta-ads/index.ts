@@ -151,15 +151,9 @@ serve(async (req) => {
 
       // Fetch insights for each ad account
       for (const adAccount of adAccounts) {
-        // Skip inactive accounts (account_status !== 1 means not active)
-        if (adAccount.account_status !== 1) {
-          console.log('⏭️ Skipping inactive account:', adAccount.name);
-          continue;
-        }
-
         const accountId = adAccount.id; // This includes "act_" prefix
 
-        console.log('📤 Fetching insights for account:', adAccount.name, accountId);
+        console.log('📤 Processing account:', adAccount.name, 'status:', adAccount.account_status, 'id:', accountId);
 
         const insightsUrl = new URL(`https://graph.facebook.com/v21.0/${accountId}/insights`);
         insightsUrl.searchParams.set('fields', 'campaign_id,campaign_name,spend,impressions,clicks,reach,actions');
