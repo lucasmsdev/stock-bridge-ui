@@ -112,23 +112,12 @@ serve(async (req) => {
 
     const tiktokAppId = Deno.env.get('TIKTOK_ADS_APP_ID');
     const tiktokAppSecret = Deno.env.get('TIKTOK_ADS_APP_SECRET');
-    const envSandbox = Deno.env.get('TIKTOK_ADS_SANDBOX') === 'true';
-
-    let userId = state || '';
-    let isSandbox = envSandbox;
-    if (state?.includes(':sandbox')) {
-      userId = state.split(':sandbox')[0];
-      isSandbox = true;
-    }
-
-    const tiktokBaseUrl = isSandbox
-      ? 'https://sandbox-ads.tiktok.com'
-      : 'https://business-api.tiktok.com';
+    const userId = state || '';
+    const tiktokBaseUrl = 'https://business-api.tiktok.com';
 
     console.log('🎵 TikTok Ads OAuth Callback');
-    console.log('   Sandbox mode:', isSandbox);
-    console.log('   Base URL:', tiktokBaseUrl);
     console.log('   auth_code received:', !!authCode);
+    console.log('   user_id:', userId);
     console.log('   user_id:', userId);
 
     if (!authCode || !userId) {
@@ -215,17 +204,16 @@ serve(async (req) => {
       return Response.redirect(`${redirectUrl}?status=error&message=encryption_failed`, 302);
     }
 
-    const accountLabel = isSandbox ? 'Conta TikTok Ads (Sandbox)' : 'Conta TikTok Ads';
     const integrationData = {
       user_id: userId,
       organization_id: orgId || null,
       platform: 'tiktok_ads',
       encrypted_access_token: encryptedAccessToken,
       encrypted_refresh_token: null,
-      account_name: accountLabel,
+      account_name: 'Conta TikTok Ads',
       token_expires_at: null,
       marketplace_id: advertiserIds.length > 0 ? String(advertiserIds[0]) : null,
-      shop_domain: isSandbox ? 'sandbox' : null,
+      shop_domain: null,
     };
 
     if (existingIntegration) {
@@ -238,7 +226,7 @@ serve(async (req) => {
         console.error('❌ Failed to update integration:', updateError);
         return Response.redirect(`${redirectUrl}?status=error&message=update_failed`, 302);
       }
-      console.log('✅ Integration updated (sandbox:', isSandbox, ')');
+      console.log('✅ Integration updated');
     } else {
       const { error: insertError } = await supabase
         .from('integrations')
@@ -248,10 +236,10 @@ serve(async (req) => {
         console.error('❌ Failed to create integration:', insertError);
         return Response.redirect(`${redirectUrl}?status=error&message=insert_failed`, 302);
       }
-      console.log('✅ Integration created (sandbox:', isSandbox, ')');
+      console.log('✅ Integration created');
     }
 
-    console.log('🎉 TikTok Ads OAuth completed! Sandbox:', isSandbox);
+    console.log('🎉 TikTok Ads OAuth completed!');
     return Response.redirect(`${redirectUrl}?status=success`, 302);
 
   } catch (error: any) {
