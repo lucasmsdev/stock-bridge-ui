@@ -58,7 +58,7 @@ serve(async (req) => {
     // Get TikTok Ads integration
     let query = supabase
       .from('integrations')
-      .select('id, encrypted_access_token, marketplace_id, account_name, organization_id')
+      .select('id, encrypted_access_token, marketplace_id, account_name, organization_id, shop_domain')
       .eq('platform', 'tiktok_ads');
 
     if (orgId) {
@@ -118,10 +118,16 @@ serve(async (req) => {
       const startDateStr = startDate.toISOString().split('T')[0];
       const endDateStr = endDate.toISOString().split('T')[0];
 
-      console.log('📤 Fetching TikTok Ads report for advertiser:', advertiserId);
+      // Detect sandbox mode from shop_domain flag or env
+      const isSandbox = integration.shop_domain === 'sandbox' || Deno.env.get('TIKTOK_ADS_SANDBOX') === 'true';
+      const tiktokBaseUrl = isSandbox
+        ? 'https://sandbox-ads.tiktok.com'
+        : 'https://business-api.tiktok.com';
+
+      console.log('📤 Fetching TikTok Ads report for advertiser:', advertiserId, '(sandbox:', isSandbox, ')');
 
       // Fetch campaign report
-      const reportUrl = new URL('https://business-api.tiktok.com/open_api/v1.3/report/integrated/get/');
+      const reportUrl = new URL(`${tiktokBaseUrl}/open_api/v1.3/report/integrated/get/`);
       reportUrl.searchParams.set('advertiser_id', advertiserId);
       reportUrl.searchParams.set('report_type', 'BASIC');
       reportUrl.searchParams.set('data_level', 'AUCTION_CAMPAIGN');

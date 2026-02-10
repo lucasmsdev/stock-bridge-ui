@@ -5,25 +5,37 @@ serve(async (req) => {
   try {
     const url = new URL(req.url);
     const authCode = url.searchParams.get('auth_code');
-    const state = url.searchParams.get('state'); // user_id
+    const state = url.searchParams.get('state'); // "user_id" or "user_id:sandbox"
 
     const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
     const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
     const tiktokAppId = Deno.env.get('TIKTOK_ADS_APP_ID');
     const tiktokAppSecret = Deno.env.get('TIKTOK_ADS_APP_SECRET');
     const appUrl = (Deno.env.get('APP_URL') || 'https://id-preview--be7c1eba-2174-4e2e-a9f0-aa07602a3be7.lovable.app').replace(/\/+$/, '');
+    // Sandbox pode ser forçado via env ou detectado pelo state
+    const envSandbox = Deno.env.get('TIKTOK_ADS_SANDBOX') === 'true';
 
     const redirectUrl = `${appUrl}/app/integrations`;
 
-    console.log('🎵 TikTok Ads OAuth Callback');
-    console.log('   auth_code received:', !!authCode);
-    console.log('   State (user_id):', state);
-    console.log('   APP_URL:', appUrl);
-    console.log('   Redirect URL:', redirectUrl);
-    console.log('   TIKTOK_ADS_APP_ID set:', !!tiktokAppId);
-    console.log('   TIKTOK_ADS_APP_SECRET set:', !!tiktokAppSecret);
+    // Parse state: "userId" or "userId:sandbox"
+    let userId = state || '';
+    let isSandbox = envSandbox;
+    if (state?.includes(':sandbox')) {
+      userId = state.split(':sandbox')[0];
+      isSandbox = true;
+    }
 
-    if (!authCode || !state) {
+    const tiktokBaseUrl = isSandbox
+      ? 'https://sandbox-ads.tiktok.com'
+      : 'https://business-api.tiktok.com';
+
+    console.log('🎵 TikTok Ads OAuth Callback');
+    console.log('   Sandbox mode:', isSandbox);
+    console.log('   Base URL:', tiktokBaseUrl);
+    console.log('   auth_code received:', !!authCode);
+    console.log('   user_id:', userId);
+
+    if (!authCode || !userId) {
       console.error('❌ Missing auth_code or state parameter');
       return Response.redirect(`${redirectUrl}?status=error&message=missing_parameters`, 302);
     }
@@ -34,20 +46,18 @@ serve(async (req) => {
     }
 
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
-    const userId = state;
 
     // Get user's organization
-    console.log('🔍 Getting user organization...');
     const { data: orgId, error: orgError } = await supabase.rpc('get_user_org_id', { user_uuid: userId });
     console.log('   org_id:', orgId, 'error:', orgError);
 
-    // Exchange auth_code for access_token
+    // Exchange auth_code for access_token using correct base URL
     console.log('📤 Exchanging auth_code for access token...');
     
     let tokenResponse;
     try {
       tokenResponse = await fetch(
-        'https://business-api.tiktok.com/open_api/v1.3/oauth2/access_token/',
+        `${tiktokBaseUrl}/open_api/v1.3/oauth2/access_token/`,
         {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -81,8 +91,6 @@ serve(async (req) => {
       return Response.redirect(`${redirectUrl}?status=error&message=invalid_response`, 302);
     }
 
-    console.log('📦 Token response code:', tokenData.code, 'message:', tokenData.message);
-
     if (tokenData.code !== 0) {
       console.error('❌ TikTok API error code:', tokenData.code, 'message:', tokenData.message);
       return Response.redirect(`${redirectUrl}?status=error&message=${encodeURIComponent(tokenData.message || 'api_error')}`, 302);
@@ -98,18 +106,14 @@ serve(async (req) => {
     }
 
     // Check for existing integration
-    console.log('🔍 Checking existing integration...');
-    const { data: existingIntegration, error: findError } = await supabase
+    const { data: existingIntegration } = await supabase
       .from('integrations')
       .select('id')
       .eq('user_id', userId)
       .eq('platform', 'tiktok_ads')
       .maybeSingle();
-    
-    console.log('   Existing:', !!existingIntegration, 'findError:', findError);
 
     // Encrypt token
-    console.log('🔐 Encrypting token...');
     const { data: encryptedAccessToken, error: encryptError } = await supabase.rpc('encrypt_token', {
       token: accessToken,
     });
@@ -118,37 +122,34 @@ serve(async (req) => {
       console.error('❌ Failed to encrypt token:', encryptError);
       return Response.redirect(`${redirectUrl}?status=error&message=encryption_failed`, 302);
     }
-    console.log('✅ Token encrypted successfully');
 
-    // Save or update integration
+    // Save or update integration with is_sandbox flag in account_name
+    const accountLabel = isSandbox ? 'Conta TikTok Ads (Sandbox)' : 'Conta TikTok Ads';
     const integrationData = {
       user_id: userId,
       organization_id: orgId || null,
       platform: 'tiktok_ads',
       encrypted_access_token: encryptedAccessToken,
       encrypted_refresh_token: null,
-      account_name: 'Conta TikTok Ads',
+      account_name: accountLabel,
       token_expires_at: null,
       marketplace_id: advertiserIds.length > 0 ? String(advertiserIds[0]) : null,
+      // Store sandbox flag in shop_domain field (reused for metadata)
+      shop_domain: isSandbox ? 'sandbox' : null,
     };
 
     if (existingIntegration) {
-      console.log('📝 Updating existing integration:', existingIntegration.id);
       const { error: updateError } = await supabase
         .from('integrations')
-        .update({
-          ...integrationData,
-          updated_at: new Date().toISOString(),
-        })
+        .update({ ...integrationData, updated_at: new Date().toISOString() })
         .eq('id', existingIntegration.id);
 
       if (updateError) {
         console.error('❌ Failed to update integration:', updateError);
         return Response.redirect(`${redirectUrl}?status=error&message=update_failed`, 302);
       }
-      console.log('✅ Integration updated successfully');
+      console.log('✅ Integration updated (sandbox:', isSandbox, ')');
     } else {
-      console.log('📝 Creating new integration...');
       const { error: insertError } = await supabase
         .from('integrations')
         .insert(integrationData);
@@ -157,10 +158,10 @@ serve(async (req) => {
         console.error('❌ Failed to create integration:', insertError);
         return Response.redirect(`${redirectUrl}?status=error&message=insert_failed`, 302);
       }
-      console.log('✅ Integration created successfully');
+      console.log('✅ Integration created (sandbox:', isSandbox, ')');
     }
 
-    console.log('🎉 TikTok Ads OAuth completed! Redirecting to:', `${redirectUrl}?status=success`);
+    console.log('🎉 TikTok Ads OAuth completed! Sandbox:', isSandbox);
     return Response.redirect(`${redirectUrl}?status=success`, 302);
 
   } catch (error: any) {
