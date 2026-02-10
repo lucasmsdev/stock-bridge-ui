@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { useSearchParams, useNavigate } from "react-router-dom";
-import { Plus, Settings, Unlink, ExternalLink, CheckCircle2, Plug, Loader2, Lock, Download, Key, RefreshCw, Clock, AlertTriangle, ShieldAlert } from "lucide-react";
+import { Plus, Settings, Unlink, ExternalLink, CheckCircle2, Plug, Loader2, Lock, Download, Key, RefreshCw, Clock, AlertTriangle, ShieldAlert, Megaphone } from "lucide-react";
 import { useThemeProvider } from "@/components/layout/ThemeProvider";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -728,7 +728,7 @@ export default function Integrations() {
           <h1 className="text-2xl md:text-3xl font-bold">Integrações de Canais</h1>
           <p className="text-muted-foreground">Conecte e gerencie seus canais de venda em um só lugar</p>
         </div>
-        {connectedIntegrations.length > 0 && (
+        {connectedIntegrations.filter((i: any) => !['meta_ads', 'google_ads', 'tiktok_ads'].includes(i.platform)).length > 0 && (
           <Button
             onClick={handleSyncAllOrders}
             disabled={syncingAll || syncingId !== null}
@@ -901,59 +901,77 @@ export default function Integrations() {
                           </div>
                         )}
 
-                        <Separator />
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          className="w-full"
-                          onClick={() =>
-                            handleSyncOrders(
-                              integration.id,
-                              integration.platform,
-                              integration.account_nickname || integration.account_name,
-                            )
-                          }
-                          disabled={syncingId === integration.id || syncingAll}
-                        >
-                          {syncingId === integration.id ? (
-                            <>
-                              <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                              <span className="animate-pulse">Sincronizando...</span>
-                            </>
-                          ) : (
-                            <>
-                              <RefreshCw className="w-4 h-4 mr-2" />
-                              Sincronizar Pedidos
-                            </>
-                          )}
-                        </Button>
+                        {/* Ads platforms: show "Sincronizar Métricas" instead of import/sync */}
+                        {['meta_ads', 'google_ads', 'tiktok_ads'].includes(integration.platform) ? (
+                          <>
+                            <Separator />
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              className="w-full"
+                              onClick={() => navigate('/app/dashboard?tab=ads')}
+                            >
+                              <Megaphone className="w-4 h-4 mr-2" />
+                              Sincronizar Métricas
+                            </Button>
+                          </>
+                        ) : (
+                          <>
+                            <Separator />
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              className="w-full"
+                              onClick={() =>
+                                handleSyncOrders(
+                                  integration.id,
+                                  integration.platform,
+                                  integration.account_nickname || integration.account_name,
+                                )
+                              }
+                              disabled={syncingId === integration.id || syncingAll}
+                            >
+                              {syncingId === integration.id ? (
+                                <>
+                                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                                  <span className="animate-pulse">Sincronizando...</span>
+                                </>
+                              ) : (
+                                <>
+                                  <RefreshCw className="w-4 h-4 mr-2" />
+                                  Sincronizar Pedidos
+                                </>
+                              )}
+                            </Button>
 
-                        {/* Import Products Button for all platforms */}
-                        <Button
-                          variant="default"
-                          size="sm"
-                          className="w-full bg-gradient-primary relative overflow-hidden"
-                          onClick={() =>
-                            handleImportProducts(
-                              integration.id,
-                              integration.platform,
-                              integration.account_nickname || integration.account_name,
-                            )
-                          }
-                          disabled={importingId === integration.id}
-                        >
-                          {importingId === integration.id ? (
-                            <>
-                              <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                              <span className="animate-pulse">Importando...</span>
-                            </>
-                          ) : (
-                            <>
-                              <Download className="w-4 h-4 mr-2" />
-                              Importar Produtos
-                            </>
-                          )}
-                        </Button>
+                            {/* Import Products Button - only for marketplaces */}
+                            <Button
+                              variant="default"
+                              size="sm"
+                              className="w-full bg-gradient-primary relative overflow-hidden"
+                              onClick={() =>
+                                handleImportProducts(
+                                  integration.id,
+                                  integration.platform,
+                                  integration.account_nickname || integration.account_name,
+                                )
+                              }
+                              disabled={importingId === integration.id}
+                            >
+                              {importingId === integration.id ? (
+                                <>
+                                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                                  <span className="animate-pulse">Importando...</span>
+                                </>
+                              ) : (
+                                <>
+                                  <Download className="w-4 h-4 mr-2" />
+                                  Importar Produtos
+                                </>
+                              )}
+                            </Button>
+                          </>
+                        )}
 
                         <Separator />
 

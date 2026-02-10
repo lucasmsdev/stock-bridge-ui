@@ -182,7 +182,7 @@ export function AdsDashboard() {
     <div className="space-y-4 md:space-y-6">
       {/* Connection banners - one per connected integration */}
       {isConnected ? (
-        <div className="space-y-3">
+        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3">
           {activeIntegrations.map(ai => (
             <AdsConnectionBanner
               key={ai.platform}
