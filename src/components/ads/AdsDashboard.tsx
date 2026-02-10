@@ -15,6 +15,7 @@ import {
 import {
   useMetaAdsIntegration,
   useTikTokAdsIntegration,
+  useGoogleAdsIntegration,
   useAdMetrics,
   useAggregatedMetrics,
   groupMetricsByCampaign,
@@ -42,17 +43,19 @@ export function AdsDashboard() {
   // Real data hooks
   const { data: metaIntegration, isLoading: metaLoading } = useMetaAdsIntegration();
   const { data: tiktokIntegration, isLoading: tiktokLoading } = useTikTokAdsIntegration();
-  const integrationLoading = metaLoading || tiktokLoading;
+  const { data: googleIntegration, isLoading: googleLoading } = useGoogleAdsIntegration();
+  const integrationLoading = metaLoading || tiktokLoading || googleLoading;
   const daysMap = { '7days': 7, '30days': 30, '90days': 90 };
   const { data: realMetrics = [], isLoading: metricsLoading } = useAdMetrics(daysMap[period]);
 
   // Build list of active integrations
   const activeIntegrations = useMemo(() => {
-    const list: { platform: 'meta_ads' | 'tiktok_ads'; integration: NonNullable<typeof metaIntegration> }[] = [];
+    const list: { platform: 'meta_ads' | 'tiktok_ads' | 'google_ads'; integration: NonNullable<typeof metaIntegration> }[] = [];
     if (metaIntegration) list.push({ platform: 'meta_ads', integration: metaIntegration });
     if (tiktokIntegration) list.push({ platform: 'tiktok_ads', integration: tiktokIntegration });
+    if (googleIntegration) list.push({ platform: 'google_ads', integration: googleIntegration });
     return list;
-  }, [metaIntegration, tiktokIntegration]);
+  }, [metaIntegration, tiktokIntegration, googleIntegration]);
 
   const hasRealData = realMetrics.length > 0;
   const isConnected = activeIntegrations.length > 0;

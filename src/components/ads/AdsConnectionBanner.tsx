@@ -2,15 +2,16 @@ import { CheckCircle2, AlertCircle, RefreshCw, Link2, Loader2 } from "lucide-rea
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
-import { MetaIntegration, useSyncMetaAds, useSyncTikTokAds } from "./useMetaAdsData";
+import { MetaIntegration, useSyncMetaAds, useSyncTikTokAds, useSyncGoogleAds } from "./useMetaAdsData";
 import { formatDistanceToNow } from "date-fns";
 import { ptBR } from "date-fns/locale";
 
-type AdsPlatformType = 'meta_ads' | 'tiktok_ads';
+type AdsPlatformType = 'meta_ads' | 'tiktok_ads' | 'google_ads';
 
 const platformLabels: Record<AdsPlatformType, string> = {
   meta_ads: 'Meta Ads',
   tiktok_ads: 'TikTok Ads',
+  google_ads: 'Google Ads',
 };
 
 interface AdsConnectionBannerProps {
@@ -30,7 +31,8 @@ export function AdsConnectionBanner({
 }: AdsConnectionBannerProps) {
   const metaSync = useSyncMetaAds();
   const tiktokSync = useSyncTikTokAds();
-  const syncMutation = platform === 'tiktok_ads' ? tiktokSync : metaSync;
+  const googleSync = useSyncGoogleAds();
+  const syncMutation = platform === 'tiktok_ads' ? tiktokSync : platform === 'google_ads' ? googleSync : metaSync;
   const platformName = platformLabels[platform] || 'Ads';
 
   const handleSync = () => {
