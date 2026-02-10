@@ -1,53 +1,51 @@
 
-
-# Corrigir Customer ID do Google Ads e garantir sync funcional
+# Separar plataformas de Ads das de Marketplace e melhorar o banner de sync
 
 ## Problema
 
-A API do Google Ads **v18 foi descontinuada**. O endpoint `https://googleads.googleapis.com/v18/customers:listAccessibleCustomers` retorna **404 Not Found**, por isso o `customer_id` ficou `null` durante a conexao OAuth. A versao atual da API e a **v20**.
+1. Na pagina de Integracoes, as plataformas de Ads (Meta Ads, Google Ads, TikTok Ads) mostram botoes de "Importar Produtos" e "Sincronizar Pedidos" -- funcoes que nao fazem sentido pois elas sincronizam apenas metricas de anuncios.
 
-Isso afeta dois arquivos:
-- `google-ads-auth` -- nao conseguiu buscar o Customer ID durante o OAuth
-- `sync-google-ads` -- usa v18 tanto para `listAccessibleCustomers` quanto para `searchStream`
+2. Na pagina de Produtos, o dropdown "Importar" lista TODAS as integracoes conectadas, incluindo as de Ads, o que confunde o usuario.
+
+3. O banner de sincronizacao no Dashboard de Ads esta visualmente simples demais, com cards empilhados sem identidade visual.
 
 ## Mudancas
 
-### 1. `supabase/functions/google-ads-auth/index.ts` (linha 110)
+### 1. Pagina de Integracoes (`src/pages/Integrations.tsx`)
 
-Atualizar a URL da API de v18 para v20:
+**Cards de Ads conectados**: Remover os botoes "Importar Produtos" e "Sincronizar Pedidos" dos cards de integracao quando a plataforma for `meta_ads`, `google_ads` ou `tiktok_ads`. Em vez disso, mostrar um botao "Sincronizar Metricas" que redireciona para a aba Ads do Dashboard (`/app/dashboard?tab=ads`), deixando claro que essas plataformas servem para metricas, nao para produtos.
 
-```
-// Antes
-'https://googleads.googleapis.com/v18/customers:listAccessibleCustomers'
+**Botao "Sincronizar Todos os Pedidos" no header**: Contar apenas integracoes de marketplace (excluir ads) para decidir se mostra o botao.
 
-// Depois
-'https://googleads.googleapis.com/v20/customers:listAccessibleCustomers'
-```
+### 2. Pagina de Produtos (`src/pages/Products.tsx`)
 
-### 2. `supabase/functions/sync-google-ads/index.ts` (linhas 120 e 188)
+Filtrar a lista de integracoes para mostrar apenas plataformas de marketplace no dropdown de importacao. Adicionar uma lista de plataformas de ads para exclusao:
 
-Atualizar ambas as chamadas de API de v18 para v20:
-
-- Linha 120: `listAccessibleCustomers` (fallback quando nao tem customer_id salvo)
-- Linha 188: `searchStream` (busca de metricas de campanhas)
-
-```
-// Antes
-'https://googleads.googleapis.com/v18/customers:listAccessibleCustomers'
-`https://googleads.googleapis.com/v18/customers/${customerId}/googleAds:searchStream`
-
-// Depois
-'https://googleads.googleapis.com/v20/customers:listAccessibleCustomers'
-`https://googleads.googleapis.com/v20/customers/${customerId}/googleAds:searchStream`
+```text
+const adsPlatforms = ['meta_ads', 'google_ads', 'tiktok_ads'];
 ```
 
-### 3. Redeploy das duas Edge Functions
+Filtrar tanto no dropdown do header quanto no empty state, exibindo apenas integracoes cujo `platform` nao esta na lista de ads.
 
-Apos as mudancas, redeploy de `google-ads-auth` e `sync-google-ads`.
+### 3. Banner de Ads no Dashboard (`src/components/ads/AdsConnectionBanner.tsx`)
 
-## Apos implementar
+Redesenhar o banner para ficar mais atraente e profissional:
 
-Como o Customer ID ficou `null` na conexao atual, voce precisara:
-1. **Desconectar e reconectar** o Google Ads na pagina de integracoes (para buscar o Customer ID com a API v20)
-2. Ou sincronizar manualmente -- o `sync-google-ads` tambem tenta buscar o Customer ID como fallback
+- Quando conectado: layout horizontal com logo da plataforma, nome da conta, badge de status, data do ultimo sync e botao de sincronizar -- tudo em um design mais compacto e estilizado com gradiente sutil
+- Quando nao conectado: card com icone de alerta, mensagem clara e botao "Conectar" com visual mais destacado
+- Adicionar os logos das plataformas (Meta azul, Google colorido, TikTok rosa) ao lado do nome
+- Usar cores de fundo sutis por plataforma (azul para Meta, verde para Google, rosa para TikTok)
+- Melhorar espacamento, tipografia e hierarquia visual
 
+### 4. Dashboard de Ads (`src/components/ads/AdsDashboard.tsx`)
+
+Ajustar o layout dos banners para que multiplas integracoes aparecam em grid horizontal (lado a lado em desktop) em vez de empilhadas verticalmente, aproveitando melhor o espaco.
+
+## Resumo das alteracoes
+
+| Arquivo | O que muda |
+|---------|-----------|
+| `src/pages/Integrations.tsx` | Remove "Importar Produtos" e "Sincronizar Pedidos" de cards de Ads; adiciona "Sincronizar Metricas" com redirect |
+| `src/pages/Products.tsx` | Filtra integracoes de ads do dropdown de importacao |
+| `src/components/ads/AdsConnectionBanner.tsx` | Redesign visual com logos, cores por plataforma e layout mais profissional |
+| `src/components/ads/AdsDashboard.tsx` | Layout grid horizontal para banners de integracoes conectadas |
