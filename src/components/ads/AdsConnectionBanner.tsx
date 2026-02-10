@@ -89,7 +89,12 @@ export function AdsConnectionBanner({
             <div>
               <div className="flex items-center gap-2">
                 <p className="text-sm font-medium">
-                  {integration.account_name || platformName}
+                  {platformName}
+                  {integration.account_name && (
+                    <span className="text-muted-foreground font-normal ml-1">
+                      ({integration.account_name})
+                    </span>
+                  )}
                 </p>
                 {hasRealData ? (
                   <Badge variant="success" className="text-xs">Dados reais</Badge>
