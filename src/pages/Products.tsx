@@ -360,9 +360,10 @@ export default function Products() {
         return;
       }
 
-      // Filter only integrations with valid encrypted access tokens
+      // Filter only marketplace integrations with valid tokens (exclude ads platforms)
+      const adsPlatforms = ['meta_ads', 'google_ads', 'tiktok_ads'];
       const activeIntegrations = (data || []).filter(
-        integration => integration.encrypted_access_token != null
+        integration => integration.encrypted_access_token != null && !adsPlatforms.includes(integration.platform)
       );
       
       setIntegrations(activeIntegrations);

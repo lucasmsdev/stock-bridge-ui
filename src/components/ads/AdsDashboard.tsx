@@ -14,6 +14,8 @@ import {
 } from "./mockAdsData";
 import {
   useMetaAdsIntegration,
+  useTikTokAdsIntegration,
+  useGoogleAdsIntegration,
   useAdMetrics,
   useAggregatedMetrics,
   groupMetricsByCampaign,
@@ -22,18 +24,41 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { AlertCircle, Megaphone } from "lucide-react";
 
+const platformColors: Record<string, string> = {
+  meta_ads: '#1877F2',
+  tiktok_ads: '#EE1D52',
+  google_ads: '#34A853',
+};
+
+const platformLabels: Record<string, string> = {
+  meta_ads: 'Meta Ads',
+  tiktok_ads: 'TikTok Ads',
+  google_ads: 'Google Ads',
+};
+
 export function AdsDashboard() {
   const [platform, setPlatform] = useState<AdsPlatform>('all');
   const [period, setPeriod] = useState<AdsPeriod>('30days');
 
   // Real data hooks
-  const { data: integration, isLoading: integrationLoading } = useMetaAdsIntegration();
+  const { data: metaIntegration, isLoading: metaLoading } = useMetaAdsIntegration();
+  const { data: tiktokIntegration, isLoading: tiktokLoading } = useTikTokAdsIntegration();
+  const { data: googleIntegration, isLoading: googleLoading } = useGoogleAdsIntegration();
+  const integrationLoading = metaLoading || tiktokLoading || googleLoading;
   const daysMap = { '7days': 7, '30days': 30, '90days': 90 };
   const { data: realMetrics = [], isLoading: metricsLoading } = useAdMetrics(daysMap[period]);
 
-  // Calculate if we have real data
+  // Build list of active integrations
+  const activeIntegrations = useMemo(() => {
+    const list: { platform: 'meta_ads' | 'tiktok_ads' | 'google_ads'; integration: NonNullable<typeof metaIntegration> }[] = [];
+    if (metaIntegration) list.push({ platform: 'meta_ads', integration: metaIntegration });
+    if (tiktokIntegration) list.push({ platform: 'tiktok_ads', integration: tiktokIntegration });
+    if (googleIntegration) list.push({ platform: 'google_ads', integration: googleIntegration });
+    return list;
+  }, [metaIntegration, tiktokIntegration, googleIntegration]);
+
   const hasRealData = realMetrics.length > 0;
-  const isConnected = !!integration;
+  const isConnected = activeIntegrations.length > 0;
 
   // Get last sync date from metrics
   const lastSyncDate = useMemo(() => {
@@ -44,11 +69,31 @@ export function AdsDashboard() {
     }, realMetrics[0].date);
   }, [realMetrics]);
 
+  // Per-platform last sync dates
+  const lastSyncByPlatform = useMemo(() => {
+    const map: Record<string, string | undefined> = {};
+    for (const m of realMetrics) {
+      const current = map[m.platform];
+      if (!current || new Date(m.date) > new Date(current)) {
+        map[m.platform] = m.date;
+      }
+    }
+    return map;
+  }, [realMetrics]);
+
+  // Per-platform hasData
+  const hasDataByPlatform = useMemo(() => {
+    const map: Record<string, boolean> = {};
+    for (const m of realMetrics) {
+      map[m.platform] = true;
+    }
+    return map;
+  }, [realMetrics]);
+
   // Filter metrics by platform
   const filteredRealMetrics = useMemo(() => {
     if (platform === 'all') return realMetrics;
-    const platformMap = { 'meta_ads': 'meta_ads', 'google_ads': 'google_ads' };
-    return realMetrics.filter(m => m.platform === platformMap[platform]);
+    return realMetrics.filter(m => m.platform === platform);
   }, [realMetrics, platform]);
 
   // Calculate aggregated metrics from real data
@@ -62,8 +107,8 @@ export function AdsDashboard() {
   const mockDailyData = getAggregatedDailyData(platform);
   const mockPlatformBreakdown = getPlatformBreakdown();
 
-  // Use real data if available, otherwise mock
-  const displayTotals = hasRealData ? {
+  // Use real data when connected, mock only when disconnected
+  const displayTotals = isConnected ? {
     spend: realTotals.totalSpend,
     impressions: realTotals.totalImpressions,
     clicks: realTotals.totalClicks,
@@ -74,7 +119,7 @@ export function AdsDashboard() {
     roas: realTotals.roas,
   } : mockTotals;
 
-  const displayDailyData = hasRealData ? realDailyData.map(d => ({
+  const displayDailyData = isConnected ? realDailyData.map(d => ({
     date: d.date,
     displayDate: new Date(d.date).toLocaleDateString('pt-BR', { day: '2-digit', month: 'short' }),
     spend: d.spend,
@@ -84,10 +129,10 @@ export function AdsDashboard() {
     return mockDailyData.slice(-days);
   })();
 
-  const displayCampaigns = hasRealData ? realCampaigns.map(c => ({
+  const displayCampaigns = isConnected ? realCampaigns.map(c => ({
     id: c.campaign_id,
     name: c.campaign_name,
-    platform: c.platform as 'meta_ads' | 'google_ads',
+    platform: c.platform as 'meta_ads' | 'google_ads' | 'tiktok_ads',
     status: 'active' as const,
     spend: c.totalSpend,
     impressions: c.totalImpressions,
@@ -100,15 +145,33 @@ export function AdsDashboard() {
     roas: c.roas,
   })) : mockCampaigns;
 
-  // Platform breakdown - real or mock
-  const displayPlatformBreakdown = hasRealData ? [
-    {
-      platform: 'Meta Ads' as const,
-      spend: realTotals.totalSpend,
-      percentage: 100, // Only Meta Ads for now
-      color: '#1877F2',
-    },
-  ] : mockPlatformBreakdown;
+  // Platform breakdown from real metrics grouped by platform
+  const displayPlatformBreakdown = useMemo(() => {
+    if (!isConnected) return mockPlatformBreakdown;
+
+    const spendByPlatform: Record<string, number> = {};
+    for (const m of filteredRealMetrics) {
+      spendByPlatform[m.platform] = (spendByPlatform[m.platform] || 0) + m.spend;
+    }
+
+    // If no spend data, show connected platforms with zero
+    if (Object.keys(spendByPlatform).length === 0) {
+      return activeIntegrations.map(ai => ({
+        platform: platformLabels[ai.platform] || ai.platform,
+        spend: 0,
+        percentage: 100 / activeIntegrations.length,
+        color: platformColors[ai.platform] || '#888',
+      }));
+    }
+
+    const totalSpend = Object.values(spendByPlatform).reduce((s, v) => s + v, 0);
+    return Object.entries(spendByPlatform).map(([p, spend]) => ({
+      platform: platformLabels[p] || p,
+      spend,
+      percentage: totalSpend > 0 ? (spend / totalSpend) * 100 : 0,
+      color: platformColors[p] || '#888',
+    }));
+  }, [isConnected, filteredRealMetrics, activeIntegrations, mockPlatformBreakdown]);
 
   const handleClear = () => {
     setPlatform('all');
@@ -117,16 +180,30 @@ export function AdsDashboard() {
 
   return (
     <div className="space-y-4 md:space-y-6">
-      {/* Connection banner */}
-      <AdsConnectionBanner
-        integration={integration}
-        isLoading={integrationLoading}
-        hasRealData={hasRealData}
-        lastSyncDate={lastSyncDate}
-      />
+      {/* Connection banners - one per connected integration */}
+      {isConnected ? (
+        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3">
+          {activeIntegrations.map(ai => (
+            <AdsConnectionBanner
+              key={ai.platform}
+              integration={ai.integration}
+              isLoading={integrationLoading}
+              hasRealData={!!hasDataByPlatform[ai.platform]}
+              lastSyncDate={lastSyncByPlatform[ai.platform]}
+              platform={ai.platform}
+            />
+          ))}
+        </div>
+      ) : (
+        <AdsConnectionBanner
+          integration={null}
+          isLoading={integrationLoading}
+          hasRealData={false}
+        />
+      )}
 
-      {/* Header info banner - only show if using mock data */}
-      {!hasRealData && (
+      {/* Header info banner - only show if using mock data (not connected) */}
+      {!isConnected && (
         <div className="flex items-center gap-3 p-4 rounded-lg bg-primary/5 border border-primary/20">
           <Megaphone className="h-5 w-5 text-primary shrink-0" />
           <div className="flex-1">
@@ -160,10 +237,10 @@ export function AdsDashboard() {
             <Badge variant="secondary" className="gap-1">
               <div 
                 className={`w-2 h-2 rounded-full ${
-                  platform === 'meta_ads' ? 'bg-blue-500' : 'bg-green-500'
+                  platform === 'meta_ads' ? 'bg-blue-500' : platform === 'tiktok_ads' ? 'bg-pink-500' : 'bg-green-500'
                 }`}
               />
-              {platform === 'meta_ads' ? 'Meta Ads' : 'Google Ads'}
+              {platformLabels[platform] || platform}
             </Badge>
           )}
           <Badge variant="secondary">

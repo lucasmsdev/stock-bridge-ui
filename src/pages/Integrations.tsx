@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { useSearchParams, useNavigate } from "react-router-dom";
-import { Plus, Settings, Unlink, ExternalLink, CheckCircle2, Plug, Loader2, Lock, Download, Key, RefreshCw, Clock, AlertTriangle, ShieldAlert } from "lucide-react";
+import { Plus, Settings, Unlink, ExternalLink, CheckCircle2, Plug, Loader2, Lock, Download, Key, RefreshCw, Clock, AlertTriangle, ShieldAlert, Megaphone } from "lucide-react";
 import { useThemeProvider } from "@/components/layout/ThemeProvider";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -27,6 +27,7 @@ import { AmazonSelfAuthDialog } from "@/components/integrations/AmazonSelfAuthDi
 import { AmazonSellerIdDialog } from "@/components/integrations/AmazonSellerIdDialog";
 import { TokenStatusBadge, getTimeUntilExpiry } from "@/components/integrations/TokenStatusBadge";
 import { useOrgRole } from "@/hooks/useOrgRole";
+import { TikTokSandboxDialog } from "@/components/integrations/TikTokSandboxDialog";
 
 // Integration type
 interface IntegrationPlatform {
@@ -103,7 +104,6 @@ const adsIntegrations: IntegrationPlatform[] = [
     id: "tiktok_ads",
     name: "TikTok Ads",
     description: "Métricas de campanhas do TikTok Ads - vídeos e performance",
-    comingSoon: true,
     logoUrl: "https://sf-tb-sg.ibytedtos.com/obj/eden-sg/uhtyvueh7nulogpoguhm/tiktok-icon2.png",
   },
 ];
@@ -121,6 +121,7 @@ export default function Integrations() {
   const [connectedIntegrations, setConnectedIntegrations] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [amazonSelfAuthOpen, setAmazonSelfAuthOpen] = useState(false);
+  const [tiktokSandboxOpen, setTiktokSandboxOpen] = useState(false);
   const [amazonSellerIdDialog, setAmazonSellerIdDialog] = useState<{ open: boolean; integrationId: string; currentSellerId?: string | null }>({
     open: false,
     integrationId: "",
@@ -234,6 +235,10 @@ export default function Integrations() {
               integration.account_name = accountName;
             } else if (integration.platform === "google_ads") {
               const accountName = "Conta Google Ads";
+              await supabase.from("integrations").update({ account_name: accountName }).eq("id", integration.id);
+              integration.account_name = accountName;
+            } else if (integration.platform === "tiktok_ads") {
+              const accountName = "Conta TikTok Ads";
               await supabase.from("integrations").update({ account_name: accountName }).eq("id", integration.id);
               integration.account_name = accountName;
             }
@@ -440,6 +445,36 @@ export default function Integrations() {
         `?service_id=${tiktokAppKey}`;
 
       console.log("🔄 Redirecionando para TikTok Shop...");
+      window.location.href = authUrl;
+    } else if (platformId === "tiktok_ads") {
+      // TikTok Ads OAuth flow
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
+
+      if (!user) {
+        toast({
+          title: "Erro de autenticação",
+          description: "Faça login para conectar integrações.",
+          variant: "destructive",
+        });
+        return;
+      }
+
+      console.log("🎵 Iniciando fluxo TikTok Ads...");
+
+      // Fluxo OAuth de produção
+      const tiktokAdsAppId = "7604695140725751824";
+      const callbackUrl = `https://fcvwogaqarkuqvumyqqm.supabase.co/functions/v1/tiktok-ads-auth`;
+      const stateParam = `${user.id}`;
+
+      const authUrl =
+        `https://business-api.tiktok.com/portal/auth` +
+        `?app_id=${tiktokAdsAppId}` +
+        `&state=${stateParam}` +
+        `&redirect_uri=${encodeURIComponent(callbackUrl)}`;
+
+      console.log('🔄 Redirecionando para TikTok Business...');
       window.location.href = authUrl;
     } else {
       // Mock connection logic for other platforms
@@ -693,7 +728,7 @@ export default function Integrations() {
           <h1 className="text-2xl md:text-3xl font-bold">Integrações de Canais</h1>
           <p className="text-muted-foreground">Conecte e gerencie seus canais de venda em um só lugar</p>
         </div>
-        {connectedIntegrations.length > 0 && (
+        {connectedIntegrations.filter((i: any) => !['meta_ads', 'google_ads', 'tiktok_ads'].includes(i.platform)).length > 0 && (
           <Button
             onClick={handleSyncAllOrders}
             disabled={syncingAll || syncingId !== null}
@@ -866,59 +901,77 @@ export default function Integrations() {
                           </div>
                         )}
 
-                        <Separator />
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          className="w-full"
-                          onClick={() =>
-                            handleSyncOrders(
-                              integration.id,
-                              integration.platform,
-                              integration.account_nickname || integration.account_name,
-                            )
-                          }
-                          disabled={syncingId === integration.id || syncingAll}
-                        >
-                          {syncingId === integration.id ? (
-                            <>
-                              <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                              <span className="animate-pulse">Sincronizando...</span>
-                            </>
-                          ) : (
-                            <>
-                              <RefreshCw className="w-4 h-4 mr-2" />
-                              Sincronizar Pedidos
-                            </>
-                          )}
-                        </Button>
+                        {/* Ads platforms: show "Sincronizar Métricas" instead of import/sync */}
+                        {['meta_ads', 'google_ads', 'tiktok_ads'].includes(integration.platform) ? (
+                          <>
+                            <Separator />
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              className="w-full"
+                              onClick={() => navigate('/app/dashboard?tab=ads')}
+                            >
+                              <Megaphone className="w-4 h-4 mr-2" />
+                              Sincronizar Métricas
+                            </Button>
+                          </>
+                        ) : (
+                          <>
+                            <Separator />
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              className="w-full"
+                              onClick={() =>
+                                handleSyncOrders(
+                                  integration.id,
+                                  integration.platform,
+                                  integration.account_nickname || integration.account_name,
+                                )
+                              }
+                              disabled={syncingId === integration.id || syncingAll}
+                            >
+                              {syncingId === integration.id ? (
+                                <>
+                                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                                  <span className="animate-pulse">Sincronizando...</span>
+                                </>
+                              ) : (
+                                <>
+                                  <RefreshCw className="w-4 h-4 mr-2" />
+                                  Sincronizar Pedidos
+                                </>
+                              )}
+                            </Button>
 
-                        {/* Import Products Button for all platforms */}
-                        <Button
-                          variant="default"
-                          size="sm"
-                          className="w-full bg-gradient-primary relative overflow-hidden"
-                          onClick={() =>
-                            handleImportProducts(
-                              integration.id,
-                              integration.platform,
-                              integration.account_nickname || integration.account_name,
-                            )
-                          }
-                          disabled={importingId === integration.id}
-                        >
-                          {importingId === integration.id ? (
-                            <>
-                              <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                              <span className="animate-pulse">Importando...</span>
-                            </>
-                          ) : (
-                            <>
-                              <Download className="w-4 h-4 mr-2" />
-                              Importar Produtos
-                            </>
-                          )}
-                        </Button>
+                            {/* Import Products Button - only for marketplaces */}
+                            <Button
+                              variant="default"
+                              size="sm"
+                              className="w-full bg-gradient-primary relative overflow-hidden"
+                              onClick={() =>
+                                handleImportProducts(
+                                  integration.id,
+                                  integration.platform,
+                                  integration.account_nickname || integration.account_name,
+                                )
+                              }
+                              disabled={importingId === integration.id}
+                            >
+                              {importingId === integration.id ? (
+                                <>
+                                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                                  <span className="animate-pulse">Importando...</span>
+                                </>
+                              ) : (
+                                <>
+                                  <Download className="w-4 h-4 mr-2" />
+                                  Importar Produtos
+                                </>
+                              )}
+                            </Button>
+                          </>
+                        )}
 
                         <Separator />
 
@@ -1204,6 +1257,13 @@ export default function Integrations() {
         onSuccess={loadConnectedIntegrations}
         integrationId={amazonSellerIdDialog.integrationId}
         currentSellerId={amazonSellerIdDialog.currentSellerId}
+      />
+
+      {/* TikTok Ads Sandbox Dialog */}
+      <TikTokSandboxDialog
+        open={tiktokSandboxOpen}
+        onOpenChange={setTiktokSandboxOpen}
+        onSuccess={loadConnectedIntegrations}
       />
     </div>
   );
