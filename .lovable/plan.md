@@ -1,35 +1,34 @@
 
-# Corrigir Dashboard de Ads: Mostrar dados reais em vez de mock quando conectado
+# Corrigir Dashboard de Ads: Suporte a multiplas plataformas simultaneas
 
-## Problema identificado
+## Problema
 
-O sync do TikTok Ads executou com sucesso, mas o sandbox retornou **0 campanhas** (sem dados de anuncios). Como a tabela `ad_metrics` continua vazia, a logica do dashboard (`hasRealData = realMetrics.length > 0`) faz o fallback para dados mock estaticos. Resultado: mesmo conectado, o usuario ve dados falsos.
+Voce tem **ambas** as integracoes conectadas (Meta Ads e TikTok Ads), mas o codigo atual so reconhece uma por vez. Como o TikTok foi adicionado depois, ele "esconde" o Meta Ads em todos os pontos:
+
+- Linha 40: `const integration = metaIntegration || tiktokIntegration` -- so mostra uma
+- Linha 108: `tiktokIntegration ? 'TikTok Ads' : 'Meta Ads'` -- TikTok sempre ganha
+- Linha 132: `platform={tiktokIntegration ? 'tiktok_ads' : 'meta_ads'}` -- botao Sincronizar so chama TikTok
+- Resultado: o Meta Ads (que tem dados) nunca e sincronizado
 
 ## Solucao
 
-Mudar a logica de decisao do dashboard: quando o usuario **tem uma integracao conectada** (`isConnected = true`), o dashboard deve mostrar os **dados reais** (mesmo que sejam zeros), e nao os dados mock. Os dados mock so devem aparecer quando **nenhuma plataforma esta conectada**.
+Transformar o banner e a logica para suportar **todas** as integracoes conectadas ao mesmo tempo.
 
-## Alteracoes
+### 1. `AdsDashboard.tsx`
 
-### 1. `src/components/ads/AdsDashboard.tsx`
+- Criar lista de integracoes ativas (ex: `[{platform: 'meta_ads', ...}, {platform: 'tiktok_ads', ...}]`)
+- Renderizar um `AdsConnectionBanner` **por integracao** conectada (um para Meta, outro para TikTok)
+- Platform breakdown: mostrar ambas as plataformas com porcentagem proporcional ao gasto, em vez de forcar 100% para uma so
+- Manter a logica de `isConnected` para decidir entre dados reais vs mock
 
-Trocar a variavel de decisao de `hasRealData` para `isConnected` nos blocos de fallback:
+### 2. `AdsConnectionBanner.tsx`
 
-- **`displayTotals`**: Se `isConnected`, mostrar os totais reais (que serao zero se nao houver metricas). Se nao conectado, mostrar mock.
-- **`displayDailyData`**: Se `isConnected`, mostrar array vazio ou dados reais. Se nao, mostrar mock.
-- **`displayCampaigns`**: Se `isConnected`, mostrar lista vazia ou campanhas reais. Se nao, mostrar mock.
-- **`displayPlatformBreakdown`**: Mesmo comportamento.
-- **Banner "Dados de demonstracao"**: Mostrar apenas quando `!isConnected` (ja nao mostrar quando conectado mas sem dados).
+- Receber a integracao especifica e sua plataforma como props (sem mudanca na interface, apenas garantir que cada instancia receba a plataforma correta)
+- Cada banner tera seu proprio botao "Sincronizar" chamando a edge function correta
 
-### 2. Adicionar estado vazio amigavel
+### 3. Resultado esperado
 
-Quando `isConnected` mas `!hasRealData`:
-- Nos cards de metricas, todos aparecerao zerados (comportamento natural)
-- Na tabela de campanhas, mostrar mensagem "Nenhuma campanha encontrada. Clique em Sincronizar para buscar dados."
-- No grafico, mostrar estado vazio com mensagem orientadora
-
-## Resultado esperado
-
-- Conectado + sem dados = metricas zeradas + mensagem orientadora (sem dados mock)
-- Conectado + com dados = metricas reais
-- Nao conectado = dados mock com badge "Dados de demonstracao"
+- Dois banners: um para Meta Ads (com "Dados reais") e outro para TikTok Ads (com "Sem dados ainda")
+- Botao Sincronizar do Meta chama `sync-meta-ads`, do TikTok chama `sync-tiktok-ads`
+- Metricas e campanhas consolidam dados de **ambas** as plataformas
+- Filtro por plataforma continua funcionando normalmente
