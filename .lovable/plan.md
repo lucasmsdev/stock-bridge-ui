@@ -1,34 +1,45 @@
 
-# Corrigir Dashboard de Ads: Suporte a multiplas plataformas simultaneas
+# Corrigir sync-meta-ads: Buscar dados de contas inativas
 
-## Problema
+## Problema raiz
 
-Voce tem **ambas** as integracoes conectadas (Meta Ads e TikTok Ads), mas o codigo atual so reconhece uma por vez. Como o TikTok foi adicionado depois, ele "esconde" o Meta Ads em todos os pontos:
+Os logs confirmam que **todas as 4 contas de anúncio** do Meta estão sendo ignoradas:
 
-- Linha 40: `const integration = metaIntegration || tiktokIntegration` -- so mostra uma
-- Linha 108: `tiktokIntegration ? 'TikTok Ads' : 'Meta Ads'` -- TikTok sempre ganha
-- Linha 132: `platform={tiktokIntegration ? 'tiktok_ads' : 'meta_ads'}` -- botao Sincronizar so chama TikTok
-- Resultado: o Meta Ads (que tem dados) nunca e sincronizado
+```
+⏭️ Skipping inactive account: awbshop
+⏭️ Skipping inactive account: awbshop1
+⏭️ Skipping inactive account: SmartCompras
+⏭️ Skipping inactive account: Lucas Machado
+```
+
+A linha 154-158 do `sync-meta-ads/index.ts` pula qualquer conta com `account_status !== 1`. Porém, contas com status diferente de 1 (desabilitadas, em revisao, etc.) **ainda possuem dados historicos de campanhas** que devem ser exibidos no dashboard.
 
 ## Solucao
 
-Transformar o banner e a logica para suportar **todas** as integracoes conectadas ao mesmo tempo.
+### 1. `supabase/functions/sync-meta-ads/index.ts`
 
-### 1. `AdsDashboard.tsx`
+- **Remover o filtro que pula contas inativas** (linhas 154-158)
+- Permitir que o sistema busque insights de **todas** as contas, independente do `account_status`
+- A API do Meta retorna dados historicos mesmo de contas pausadas/desabilitadas
+- Adicionar log do `account_status` para debug, mas sem bloquear
 
-- Criar lista de integracoes ativas (ex: `[{platform: 'meta_ads', ...}, {platform: 'tiktok_ads', ...}]`)
-- Renderizar um `AdsConnectionBanner` **por integracao** conectada (um para Meta, outro para TikTok)
-- Platform breakdown: mostrar ambas as plataformas com porcentagem proporcional ao gasto, em vez de forcar 100% para uma so
-- Manter a logica de `isConnected` para decidir entre dados reais vs mock
+**Antes:**
+```typescript
+if (adAccount.account_status !== 1) {
+  console.log('Skipping inactive account:', adAccount.name);
+  continue;
+}
+```
 
-### 2. `AdsConnectionBanner.tsx`
+**Depois:**
+```typescript
+console.log('Processing account:', adAccount.name, 'status:', adAccount.account_status);
+// Busca insights de todas as contas (inclusive pausadas) para dados historicos
+```
 
-- Receber a integracao especifica e sua plataforma como props (sem mudanca na interface, apenas garantir que cada instancia receba a plataforma correta)
-- Cada banner tera seu proprio botao "Sincronizar" chamando a edge function correta
+### 2. Resultado esperado
 
-### 3. Resultado esperado
-
-- Dois banners: um para Meta Ads (com "Dados reais") e outro para TikTok Ads (com "Sem dados ainda")
-- Botao Sincronizar do Meta chama `sync-meta-ads`, do TikTok chama `sync-tiktok-ads`
-- Metricas e campanhas consolidam dados de **ambas** as plataformas
-- Filtro por plataforma continua funcionando normalmente
+- O sync vai tentar buscar insights de todas as 4 contas
+- Contas que tiveram campanhas (mesmo pausadas) vao retornar dados historicos
+- A tabela `ad_metrics` sera populada com os insights encontrados
+- O Dashboard de Ads vai mostrar os dados reais do Meta Ads
