@@ -1,31 +1,31 @@
 
 
-# Verificar integração TikTok Ads no Dashboard
+# Botao Sincronizar com suporte a TikTok Ads
 
-## Situação atual
+## Problema atual
 
-A tabela `ad_metrics` está vazia. Os gráficos do dashboard mostram **dados mock hardcoded** do arquivo `mockAdsData.ts`, não dados do banco. Por isso, mesmo conectando o TikTok, o dashboard continua mostrando os mesmos valores.
+O banner de conexao no Dashboard de Ads ja tem um botao "Sincronizar", mas ele so chama a edge function `sync-meta-ads`. Quando a integracao ativa e do TikTok Ads, o botao precisa chamar `sync-tiktok-ads` em vez disso.
 
-## O que precisa ser feito
+## O que sera feito
 
-### 1. Executar o sync do TikTok Ads
+### 1. Atualizar `AdsConnectionBanner.tsx`
 
-Chamar a edge function `sync-tiktok-ads` para buscar dados do sandbox e popular a tabela `ad_metrics`. Isso fará o dashboard detectar dados reais e parar de usar os mock.
+- Receber a plataforma da integracao ativa (meta_ads ou tiktok_ads) como prop
+- Usar `useSyncTikTokAds` quando a plataforma for TikTok
+- Usar `useSyncMetaAds` quando for Meta Ads
+- Mostrar o nome correto da plataforma no banner (em vez de sempre "Meta Ads")
 
-### 2. Verificar o resultado
+### 2. Atualizar `AdsDashboard.tsx`
 
-Após o sync:
-- Se dados forem inseridos em `ad_metrics`, o dashboard mostrará os dados reais do TikTok
-- Se o sync falhar (sandbox pode ter limitações de dados), verificamos os logs para entender o problema
+- Passar a informacao de plataforma para o `AdsConnectionBanner`
+- Quando nenhuma integracao estiver conectada, mostrar mensagem generica em vez de "Meta Ads nao conectado"
 
-## Detalhes técnicos
+## Detalhes tecnicos
 
-| Etapa | Ação |
+| Arquivo | Alteracao |
 |---|---|
-| Executar sync | Chamar `sync-tiktok-ads` via POST |
-| Verificar banco | Consultar `ad_metrics` para confirmar inserção |
-| Verificar logs | Ler logs da edge function em caso de erro |
-| Dashboard | Confirmar que os dados reais aparecem em vez dos mock |
+| `src/components/ads/AdsConnectionBanner.tsx` | Adicionar prop `platform`, usar o hook de sync correto baseado na plataforma, exibir nome da plataforma dinamicamente |
+| `src/components/ads/AdsDashboard.tsx` | Passar prop `platform` com o valor da integracao ativa (`meta_ads` ou `tiktok_ads`) |
 
-Nenhum arquivo será alterado. Apenas execução e diagnóstico.
+O botao "Sincronizar" que ja existe no banner passara a funcionar corretamente para qualquer plataforma conectada (Meta ou TikTok).
 
