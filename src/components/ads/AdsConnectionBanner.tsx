@@ -1,17 +1,24 @@
-import { useState } from "react";
 import { CheckCircle2, AlertCircle, RefreshCw, Link2, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
-import { MetaIntegration, useSyncMetaAds } from "./useMetaAdsData";
+import { MetaIntegration, useSyncMetaAds, useSyncTikTokAds } from "./useMetaAdsData";
 import { formatDistanceToNow } from "date-fns";
 import { ptBR } from "date-fns/locale";
+
+type AdsPlatformType = 'meta_ads' | 'tiktok_ads';
+
+const platformLabels: Record<AdsPlatformType, string> = {
+  meta_ads: 'Meta Ads',
+  tiktok_ads: 'TikTok Ads',
+};
 
 interface AdsConnectionBannerProps {
   integration: MetaIntegration | null;
   isLoading: boolean;
   hasRealData: boolean;
   lastSyncDate?: string;
+  platform?: AdsPlatformType;
 }
 
 export function AdsConnectionBanner({
@@ -19,8 +26,12 @@ export function AdsConnectionBanner({
   isLoading,
   hasRealData,
   lastSyncDate,
+  platform = 'meta_ads',
 }: AdsConnectionBannerProps) {
-  const syncMutation = useSyncMetaAds();
+  const metaSync = useSyncMetaAds();
+  const tiktokSync = useSyncTikTokAds();
+  const syncMutation = platform === 'tiktok_ads' ? tiktokSync : metaSync;
+  const platformName = platformLabels[platform] || 'Ads';
 
   const handleSync = () => {
     syncMutation.mutate(30);
@@ -47,9 +58,9 @@ export function AdsConnectionBanner({
             <div className="flex items-center gap-3">
               <AlertCircle className="h-5 w-5 text-warning shrink-0" />
               <div>
-                <p className="text-sm font-medium">Meta Ads não conectado</p>
+                <p className="text-sm font-medium">Nenhuma plataforma de Ads conectada</p>
                 <p className="text-xs text-muted-foreground">
-                  Conecte sua conta para ver métricas reais de campanhas
+                  Conecte Meta Ads ou TikTok Ads para ver métricas reais
                 </p>
               </div>
             </div>
@@ -78,7 +89,7 @@ export function AdsConnectionBanner({
             <div>
               <div className="flex items-center gap-2">
                 <p className="text-sm font-medium">
-                  {integration.account_name || 'Meta Ads'}
+                  {integration.account_name || platformName}
                 </p>
                 {hasRealData ? (
                   <Badge variant="success" className="text-xs">Dados reais</Badge>
