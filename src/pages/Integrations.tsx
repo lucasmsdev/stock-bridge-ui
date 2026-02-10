@@ -465,13 +465,22 @@ export default function Integrations() {
       const tiktokAdsAppId = "7604695140725751824";
       const callbackUrl = `https://fcvwogaqarkuqvumyqqm.supabase.co/functions/v1/tiktok-ads-auth`;
 
+      // Detecta se deve usar sandbox via variável de ambiente
+      const isSandbox = import.meta.env.VITE_TIKTOK_ADS_SANDBOX === 'true';
+      const tiktokBaseUrl = isSandbox
+        ? 'https://sandbox-ads.tiktok.com'
+        : 'https://business-api.tiktok.com';
+
+      // Envia flag sandbox no state: "userId:sandbox" ou apenas "userId"
+      const stateParam = isSandbox ? `${user.id}:sandbox` : user.id;
+
       const authUrl =
-        `https://business-api.tiktok.com/portal/auth` +
+        `${tiktokBaseUrl}/portal/auth` +
         `?app_id=${tiktokAdsAppId}` +
-        `&state=${user.id}` +
+        `&state=${stateParam}` +
         `&redirect_uri=${encodeURIComponent(callbackUrl)}`;
 
-      console.log("🔄 Redirecionando para TikTok Business...");
+      console.log(`🔄 Redirecionando para TikTok Business (${isSandbox ? 'SANDBOX' : 'PRODUÇÃO'})...`);
       window.location.href = authUrl;
     } else {
       // Mock connection logic for other platforms
