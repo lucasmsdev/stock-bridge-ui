@@ -117,7 +117,7 @@ serve(async (req) => {
         console.log('📤 No stored customer ID, fetching accessible customers...');
         try {
           const customersResponse = await fetch(
-            'https://googleads.googleapis.com/v18/customers:listAccessibleCustomers',
+            'https://googleads.googleapis.com/v20/customers:listAccessibleCustomers',
             {
               headers: {
                 Authorization: `Bearer ${accessToken}`,
@@ -185,7 +185,7 @@ serve(async (req) => {
       `;
 
       const searchResponse = await fetch(
-        `https://googleads.googleapis.com/v18/customers/${customerId}/googleAds:searchStream`,
+        `https://googleads.googleapis.com/v20/customers/${customerId}/googleAds:searchStream`,
         {
           method: 'POST',
           headers: {

@@ -107,7 +107,7 @@ serve(async (req) => {
       console.log('📤 Fetching Google Ads customer accounts...');
       try {
         const customersResponse = await fetch(
-          'https://googleads.googleapis.com/v18/customers:listAccessibleCustomers',
+          'https://googleads.googleapis.com/v20/customers:listAccessibleCustomers',
           {
             headers: {
               Authorization: `Bearer ${accessToken}`,
