@@ -1,31 +1,35 @@
 
+# Corrigir Dashboard de Ads: Mostrar dados reais em vez de mock quando conectado
 
-# Botao Sincronizar com suporte a TikTok Ads
+## Problema identificado
 
-## Problema atual
+O sync do TikTok Ads executou com sucesso, mas o sandbox retornou **0 campanhas** (sem dados de anuncios). Como a tabela `ad_metrics` continua vazia, a logica do dashboard (`hasRealData = realMetrics.length > 0`) faz o fallback para dados mock estaticos. Resultado: mesmo conectado, o usuario ve dados falsos.
 
-O banner de conexao no Dashboard de Ads ja tem um botao "Sincronizar", mas ele so chama a edge function `sync-meta-ads`. Quando a integracao ativa e do TikTok Ads, o botao precisa chamar `sync-tiktok-ads` em vez disso.
+## Solucao
 
-## O que sera feito
+Mudar a logica de decisao do dashboard: quando o usuario **tem uma integracao conectada** (`isConnected = true`), o dashboard deve mostrar os **dados reais** (mesmo que sejam zeros), e nao os dados mock. Os dados mock so devem aparecer quando **nenhuma plataforma esta conectada**.
 
-### 1. Atualizar `AdsConnectionBanner.tsx`
+## Alteracoes
 
-- Receber a plataforma da integracao ativa (meta_ads ou tiktok_ads) como prop
-- Usar `useSyncTikTokAds` quando a plataforma for TikTok
-- Usar `useSyncMetaAds` quando for Meta Ads
-- Mostrar o nome correto da plataforma no banner (em vez de sempre "Meta Ads")
+### 1. `src/components/ads/AdsDashboard.tsx`
 
-### 2. Atualizar `AdsDashboard.tsx`
+Trocar a variavel de decisao de `hasRealData` para `isConnected` nos blocos de fallback:
 
-- Passar a informacao de plataforma para o `AdsConnectionBanner`
-- Quando nenhuma integracao estiver conectada, mostrar mensagem generica em vez de "Meta Ads nao conectado"
+- **`displayTotals`**: Se `isConnected`, mostrar os totais reais (que serao zero se nao houver metricas). Se nao conectado, mostrar mock.
+- **`displayDailyData`**: Se `isConnected`, mostrar array vazio ou dados reais. Se nao, mostrar mock.
+- **`displayCampaigns`**: Se `isConnected`, mostrar lista vazia ou campanhas reais. Se nao, mostrar mock.
+- **`displayPlatformBreakdown`**: Mesmo comportamento.
+- **Banner "Dados de demonstracao"**: Mostrar apenas quando `!isConnected` (ja nao mostrar quando conectado mas sem dados).
 
-## Detalhes tecnicos
+### 2. Adicionar estado vazio amigavel
 
-| Arquivo | Alteracao |
-|---|---|
-| `src/components/ads/AdsConnectionBanner.tsx` | Adicionar prop `platform`, usar o hook de sync correto baseado na plataforma, exibir nome da plataforma dinamicamente |
-| `src/components/ads/AdsDashboard.tsx` | Passar prop `platform` com o valor da integracao ativa (`meta_ads` ou `tiktok_ads`) |
+Quando `isConnected` mas `!hasRealData`:
+- Nos cards de metricas, todos aparecerao zerados (comportamento natural)
+- Na tabela de campanhas, mostrar mensagem "Nenhuma campanha encontrada. Clique em Sincronizar para buscar dados."
+- No grafico, mostrar estado vazio com mensagem orientadora
 
-O botao "Sincronizar" que ja existe no banner passara a funcionar corretamente para qualquer plataforma conectada (Meta ou TikTok).
+## Resultado esperado
 
+- Conectado + sem dados = metricas zeradas + mensagem orientadora (sem dados mock)
+- Conectado + com dados = metricas reais
+- Nao conectado = dados mock com badge "Dados de demonstracao"
