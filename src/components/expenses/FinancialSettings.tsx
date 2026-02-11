@@ -108,7 +108,7 @@ export function FinancialSettings({ onSettingsChange }: FinancialSettingsProps) 
 
   return (
     <Card>
-      <CardHeader>
+      <CardHeader className="p-8">
         <CardTitle className="flex items-center gap-2">
           <Settings className="h-5 w-5 text-primary" />
           Taxas por Marketplace
@@ -117,9 +117,9 @@ export function FinancialSettings({ onSettingsChange }: FinancialSettingsProps) 
           As taxas de comissão e pagamento são aplicadas automaticamente com base nos valores oficiais de cada plataforma. Você só precisa definir o regime tributário da sua empresa.
         </CardDescription>
       </CardHeader>
-      <CardContent className="space-y-6">
+      <CardContent className="p-8 pt-2 space-y-8">
         {/* Global Tax Regime Selector */}
-        <div className="flex flex-col sm:flex-row sm:items-center gap-3 p-4 rounded-lg border bg-muted/30">
+        <div className="flex flex-col sm:flex-row sm:items-center gap-3 p-5 rounded-lg border bg-muted/30">
           <div className="flex-1 min-w-0">
             <p className="text-sm font-semibold text-foreground">Regime Tributário</p>
             <p className="text-xs text-muted-foreground">
@@ -145,7 +145,7 @@ export function FinancialSettings({ onSettingsChange }: FinancialSettingsProps) 
         </div>
 
         {/* Platform Cards */}
-        <div className="grid gap-5 grid-cols-1 md:grid-cols-2 xl:grid-cols-3 w-full">
+        <div className="grid gap-6 grid-cols-1 md:grid-cols-2 xl:grid-cols-3 w-full">
           {feeProfiles.map(profile => (
             <PlatformFeeCard key={profile.id} profile={profile} />
           ))}
