@@ -33,39 +33,39 @@ function PlatformFeeCard({ profile }: { profile: MarketplaceFeeProfile }) {
 
   return (
     <Card className="shadow-soft hover:shadow-medium transition-shadow">
-      <CardContent className="pt-5 pb-4">
-        <div className="flex items-center justify-between mb-4 gap-2">
-          <div className="flex items-center gap-3 min-w-0">
+      <CardContent className="pt-6 pb-5 px-6">
+        <div className="flex items-center justify-between mb-5 gap-3">
+          <div className="flex items-center gap-4 min-w-0">
             <PlatformLogo platform={platform} size="lg" className="shrink-0" />
             <div className="min-w-0">
-              <p className="font-semibold text-foreground truncate">{label}</p>
-              <p className="text-xs text-muted-foreground">
-                Taxa total: <span className="font-medium text-primary">{totalFee.toFixed(1)}%</span>
+              <p className="text-base font-semibold text-foreground truncate">{label}</p>
+              <p className="text-sm text-muted-foreground mt-0.5">
+                Taxa total: <span className="font-semibold text-primary">{totalFee.toFixed(1)}%</span>
               </p>
             </div>
           </div>
-          <Badge variant="secondary" className="gap-1 text-xs shrink-0">
-            <Zap className="h-3 w-3" />
+          <Badge variant="secondary" className="gap-1.5 text-xs px-3 py-1 shrink-0">
+            <Zap className="h-3.5 w-3.5" />
             Automático
           </Badge>
         </div>
 
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-center">
-          <div className="p-2 rounded bg-muted/50">
-            <p className="text-xs text-muted-foreground">Comissão</p>
-            <p className="text-sm font-semibold">{commission}%</p>
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-center">
+          <div className="p-3 rounded-lg bg-muted/50">
+            <p className="text-xs text-muted-foreground mb-1">Comissão</p>
+            <p className="text-base font-semibold">{commission}%</p>
           </div>
-          <div className="p-2 rounded bg-muted/50">
-            <p className="text-xs text-muted-foreground">Pgto</p>
-            <p className="text-sm font-semibold">{paymentFee}%</p>
+          <div className="p-3 rounded-lg bg-muted/50">
+            <p className="text-xs text-muted-foreground mb-1">Pgto</p>
+            <p className="text-base font-semibold">{paymentFee}%</p>
           </div>
-          <div className="p-2 rounded bg-muted/50">
-            <p className="text-xs text-muted-foreground">Fixa</p>
-            <p className="text-sm font-semibold">R${fixedFee}</p>
+          <div className="p-3 rounded-lg bg-muted/50">
+            <p className="text-xs text-muted-foreground mb-1">Fixa</p>
+            <p className="text-base font-semibold">R${fixedFee}</p>
           </div>
-          <div className="p-2 rounded bg-muted/50">
-            <p className="text-xs text-muted-foreground">Imposto</p>
-            <p className="text-sm font-semibold">{profile.tax_percent}%</p>
+          <div className="p-3 rounded-lg bg-muted/50">
+            <p className="text-xs text-muted-foreground mb-1">Imposto</p>
+            <p className="text-base font-semibold">{profile.tax_percent}%</p>
           </div>
         </div>
       </CardContent>
