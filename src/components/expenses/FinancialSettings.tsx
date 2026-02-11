@@ -3,10 +3,10 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Settings, Loader2, Zap } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
+import { PlatformLogo } from "@/components/ui/platform-logo";
 import { 
   useMarketplaceFees, 
   PLATFORM_LABELS, 
-  PLATFORM_LOGOS, 
   TAX_REGIMES, 
   DEFAULT_FEES,
   MarketplaceFeeProfile 
@@ -23,7 +23,6 @@ interface FinancialSettingsProps {
 
 function PlatformFeeCard({ profile }: { profile: MarketplaceFeeProfile }) {
   const platform = profile.platform;
-  const logo = PLATFORM_LOGOS[platform];
   const label = PLATFORM_LABELS[platform] || platform;
   const defaults = DEFAULT_FEES[platform];
   
@@ -35,23 +34,23 @@ function PlatformFeeCard({ profile }: { profile: MarketplaceFeeProfile }) {
   return (
     <Card className="shadow-soft hover:shadow-medium transition-shadow">
       <CardContent className="pt-5 pb-4">
-        <div className="flex items-center justify-between mb-4">
-          <div className="flex items-center gap-3">
-            <img src={logo} alt={label} className="h-8 w-8 object-contain rounded" />
-            <div>
-              <p className="font-semibold text-foreground">{label}</p>
+        <div className="flex items-center justify-between mb-4 gap-2">
+          <div className="flex items-center gap-3 min-w-0">
+            <PlatformLogo platform={platform} size="lg" className="shrink-0" />
+            <div className="min-w-0">
+              <p className="font-semibold text-foreground truncate">{label}</p>
               <p className="text-xs text-muted-foreground">
                 Taxa total: <span className="font-medium text-primary">{totalFee.toFixed(1)}%</span>
               </p>
             </div>
           </div>
-          <Badge variant="secondary" className="gap-1 text-xs">
+          <Badge variant="secondary" className="gap-1 text-xs shrink-0">
             <Zap className="h-3 w-3" />
             Automático
           </Badge>
         </div>
 
-        <div className="grid grid-cols-4 gap-2 text-center">
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-center">
           <div className="p-2 rounded bg-muted/50">
             <p className="text-xs text-muted-foreground">Comissão</p>
             <p className="text-sm font-semibold">{commission}%</p>
@@ -121,7 +120,7 @@ export function FinancialSettings({ onSettingsChange }: FinancialSettingsProps) 
       <CardContent className="space-y-6">
         {/* Global Tax Regime Selector */}
         <div className="flex flex-col sm:flex-row sm:items-center gap-3 p-4 rounded-lg border bg-muted/30">
-          <div className="flex-1">
+          <div className="flex-1 min-w-0">
             <p className="text-sm font-semibold text-foreground">Regime Tributário</p>
             <p className="text-xs text-muted-foreground">
               {currentRegimeData?.description || "Selecione o regime da sua empresa"}
@@ -132,7 +131,7 @@ export function FinancialSettings({ onSettingsChange }: FinancialSettingsProps) 
             onValueChange={handleRegimeChange}
             disabled={updateTaxRegime.isPending}
           >
-            <SelectTrigger className="w-full sm:w-[220px]">
+            <SelectTrigger className="w-full sm:w-[220px] shrink-0">
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
@@ -146,7 +145,7 @@ export function FinancialSettings({ onSettingsChange }: FinancialSettingsProps) 
         </div>
 
         {/* Platform Cards */}
-        <div className="grid gap-4 md:grid-cols-2">
+        <div className="grid gap-4 grid-cols-1 sm:grid-cols-2 xl:grid-cols-3">
           {feeProfiles.map(profile => (
             <PlatformFeeCard key={profile.id} profile={profile} />
           ))}
