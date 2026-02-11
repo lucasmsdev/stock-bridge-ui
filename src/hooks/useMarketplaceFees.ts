@@ -102,6 +102,22 @@ export function useMarketplaceFees() {
     },
   });
 
+  const updateTaxRegime = useMutation({
+    mutationFn: async ({ regime, taxPercent }: { regime: string; taxPercent: number }) => {
+      if (!organizationId) throw new Error("No organization");
+      const { error } = await supabase
+        .from("marketplace_fee_profiles" as any)
+        .update({ tax_regime: regime, tax_percent: taxPercent } as any)
+        .eq("organization_id", organizationId)
+        .eq("is_active", true);
+
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["marketplace-fees"] });
+    },
+  });
+
   const getFeeProfile = (platform: string): MarketplaceFeeProfile | undefined => {
     return feeProfiles.find((fp) => fp.platform === platform.toLowerCase());
   };
@@ -164,6 +180,9 @@ export function useMarketplaceFees() {
     return profile.commission_percent + profile.payment_fee_percent + profile.tax_percent;
   };
 
+  // Get current tax regime from first profile (all should be same)
+  const currentTaxRegime = feeProfiles.length > 0 ? feeProfiles[0].tax_regime : "simples_nacional";
+
   return {
     feeProfiles,
     isLoading,
@@ -171,5 +190,7 @@ export function useMarketplaceFees() {
     calculateFees,
     getTotalFeePercent,
     updateFeeProfile,
+    updateTaxRegime,
+    currentTaxRegime,
   };
 }

@@ -1,11 +1,8 @@
-import { useState } from "react";
 import { useToast } from "@/hooks/use-toast";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Settings, Save, Loader2, RotateCcw } from "lucide-react";
+import { Settings, Loader2, Zap } from "lucide-react";
+import { Badge } from "@/components/ui/badge";
 import { 
   useMarketplaceFees, 
   PLATFORM_LABELS, 
@@ -24,60 +21,16 @@ interface FinancialSettingsProps {
   onSettingsChange?: (settings: FinancialSettingsData) => void;
 }
 
-function PlatformFeeCard({ profile, onSave }: { 
-  profile: MarketplaceFeeProfile; 
-  onSave: (updates: Partial<MarketplaceFeeProfile> & { id: string }) => void;
-}) {
-  const { toast } = useToast();
-  const [editing, setEditing] = useState(false);
-  const [saving, setSaving] = useState(false);
-  const [form, setForm] = useState({
-    commission_percent: profile.commission_percent,
-    payment_fee_percent: profile.payment_fee_percent,
-    fixed_fee_amount: profile.fixed_fee_amount,
-    tax_regime: profile.tax_regime,
-    tax_percent: profile.tax_percent,
-  });
-
+function PlatformFeeCard({ profile }: { profile: MarketplaceFeeProfile }) {
   const platform = profile.platform;
   const logo = PLATFORM_LOGOS[platform];
   const label = PLATFORM_LABELS[platform] || platform;
-
-  const handleRegimeChange = (regime: string) => {
-    const regimeData = TAX_REGIMES[regime];
-    setForm(prev => ({
-      ...prev,
-      tax_regime: regime,
-      tax_percent: regimeData?.defaultPercent ?? prev.tax_percent,
-    }));
-  };
-
-  const handleResetDefaults = () => {
-    const defaults = DEFAULT_FEES[platform];
-    if (defaults) {
-      setForm(prev => ({
-        ...prev,
-        commission_percent: defaults.commission,
-        payment_fee_percent: defaults.payment_fee,
-        fixed_fee_amount: defaults.fixed_fee,
-      }));
-    }
-  };
-
-  const handleSave = async () => {
-    setSaving(true);
-    try {
-      onSave({ id: profile.id, ...form });
-      setEditing(false);
-      toast({ title: "Taxas atualizadas", description: `${label} atualizado com sucesso.` });
-    } catch {
-      toast({ title: "Erro ao salvar", variant: "destructive" });
-    } finally {
-      setSaving(false);
-    }
-  };
-
-  const totalFee = form.commission_percent + form.payment_fee_percent + form.tax_percent;
+  const defaults = DEFAULT_FEES[platform];
+  
+  const commission = defaults?.commission ?? profile.commission_percent;
+  const paymentFee = defaults?.payment_fee ?? profile.payment_fee_percent;
+  const fixedFee = defaults?.fixed_fee ?? profile.fixed_fee_amount;
+  const totalFee = commission + paymentFee + profile.tax_percent;
 
   return (
     <Card className="shadow-soft hover:shadow-medium transition-shadow">
@@ -92,101 +45,55 @@ function PlatformFeeCard({ profile, onSave }: {
               </p>
             </div>
           </div>
-          {!editing ? (
-            <Button variant="ghost" size="sm" onClick={() => setEditing(true)}>Editar</Button>
-          ) : (
-            <Button variant="ghost" size="sm" onClick={handleResetDefaults}>
-              <RotateCcw className="h-3.5 w-3.5 mr-1" /> Padrão
-            </Button>
-          )}
+          <Badge variant="secondary" className="gap-1 text-xs">
+            <Zap className="h-3 w-3" />
+            Automático
+          </Badge>
         </div>
 
-        {editing ? (
-          <div className="space-y-3">
-            <div className="grid grid-cols-3 gap-3">
-              <div className="space-y-1">
-                <Label className="text-xs">Comissão (%)</Label>
-                <Input
-                  type="number" step="0.01" 
-                  value={form.commission_percent}
-                  onChange={e => setForm(prev => ({ ...prev, commission_percent: parseFloat(e.target.value) || 0 }))}
-                />
-              </div>
-              <div className="space-y-1">
-                <Label className="text-xs">Pgto (%)</Label>
-                <Input
-                  type="number" step="0.01"
-                  value={form.payment_fee_percent}
-                  onChange={e => setForm(prev => ({ ...prev, payment_fee_percent: parseFloat(e.target.value) || 0 }))}
-                />
-              </div>
-              <div className="space-y-1">
-                <Label className="text-xs">Fixa (R$)</Label>
-                <Input
-                  type="number" step="0.01"
-                  value={form.fixed_fee_amount}
-                  onChange={e => setForm(prev => ({ ...prev, fixed_fee_amount: parseFloat(e.target.value) || 0 }))}
-                />
-              </div>
-            </div>
-
-            <div className="grid grid-cols-2 gap-3">
-              <div className="space-y-1">
-                <Label className="text-xs">Regime Tributário</Label>
-                <Select value={form.tax_regime} onValueChange={handleRegimeChange}>
-                  <SelectTrigger><SelectValue /></SelectTrigger>
-                  <SelectContent>
-                    {Object.entries(TAX_REGIMES).map(([key, regime]) => (
-                      <SelectItem key={key} value={key}>{regime.label}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-              <div className="space-y-1">
-                <Label className="text-xs">Imposto (%)</Label>
-                <Input
-                  type="number" step="0.01"
-                  value={form.tax_percent}
-                  onChange={e => setForm(prev => ({ ...prev, tax_percent: parseFloat(e.target.value) || 0 }))}
-                />
-              </div>
-            </div>
-
-            <div className="flex justify-end gap-2 pt-1">
-              <Button variant="outline" size="sm" onClick={() => setEditing(false)}>Cancelar</Button>
-              <Button size="sm" onClick={handleSave} disabled={saving}>
-                {saving ? <Loader2 className="h-3.5 w-3.5 animate-spin mr-1" /> : <Save className="h-3.5 w-3.5 mr-1" />}
-                Salvar
-              </Button>
-            </div>
+        <div className="grid grid-cols-4 gap-2 text-center">
+          <div className="p-2 rounded bg-muted/50">
+            <p className="text-xs text-muted-foreground">Comissão</p>
+            <p className="text-sm font-semibold">{commission}%</p>
           </div>
-        ) : (
-          <div className="grid grid-cols-4 gap-2 text-center">
-            <div className="p-2 rounded bg-muted/50">
-              <p className="text-xs text-muted-foreground">Comissão</p>
-              <p className="text-sm font-semibold">{form.commission_percent}%</p>
-            </div>
-            <div className="p-2 rounded bg-muted/50">
-              <p className="text-xs text-muted-foreground">Pgto</p>
-              <p className="text-sm font-semibold">{form.payment_fee_percent}%</p>
-            </div>
-            <div className="p-2 rounded bg-muted/50">
-              <p className="text-xs text-muted-foreground">Fixa</p>
-              <p className="text-sm font-semibold">R${form.fixed_fee_amount}</p>
-            </div>
-            <div className="p-2 rounded bg-muted/50">
-              <p className="text-xs text-muted-foreground">Imposto</p>
-              <p className="text-sm font-semibold">{form.tax_percent}%</p>
-            </div>
+          <div className="p-2 rounded bg-muted/50">
+            <p className="text-xs text-muted-foreground">Pgto</p>
+            <p className="text-sm font-semibold">{paymentFee}%</p>
           </div>
-        )}
+          <div className="p-2 rounded bg-muted/50">
+            <p className="text-xs text-muted-foreground">Fixa</p>
+            <p className="text-sm font-semibold">R${fixedFee}</p>
+          </div>
+          <div className="p-2 rounded bg-muted/50">
+            <p className="text-xs text-muted-foreground">Imposto</p>
+            <p className="text-sm font-semibold">{profile.tax_percent}%</p>
+          </div>
+        </div>
       </CardContent>
     </Card>
   );
 }
 
 export function FinancialSettings({ onSettingsChange }: FinancialSettingsProps) {
-  const { feeProfiles, isLoading, updateFeeProfile } = useMarketplaceFees();
+  const { feeProfiles, isLoading, updateTaxRegime, currentTaxRegime } = useMarketplaceFees();
+  const { toast } = useToast();
+
+  const handleRegimeChange = (regime: string) => {
+    const regimeData = TAX_REGIMES[regime];
+    if (!regimeData) return;
+    
+    updateTaxRegime.mutate(
+      { regime, taxPercent: regimeData.defaultPercent },
+      {
+        onSuccess: () => {
+          toast({ title: "Regime tributário atualizado", description: `Todos os marketplaces agora usam ${regimeData.label}.` });
+        },
+        onError: () => {
+          toast({ title: "Erro ao atualizar regime", variant: "destructive" });
+        },
+      }
+    );
+  };
 
   if (isLoading) {
     return (
@@ -198,6 +105,8 @@ export function FinancialSettings({ onSettingsChange }: FinancialSettingsProps) 
     );
   }
 
+  const currentRegimeData = TAX_REGIMES[currentTaxRegime];
+
   return (
     <Card>
       <CardHeader>
@@ -206,17 +115,40 @@ export function FinancialSettings({ onSettingsChange }: FinancialSettingsProps) 
           Taxas por Marketplace
         </CardTitle>
         <CardDescription>
-          Configure comissões, taxas de pagamento e impostos para cada plataforma. Esses valores são usados no cálculo de lucro real.
+          As taxas de comissão e pagamento são aplicadas automaticamente com base nos valores oficiais de cada plataforma. Você só precisa definir o regime tributário da sua empresa.
         </CardDescription>
       </CardHeader>
-      <CardContent>
+      <CardContent className="space-y-6">
+        {/* Global Tax Regime Selector */}
+        <div className="flex flex-col sm:flex-row sm:items-center gap-3 p-4 rounded-lg border bg-muted/30">
+          <div className="flex-1">
+            <p className="text-sm font-semibold text-foreground">Regime Tributário</p>
+            <p className="text-xs text-muted-foreground">
+              {currentRegimeData?.description || "Selecione o regime da sua empresa"}
+            </p>
+          </div>
+          <Select 
+            value={currentTaxRegime} 
+            onValueChange={handleRegimeChange}
+            disabled={updateTaxRegime.isPending}
+          >
+            <SelectTrigger className="w-full sm:w-[220px]">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              {Object.entries(TAX_REGIMES).map(([key, regime]) => (
+                <SelectItem key={key} value={key}>
+                  {regime.label} — {regime.defaultPercent}%
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+
+        {/* Platform Cards */}
         <div className="grid gap-4 md:grid-cols-2">
           {feeProfiles.map(profile => (
-            <PlatformFeeCard
-              key={profile.id}
-              profile={profile}
-              onSave={(updates) => updateFeeProfile.mutate(updates)}
-            />
+            <PlatformFeeCard key={profile.id} profile={profile} />
           ))}
         </div>
         {feeProfiles.length === 0 && (
