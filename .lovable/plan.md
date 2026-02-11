@@ -1,62 +1,73 @@
 
-# Consulta Automática de Taxas do Mercado Livre + Aviso nas Demais Plataformas
+
+# Ads Dashboard: Novos Marketplaces + Redesign dos Cards
 
 ## Resumo
 
-Implementar a consulta automática de comissões do Mercado Livre via API oficial (`/sites/MLB/listing_prices`) e adicionar um aviso informativo nas demais plataformas explicando por que as taxas precisam ser ajustadas manualmente.
+Adicionar **Magalu Ads** e **TikTok Shop Ads** ao Dashboard de Ads (ambos permitem patrocinar produtos), e redesenhar os cards/banners de conexao das plataformas para ficarem mais bonitos e organizados.
 
-## O que muda para o usuário
+---
 
-1. **Mercado Livre**: Um botao "Atualizar taxas" dentro do accordion da plataforma que consulta a API oficial e atualiza a comissao real com base na categoria dos produtos do usuario.
-2. **Demais plataformas**: Um aviso discreto (tooltip ou texto explicativo) informando que aquela plataforma nao disponibiliza API publica de taxas, e que os valores devem ser conferidos manualmente.
+## O que muda
 
-## Por que so o Mercado Livre?
+### 1. Duas novas plataformas de Ads
 
-| Plataforma | API publica de taxas? | Motivo |
-|---|---|---|
-| Mercado Livre | Sim - `/sites/MLB/listing_prices` | Unica plataforma que expoe endpoint publico com comissoes por categoria, tipo de anuncio e nivel do vendedor |
-| Amazon | Nao | Taxas variam por categoria e programa (FBA/FBM), mas nao ha endpoint publico. Dados disponiveis apenas no Seller Central |
-| Shopee | Nao | Comissoes dependem do nivel do vendedor e campanhas ativas. Sem API publica |
-| Shopify | N/A | Shopify nao cobra comissao sobre vendas, apenas taxa do gateway de pagamento |
-| Magalu | Nao | API do marketplace nao expoe estrutura de comissoes |
-| SHEIN | Nao | Plataforma fechada, sem documentacao publica de APIs |
-| TikTok Shop | Nao | API de seller nao inclui endpoint de consulta de taxas |
+- **Magalu Ads** - Magazine Luiza permite patrocinar produtos dentro do marketplace
+- **TikTok Shop Ads** - TikTok Shop tem sistema de anuncios internos para promover produtos
 
-## Implementacao Tecnica
+Total de plataformas no Dashboard: **8** (era 6)
+- Externas: Meta Ads, Google Ads, TikTok Ads
+- Marketplaces: Mercado Livre, Shopee, Amazon, **Magalu**, **TikTok Shop**
 
-### 1. Nova Edge Function: `get-mercadolivre-fees`
+### 2. Redesign visual dos cards de conexao
 
-- Recebe `category_id` e `price` como parametros
-- Consulta `https://api.mercadolibre.com/sites/MLB/listing_prices?category_id={id}&price={price}`
-- Retorna a comissao (sale_fee_amount) e detalhes por tipo de listagem (classico, premium)
-- Nao requer autenticacao (endpoint publico do ML)
+Os banners atuais sao retangulares simples empilhados em grid. O novo design vai trazer:
+- Cards compactos com logo maior e mais destaque visual
+- Separacao visual entre **Plataformas Externas** (Meta/Google/TikTok) e **Marketplaces** (ML/Shopee/Amazon/Magalu/TikTok Shop)
+- Gradientes mais suaves e bordas arredondadas
+- Layout em grid responsivo melhorado (ate 4 colunas em telas grandes)
+- Badge de status mais visivel
+- Botao de sync integrado de forma mais elegante
 
-### 2. Alteracoes no `FinancialSettings.tsx`
+---
 
-- **Mercado Livre**: Adicionar botao "Atualizar taxas via API" no accordion. Ao clicar, busca as categorias dos produtos cadastrados e consulta a edge function para obter a comissao media real.
-- **Demais plataformas**: Adicionar um pequeno texto/badge "Manual" com tooltip explicando: "Esta plataforma nao disponibiliza API publica para consulta automatica de taxas. Verifique os valores no painel do vendedor."
-- Badge visual diferenciando: "Automatico" (verde, para ML) vs "Manual" (amarelo, para as demais)
+## Detalhes Tecnicos
 
-### 3. Alteracoes no `useMarketplaceFees.ts`
+### Arquivos modificados
 
-- Adicionar funcao `fetchMercadoLivreFees(categoryId, price)` que chama a edge function
-- Adicionar mutation para atualizar o `commission_percent` do perfil ML com o valor real retornado pela API
+| Arquivo | Mudanca |
+|---------|---------|
+| `src/components/ads/mockAdsData.ts` | Adicionar tipos, campanhas mock e dados diarios para `magalu_ads` e `tiktokshop_ads` |
+| `src/components/ads/AdsConnectionBanner.tsx` | Adicionar configs para as 2 novas plataformas + redesign visual completo dos cards |
+| `src/components/ads/AdsFilters.tsx` | Adicionar opcoes de filtro para Magalu Ads e TikTok Shop Ads |
+| `src/components/ads/AdsDashboard.tsx` | Integrar hooks para Magalu e TikTok Shop + separar banners em secoes (Externas vs Marketplaces) |
+| `src/components/ads/useMetaAdsData.ts` | Adicionar hooks `useMagaluAdsIntegration`, `useTikTokShopAdsIntegration`, `useSyncMagaluAds`, `useSyncTikTokShopAds` |
+| `src/components/ads/AdsPlatformBreakdown.tsx` | Adicionar cores e labels para as 2 novas plataformas |
+| `src/components/ads/CampaignPerformanceTable.tsx` | Adicionar short labels para Magalu e TikTok Shop |
 
-### 4. Fluxo
+### Novos Edge Functions
 
-```
-Usuario clica "Atualizar taxas" no ML
-  -> Frontend busca categorias dos produtos ML cadastrados
-  -> Chama edge function get-mercadolivre-fees para cada categoria
-  -> Calcula media ponderada da comissao
-  -> Atualiza marketplace_fee_profiles com valor real
-  -> Toast de confirmacao
-```
+| Function | Descricao |
+|----------|-----------|
+| `supabase/functions/sync-magalu-ads/index.ts` | Sincroniza metricas de Ads da Magalu via API |
+| `supabase/functions/sync-tiktokshop-ads/index.ts` | Sincroniza metricas de Ads do TikTok Shop via API |
 
-### Arquivos a criar/modificar
+Ambas seguem o mesmo padrao das existentes (sync-shopee-ads, sync-mercadolivre-ads): autenticacao via JWT, decrypt de token, chamada a API do marketplace, upsert na tabela `ad_metrics`.
 
-| Arquivo | Acao |
-|---|---|
-| `supabase/functions/get-mercadolivre-fees/index.ts` | Criar - Edge function para consultar API do ML |
-| `src/hooks/useMarketplaceFees.ts` | Modificar - Adicionar mutation para fetch de taxas ML |
-| `src/components/expenses/FinancialSettings.tsx` | Modificar - Botao de atualizacao no ML + badges Manual/Automatico + tooltips explicativos |
+### Redesign dos Cards
+
+O componente `AdsConnectionBanner` sera redesenhado para:
+- Usar cards com altura fixa e layout vertical (logo no topo, info abaixo)
+- Gradiente de fundo mais sutil por plataforma
+- Logo centralizada e maior (40x40)
+- Nome da plataforma em destaque
+- Badge de status (Conectado/Dados reais/Sem dados) mais proeminente
+- Botao de sync compacto (apenas icone em telas pequenas)
+- Agrupamento com subtitulos: "Plataformas Externas" e "Marketplaces"
+- Grid responsivo: 2 cols mobile, 3 cols tablet, 4 cols desktop
+
+### Cores das novas plataformas
+
+- **Magalu Ads**: Azul Magalu (#0086FF) com gradiente azul
+- **TikTok Shop Ads**: Preto/Cyan (#25F4EE) com gradiente escuro
+
