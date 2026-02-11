@@ -39,7 +39,7 @@ function PlatformFeeCard({ profile }: { profile: MarketplaceFeeProfile }) {
         <div className="flex items-center gap-6 mb-6">
           {" "}
           {/* Gap maior */}
-          <PlatformLogo platform={platform} size="xl" className="shrink-0" /> {/* Logo maior */}
+          <PlatformLogo platform={platform} size="lg" className="shrink-0" /> {/* Logo maior */}
           <div className="min-w-0 flex-1">
             <p className="text-xl font-bold text-foreground">
               {" "}
