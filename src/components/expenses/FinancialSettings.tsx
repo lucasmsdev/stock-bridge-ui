@@ -1,21 +1,26 @@
 import { useToast } from "@/hooks/use-toast";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Settings, Loader2, Percent, CreditCard, Receipt, Landmark, TrendingDown, TrendingUp, BarChart3 } from "lucide-react";
+import {
+  Settings,
+  Loader2,
+  Percent,
+  CreditCard,
+  Receipt,
+  Landmark,
+  TrendingDown,
+  TrendingUp,
+  BarChart3,
+} from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { PlatformLogo } from "@/components/ui/platform-logo";
+import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 import {
-  Accordion,
-  AccordionContent,
-  AccordionItem,
-  AccordionTrigger,
-} from "@/components/ui/accordion";
-import { 
-  useMarketplaceFees, 
-  PLATFORM_LABELS, 
-  TAX_REGIMES, 
+  useMarketplaceFees,
+  PLATFORM_LABELS,
+  TAX_REGIMES,
   DEFAULT_FEES,
-  MarketplaceFeeProfile 
+  MarketplaceFeeProfile,
 } from "@/hooks/useMarketplaceFees";
 
 export interface FinancialSettingsData {
@@ -66,7 +71,10 @@ function PlatformAccordionItem({ profile, onRegimeChange, isPending }: PlatformA
   const currentRegimeData = TAX_REGIMES[profile.tax_regime];
 
   return (
-    <AccordionItem value={profile.id} className="border rounded-lg px-4 data-[state=open]:bg-muted/20 transition-colors">
+    <AccordionItem
+      value={profile.id}
+      className="border rounded-lg px-4 data-[state=open]:bg-muted/20 transition-colors"
+    >
       <AccordionTrigger className="hover:no-underline py-4">
         <div className="flex items-center gap-3 flex-1 min-w-0">
           <PlatformLogo platform={platform} size="md" className="shrink-0" />
@@ -92,21 +100,15 @@ function PlatformAccordionItem({ profile, onRegimeChange, isPending }: PlatformA
           <div className="p-3 rounded-lg bg-primary/5 border border-primary/10">
             <p className="text-xs text-muted-foreground mb-1">Simulação: venda de R$ 100,00</p>
             <div className="flex items-center gap-4">
-              <span className="text-sm text-destructive font-medium">
-                - R$ {totalFee.toFixed(2)} em taxas
-              </span>
-              <span className="text-sm text-foreground font-bold">
-                = R$ {(100 - totalFee).toFixed(2)} líquido
-              </span>
+              <span className="text-sm text-destructive font-medium">- R$ {totalFee.toFixed(2)} em taxas</span>
+              <span className="text-sm text-foreground font-bold">= R$ {(100 - totalFee).toFixed(2)} líquido</span>
             </div>
           </div>
 
           <div className="flex flex-col sm:flex-row sm:items-center gap-3 pt-2 border-t border-border">
             <div className="flex-1 min-w-0">
               <p className="text-sm font-medium text-foreground">Regime Tributário</p>
-              <p className="text-xs text-muted-foreground">
-                {currentRegimeData?.description || "Selecione o regime"}
-              </p>
+              <p className="text-xs text-muted-foreground">{currentRegimeData?.description || "Selecione o regime"}</p>
             </div>
             <Select
               value={profile.tax_regime}
@@ -138,7 +140,7 @@ function ComparisonPanel({ profiles }: { profiles: MarketplaceFeeProfile[] }) {
   if (profiles.length === 0) return null;
 
   const sorted = [...profiles]
-    .map(p => ({ profile: p, totalFee: getProfileTotalFee(p) }))
+    .map((p) => ({ profile: p, totalFee: getProfileTotalFee(p) }))
     .sort((a, b) => a.totalFee - b.totalFee);
 
   const cheapest = sorted[0];
@@ -159,12 +161,8 @@ function ComparisonPanel({ profiles }: { profiles: MarketplaceFeeProfile[] }) {
             <div className="flex items-center gap-2">
               <PlatformLogo platform={cheapest.profile.platform} size="sm" />
               <div>
-                <p className="text-sm font-bold text-foreground">
-                  {PLATFORM_LABELS[cheapest.profile.platform]}
-                </p>
-                <p className="text-lg font-bold text-green-600 dark:text-green-400">
-                  {cheapest.totalFee.toFixed(1)}%
-                </p>
+                <p className="text-sm font-bold text-foreground">{PLATFORM_LABELS[cheapest.profile.platform]}</p>
+                <p className="text-lg font-bold text-green-600 dark:text-green-400">{cheapest.totalFee.toFixed(1)}%</p>
               </div>
             </div>
           </CardContent>
@@ -179,12 +177,8 @@ function ComparisonPanel({ profiles }: { profiles: MarketplaceFeeProfile[] }) {
             <div className="flex items-center gap-2">
               <PlatformLogo platform={mostExpensive.profile.platform} size="sm" />
               <div>
-                <p className="text-sm font-bold text-foreground">
-                  {PLATFORM_LABELS[mostExpensive.profile.platform]}
-                </p>
-                <p className="text-lg font-bold text-red-600 dark:text-red-400">
-                  {mostExpensive.totalFee.toFixed(1)}%
-                </p>
+                <p className="text-sm font-bold text-foreground">{PLATFORM_LABELS[mostExpensive.profile.platform]}</p>
+                <p className="text-lg font-bold text-red-600 dark:text-red-400">{mostExpensive.totalFee.toFixed(1)}%</p>
               </div>
             </div>
           </CardContent>
@@ -196,12 +190,8 @@ function ComparisonPanel({ profiles }: { profiles: MarketplaceFeeProfile[] }) {
               <BarChart3 className="h-4 w-4 text-primary" />
               <span className="text-xs font-medium text-muted-foreground">Média geral</span>
             </div>
-            <p className="text-2xl font-bold text-primary mt-1">
-              {avgFee.toFixed(1)}%
-            </p>
-            <p className="text-xs text-muted-foreground">
-              entre {profiles.length} plataformas
-            </p>
+            <p className="text-2xl font-bold text-primary mt-1">{avgFee.toFixed(1)}%</p>
+            <p className="text-xs text-muted-foreground">entre {profiles.length} plataformas</p>
           </CardContent>
         </Card>
       </div>
@@ -209,9 +199,7 @@ function ComparisonPanel({ profiles }: { profiles: MarketplaceFeeProfile[] }) {
       {/* Horizontal bar chart ranking */}
       <Card>
         <CardHeader className="pb-3">
-          <CardTitle className="text-sm font-semibold text-foreground">
-            Ranking de Taxas Totais
-          </CardTitle>
+          <CardTitle className="text-sm font-semibold text-foreground">Ranking de Taxas Totais</CardTitle>
         </CardHeader>
         <CardContent className="space-y-3">
           {sorted.map(({ profile, totalFee }) => {
@@ -227,18 +215,22 @@ function ComparisonPanel({ profiles }: { profiles: MarketplaceFeeProfile[] }) {
                     <span className="text-xs font-medium text-foreground truncate">
                       {PLATFORM_LABELS[profile.platform]}
                     </span>
-                    <span className={`text-xs font-bold ${
-                      isLowest ? "text-green-600 dark:text-green-400" : 
-                      isHighest ? "text-red-600 dark:text-red-400" : "text-foreground"
-                    }`}>
+                    <span
+                      className={`text-xs font-bold ${
+                        isLowest
+                          ? "text-green-600 dark:text-green-400"
+                          : isHighest
+                            ? "text-red-600 dark:text-red-400"
+                            : "text-foreground"
+                      }`}
+                    >
                       {totalFee.toFixed(1)}%
                     </span>
                   </div>
                   <div className="h-2 rounded-full bg-muted overflow-hidden">
                     <div
                       className={`h-full rounded-full transition-all duration-500 ${
-                        isLowest ? "bg-green-500" : 
-                        isHighest ? "bg-red-500" : "bg-primary"
+                        isLowest ? "bg-green-500" : isHighest ? "bg-red-500" : "bg-primary"
                       }`}
                       style={{ width: `${barWidth}%` }}
                     />
@@ -268,7 +260,7 @@ export function FinancialSettings({ onSettingsChange }: FinancialSettingsProps) 
         onError: () => {
           toast({ title: "Erro ao atualizar regime", variant: "destructive" });
         },
-      }
+      },
     );
   };
 
@@ -280,64 +272,66 @@ export function FinancialSettings({ onSettingsChange }: FinancialSettingsProps) 
     );
   }
 
-return (
-  <div className="w-full space-y-8 p-0"> {/* w-full, sem padding lateral */}
-    <div>
-      <h2 className="text-2xl font-bold text-foreground flex items-center gap-3 mb-2">
-        <Settings className="h-6 w-6 text-primary" />
-        Taxas por Marketplace
-      </h2>
-      <p className="text-base text-muted-foreground max-w-2xl leading-relaxed">
-        Taxas automáticas por plataforma. Ajuste o regime tributário individualmente para cada marketplace.
-      </p>
-    </div>
-
-    {feeProfiles.length === 0 ? (
-      <div className="flex flex-col items-center justify-center py-24 text-center border-2 border-dashed border-border rounded-2xl bg-muted/20 min-h-[500px]">
-        <Settings className="h-16 w-16 text-muted-foreground mb-6 opacity-50" />
-        <p className="text-xl text-muted-foreground font-semibold mb-2">
-          Nenhum perfil de taxas encontrado
-        </p>
-        <p className="text-lg text-muted-foreground max-w-lg">
-          Os perfis são criados automaticamente ao configurar sua organização.
+  return (
+    <div className="w-full space-y-8 p-0">
+      {" "}
+      {/* w-full, sem padding lateral */}
+      <div>
+        <h2 className="text-2xl font-bold text-foreground flex items-center gap-3 mb-2">
+          <Settings className="h-6 w-6 text-primary" />
+          Taxas por Marketplace
+        </h2>
+        <p className="text-base text-muted-foreground max-w-2xl leading-relaxed">
+          Taxas automáticas por plataforma. Ajuste o regime tributário individualmente para cada marketplace.
         </p>
       </div>
-    ) : (
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 w-full h-auto"> {/* Layout fluido: 100% mobile, 3-col desktop */}
-        {/* Accordion - 2/3 da tela em desktop */}
-        <div className="lg:col-span-2 h-auto">
-          <div className="sticky top-6"> {/* Sticky para scroll suave */}
-            <div className="bg-background border rounded-2xl p-6 mb-6">
-              <h3 className="text-lg font-bold text-foreground mb-4 flex items-center gap-2">
-                <BarChart3 className="h-5 w-5" />
-                Detalhes dos Marketplaces
+      {feeProfiles.length === 0 ? (
+        <div className="flex flex-col items-center justify-center py-24 text-center border-2 border-dashed border-border rounded-2xl bg-muted/20 min-h-[500px]">
+          <Settings className="h-16 w-16 text-muted-foreground mb-6 opacity-50" />
+          <p className="text-xl text-muted-foreground font-semibold mb-2">Nenhum perfil de taxas encontrado</p>
+          <p className="text-lg text-muted-foreground max-w-lg">
+            Os perfis são criados automaticamente ao configurar sua organização.
+          </p>
+        </div>
+      ) : (
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 w-full h-auto">
+          {" "}
+          {/* Layout fluido: 100% mobile, 3-col desktop */}
+          {/* Accordion - 2/3 da tela em desktop */}
+          <div className="lg:col-span-2 h-auto">
+            <div className="sticky top-6">
+              {" "}
+              {/* Sticky para scroll suave */}
+              <div className="bg-background border rounded-2xl p-6 mb-6">
+                <h3 className="text-lg font-bold text-foreground mb-4 flex items-center gap-2">
+                  <BarChart3 className="h-5 w-5" />
+                  Detalhes dos Marketplaces
+                </h3>
+                <Accordion type="multiple" className="w-full space-y-3">
+                  {feeProfiles.map((profile) => (
+                    <PlatformAccordionItem
+                      key={profile.id}
+                      profile={profile}
+                      onRegimeChange={handleRegimeChange}
+                      isPending={updateFeeProfile.isPending}
+                    />
+                  ))}
+                </Accordion>
+              </div>
+            </div>
+          </div>
+          {/* Comparison panel - 1/3 da tela em desktop */}
+          <div className="lg:col-span-1 h-auto">
+            <div className="bg-background border rounded-2xl p-6 sticky top-6 h-fit">
+              <h3 className="text-lg font-bold text-foreground mb-6 flex items-center gap-2">
+                <TrendingDown className="h-5 w-5 text-primary" />
+                Comparativo
               </h3>
-              <Accordion type="multiple" className="w-full space-y-3">
-                {feeProfiles.map(profile => (
-                  <PlatformAccordionItem
-                    key={profile.id}
-                    profile={profile}
-                    onRegimeChange={handleRegimeChange}
-                    isPending={updateFeeProfile.isPending}
-                  />
-                ))}
-              </Accordion>
+              <ComparisonPanel profiles={feeProfiles} />
             </div>
           </div>
         </div>
-
-        {/* Comparison panel - 1/3 da tela em desktop */}
-        <div className="lg:col-span-1 h-auto">
-          <div className="bg-background border rounded-2xl p-6 sticky top-6 h-fit">
-            <h3 className="text-lg font-bold text-foreground mb-6 flex items-center gap-2">
-              <TrendingDown className="h-5 w-5 text-primary" />
-              Comparativo
-            </h3>
-            <ComparisonPanel profiles={feeProfiles} />
-          </div>
-        </div>
-      </div>
-    )}
-  </div>
-);
-
+      )}
+    </div>
+  );
+}
