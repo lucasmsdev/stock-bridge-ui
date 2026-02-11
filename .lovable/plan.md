@@ -1,120 +1,42 @@
 
-# Anuncios de Marketplaces no Dashboard de Ads
 
-## Objetivo
-
-Integrar os anuncios nativos dos marketplaces (Mercado Livre Ads, Shopee Ads, Amazon Ads) ao Dashboard de Ads existente, unificando todas as metricas de publicidade em um so lugar -- tanto plataformas externas (Meta, Google, TikTok) quanto anuncios internos dos marketplaces.
-
-## Situacao Atual
-
-- O Dashboard de Ads so mostra Meta Ads, Google Ads e TikTok Ads
-- A tabela `ad_metrics` ja suporta qualquer plataforma (campo `platform` e texto livre)
-- Os marketplaces (Mercado Livre, Shopee, Amazon) ja possuem integracao OAuth ativa
-- Nao existem Edge Functions para sincronizar metricas de ads dos marketplaces
-- O filtro de plataforma no dashboard so tem 3 opcoes
+# Taxas de Marketplace Automaticas (Sem Configuracao Manual)
 
 ## O que muda
 
-### 1. Novas Edge Functions para Sincronizar Ads dos Marketplaces
+O sistema ja aplica taxas diferentes para cada marketplace automaticamente (Mercado Livre 13%, Shopee 14%, Amazon 15%, etc.). A mudanca e tornar isso mais claro na interface: remover a edicao manual das taxas de comissao/pagamento e deixar somente o regime tributario como configuravel (porque esse varia por empresa).
 
-Criar 3 novas Edge Functions que buscam dados de anuncios nas APIs nativas:
+## Como vai funcionar
 
-**`sync-mercadolivre-ads`**
-- Usa a API `/users/{user_id}/items/search` + `/items/{id}/product_ads` do Mercado Livre
-- Captura: gasto diario, impressoes, cliques, vendas atribuidas
-- Salva na tabela `ad_metrics` com `platform = 'mercadolivre_ads'`
+- Cada marketplace mostra suas taxas automaticamente em cards visuais (somente leitura)
+- As taxas sao baseadas nos valores oficiais de cada plataforma (ja definidos no sistema)
+- O usuario so precisa escolher o **regime tributario** da empresa (MEI, Simples Nacional, Lucro Presumido) -- isso sim muda de empresa para empresa
+- O calculo de lucro no Dashboard e Centro de Custos continua funcionando igual, sem nenhuma acao do usuario
 
-**`sync-shopee-ads`**
-- Usa a Shopee Ads API (`/api/v2/ads/get_performance`)
-- Captura: gasto, impressoes, cliques, conversoes
-- Salva com `platform = 'shopee_ads'`
+## Interface
 
-**`sync-amazon-ads`**
-- Usa a Amazon Advertising API (Sponsored Products Report)
-- Captura: gasto, impressoes, cliques, vendas
-- Salva com `platform = 'amazon_ads'`
+Cada card de marketplace vai mostrar:
+- Logo e nome da plataforma
+- Taxa de comissao (automatica, nao editavel)
+- Taxa de pagamento (automatica, nao editavel)
+- Taxa total efetiva
+- Badge "Automatico" para indicar que nao precisa configurar
 
-### 2. Atualizar o Dashboard de Ads
-
-**Filtros (`AdsFilters.tsx`)**
-- Adicionar opcoes: Mercado Livre Ads, Shopee Ads, Amazon Ads
-- Atualizar o tipo `AdsPlatform` para incluir as novas plataformas
-
-**Banners de conexao (`AdsConnectionBanner.tsx`)**
-- Adicionar config visual para cada marketplace (cores, logos)
-- Detectar integracao de marketplace como fonte de ads
-
-**Tabela de campanhas (`CampaignPerformanceTable.tsx`)**
-- Adicionar cores e labels para as novas plataformas
-
-**Mock data (`mockAdsData.ts`)**
-- Adicionar campanhas demo dos marketplaces para visualizacao sem conexao
-
-**Hook de dados (`useMetaAdsData.ts`)**
-- Adicionar hooks para detectar integracao de marketplace como ads
-- Adicionar funcoes de sync para cada marketplace
-
-### 3. Banners e Cores dos Marketplaces
-
-| Plataforma        | Cor Primaria | Logo                        |
-|--------------------|--------------|------------------------------|
-| Mercado Livre Ads  | Amarelo (#FFE600) | `/logos/mercadolivre.svg`    |
-| Shopee Ads         | Laranja (#EE4D2D)  | `/logos/shopee.svg`          |
-| Amazon Ads         | Laranja (#FF9900)  | `/logos/amazon.svg`          |
-
-### 4. Breakdown e Metricas Unificados
-
-- O dashboard ja agrega automaticamente por plataforma via `ad_metrics`
-- Ao adicionar os dados dos marketplaces na mesma tabela, o breakdown, graficos e totais vao incluir tudo automaticamente
-- O usuario podera filtrar por qualquer plataforma individualmente ou ver tudo junto
+No topo da pagina, um seletor unico de **Regime Tributario** que se aplica a todos os marketplaces de uma vez.
 
 ## Detalhes Tecnicos
-
-### Arquivos Novos
-
-| Arquivo | Descricao |
-|---------|-----------|
-| `supabase/functions/sync-mercadolivre-ads/index.ts` | Sync de ads do Mercado Livre |
-| `supabase/functions/sync-shopee-ads/index.ts` | Sync de ads da Shopee |
-| `supabase/functions/sync-amazon-ads/index.ts` | Sync de ads da Amazon |
 
 ### Arquivos Modificados
 
 | Arquivo | Mudanca |
 |---------|---------|
-| `src/components/ads/mockAdsData.ts` | Adicionar tipo e dados demo para marketplace ads |
-| `src/components/ads/AdsFilters.tsx` | Adicionar 3 novas opcoes de filtro |
-| `src/components/ads/useMetaAdsData.ts` | Hooks de integracao e sync para marketplace ads |
-| `src/components/ads/AdsConnectionBanner.tsx` | Config visual para marketplace ads |
-| `src/components/ads/AdsDashboard.tsx` | Incluir marketplace ads nas integracoes ativas |
-| `src/components/ads/CampaignPerformanceTable.tsx` | Cores e labels das novas plataformas |
-| `src/components/ads/AdsPlatformBreakdown.tsx` | Cores para novas plataformas no grafico |
+| `src/hooks/useMarketplaceFees.ts` | Adicionar funcao `updateTaxRegime` que altera o regime em todos os perfis de uma vez. Manter `DEFAULT_FEES` como fonte principal. |
+| `src/components/expenses/FinancialSettings.tsx` | Remover modo de edicao dos cards. Mostrar taxas como somente leitura com badge "Automatico". Adicionar seletor global de regime tributario no topo. |
 
-### APIs dos Marketplaces Utilizadas
+### Logica
 
-**Mercado Livre:**
-- `GET /users/{seller_id}/advertising/campaigns` -- listar campanhas
-- `GET /advertising/campaigns/{campaign_id}` -- metricas por campanha
-- Alternativa: `GET /items/{item_id}/product_ads` para Product Ads
+1. As taxas de comissao e pagamento vem do `DEFAULT_FEES` (hardcoded com valores reais dos marketplaces) e sao gravadas na tabela `marketplace_fee_profiles` no momento da criacao da org
+2. O regime tributario e selecionado uma unica vez e aplicado a todos os marketplaces via mutation em batch
+3. O `calculateFees()` continua funcionando exatamente igual -- nada muda nos calculos do Dashboard, ProfitBreakdown ou ProfitabilityCalculator
+4. Se no futuro algum marketplace mudar suas taxas, basta atualizar o `DEFAULT_FEES` e rodar um update nos perfis existentes
 
-**Shopee:**
-- `POST /api/v2/ads/get_campaign_list` -- listar campanhas
-- `POST /api/v2/ads/get_performance` -- metricas de performance
-
-**Amazon:**
-- Sponsored Products API: `POST /v2/sp/campaigns` + Reports API
-- Relatório de performance de campanhas patrocinadas
-
-### Fluxo de Dados
-
-```text
-Mercado Livre API ─┐
-Shopee API ────────┤─> Edge Functions ─> ad_metrics (tabela existente)
-Amazon API ────────┘                           │
-                                               ▼
-Meta Ads ──────────┐                   Dashboard de Ads
-Google Ads ────────┤─> ja funciona ─>  (metricas unificadas)
-TikTok Ads ────────┘
-```
-
-Todas as plataformas salvam na mesma tabela `ad_metrics`, permitindo que o dashboard mostre tudo junto automaticamente.
