@@ -32,40 +32,40 @@ function PlatformFeeCard({ profile }: { profile: MarketplaceFeeProfile }) {
   const totalFee = commission + paymentFee + profile.tax_percent;
 
   return (
-    <Card className="shadow-soft hover:shadow-medium transition-shadow">
-      <CardContent className="pt-6 pb-5 px-6">
-        <div className="flex items-center justify-between mb-5 gap-3">
-          <div className="flex items-center gap-4 min-w-0">
-            <PlatformLogo platform={platform} size="lg" className="shrink-0" />
-            <div className="min-w-0">
-              <p className="text-base font-semibold text-foreground truncate">{label}</p>
-              <p className="text-sm text-muted-foreground mt-0.5">
-                Taxa total: <span className="font-semibold text-primary">{totalFee.toFixed(1)}%</span>
-              </p>
-            </div>
+    <Card className="shadow-soft hover:shadow-medium transition-shadow w-full">
+      <CardContent className="pt-7 pb-6 px-7">
+        <div className="flex items-center gap-4 mb-3">
+          <PlatformLogo platform={platform} size="lg" className="shrink-0" />
+          <div className="min-w-0 flex-1">
+            <p className="text-lg font-semibold text-foreground">{label}</p>
+            <p className="text-sm text-muted-foreground mt-1">
+              Taxa total: <span className="font-semibold text-primary">{totalFee.toFixed(1)}%</span>
+            </p>
           </div>
-          <Badge variant="secondary" className="gap-1.5 text-xs px-3 py-1 shrink-0">
+        </div>
+        <div className="flex justify-end mb-5">
+          <Badge variant="secondary" className="gap-1.5 text-xs px-3 py-1">
             <Zap className="h-3.5 w-3.5" />
             Automático
           </Badge>
         </div>
 
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-center">
-          <div className="p-3 rounded-lg bg-muted/50">
-            <p className="text-xs text-muted-foreground mb-1">Comissão</p>
-            <p className="text-base font-semibold">{commission}%</p>
+        <div className="grid grid-cols-4 gap-4 text-center">
+          <div className="p-3.5 rounded-lg bg-muted/50">
+            <p className="text-xs text-muted-foreground mb-1.5">Comissão</p>
+            <p className="text-lg font-semibold">{commission}%</p>
           </div>
-          <div className="p-3 rounded-lg bg-muted/50">
-            <p className="text-xs text-muted-foreground mb-1">Pgto</p>
-            <p className="text-base font-semibold">{paymentFee}%</p>
+          <div className="p-3.5 rounded-lg bg-muted/50">
+            <p className="text-xs text-muted-foreground mb-1.5">Pgto</p>
+            <p className="text-lg font-semibold">{paymentFee}%</p>
           </div>
-          <div className="p-3 rounded-lg bg-muted/50">
-            <p className="text-xs text-muted-foreground mb-1">Fixa</p>
-            <p className="text-base font-semibold">R${fixedFee}</p>
+          <div className="p-3.5 rounded-lg bg-muted/50">
+            <p className="text-xs text-muted-foreground mb-1.5">Fixa</p>
+            <p className="text-lg font-semibold">R${fixedFee}</p>
           </div>
-          <div className="p-3 rounded-lg bg-muted/50">
-            <p className="text-xs text-muted-foreground mb-1">Imposto</p>
-            <p className="text-base font-semibold">{profile.tax_percent}%</p>
+          <div className="p-3.5 rounded-lg bg-muted/50">
+            <p className="text-xs text-muted-foreground mb-1.5">Imposto</p>
+            <p className="text-lg font-semibold">{profile.tax_percent}%</p>
           </div>
         </div>
       </CardContent>
@@ -145,7 +145,7 @@ export function FinancialSettings({ onSettingsChange }: FinancialSettingsProps) 
         </div>
 
         {/* Platform Cards */}
-        <div className="grid gap-4 grid-cols-1 sm:grid-cols-2 xl:grid-cols-3">
+        <div className="grid gap-5 grid-cols-1 md:grid-cols-2 xl:grid-cols-3 w-full">
           {feeProfiles.map(profile => (
             <PlatformFeeCard key={profile.id} profile={profile} />
           ))}
