@@ -280,50 +280,64 @@ export function FinancialSettings({ onSettingsChange }: FinancialSettingsProps) 
     );
   }
 
-  return (
-    <div className="space-y-6">
-      <div>
-        <h2 className="text-xl font-bold text-foreground flex items-center gap-2">
-          <Settings className="h-5 w-5 text-primary" />
-          Taxas por Marketplace
-        </h2>
-        <p className="text-sm text-muted-foreground mt-1">
-          Taxas automáticas por plataforma. Ajuste o regime tributário individualmente.
+return (
+  <div className="w-full space-y-8 p-0"> {/* w-full, sem padding lateral */}
+    <div>
+      <h2 className="text-2xl font-bold text-foreground flex items-center gap-3 mb-2">
+        <Settings className="h-6 w-6 text-primary" />
+        Taxas por Marketplace
+      </h2>
+      <p className="text-base text-muted-foreground max-w-2xl leading-relaxed">
+        Taxas automáticas por plataforma. Ajuste o regime tributário individualmente para cada marketplace.
+      </p>
+    </div>
+
+    {feeProfiles.length === 0 ? (
+      <div className="flex flex-col items-center justify-center py-24 text-center border-2 border-dashed border-border rounded-2xl bg-muted/20 min-h-[500px]">
+        <Settings className="h-16 w-16 text-muted-foreground mb-6 opacity-50" />
+        <p className="text-xl text-muted-foreground font-semibold mb-2">
+          Nenhum perfil de taxas encontrado
+        </p>
+        <p className="text-lg text-muted-foreground max-w-lg">
+          Os perfis são criados automaticamente ao configurar sua organização.
         </p>
       </div>
-
-      {feeProfiles.length === 0 ? (
-        <div className="flex flex-col items-center justify-center py-16 text-center border rounded-lg border-dashed border-border">
-          <Settings className="h-12 w-12 text-muted-foreground mb-4 opacity-50" />
-          <p className="text-base text-muted-foreground font-medium mb-1">
-            Nenhum perfil de taxas encontrado
-          </p>
-          <p className="text-sm text-muted-foreground max-w-sm">
-            Os perfis são criados automaticamente ao configurar sua organização.
-          </p>
-        </div>
-      ) : (
-        <div className="grid grid-cols-1 xl:grid-cols-5 gap-6">
-          {/* Accordion - left side */}
-          <div className="xl:col-span-3">
-            <Accordion type="multiple" className="space-y-2">
-              {feeProfiles.map(profile => (
-                <PlatformAccordionItem
-                  key={profile.id}
-                  profile={profile}
-                  onRegimeChange={handleRegimeChange}
-                  isPending={updateFeeProfile.isPending}
-                />
-              ))}
-            </Accordion>
+    ) : (
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 w-full h-auto"> {/* Layout fluido: 100% mobile, 3-col desktop */}
+        {/* Accordion - 2/3 da tela em desktop */}
+        <div className="lg:col-span-2 h-auto">
+          <div className="sticky top-6"> {/* Sticky para scroll suave */}
+            <div className="bg-background border rounded-2xl p-6 mb-6">
+              <h3 className="text-lg font-bold text-foreground mb-4 flex items-center gap-2">
+                <BarChart3 className="h-5 w-5" />
+                Detalhes dos Marketplaces
+              </h3>
+              <Accordion type="multiple" className="w-full space-y-3">
+                {feeProfiles.map(profile => (
+                  <PlatformAccordionItem
+                    key={profile.id}
+                    profile={profile}
+                    onRegimeChange={handleRegimeChange}
+                    isPending={updateFeeProfile.isPending}
+                  />
+                ))}
+              </Accordion>
+            </div>
           </div>
+        </div>
 
-          {/* Comparison panel - right side */}
-          <div className="xl:col-span-2">
+        {/* Comparison panel - 1/3 da tela em desktop */}
+        <div className="lg:col-span-1 h-auto">
+          <div className="bg-background border rounded-2xl p-6 sticky top-6 h-fit">
+            <h3 className="text-lg font-bold text-foreground mb-6 flex items-center gap-2">
+              <TrendingDown className="h-5 w-5 text-primary" />
+              Comparativo
+            </h3>
             <ComparisonPanel profiles={feeProfiles} />
           </div>
         </div>
-      )}
-    </div>
-  );
-}
+      </div>
+    )}
+  </div>
+);
+
