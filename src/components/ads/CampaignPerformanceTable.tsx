@@ -1,33 +1,36 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
+  Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
 } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { BarChart3 } from "lucide-react";
-import { Campaign, getCampaignStatus } from "./mockAdsData";
+import { Campaign, getCampaignStatus, PLATFORM_COLORS, PLATFORM_LABELS } from "./mockAdsData";
 
 interface CampaignPerformanceTableProps {
   campaigns: Campaign[];
 }
 
 const formatCurrency = (value: number) => {
-  return new Intl.NumberFormat('pt-BR', {
-    style: 'currency',
-    currency: 'BRL'
-  }).format(value);
+  return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(value);
 };
 
 const formatNumber = (value: number) => {
   return new Intl.NumberFormat('pt-BR').format(value);
 };
 
+const getPlatformShortLabel = (platform: string): string => {
+  const shortLabels: Record<string, string> = {
+    meta_ads: 'Meta',
+    google_ads: 'Google',
+    tiktok_ads: 'TikTok',
+    mercadolivre_ads: 'ML Ads',
+    shopee_ads: 'Shopee',
+    amazon_ads: 'Amazon',
+  };
+  return shortLabels[platform] || platform;
+};
+
 export function CampaignPerformanceTable({ campaigns }: CampaignPerformanceTableProps) {
-  // Sort campaigns by ROAS descending
   const sortedCampaigns = [...campaigns].sort((a, b) => b.roas - a.roas);
 
   return (
@@ -64,56 +67,31 @@ export function CampaignPerformanceTable({ campaigns }: CampaignPerformanceTable
                   </TableRow>
                 ) : sortedCampaigns.map((campaign) => {
                   const status = getCampaignStatus(campaign.roas);
+                  const color = PLATFORM_COLORS[campaign.platform] || '#888';
                   return (
                     <TableRow key={campaign.id}>
                       <TableCell>
                         <div className="flex items-center gap-2">
-                          <div 
-                            className={`w-3 h-3 rounded-full ${
-                              campaign.platform === 'meta_ads' 
-                                ? 'bg-blue-500' 
-                                : campaign.platform === 'tiktok_ads'
-                                ? 'bg-pink-500'
-                                : 'bg-green-500'
-                            }`}
-                          />
-                          <span className="text-sm">
-                            {campaign.platform === 'meta_ads' ? 'Meta' : campaign.platform === 'tiktok_ads' ? 'TikTok' : 'Google'}
-                          </span>
+                          <div className="w-3 h-3 rounded-full" style={{ backgroundColor: color }} />
+                          <span className="text-sm">{getPlatformShortLabel(campaign.platform)}</span>
                         </div>
                       </TableCell>
                       <TableCell>
                         <div className="flex items-center gap-2">
                           <span className="font-medium">{campaign.name}</span>
                           {campaign.status === 'paused' && (
-                            <Badge variant="outline" className="text-xs">
-                              Pausada
-                            </Badge>
+                            <Badge variant="outline" className="text-xs">Pausada</Badge>
                           )}
                         </div>
                       </TableCell>
-                      <TableCell className="text-right font-medium">
-                        {formatCurrency(campaign.spend)}
-                      </TableCell>
-                      <TableCell className="text-right">
-                        {formatNumber(campaign.impressions)}
-                      </TableCell>
-                      <TableCell className="text-right">
-                        {formatNumber(campaign.clicks)}
-                      </TableCell>
-                      <TableCell className="text-right">
-                        {campaign.ctr.toFixed(1)}%
-                      </TableCell>
-                      <TableCell className="text-right">
-                        {formatNumber(campaign.conversions)}
-                      </TableCell>
-                      <TableCell className="text-right font-bold">
-                        {campaign.roas.toFixed(1)}x
-                      </TableCell>
+                      <TableCell className="text-right font-medium">{formatCurrency(campaign.spend)}</TableCell>
+                      <TableCell className="text-right">{formatNumber(campaign.impressions)}</TableCell>
+                      <TableCell className="text-right">{formatNumber(campaign.clicks)}</TableCell>
+                      <TableCell className="text-right">{campaign.ctr.toFixed(1)}%</TableCell>
+                      <TableCell className="text-right">{formatNumber(campaign.conversions)}</TableCell>
+                      <TableCell className="text-right font-bold">{campaign.roas.toFixed(1)}x</TableCell>
                       <TableCell className="text-center">
-                        <Badge variant={status.variant}>
-                          {status.label}
-                        </Badge>
+                        <Badge variant={status.variant}>{status.label}</Badge>
                       </TableCell>
                     </TableRow>
                   );

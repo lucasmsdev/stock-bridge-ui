@@ -4,18 +4,23 @@ import { AdsMetricsCards } from "./AdsMetricsCards";
 import { AdsPerformanceChart } from "./AdsPerformanceChart";
 import { AdsPlatformBreakdown } from "./AdsPlatformBreakdown";
 import { CampaignPerformanceTable } from "./CampaignPerformanceTable";
-import { AdsConnectionBanner } from "./AdsConnectionBanner";
+import { AdsConnectionBanner, AdsPlatformType } from "./AdsConnectionBanner";
 import {
   AdsPlatform,
   getFilteredCampaigns,
   calculateTotals,
   getAggregatedDailyData,
   getPlatformBreakdown,
+  PLATFORM_COLORS,
+  PLATFORM_LABELS,
 } from "./mockAdsData";
 import {
   useMetaAdsIntegration,
   useTikTokAdsIntegration,
   useGoogleAdsIntegration,
+  useMercadoLivreAdsIntegration,
+  useShopeeAdsIntegration,
+  useAmazonAdsIntegration,
   useAdMetrics,
   useAggregatedMetrics,
   groupMetricsByCampaign,
@@ -24,50 +29,38 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { AlertCircle, Megaphone } from "lucide-react";
 
-const platformColors: Record<string, string> = {
-  meta_ads: '#1877F2',
-  tiktok_ads: '#EE1D52',
-  google_ads: '#34A853',
-};
-
-const platformLabels: Record<string, string> = {
-  meta_ads: 'Meta Ads',
-  tiktok_ads: 'TikTok Ads',
-  google_ads: 'Google Ads',
-};
-
 export function AdsDashboard() {
   const [platform, setPlatform] = useState<AdsPlatform>('all');
   const [period, setPeriod] = useState<AdsPeriod>('30days');
 
-  // Real data hooks
+  // External ad platform integrations
   const { data: metaIntegration, isLoading: metaLoading } = useMetaAdsIntegration();
   const { data: tiktokIntegration, isLoading: tiktokLoading } = useTikTokAdsIntegration();
   const { data: googleIntegration, isLoading: googleLoading } = useGoogleAdsIntegration();
-  const integrationLoading = metaLoading || tiktokLoading || googleLoading;
+
+  // Marketplace ad integrations (reuse OAuth connection)
+  const { data: mlIntegration, isLoading: mlLoading } = useMercadoLivreAdsIntegration();
+  const { data: shopeeIntegration, isLoading: shopeeLoading } = useShopeeAdsIntegration();
+  const { data: amazonIntegration, isLoading: amazonLoading } = useAmazonAdsIntegration();
+
+  const integrationLoading = metaLoading || tiktokLoading || googleLoading || mlLoading || shopeeLoading || amazonLoading;
   const daysMap = { '7days': 7, '30days': 30, '90days': 90 };
   const { data: realMetrics = [], isLoading: metricsLoading } = useAdMetrics(daysMap[period]);
 
   // Build list of active integrations
   const activeIntegrations = useMemo(() => {
-    const list: { platform: 'meta_ads' | 'tiktok_ads' | 'google_ads'; integration: NonNullable<typeof metaIntegration> }[] = [];
+    const list: { platform: AdsPlatformType; integration: NonNullable<typeof metaIntegration> }[] = [];
     if (metaIntegration) list.push({ platform: 'meta_ads', integration: metaIntegration });
     if (tiktokIntegration) list.push({ platform: 'tiktok_ads', integration: tiktokIntegration });
     if (googleIntegration) list.push({ platform: 'google_ads', integration: googleIntegration });
+    if (mlIntegration) list.push({ platform: 'mercadolivre_ads', integration: mlIntegration });
+    if (shopeeIntegration) list.push({ platform: 'shopee_ads', integration: shopeeIntegration });
+    if (amazonIntegration) list.push({ platform: 'amazon_ads', integration: amazonIntegration });
     return list;
-  }, [metaIntegration, tiktokIntegration, googleIntegration]);
+  }, [metaIntegration, tiktokIntegration, googleIntegration, mlIntegration, shopeeIntegration, amazonIntegration]);
 
   const hasRealData = realMetrics.length > 0;
   const isConnected = activeIntegrations.length > 0;
-
-  // Get last sync date from metrics
-  const lastSyncDate = useMemo(() => {
-    if (!realMetrics.length) return undefined;
-    return realMetrics.reduce((latest, m) => {
-      const date = new Date(m.date);
-      return date > new Date(latest) ? m.date : latest;
-    }, realMetrics[0].date);
-  }, [realMetrics]);
 
   // Per-platform last sync dates
   const lastSyncByPlatform = useMemo(() => {
@@ -84,9 +77,7 @@ export function AdsDashboard() {
   // Per-platform hasData
   const hasDataByPlatform = useMemo(() => {
     const map: Record<string, boolean> = {};
-    for (const m of realMetrics) {
-      map[m.platform] = true;
-    }
+    for (const m of realMetrics) map[m.platform] = true;
     return map;
   }, [realMetrics]);
 
@@ -96,7 +87,7 @@ export function AdsDashboard() {
     return realMetrics.filter(m => m.platform === platform);
   }, [realMetrics, platform]);
 
-  // Calculate aggregated metrics from real data
+  // Aggregated metrics
   const realTotals = useAggregatedMetrics(filteredRealMetrics);
   const realCampaigns = useMemo(() => groupMetricsByCampaign(filteredRealMetrics), [filteredRealMetrics]);
   const realDailyData = useMemo(() => aggregateDailyData(filteredRealMetrics), [filteredRealMetrics]);
@@ -132,7 +123,7 @@ export function AdsDashboard() {
   const displayCampaigns = isConnected ? realCampaigns.map(c => ({
     id: c.campaign_id,
     name: c.campaign_name,
-    platform: c.platform as 'meta_ads' | 'google_ads' | 'tiktok_ads',
+    platform: c.platform as AdsPlatformType,
     status: 'active' as const,
     spend: c.totalSpend,
     impressions: c.totalImpressions,
@@ -145,7 +136,7 @@ export function AdsDashboard() {
     roas: c.roas,
   })) : mockCampaigns;
 
-  // Platform breakdown from real metrics grouped by platform
+  // Platform breakdown
   const displayPlatformBreakdown = useMemo(() => {
     if (!isConnected) return mockPlatformBreakdown;
 
@@ -154,22 +145,21 @@ export function AdsDashboard() {
       spendByPlatform[m.platform] = (spendByPlatform[m.platform] || 0) + m.spend;
     }
 
-    // If no spend data, show connected platforms with zero
     if (Object.keys(spendByPlatform).length === 0) {
       return activeIntegrations.map(ai => ({
-        platform: platformLabels[ai.platform] || ai.platform,
+        platform: PLATFORM_LABELS[ai.platform] || ai.platform,
         spend: 0,
         percentage: 100 / activeIntegrations.length,
-        color: platformColors[ai.platform] || '#888',
+        color: PLATFORM_COLORS[ai.platform] || '#888',
       }));
     }
 
     const totalSpend = Object.values(spendByPlatform).reduce((s, v) => s + v, 0);
     return Object.entries(spendByPlatform).map(([p, spend]) => ({
-      platform: platformLabels[p] || p,
+      platform: PLATFORM_LABELS[p] || p,
       spend,
       percentage: totalSpend > 0 ? (spend / totalSpend) * 100 : 0,
-      color: platformColors[p] || '#888',
+      color: PLATFORM_COLORS[p] || '#888',
     }));
   }, [isConnected, filteredRealMetrics, activeIntegrations, mockPlatformBreakdown]);
 
@@ -180,7 +170,7 @@ export function AdsDashboard() {
 
   return (
     <div className="space-y-4 md:space-y-6">
-      {/* Connection banners - one per connected integration */}
+      {/* Connection banners */}
       {isConnected ? (
         <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3">
           {activeIntegrations.map(ai => (
@@ -195,23 +185,17 @@ export function AdsDashboard() {
           ))}
         </div>
       ) : (
-        <AdsConnectionBanner
-          integration={null}
-          isLoading={integrationLoading}
-          hasRealData={false}
-        />
+        <AdsConnectionBanner integration={null} isLoading={integrationLoading} hasRealData={false} />
       )}
 
-      {/* Header info banner - only show if using mock data (not connected) */}
+      {/* Demo banner */}
       {!isConnected && (
         <div className="flex items-center gap-3 p-4 rounded-lg bg-primary/5 border border-primary/20">
           <Megaphone className="h-5 w-5 text-primary shrink-0" />
           <div className="flex-1">
-            <p className="text-sm font-medium">
-              Dashboard de Anúncios
-            </p>
+            <p className="text-sm font-medium">Dashboard de Anúncios Unificado</p>
             <p className="text-xs text-muted-foreground">
-              Visualização de métricas de campanhas do Meta Ads e Google Ads
+              Meta Ads, Google Ads, TikTok Ads + Mercado Livre, Shopee e Amazon Ads
             </p>
           </div>
           <Badge variant="outline" className="gap-1.5">
@@ -222,30 +206,19 @@ export function AdsDashboard() {
       )}
 
       {/* Filters */}
-      <AdsFilters
-        platform={platform}
-        period={period}
-        onPlatformChange={setPlatform}
-        onPeriodChange={setPeriod}
-        onClear={handleClear}
-      />
+      <AdsFilters platform={platform} period={period} onPlatformChange={setPlatform} onPeriodChange={setPeriod} onClear={handleClear} />
 
       {/* Active filters badges */}
       {(platform !== 'all' || period !== '30days') && (
         <div className="flex flex-wrap gap-2">
           {platform !== 'all' && (
             <Badge variant="secondary" className="gap-1">
-              <div 
-                className={`w-2 h-2 rounded-full ${
-                  platform === 'meta_ads' ? 'bg-blue-500' : platform === 'tiktok_ads' ? 'bg-pink-500' : 'bg-green-500'
-                }`}
-              />
-              {platformLabels[platform] || platform}
+              <div className="w-2 h-2 rounded-full" style={{ backgroundColor: PLATFORM_COLORS[platform] || '#888' }} />
+              {PLATFORM_LABELS[platform] || platform}
             </Badge>
           )}
           <Badge variant="secondary">
-            {period === '7days' ? 'Últimos 7 dias' : 
-             period === '30days' ? 'Últimos 30 dias' : 'Últimos 90 dias'}
+            {period === '7days' ? 'Últimos 7 dias' : period === '30days' ? 'Últimos 30 dias' : 'Últimos 90 dias'}
           </Badge>
         </div>
       )}
