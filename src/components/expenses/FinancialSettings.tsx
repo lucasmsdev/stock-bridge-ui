@@ -1,6 +1,9 @@
+import { useState } from "react";
 import { useToast } from "@/hooks/use-toast";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import {
   Settings,
   Loader2,
@@ -11,6 +14,10 @@ import {
   TrendingDown,
   TrendingUp,
   BarChart3,
+  RefreshCw,
+  Info,
+  Zap,
+  PenLine,
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { PlatformLogo } from "@/components/ui/platform-logo";
@@ -22,6 +29,7 @@ import {
   DEFAULT_FEES,
   MarketplaceFeeProfile,
 } from "@/hooks/useMarketplaceFees";
+import { Input } from "@/components/ui/input";
 
 export interface FinancialSettingsData {
   marketplaceFeePercent: number;
@@ -31,6 +39,15 @@ export interface FinancialSettingsData {
 interface FinancialSettingsProps {
   onSettingsChange?: (settings: FinancialSettingsData) => void;
 }
+
+const MANUAL_PLATFORM_REASONS: Record<string, string> = {
+  amazon: "A Amazon não disponibiliza API pública de taxas. As comissões variam por categoria e programa (FBA/FBM). Consulte o Seller Central.",
+  shopee: "A Shopee não oferece API de consulta de taxas. As comissões dependem do nível do vendedor e campanhas ativas.",
+  shopify: "O Shopify não cobra comissão sobre vendas, apenas taxa do gateway de pagamento. Ajuste conforme seu plano.",
+  magalu: "A API do Magalu não expõe estrutura de comissões. Verifique os valores no painel do vendedor.",
+  shein: "A SHEIN é uma plataforma fechada, sem documentação pública de APIs de taxas.",
+  tiktok_shop: "A API do TikTok Shop não inclui endpoint de consulta de taxas. Verifique no painel do vendedor.",
+};
 
 function FeeMetric({ icon: Icon, label, value }: { icon: React.ElementType; label: string; value: string }) {
   return (
@@ -53,16 +70,61 @@ function getProfileTotalFee(profile: MarketplaceFeeProfile) {
   return commission + paymentFee + profile.tax_percent;
 }
 
+function FeeSourceBadge({ platform }: { platform: string }) {
+  const isML = platform === "mercadolivre";
+  const reason = MANUAL_PLATFORM_REASONS[platform];
+
+  if (isML) {
+    return (
+      <TooltipProvider>
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <Badge className="bg-green-500/10 text-green-700 dark:text-green-400 border-green-500/30 hover:bg-green-500/20 gap-1 text-[10px]">
+              <Zap className="h-3 w-3" />
+              Automático
+            </Badge>
+          </TooltipTrigger>
+          <TooltipContent className="max-w-xs">
+            <p>Taxas consultadas automaticamente via API oficial do Mercado Livre com base na categoria e preço dos seus produtos.</p>
+          </TooltipContent>
+        </Tooltip>
+      </TooltipProvider>
+    );
+  }
+
+  return (
+    <TooltipProvider>
+      <Tooltip>
+        <TooltipTrigger asChild>
+          <Badge variant="outline" className="bg-amber-500/10 text-amber-700 dark:text-amber-400 border-amber-500/30 hover:bg-amber-500/20 gap-1 text-[10px]">
+            <PenLine className="h-3 w-3" />
+            Manual
+          </Badge>
+        </TooltipTrigger>
+        <TooltipContent className="max-w-xs">
+          <p>{reason || "Esta plataforma não disponibiliza API pública para consulta automática de taxas. Verifique os valores no painel do vendedor."}</p>
+        </TooltipContent>
+      </Tooltip>
+    </TooltipProvider>
+  );
+}
+
 interface PlatformAccordionItemProps {
   profile: MarketplaceFeeProfile;
   onRegimeChange: (profileId: string, regime: string, taxPercent: number) => void;
+  onFetchMLFees: (categoryId: string, price: number) => void;
+  isFetchingML: boolean;
   isPending: boolean;
 }
 
-function PlatformAccordionItem({ profile, onRegimeChange, isPending }: PlatformAccordionItemProps) {
+function PlatformAccordionItem({ profile, onRegimeChange, onFetchMLFees, isFetchingML, isPending }: PlatformAccordionItemProps) {
   const platform = profile.platform;
   const label = PLATFORM_LABELS[platform] || platform;
   const defaults = DEFAULT_FEES[platform];
+  const isML = platform === "mercadolivre";
+
+  const [mlCategoryId, setMlCategoryId] = useState("MLB1051"); // Default: Celulares
+  const [mlPrice, setMlPrice] = useState("100");
 
   const commission = defaults?.commission ?? profile.commission_percent;
   const paymentFee = defaults?.payment_fee ?? profile.payment_fee_percent;
@@ -79,6 +141,7 @@ function PlatformAccordionItem({ profile, onRegimeChange, isPending }: PlatformA
         <div className="flex items-center gap-3 flex-1 min-w-0">
           <PlatformLogo platform={platform} size="md" className="shrink-0" />
           <span className="font-semibold text-foreground text-base">{label}</span>
+          <FeeSourceBadge platform={platform} />
           <Badge variant="outline" className="ml-auto mr-2 font-bold text-primary border-primary/30">
             {totalFee.toFixed(1)}%
           </Badge>
@@ -95,6 +158,65 @@ function PlatformAccordionItem({ profile, onRegimeChange, isPending }: PlatformA
             <FeeMetric icon={Receipt} label="Taxa Fixa" value={`R$ ${fixedFee.toFixed(2)}`} />
             <FeeMetric icon={Landmark} label="Imposto" value={`${profile.tax_percent}%`} />
           </div>
+
+          {/* ML automatic fee fetch */}
+          {isML && (
+            <div className="p-4 rounded-lg border border-green-500/20 bg-green-500/5 space-y-3">
+              <div className="flex items-center gap-2">
+                <Zap className="h-4 w-4 text-green-600 dark:text-green-400" />
+                <span className="text-sm font-semibold text-foreground">Consultar taxas via API oficial</span>
+              </div>
+              <p className="text-xs text-muted-foreground">
+                Informe a categoria e preço para consultar a comissão real do Mercado Livre. Requer conta conectada na página de Integrações.
+              </p>
+              <div className="flex flex-col sm:flex-row gap-3">
+                <div className="flex-1">
+                  <label className="text-xs text-muted-foreground mb-1 block">Categoria (ID)</label>
+                  <Input
+                    value={mlCategoryId}
+                    onChange={(e) => setMlCategoryId(e.target.value)}
+                    placeholder="Ex: MLB1051"
+                    className="h-9"
+                  />
+                </div>
+                <div className="w-full sm:w-32">
+                  <label className="text-xs text-muted-foreground mb-1 block">Preço (R$)</label>
+                  <Input
+                    type="number"
+                    value={mlPrice}
+                    onChange={(e) => setMlPrice(e.target.value)}
+                    placeholder="100"
+                    className="h-9"
+                  />
+                </div>
+                <div className="flex items-end">
+                  <Button
+                    size="sm"
+                    onClick={() => onFetchMLFees(mlCategoryId, Number(mlPrice))}
+                    disabled={isFetchingML || !mlCategoryId || !mlPrice}
+                    className="gap-2 h-9"
+                  >
+                    {isFetchingML ? (
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                    ) : (
+                      <RefreshCw className="h-4 w-4" />
+                    )}
+                    Atualizar taxas
+                  </Button>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Manual platform notice */}
+          {!isML && MANUAL_PLATFORM_REASONS[platform] && (
+            <div className="p-3 rounded-lg border border-amber-500/20 bg-amber-500/5 flex items-start gap-3">
+              <Info className="h-4 w-4 text-amber-600 dark:text-amber-400 mt-0.5 shrink-0" />
+              <p className="text-xs text-muted-foreground leading-relaxed">
+                {MANUAL_PLATFORM_REASONS[platform]}
+              </p>
+            </div>
+          )}
 
           {/* Simulação rápida */}
           <div className="p-3 rounded-lg bg-primary/5 border border-primary/10">
@@ -246,7 +368,7 @@ function ComparisonPanel({ profiles }: { profiles: MarketplaceFeeProfile[] }) {
 }
 
 export function FinancialSettings({ onSettingsChange }: FinancialSettingsProps) {
-  const { feeProfiles, isLoading, updateFeeProfile } = useMarketplaceFees();
+  const { feeProfiles, isLoading, updateFeeProfile, updateMLFeesFromAPI } = useMarketplaceFees();
   const { toast } = useToast();
 
   const handleRegimeChange = (profileId: string, regime: string, taxPercent: number) => {
@@ -264,6 +386,10 @@ export function FinancialSettings({ onSettingsChange }: FinancialSettingsProps) 
     );
   };
 
+  const handleFetchMLFees = (categoryId: string, price: number) => {
+    updateMLFeesFromAPI.mutate({ categoryId, price });
+  };
+
   if (isLoading) {
     return (
       <div className="flex items-center justify-center py-16">
@@ -274,15 +400,13 @@ export function FinancialSettings({ onSettingsChange }: FinancialSettingsProps) 
 
   return (
     <div className="w-full space-y-8 p-0">
-      {" "}
-      {/* w-full, sem padding lateral */}
       <div>
         <h2 className="text-2xl font-bold text-foreground flex items-center gap-3 mb-2">
           <Settings className="h-6 w-6 text-primary" />
           Taxas por Marketplace
         </h2>
         <p className="text-base text-muted-foreground max-w-2xl leading-relaxed">
-          Taxas automáticas por plataforma. Ajuste o regime tributário individualmente para cada marketplace.
+          Taxas automáticas por plataforma. O Mercado Livre atualiza via API oficial. Demais plataformas requerem ajuste manual.
         </p>
       </div>
       {feeProfiles.length === 0 ? (
@@ -295,13 +419,8 @@ export function FinancialSettings({ onSettingsChange }: FinancialSettingsProps) 
         </div>
       ) : (
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 w-full h-auto">
-          {" "}
-          {/* Layout fluido: 100% mobile, 3-col desktop */}
-          {/* Accordion - 2/3 da tela em desktop */}
           <div className="lg:col-span-2 h-auto">
             <div className="sticky top-6">
-              {" "}
-              {/* Sticky para scroll suave */}
               <div className="bg-background border rounded-2xl p-6 mb-6">
                 <h3 className="text-lg font-bold text-foreground mb-4 flex items-center gap-2">
                   <BarChart3 className="h-5 w-5" />
@@ -313,6 +432,8 @@ export function FinancialSettings({ onSettingsChange }: FinancialSettingsProps) 
                       key={profile.id}
                       profile={profile}
                       onRegimeChange={handleRegimeChange}
+                      onFetchMLFees={handleFetchMLFees}
+                      isFetchingML={updateMLFeesFromAPI.isPending}
                       isPending={updateFeeProfile.isPending}
                     />
                   ))}
@@ -320,7 +441,6 @@ export function FinancialSettings({ onSettingsChange }: FinancialSettingsProps) 
               </div>
             </div>
           </div>
-          {/* Comparison panel - 1/3 da tela em desktop */}
           <div className="lg:col-span-1 h-auto">
             <div className="bg-background border rounded-2xl p-6 sticky top-6 h-fit">
               <h3 className="text-lg font-bold text-foreground mb-6 flex items-center gap-2">

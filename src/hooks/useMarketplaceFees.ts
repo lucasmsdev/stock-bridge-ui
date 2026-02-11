@@ -1,6 +1,7 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useOrganization } from "./useOrganization";
+import { useToast } from "./use-toast";
 
 export interface MarketplaceFeeProfile {
   id: string;
@@ -183,6 +184,53 @@ export function useMarketplaceFees() {
   // Get current tax regime from first profile (all should be same)
   const currentTaxRegime = feeProfiles.length > 0 ? feeProfiles[0].tax_regime : "simples_nacional";
 
+  const { toast } = useToast();
+
+  const fetchMercadoLivreFees = useMutation({
+    mutationFn: async ({ categoryId, price }: { categoryId: string; price: number }) => {
+      const { data, error } = await supabase.functions.invoke("get-mercadolivre-fees", {
+        body: { category_id: categoryId, price },
+      });
+      if (error) throw error;
+      return data;
+    },
+  });
+
+  const updateMLFeesFromAPI = useMutation({
+    mutationFn: async ({ categoryId, price }: { categoryId: string; price: number }) => {
+      const { data, error } = await supabase.functions.invoke("get-mercadolivre-fees", {
+        body: { category_id: categoryId, price },
+      });
+      if (error) throw error;
+      if (!data?.commission_percent) throw new Error("No commission data returned");
+
+      const mlProfile = getFeeProfile("mercadolivre");
+      if (!mlProfile) throw new Error("Mercado Livre profile not found");
+
+      const { error: updateError } = await supabase
+        .from("marketplace_fee_profiles" as any)
+        .update({ commission_percent: Math.round(data.commission_percent * 100) / 100 } as any)
+        .eq("id", mlProfile.id);
+
+      if (updateError) throw updateError;
+      return data;
+    },
+    onSuccess: (data) => {
+      queryClient.invalidateQueries({ queryKey: ["marketplace-fees"] });
+      toast({
+        title: "Taxas do Mercado Livre atualizadas",
+        description: `Comissão atualizada para ${data.commission_percent.toFixed(1)}% via API oficial.`,
+      });
+    },
+    onError: () => {
+      toast({
+        title: "Erro ao consultar taxas",
+        description: "Não foi possível obter as taxas do Mercado Livre. Tente novamente.",
+        variant: "destructive",
+      });
+    },
+  });
+
   return {
     feeProfiles,
     isLoading,
@@ -192,5 +240,7 @@ export function useMarketplaceFees() {
     updateFeeProfile,
     updateTaxRegime,
     currentTaxRegime,
+    fetchMercadoLivreFees,
+    updateMLFeesFromAPI,
   };
 }
