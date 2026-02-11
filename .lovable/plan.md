@@ -1,133 +1,120 @@
 
-
-# Taxas Reais por Marketplace -- Calculo Dinamico de Lucro
+# Anuncios de Marketplaces no Dashboard de Ads
 
 ## Objetivo
 
-Substituir a taxa unica de marketplace (hoje fixa em 12%) por taxas individuais e reais para cada plataforma, incluindo impostos brasileiros, para que o calculo de lucro reflita exatamente o que cada canal cobra.
+Integrar os anuncios nativos dos marketplaces (Mercado Livre Ads, Shopee Ads, Amazon Ads) ao Dashboard de Ads existente, unificando todas as metricas de publicidade em um so lugar -- tanto plataformas externas (Meta, Google, TikTok) quanto anuncios internos dos marketplaces.
 
-## Situacao Atual (Problemas)
+## Situacao Atual
 
-- Uma unica taxa de marketplace (12%) aplicada igualmente a todas as plataformas
-- Dashboard calcula lucro bruto como `revenue * 0.30` (hardcoded)
-- Nao considera impostos brasileiros (Simples Nacional, MEI, etc.)
-- Nao diferencia comissoes entre Mercado Livre (~11-16%), Shopee (~14-20%), Amazon (~15%), Shopify (~2-3%), etc.
+- O Dashboard de Ads so mostra Meta Ads, Google Ads e TikTok Ads
+- A tabela `ad_metrics` ja suporta qualquer plataforma (campo `platform` e texto livre)
+- Os marketplaces (Mercado Livre, Shopee, Amazon) ja possuem integracao OAuth ativa
+- Nao existem Edge Functions para sincronizar metricas de ads dos marketplaces
+- O filtro de plataforma no dashboard so tem 3 opcoes
 
-## Solucao
+## O que muda
 
-### 1. Nova tabela `marketplace_fee_profiles`
+### 1. Novas Edge Functions para Sincronizar Ads dos Marketplaces
 
-Criar uma tabela no banco para armazenar as taxas reais de cada marketplace por organizacao:
+Criar 3 novas Edge Functions que buscam dados de anuncios nas APIs nativas:
 
-```text
-marketplace_fee_profiles
---------------------------
-id                  uuid (PK)
-organization_id     uuid (FK)
-platform            text (mercadolivre, shopee, amazon, shopify, magalu, shein, tiktok_shop)
-commission_percent  numeric (taxa de comissao da plataforma)
-payment_fee_percent numeric (taxa de processamento de pagamento)
-fixed_fee_amount    numeric (taxa fixa por venda, se houver)
-shipping_subsidy    numeric (desconto de frete, se houver)
-tax_regime          text (simples_nacional, mei, lucro_presumido, isento)
-tax_percent         numeric (aliquota de imposto efetiva)
-notes               text (observacoes do usuario)
-is_active           boolean
-created_at / updated_at
-```
+**`sync-mercadolivre-ads`**
+- Usa a API `/users/{user_id}/items/search` + `/items/{id}/product_ads` do Mercado Livre
+- Captura: gasto diario, impressoes, cliques, vendas atribuidas
+- Salva na tabela `ad_metrics` com `platform = 'mercadolivre_ads'`
 
-Valores padrao pre-populados ao criar a org:
+**`sync-shopee-ads`**
+- Usa a Shopee Ads API (`/api/v2/ads/get_performance`)
+- Captura: gasto, impressoes, cliques, conversoes
+- Salva com `platform = 'shopee_ads'`
 
-| Plataforma     | Comissao | Pagamento | Taxa fixa | Imposto padrao |
-|----------------|----------|-----------|-----------|----------------|
-| Mercado Livre  | 13%      | 4.99%     | R$0       | 6% (Simples)   |
-| Shopee         | 14%      | 0%        | R$0       | 6%             |
-| Amazon         | 15%      | 0%        | R$0       | 6%             |
-| Shopify        | 0%       | 2.5%      | R$0       | 6%             |
-| Magalu         | 16%      | 0%        | R$0       | 6%             |
-| SHEIN          | 12%      | 0%        | R$0       | 6%             |
-| TikTok Shop    | 5%       | 0%        | R$0       | 6%             |
+**`sync-amazon-ads`**
+- Usa a Amazon Advertising API (Sponsored Products Report)
+- Captura: gasto, impressoes, cliques, vendas
+- Salva com `platform = 'amazon_ads'`
 
-### 2. Pagina de Configuracao de Taxas (refatorar `FinancialSettings`)
+### 2. Atualizar o Dashboard de Ads
 
-Substituir o slider unico por uma interface com cards para cada marketplace, onde o usuario pode:
+**Filtros (`AdsFilters.tsx`)**
+- Adicionar opcoes: Mercado Livre Ads, Shopee Ads, Amazon Ads
+- Atualizar o tipo `AdsPlatform` para incluir as novas plataformas
 
-- Ver e editar comissao, taxa de pagamento e taxa fixa de cada plataforma
-- Selecionar o regime tributario (Simples Nacional, MEI, Lucro Presumido)
-- Aliquota de imposto e ajustada automaticamente pelo regime escolhido
-- Botao "Restaurar padrao" por plataforma
-- Presets de categoria (ex: Eletronicos no ML cobram 13%, Moda 16%)
+**Banners de conexao (`AdsConnectionBanner.tsx`)**
+- Adicionar config visual para cada marketplace (cores, logos)
+- Detectar integracao de marketplace como fonte de ads
 
-### 3. Hook `useMarketplaceFees`
+**Tabela de campanhas (`CampaignPerformanceTable.tsx`)**
+- Adicionar cores e labels para as novas plataformas
 
-Novo hook centralizado que:
+**Mock data (`mockAdsData.ts`)**
+- Adicionar campanhas demo dos marketplaces para visualizacao sem conexao
 
-- Carrega as taxas de todos os marketplaces da org
-- Expoe funcao `calculateFees(platform, sellingPrice)` que retorna:
-  - `commissionAmount` -- valor da comissao
-  - `paymentFeeAmount` -- taxa de pagamento
-  - `fixedFeeAmount` -- taxa fixa
-  - `taxAmount` -- imposto
-  - `totalDeductions` -- total descontado
-  - `netPerUnit` -- lucro liquido por unidade (preco - custo - deducoes)
-- Cache com React Query (staleTime 5 min)
+**Hook de dados (`useMetaAdsData.ts`)**
+- Adicionar hooks para detectar integracao de marketplace como ads
+- Adicionar funcoes de sync para cada marketplace
 
-### 4. Dashboard -- Calculo Real de Lucro
+### 3. Banners e Cores dos Marketplaces
 
-Refatorar `loadAllData` no Dashboard para:
+| Plataforma        | Cor Primaria | Logo                        |
+|--------------------|--------------|------------------------------|
+| Mercado Livre Ads  | Amarelo (#FFE600) | `/logos/mercadolivre.svg`    |
+| Shopee Ads         | Laranja (#EE4D2D)  | `/logos/shopee.svg`          |
+| Amazon Ads         | Laranja (#FF9900)  | `/logos/amazon.svg`          |
 
-- Buscar pedidos COM o campo `platform`
-- Para cada pedido, aplicar as taxas especificas daquela plataforma usando `useMarketplaceFees`
-- Calcular lucro bruto REAL: `receita - (taxas_marketplace + impostos + custo_produto)`
-- Eliminar o hardcoded `revenue * 0.30`
+### 4. Breakdown e Metricas Unificados
 
-### 5. Centro de Custos -- ProfitBreakdown Dinamico
-
-Refatorar `ProfitBreakdown` para:
-
-- Agrupar pedidos por plataforma
-- Mostrar deducoes detalhadas por marketplace (em vez de uma unica linha "Taxas de Marketplace")
-- Cada linha mostra: logo da plataforma, nome, quantidade de vendas, receita, taxa cobrada, e valor descontado
-
-### 6. Calculadora de Precificacao -- Selecao de Marketplace
-
-Refatorar `ProfitabilityCalculator` para:
-
-- Adicionar dropdown de selecao de marketplace
-- Ao selecionar, preencher automaticamente comissao e taxas daquela plataforma
-- Calcular simulacao com os valores reais
-- Mostrar comparativo lado a lado entre marketplaces ("Onde voce lucra mais?")
+- O dashboard ja agrega automaticamente por plataforma via `ad_metrics`
+- Ao adicionar os dados dos marketplaces na mesma tabela, o breakdown, graficos e totais vao incluir tudo automaticamente
+- O usuario podera filtrar por qualquer plataforma individualmente ou ver tudo junto
 
 ## Detalhes Tecnicos
+
+### Arquivos Novos
+
+| Arquivo | Descricao |
+|---------|-----------|
+| `supabase/functions/sync-mercadolivre-ads/index.ts` | Sync de ads do Mercado Livre |
+| `supabase/functions/sync-shopee-ads/index.ts` | Sync de ads da Shopee |
+| `supabase/functions/sync-amazon-ads/index.ts` | Sync de ads da Amazon |
 
 ### Arquivos Modificados
 
 | Arquivo | Mudanca |
 |---------|---------|
-| **Nova migracao SQL** | Criar tabela `marketplace_fee_profiles` com RLS e seed de valores padrao |
-| `src/hooks/useMarketplaceFees.ts` | **Novo** -- hook central para taxas por marketplace |
-| `src/components/expenses/FinancialSettings.tsx` | Refatorar para mostrar taxas por marketplace em cards |
-| `src/pages/Dashboard.tsx` | Substituir `revenue * 0.30` por calculo real com taxas por plataforma |
-| `src/components/expenses/ProfitBreakdown.tsx` | Deducoes por marketplace em vez de taxa unica |
-| `src/components/expenses/MonthlyHistoryChart.tsx` | Usar taxas reais no historico mensal |
-| `src/components/financial/ProfitabilityCalculator.tsx` | Adicionar selecao de marketplace e comparativo |
-| `src/integrations/supabase/types.ts` | Adicionar tipagem da nova tabela |
+| `src/components/ads/mockAdsData.ts` | Adicionar tipo e dados demo para marketplace ads |
+| `src/components/ads/AdsFilters.tsx` | Adicionar 3 novas opcoes de filtro |
+| `src/components/ads/useMetaAdsData.ts` | Hooks de integracao e sync para marketplace ads |
+| `src/components/ads/AdsConnectionBanner.tsx` | Config visual para marketplace ads |
+| `src/components/ads/AdsDashboard.tsx` | Incluir marketplace ads nas integracoes ativas |
+| `src/components/ads/CampaignPerformanceTable.tsx` | Cores e labels das novas plataformas |
+| `src/components/ads/AdsPlatformBreakdown.tsx` | Cores para novas plataformas no grafico |
 
-### Migracao SQL
+### APIs dos Marketplaces Utilizadas
+
+**Mercado Livre:**
+- `GET /users/{seller_id}/advertising/campaigns` -- listar campanhas
+- `GET /advertising/campaigns/{campaign_id}` -- metricas por campanha
+- Alternativa: `GET /items/{item_id}/product_ads` para Product Ads
+
+**Shopee:**
+- `POST /api/v2/ads/get_campaign_list` -- listar campanhas
+- `POST /api/v2/ads/get_performance` -- metricas de performance
+
+**Amazon:**
+- Sponsored Products API: `POST /v2/sp/campaigns` + Reports API
+- Relatório de performance de campanhas patrocinadas
+
+### Fluxo de Dados
 
 ```text
-1. Criar tabela marketplace_fee_profiles
-2. Habilitar RLS com policies por organizacao
-3. Criar funcao trigger para seed automatico ao criar organizacao
-4. Manter tabela user_financial_settings para config global (regime tributario padrao)
+Mercado Livre API ─┐
+Shopee API ────────┤─> Edge Functions ─> ad_metrics (tabela existente)
+Amazon API ────────┘                           │
+                                               ▼
+Meta Ads ──────────┐                   Dashboard de Ads
+Google Ads ────────┤─> ja funciona ─>  (metricas unificadas)
+TikTok Ads ────────┘
 ```
 
-### Regimes Tributarios Brasileiros (presets)
-
-- **MEI**: 0% (DAS fixo mensal, nao incide por venda)
-- **Simples Nacional**: 4-19% (faixa baseada no faturamento)
-- **Lucro Presumido**: ~11.33% (IRPJ + CSLL + PIS + COFINS)
-- **Isento**: 0%
-
-O usuario seleciona o regime e a aliquota efetiva e sugerida, podendo ajustar manualmente.
-
+Todas as plataformas salvam na mesma tabela `ad_metrics`, permitindo que o dashboard mostre tudo junto automaticamente.
