@@ -1,30 +1,30 @@
 
 
-# Expandir Cards de Taxas para Ocupar Todo o Espaco
+# Expandir o Card Container das Taxas por Marketplace
 
 ## Problema
 
-Os cards de taxas estao comprimidos e nao ocupam a largura total disponivel. O grid `sm:grid-cols-2 xl:grid-cols-3` combinado com o container pai esta limitando o tamanho dos cards.
+O card externo ("Taxas por Marketplace") que envolve todos os cards individuais de cada plataforma esta com padding e espaco interno insuficiente. Os cards de Amazon, Magalu, Shopee etc. ficam colados uns nos outros e nas bordas do container.
 
 ## Solucao
 
-Ajustar o layout do componente `FinancialSettings.tsx` para que os cards ocupem toda a largura disponivel:
+Aumentar o padding e espacamento interno do Card pai no componente `FinancialSettings.tsx`:
 
-1. Mudar o grid dos cards para `grid-cols-1 md:grid-cols-2 lg:grid-cols-3` com gap maior
-2. Garantir que o Card pai (container) nao tenha restricao de largura -- usar `w-full`
-3. Dentro de cada `PlatformFeeCard`, ajustar o layout do header para nao truncar texto (o nome "Mercado Livre" esta cortado na screenshot)
-4. Melhorar o grid interno das metricas (Comissao, Pgto, Fixa, Imposto) para nao ficarem apertadas -- usar `grid-cols-4` fixo com gap adequado
+1. Aumentar o padding do `CardHeader` e `CardContent` do card container externo
+2. Aumentar o `gap` do grid dos platform cards para dar mais respiro entre eles
+3. Aumentar o espacamento entre o seletor de regime tributario e os cards
 
 ## Arquivo Modificado
 
 | Arquivo | Mudanca |
 |---------|---------|
-| `src/components/expenses/FinancialSettings.tsx` | Ajustar grid externo para ocupar largura total, aumentar gap entre cards, corrigir truncamento de nomes, e garantir que metricas internas tenham espaco adequado |
+| `src/components/expenses/FinancialSettings.tsx` | Aumentar padding do Card pai (`p-8`), gap do grid (`gap-6`), e espacamento geral (`space-y-8`) |
 
 ## Detalhes
 
-- Grid dos cards: `grid-cols-1 md:grid-cols-2 xl:grid-cols-3` com `gap-5`
-- Header do card: layout em coluna para evitar que badge "Automatico" sobreponha o nome
-- Metricas internas: `grid-cols-4` com `gap-4` e padding `p-3.5`
-- Container pai: sem restricao de max-width
+- `CardHeader`: adicionar classe `p-8` para mais respiro no cabecalho
+- `CardContent`: trocar `p-6` padrao por `p-8 pt-2` para mais espaco nas laterais e embaixo
+- `space-y-6` do CardContent interno: aumentar para `space-y-8`
+- Grid dos cards: aumentar gap de `gap-5` para `gap-6`
+- Seletor de regime tributario: aumentar padding interno de `p-4` para `p-5`
 
