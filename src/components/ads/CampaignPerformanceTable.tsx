@@ -26,6 +26,8 @@ const getPlatformShortLabel = (platform: string): string => {
     mercadolivre_ads: 'ML Ads',
     shopee_ads: 'Shopee',
     amazon_ads: 'Amazon',
+    magalu_ads: 'Magalu',
+    tiktokshop_ads: 'TT Shop',
   };
   return shortLabels[platform] || platform;
 };

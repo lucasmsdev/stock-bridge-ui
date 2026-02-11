@@ -23,6 +23,8 @@ const chartConfig = {
   mercadolivre: { label: "Mercado Livre Ads", color: "hsl(54, 100%, 50%)" },
   shopee: { label: "Shopee Ads", color: "hsl(14, 85%, 55%)" },
   amazon: { label: "Amazon Ads", color: "hsl(36, 100%, 50%)" },
+  magalu: { label: "Magalu Ads", color: "hsl(210, 100%, 50%)" },
+  tiktokshop: { label: "TikTok Shop Ads", color: "hsl(174, 90%, 55%)" },
 } satisfies ChartConfig;
 
 const formatCurrency = (value: number) => {

@@ -21,13 +21,15 @@ import {
   useMercadoLivreAdsIntegration,
   useShopeeAdsIntegration,
   useAmazonAdsIntegration,
+  useMagaluAdsIntegration,
+  useTikTokShopAdsIntegration,
   useAdMetrics,
   useAggregatedMetrics,
   groupMetricsByCampaign,
   aggregateDailyData,
 } from "./useMetaAdsData";
 import { Badge } from "@/components/ui/badge";
-import { AlertCircle, Megaphone } from "lucide-react";
+import { AlertCircle, Megaphone, Globe, Store } from "lucide-react";
 
 export function AdsDashboard() {
   const [platform, setPlatform] = useState<AdsPlatform>('all');
@@ -38,26 +40,37 @@ export function AdsDashboard() {
   const { data: tiktokIntegration, isLoading: tiktokLoading } = useTikTokAdsIntegration();
   const { data: googleIntegration, isLoading: googleLoading } = useGoogleAdsIntegration();
 
-  // Marketplace ad integrations (reuse OAuth connection)
+  // Marketplace ad integrations
   const { data: mlIntegration, isLoading: mlLoading } = useMercadoLivreAdsIntegration();
   const { data: shopeeIntegration, isLoading: shopeeLoading } = useShopeeAdsIntegration();
   const { data: amazonIntegration, isLoading: amazonLoading } = useAmazonAdsIntegration();
+  const { data: magaluIntegration, isLoading: magaluLoading } = useMagaluAdsIntegration();
+  const { data: tiktokshopIntegration, isLoading: tiktokshopLoading } = useTikTokShopAdsIntegration();
 
-  const integrationLoading = metaLoading || tiktokLoading || googleLoading || mlLoading || shopeeLoading || amazonLoading;
+  const integrationLoading = metaLoading || tiktokLoading || googleLoading || mlLoading || shopeeLoading || amazonLoading || magaluLoading || tiktokshopLoading;
   const daysMap = { '7days': 7, '30days': 30, '90days': 90 };
   const { data: realMetrics = [], isLoading: metricsLoading } = useAdMetrics(daysMap[period]);
 
-  // Build list of active integrations
-  const activeIntegrations = useMemo(() => {
+  // Build lists of active integrations by group
+  const externalIntegrations = useMemo(() => {
     const list: { platform: AdsPlatformType; integration: NonNullable<typeof metaIntegration> }[] = [];
     if (metaIntegration) list.push({ platform: 'meta_ads', integration: metaIntegration });
-    if (tiktokIntegration) list.push({ platform: 'tiktok_ads', integration: tiktokIntegration });
     if (googleIntegration) list.push({ platform: 'google_ads', integration: googleIntegration });
+    if (tiktokIntegration) list.push({ platform: 'tiktok_ads', integration: tiktokIntegration });
+    return list;
+  }, [metaIntegration, googleIntegration, tiktokIntegration]);
+
+  const marketplaceIntegrations = useMemo(() => {
+    const list: { platform: AdsPlatformType; integration: NonNullable<typeof metaIntegration> }[] = [];
     if (mlIntegration) list.push({ platform: 'mercadolivre_ads', integration: mlIntegration });
     if (shopeeIntegration) list.push({ platform: 'shopee_ads', integration: shopeeIntegration });
     if (amazonIntegration) list.push({ platform: 'amazon_ads', integration: amazonIntegration });
+    if (magaluIntegration) list.push({ platform: 'magalu_ads', integration: magaluIntegration });
+    if (tiktokshopIntegration) list.push({ platform: 'tiktokshop_ads', integration: tiktokshopIntegration });
     return list;
-  }, [metaIntegration, tiktokIntegration, googleIntegration, mlIntegration, shopeeIntegration, amazonIntegration]);
+  }, [mlIntegration, shopeeIntegration, amazonIntegration, magaluIntegration, tiktokshopIntegration]);
+
+  const activeIntegrations = useMemo(() => [...externalIntegrations, ...marketplaceIntegrations], [externalIntegrations, marketplaceIntegrations]);
 
   const hasRealData = realMetrics.length > 0;
   const isConnected = activeIntegrations.length > 0;
@@ -168,12 +181,20 @@ export function AdsDashboard() {
     setPeriod('30days');
   };
 
-  return (
-    <div className="space-y-4 md:space-y-6">
-      {/* Connection banners */}
-      {isConnected ? (
-        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3">
-          {activeIntegrations.map(ai => (
+  const renderBannerGroup = (
+    title: string,
+    icon: React.ReactNode,
+    integrations: typeof activeIntegrations,
+  ) => {
+    if (integrations.length === 0) return null;
+    return (
+      <div className="space-y-2">
+        <div className="flex items-center gap-2">
+          {icon}
+          <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">{title}</span>
+        </div>
+        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
+          {integrations.map(ai => (
             <AdsConnectionBanner
               key={ai.platform}
               integration={ai.integration}
@@ -183,6 +204,26 @@ export function AdsDashboard() {
               platform={ai.platform}
             />
           ))}
+        </div>
+      </div>
+    );
+  };
+
+  return (
+    <div className="space-y-4 md:space-y-6">
+      {/* Connection banners grouped */}
+      {isConnected ? (
+        <div className="space-y-4">
+          {renderBannerGroup(
+            'Plataformas Externas',
+            <Globe className="h-3.5 w-3.5 text-muted-foreground" />,
+            externalIntegrations,
+          )}
+          {renderBannerGroup(
+            'Marketplaces',
+            <Store className="h-3.5 w-3.5 text-muted-foreground" />,
+            marketplaceIntegrations,
+          )}
         </div>
       ) : (
         <AdsConnectionBanner integration={null} isLoading={integrationLoading} hasRealData={false} />
@@ -195,7 +236,7 @@ export function AdsDashboard() {
           <div className="flex-1">
             <p className="text-sm font-medium">Dashboard de Anúncios Unificado</p>
             <p className="text-xs text-muted-foreground">
-              Meta Ads, Google Ads, TikTok Ads + Mercado Livre, Shopee e Amazon Ads
+              Meta, Google, TikTok Ads + ML, Shopee, Amazon, Magalu e TikTok Shop Ads
             </p>
           </div>
           <Badge variant="outline" className="gap-1.5">

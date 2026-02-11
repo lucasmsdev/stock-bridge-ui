@@ -78,6 +78,18 @@ export function AdsFilters({
                 Amazon Ads
               </div>
             </SelectItem>
+            <SelectItem value="magalu_ads">
+              <div className="flex items-center gap-2">
+                <div className="w-3 h-3 rounded-full" style={{ backgroundColor: '#0086FF' }} />
+                Magalu Ads
+              </div>
+            </SelectItem>
+            <SelectItem value="tiktokshop_ads">
+              <div className="flex items-center gap-2">
+                <div className="w-3 h-3 rounded-full" style={{ backgroundColor: '#25F4EE' }} />
+                TikTok Shop Ads
+              </div>
+            </SelectItem>
           </SelectContent>
         </Select>
 

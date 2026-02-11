@@ -117,6 +117,8 @@ export function useGoogleAdsIntegration() { return useAdsIntegration('google_ads
 export function useMercadoLivreAdsIntegration() { return useAdsIntegration('mercadolivre'); }
 export function useShopeeAdsIntegration() { return useAdsIntegration('shopee'); }
 export function useAmazonAdsIntegration() { return useAdsIntegration('amazon'); }
+export function useMagaluAdsIntegration() { return useAdsIntegration('magalu'); }
+export function useTikTokShopAdsIntegration() { return useAdsIntegration('tiktok_shop'); }
 
 // Sync hooks
 export function useSyncMetaAds() { return useSyncAds('sync-meta-ads', 'Meta Ads'); }
@@ -125,6 +127,8 @@ export function useSyncGoogleAds() { return useSyncAds('sync-google-ads', 'Googl
 export function useSyncMercadoLivreAds() { return useSyncAds('sync-mercadolivre-ads', 'Mercado Livre Ads'); }
 export function useSyncShopeeAds() { return useSyncAds('sync-shopee-ads', 'Shopee Ads'); }
 export function useSyncAmazonAds() { return useSyncAds('sync-amazon-ads', 'Amazon Ads'); }
+export function useSyncMagaluAds() { return useSyncAds('sync-magalu-ads', 'Magalu Ads'); }
+export function useSyncTikTokShopAds() { return useSyncAds('sync-tiktokshop-ads', 'TikTok Shop Ads'); }
 
 export function useAdMetrics(daysFilter: number = 30) {
   return useQuery({

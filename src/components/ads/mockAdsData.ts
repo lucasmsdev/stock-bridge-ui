@@ -1,6 +1,6 @@
-export type AdsPlatform = 'meta_ads' | 'google_ads' | 'tiktok_ads' | 'mercadolivre_ads' | 'shopee_ads' | 'amazon_ads' | 'all';
+export type AdsPlatform = 'meta_ads' | 'google_ads' | 'tiktok_ads' | 'mercadolivre_ads' | 'shopee_ads' | 'amazon_ads' | 'magalu_ads' | 'tiktokshop_ads' | 'all';
 
-export type CampaignPlatform = 'meta_ads' | 'google_ads' | 'tiktok_ads' | 'mercadolivre_ads' | 'shopee_ads' | 'amazon_ads';
+export type CampaignPlatform = 'meta_ads' | 'google_ads' | 'tiktok_ads' | 'mercadolivre_ads' | 'shopee_ads' | 'amazon_ads' | 'magalu_ads' | 'tiktokshop_ads';
 
 export interface Campaign {
   id: string;
@@ -133,10 +133,39 @@ export const amazonCampaigns: Campaign[] = [
   },
 ];
 
+// Campanhas Magalu Ads (R$350/mês total)
+export const magaluCampaigns: Campaign[] = [
+  {
+    id: 'magalu-1', platform: 'magalu_ads', name: 'Patrocinado - Eletrônicos', status: 'active',
+    spend: 200, impressions: 16000, clicks: 320, ctr: 2.0, conversions: 16,
+    conversionValue: 1600, cpc: 0.63, costPerConversion: 12.50, roas: 8.0,
+  },
+  {
+    id: 'magalu-2', platform: 'magalu_ads', name: 'Patrocinado - Casa', status: 'active',
+    spend: 150, impressions: 12000, clicks: 240, ctr: 2.0, conversions: 10,
+    conversionValue: 700, cpc: 0.63, costPerConversion: 15.00, roas: 4.7,
+  },
+];
+
+// Campanhas TikTok Shop Ads (R$200/mês total)
+export const tiktokshopCampaigns: Campaign[] = [
+  {
+    id: 'tiktokshop-1', platform: 'tiktokshop_ads', name: 'Product Boost - Trending', status: 'active',
+    spend: 120, impressions: 25000, clicks: 500, ctr: 2.0, conversions: 12,
+    conversionValue: 960, cpc: 0.24, costPerConversion: 10.00, roas: 8.0,
+  },
+  {
+    id: 'tiktokshop-2', platform: 'tiktokshop_ads', name: 'Shop Ads - Destaques', status: 'active',
+    spend: 80, impressions: 18000, clicks: 360, ctr: 2.0, conversions: 8,
+    conversionValue: 560, cpc: 0.22, costPerConversion: 10.00, roas: 7.0,
+  },
+];
+
 // Todas as campanhas
 export const allCampaigns: Campaign[] = [
   ...metaCampaigns, ...googleCampaigns, ...tiktokCampaigns,
   ...mercadolivreCampaigns, ...shopeeCampaigns, ...amazonCampaigns,
+  ...magaluCampaigns, ...tiktokshopCampaigns,
 ];
 
 // Dados diários dos últimos 30 dias
@@ -151,6 +180,8 @@ const generateDailyData = (): DailyMetric[] => {
     { platform: 'mercadolivre_ads', avgSpend: 20, avgImpressions: 1700, avgClicks: 34, conversionRate: 0.7 },
     { platform: 'shopee_ads', avgSpend: 10, avgImpressions: 830, avgClicks: 25, conversionRate: 0.65 },
     { platform: 'amazon_ads', avgSpend: 13, avgImpressions: 1000, avgClicks: 18, conversionRate: 0.6 },
+    { platform: 'magalu_ads', avgSpend: 12, avgImpressions: 930, avgClicks: 19, conversionRate: 0.6 },
+    { platform: 'tiktokshop_ads', avgSpend: 7, avgImpressions: 1400, avgClicks: 29, conversionRate: 0.5 },
   ];
 
   for (let i = 29; i >= 0; i--) {
@@ -237,6 +268,8 @@ export const PLATFORM_COLORS: Record<string, string> = {
   mercadolivre_ads: '#FFE600',
   shopee_ads: '#EE4D2D',
   amazon_ads: '#FF9900',
+  magalu_ads: '#0086FF',
+  tiktokshop_ads: '#25F4EE',
 };
 
 export const PLATFORM_LABELS: Record<string, string> = {
@@ -246,6 +279,8 @@ export const PLATFORM_LABELS: Record<string, string> = {
   mercadolivre_ads: 'Mercado Livre Ads',
   shopee_ads: 'Shopee Ads',
   amazon_ads: 'Amazon Ads',
+  magalu_ads: 'Magalu Ads',
+  tiktokshop_ads: 'TikTok Shop Ads',
 };
 
 export const getPlatformBreakdown = () => {
