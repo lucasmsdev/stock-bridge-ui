@@ -1,13 +1,19 @@
-import { useState, useEffect } from "react";
-import { useAuth } from "@/hooks/useAuth";
-import { supabase } from "@/integrations/supabase/client";
+import { useState } from "react";
 import { useToast } from "@/hooks/use-toast";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
-import { Slider } from "@/components/ui/slider";
-import { Settings, Save, Loader2, Percent, Store } from "lucide-react";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Settings, Save, Loader2, RotateCcw } from "lucide-react";
+import { 
+  useMarketplaceFees, 
+  PLATFORM_LABELS, 
+  PLATFORM_LOGOS, 
+  TAX_REGIMES, 
+  DEFAULT_FEES,
+  MarketplaceFeeProfile 
+} from "@/hooks/useMarketplaceFees";
 
 export interface FinancialSettingsData {
   marketplaceFeePercent: number;
@@ -18,85 +24,171 @@ interface FinancialSettingsProps {
   onSettingsChange?: (settings: FinancialSettingsData) => void;
 }
 
-export function FinancialSettings({ onSettingsChange }: FinancialSettingsProps) {
-  const { user } = useAuth();
+function PlatformFeeCard({ profile, onSave }: { 
+  profile: MarketplaceFeeProfile; 
+  onSave: (updates: Partial<MarketplaceFeeProfile> & { id: string }) => void;
+}) {
   const { toast } = useToast();
-  const [loading, setLoading] = useState(true);
+  const [editing, setEditing] = useState(false);
   const [saving, setSaving] = useState(false);
-  const [settings, setSettings] = useState<FinancialSettingsData>({
-    marketplaceFeePercent: 12,
-    targetMarginPercent: 30,
+  const [form, setForm] = useState({
+    commission_percent: profile.commission_percent,
+    payment_fee_percent: profile.payment_fee_percent,
+    fixed_fee_amount: profile.fixed_fee_amount,
+    tax_regime: profile.tax_regime,
+    tax_percent: profile.tax_percent,
   });
 
-  useEffect(() => {
-    loadSettings();
-  }, [user]);
+  const platform = profile.platform;
+  const logo = PLATFORM_LOGOS[platform];
+  const label = PLATFORM_LABELS[platform] || platform;
 
-  const loadSettings = async () => {
-    if (!user) return;
+  const handleRegimeChange = (regime: string) => {
+    const regimeData = TAX_REGIMES[regime];
+    setForm(prev => ({
+      ...prev,
+      tax_regime: regime,
+      tax_percent: regimeData?.defaultPercent ?? prev.tax_percent,
+    }));
+  };
 
-    try {
-      setLoading(true);
-      const { data, error } = await supabase
-        .from('user_financial_settings')
-        .select('*')
-        .eq('user_id', user.id)
-        .maybeSingle();
-
-      if (error) throw error;
-
-      if (data) {
-        const newSettings = {
-          marketplaceFeePercent: Number(data.marketplace_fee_percent) || 12,
-          targetMarginPercent: Number(data.target_margin_percent) || 30,
-        };
-        setSettings(newSettings);
-        onSettingsChange?.(newSettings);
-      }
-    } catch (error) {
-      console.error('Error loading financial settings:', error);
-    } finally {
-      setLoading(false);
+  const handleResetDefaults = () => {
+    const defaults = DEFAULT_FEES[platform];
+    if (defaults) {
+      setForm(prev => ({
+        ...prev,
+        commission_percent: defaults.commission,
+        payment_fee_percent: defaults.payment_fee,
+        fixed_fee_amount: defaults.fixed_fee,
+      }));
     }
   };
 
-  const saveSettings = async () => {
-    if (!user) return;
-
+  const handleSave = async () => {
+    setSaving(true);
     try {
-      setSaving(true);
-
-      const { error } = await supabase
-        .from('user_financial_settings')
-        .upsert({
-          user_id: user.id,
-          marketplace_fee_percent: settings.marketplaceFeePercent,
-          target_margin_percent: settings.targetMarginPercent,
-        }, {
-          onConflict: 'user_id',
-        });
-
-      if (error) throw error;
-
-      toast({
-        title: "Configurações salvas",
-        description: "Suas taxas foram atualizadas com sucesso.",
-      });
-
-      onSettingsChange?.(settings);
-    } catch (error: any) {
-      console.error('Error saving financial settings:', error);
-      toast({
-        title: "Erro ao salvar",
-        description: error.message,
-        variant: "destructive",
-      });
+      onSave({ id: profile.id, ...form });
+      setEditing(false);
+      toast({ title: "Taxas atualizadas", description: `${label} atualizado com sucesso.` });
+    } catch {
+      toast({ title: "Erro ao salvar", variant: "destructive" });
     } finally {
       setSaving(false);
     }
   };
 
-  if (loading) {
+  const totalFee = form.commission_percent + form.payment_fee_percent + form.tax_percent;
+
+  return (
+    <Card className="shadow-soft hover:shadow-medium transition-shadow">
+      <CardContent className="pt-5 pb-4">
+        <div className="flex items-center justify-between mb-4">
+          <div className="flex items-center gap-3">
+            <img src={logo} alt={label} className="h-8 w-8 object-contain rounded" />
+            <div>
+              <p className="font-semibold text-foreground">{label}</p>
+              <p className="text-xs text-muted-foreground">
+                Taxa total: <span className="font-medium text-primary">{totalFee.toFixed(1)}%</span>
+              </p>
+            </div>
+          </div>
+          {!editing ? (
+            <Button variant="ghost" size="sm" onClick={() => setEditing(true)}>Editar</Button>
+          ) : (
+            <Button variant="ghost" size="sm" onClick={handleResetDefaults}>
+              <RotateCcw className="h-3.5 w-3.5 mr-1" /> Padrão
+            </Button>
+          )}
+        </div>
+
+        {editing ? (
+          <div className="space-y-3">
+            <div className="grid grid-cols-3 gap-3">
+              <div className="space-y-1">
+                <Label className="text-xs">Comissão (%)</Label>
+                <Input
+                  type="number" step="0.01" 
+                  value={form.commission_percent}
+                  onChange={e => setForm(prev => ({ ...prev, commission_percent: parseFloat(e.target.value) || 0 }))}
+                />
+              </div>
+              <div className="space-y-1">
+                <Label className="text-xs">Pgto (%)</Label>
+                <Input
+                  type="number" step="0.01"
+                  value={form.payment_fee_percent}
+                  onChange={e => setForm(prev => ({ ...prev, payment_fee_percent: parseFloat(e.target.value) || 0 }))}
+                />
+              </div>
+              <div className="space-y-1">
+                <Label className="text-xs">Fixa (R$)</Label>
+                <Input
+                  type="number" step="0.01"
+                  value={form.fixed_fee_amount}
+                  onChange={e => setForm(prev => ({ ...prev, fixed_fee_amount: parseFloat(e.target.value) || 0 }))}
+                />
+              </div>
+            </div>
+
+            <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-1">
+                <Label className="text-xs">Regime Tributário</Label>
+                <Select value={form.tax_regime} onValueChange={handleRegimeChange}>
+                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    {Object.entries(TAX_REGIMES).map(([key, regime]) => (
+                      <SelectItem key={key} value={key}>{regime.label}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-1">
+                <Label className="text-xs">Imposto (%)</Label>
+                <Input
+                  type="number" step="0.01"
+                  value={form.tax_percent}
+                  onChange={e => setForm(prev => ({ ...prev, tax_percent: parseFloat(e.target.value) || 0 }))}
+                />
+              </div>
+            </div>
+
+            <div className="flex justify-end gap-2 pt-1">
+              <Button variant="outline" size="sm" onClick={() => setEditing(false)}>Cancelar</Button>
+              <Button size="sm" onClick={handleSave} disabled={saving}>
+                {saving ? <Loader2 className="h-3.5 w-3.5 animate-spin mr-1" /> : <Save className="h-3.5 w-3.5 mr-1" />}
+                Salvar
+              </Button>
+            </div>
+          </div>
+        ) : (
+          <div className="grid grid-cols-4 gap-2 text-center">
+            <div className="p-2 rounded bg-muted/50">
+              <p className="text-xs text-muted-foreground">Comissão</p>
+              <p className="text-sm font-semibold">{form.commission_percent}%</p>
+            </div>
+            <div className="p-2 rounded bg-muted/50">
+              <p className="text-xs text-muted-foreground">Pgto</p>
+              <p className="text-sm font-semibold">{form.payment_fee_percent}%</p>
+            </div>
+            <div className="p-2 rounded bg-muted/50">
+              <p className="text-xs text-muted-foreground">Fixa</p>
+              <p className="text-sm font-semibold">R${form.fixed_fee_amount}</p>
+            </div>
+            <div className="p-2 rounded bg-muted/50">
+              <p className="text-xs text-muted-foreground">Imposto</p>
+              <p className="text-sm font-semibold">{form.tax_percent}%</p>
+            </div>
+          </div>
+        )}
+      </CardContent>
+    </Card>
+  );
+}
+
+export function FinancialSettings({ onSettingsChange }: FinancialSettingsProps) {
+  const { feeProfiles, isLoading, updateFeeProfile } = useMarketplaceFees();
+
+  if (isLoading) {
     return (
       <Card>
         <CardContent className="flex items-center justify-center py-8">
@@ -111,99 +203,27 @@ export function FinancialSettings({ onSettingsChange }: FinancialSettingsProps) 
       <CardHeader>
         <CardTitle className="flex items-center gap-2">
           <Settings className="h-5 w-5 text-primary" />
-          Configurar Taxas
+          Taxas por Marketplace
         </CardTitle>
         <CardDescription>
-          Ajuste as taxas padrão usadas nos cálculos de lucratividade.
+          Configure comissões, taxas de pagamento e impostos para cada plataforma. Esses valores são usados no cálculo de lucro real.
         </CardDescription>
       </CardHeader>
-      <CardContent className="space-y-6">
-        {/* Marketplace Fee */}
-        <div className="space-y-3">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-2">
-              <Store className="h-4 w-4 text-muted-foreground" />
-              <Label>Taxa de Marketplace</Label>
-            </div>
-            <span className="text-sm font-medium text-primary">
-              {settings.marketplaceFeePercent}%
-            </span>
-          </div>
-          <Slider
-            value={[settings.marketplaceFeePercent]}
-            onValueChange={([value]) => 
-              setSettings(prev => ({ ...prev, marketplaceFeePercent: value }))
-            }
-            min={0}
-            max={30}
-            step={0.5}
-          />
-          <p className="text-xs text-muted-foreground">
-            Comissão média cobrada pelas plataformas de venda (ML, Shopee, Amazon).
+      <CardContent>
+        <div className="grid gap-4 md:grid-cols-2">
+          {feeProfiles.map(profile => (
+            <PlatformFeeCard
+              key={profile.id}
+              profile={profile}
+              onSave={(updates) => updateFeeProfile.mutate(updates)}
+            />
+          ))}
+        </div>
+        {feeProfiles.length === 0 && (
+          <p className="text-sm text-muted-foreground text-center py-8">
+            Nenhum perfil de taxas encontrado. Os perfis são criados automaticamente ao configurar sua organização.
           </p>
-        </div>
-
-        {/* Target Margin */}
-        <div className="space-y-3">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-2">
-              <Percent className="h-4 w-4 text-muted-foreground" />
-              <Label>Margem Bruta Alvo</Label>
-            </div>
-            <span className="text-sm font-medium text-primary">
-              {settings.targetMarginPercent}%
-            </span>
-          </div>
-          <Slider
-            value={[settings.targetMarginPercent]}
-            onValueChange={([value]) => 
-              setSettings(prev => ({ ...prev, targetMarginPercent: value }))
-            }
-            min={5}
-            max={60}
-            step={1}
-          />
-          <p className="text-xs text-muted-foreground">
-            Margem bruta esperada após custos do produto e taxas.
-          </p>
-        </div>
-
-        {/* Quick Presets */}
-        <div className="space-y-2">
-          <Label className="text-xs text-muted-foreground">Presets rápidos</Label>
-          <div className="flex flex-wrap gap-2">
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => setSettings({ marketplaceFeePercent: 11, targetMarginPercent: 25 })}
-            >
-              Mercado Livre (11%)
-            </Button>
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => setSettings({ marketplaceFeePercent: 14, targetMarginPercent: 25 })}
-            >
-              Shopee (14%)
-            </Button>
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => setSettings({ marketplaceFeePercent: 15, targetMarginPercent: 30 })}
-            >
-              Amazon (15%)
-            </Button>
-          </div>
-        </div>
-
-        <Button onClick={saveSettings} disabled={saving} className="w-full">
-          {saving ? (
-            <Loader2 className="h-4 w-4 animate-spin mr-2" />
-          ) : (
-            <Save className="h-4 w-4 mr-2" />
-          )}
-          Salvar Configurações
-        </Button>
+        )}
       </CardContent>
     </Card>
   );
