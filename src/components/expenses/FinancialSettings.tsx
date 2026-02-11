@@ -35,7 +35,7 @@ function PlatformFeeCard({ profile }: { profile: MarketplaceFeeProfile }) {
     <Card className="shadow-soft hover:shadow-medium transition-shadow w-full">
       <CardContent className="pt-10 pb-8 px-10"> {/* Aumentado: mais padding */}
         <div className="flex items-center gap-6 mb-6"> {/* Gap maior */}
-          <PlatformLogo platform={platform} size="xl" className="shrink-0" /> {/* Logo maior */}
+          <PlatformLogo platform={platform} size="lg" className="shrink-0" />
           <div className="min-w-0 flex-1">
             <p className="text-xl font-bold text-foreground"> {/* Fonte maior */}
               {label}
@@ -166,4 +166,5 @@ export function FinancialSettings({ onSettingsChange }: FinancialSettingsProps) 
     </CardContent>
   </Card>
 );
+}
 
