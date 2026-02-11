@@ -191,3 +191,9 @@ verify_jwt = false
 
 [functions.sync-amazon-ads]
 verify_jwt = false
+
+[functions.sync-magalu-ads]
+verify_jwt = false
+
+[functions.sync-tiktokshop-ads]
+verify_jwt = false
