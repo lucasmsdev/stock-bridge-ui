@@ -46,7 +46,7 @@ const platformConfig: Record<AdsPlatformType, {
   },
   mercadolivre_ads: {
     label: 'ML Ads',
-    logo: '/logos/mercadolivre.svg',
+    logo: 'https://vectorseek.com/wp-content/uploads/2023/08/Mercado-Livre-Icon-Logo-Vector.svg-.png',
     gradient: 'from-yellow-500/8 to-yellow-600/3 dark:from-yellow-500/12 dark:to-yellow-600/4',
     border: 'border-yellow-200/60 dark:border-yellow-500/20',
     accent: 'text-yellow-600 dark:text-yellow-400',
@@ -54,7 +54,7 @@ const platformConfig: Record<AdsPlatformType, {
   },
   shopee_ads: {
     label: 'Shopee Ads',
-    logo: '/logos/shopee.svg',
+    logo: 'https://upload.wikimedia.org/wikipedia/commons/thumb/0/0e/Shopee_logo.svg/1442px-Shopee_logo.svg.png',
     gradient: 'from-orange-500/8 to-orange-600/3 dark:from-orange-500/12 dark:to-orange-600/4',
     border: 'border-orange-200/60 dark:border-orange-500/20',
     accent: 'text-orange-600 dark:text-orange-400',
@@ -62,7 +62,7 @@ const platformConfig: Record<AdsPlatformType, {
   },
   amazon_ads: {
     label: 'Amazon Ads',
-    logo: '/logos/amazon.svg',
+    logo: 'https://upload.wikimedia.org/wikipedia/commons/d/de/Amazon_icon.png',
     gradient: 'from-amber-500/8 to-amber-600/3 dark:from-amber-500/12 dark:to-amber-600/4',
     border: 'border-amber-200/60 dark:border-amber-500/20',
     accent: 'text-amber-600 dark:text-amber-400',
