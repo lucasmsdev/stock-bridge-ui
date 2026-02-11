@@ -1,42 +1,30 @@
 
 
-# Taxas de Marketplace Automaticas (Sem Configuracao Manual)
+# Expandir Cards de Taxas para Ocupar Todo o Espaco
 
-## O que muda
+## Problema
 
-O sistema ja aplica taxas diferentes para cada marketplace automaticamente (Mercado Livre 13%, Shopee 14%, Amazon 15%, etc.). A mudanca e tornar isso mais claro na interface: remover a edicao manual das taxas de comissao/pagamento e deixar somente o regime tributario como configuravel (porque esse varia por empresa).
+Os cards de taxas estao comprimidos e nao ocupam a largura total disponivel. O grid `sm:grid-cols-2 xl:grid-cols-3` combinado com o container pai esta limitando o tamanho dos cards.
 
-## Como vai funcionar
+## Solucao
 
-- Cada marketplace mostra suas taxas automaticamente em cards visuais (somente leitura)
-- As taxas sao baseadas nos valores oficiais de cada plataforma (ja definidos no sistema)
-- O usuario so precisa escolher o **regime tributario** da empresa (MEI, Simples Nacional, Lucro Presumido) -- isso sim muda de empresa para empresa
-- O calculo de lucro no Dashboard e Centro de Custos continua funcionando igual, sem nenhuma acao do usuario
+Ajustar o layout do componente `FinancialSettings.tsx` para que os cards ocupem toda a largura disponivel:
 
-## Interface
+1. Mudar o grid dos cards para `grid-cols-1 md:grid-cols-2 lg:grid-cols-3` com gap maior
+2. Garantir que o Card pai (container) nao tenha restricao de largura -- usar `w-full`
+3. Dentro de cada `PlatformFeeCard`, ajustar o layout do header para nao truncar texto (o nome "Mercado Livre" esta cortado na screenshot)
+4. Melhorar o grid interno das metricas (Comissao, Pgto, Fixa, Imposto) para nao ficarem apertadas -- usar `grid-cols-4` fixo com gap adequado
 
-Cada card de marketplace vai mostrar:
-- Logo e nome da plataforma
-- Taxa de comissao (automatica, nao editavel)
-- Taxa de pagamento (automatica, nao editavel)
-- Taxa total efetiva
-- Badge "Automatico" para indicar que nao precisa configurar
-
-No topo da pagina, um seletor unico de **Regime Tributario** que se aplica a todos os marketplaces de uma vez.
-
-## Detalhes Tecnicos
-
-### Arquivos Modificados
+## Arquivo Modificado
 
 | Arquivo | Mudanca |
 |---------|---------|
-| `src/hooks/useMarketplaceFees.ts` | Adicionar funcao `updateTaxRegime` que altera o regime em todos os perfis de uma vez. Manter `DEFAULT_FEES` como fonte principal. |
-| `src/components/expenses/FinancialSettings.tsx` | Remover modo de edicao dos cards. Mostrar taxas como somente leitura com badge "Automatico". Adicionar seletor global de regime tributario no topo. |
+| `src/components/expenses/FinancialSettings.tsx` | Ajustar grid externo para ocupar largura total, aumentar gap entre cards, corrigir truncamento de nomes, e garantir que metricas internas tenham espaco adequado |
 
-### Logica
+## Detalhes
 
-1. As taxas de comissao e pagamento vem do `DEFAULT_FEES` (hardcoded com valores reais dos marketplaces) e sao gravadas na tabela `marketplace_fee_profiles` no momento da criacao da org
-2. O regime tributario e selecionado uma unica vez e aplicado a todos os marketplaces via mutation em batch
-3. O `calculateFees()` continua funcionando exatamente igual -- nada muda nos calculos do Dashboard, ProfitBreakdown ou ProfitabilityCalculator
-4. Se no futuro algum marketplace mudar suas taxas, basta atualizar o `DEFAULT_FEES` e rodar um update nos perfis existentes
+- Grid dos cards: `grid-cols-1 md:grid-cols-2 xl:grid-cols-3` com `gap-5`
+- Header do card: layout em coluna para evitar que badge "Automatico" sobreponha o nome
+- Metricas internas: `grid-cols-4` com `gap-4` e padding `p-3.5`
+- Container pai: sem restricao de max-width
 
