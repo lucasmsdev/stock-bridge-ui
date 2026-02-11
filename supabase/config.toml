@@ -182,3 +182,12 @@ verify_jwt = false
 
 [functions.sync-tiktok-ads]
 verify_jwt = false
+
+[functions.sync-mercadolivre-ads]
+verify_jwt = false
+
+[functions.sync-shopee-ads]
+verify_jwt = false
+
+[functions.sync-amazon-ads]
+verify_jwt = false

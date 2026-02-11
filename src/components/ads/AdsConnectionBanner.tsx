@@ -1,11 +1,15 @@
 import { CheckCircle2, AlertCircle, RefreshCw, Link2, Loader2, BarChart3 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { MetaIntegration, useSyncMetaAds, useSyncTikTokAds, useSyncGoogleAds } from "./useMetaAdsData";
+import {
+  MetaIntegration,
+  useSyncMetaAds, useSyncTikTokAds, useSyncGoogleAds,
+  useSyncMercadoLivreAds, useSyncShopeeAds, useSyncAmazonAds,
+} from "./useMetaAdsData";
 import { formatDistanceToNow } from "date-fns";
 import { ptBR } from "date-fns/locale";
 
-type AdsPlatformType = 'meta_ads' | 'tiktok_ads' | 'google_ads';
+export type AdsPlatformType = 'meta_ads' | 'tiktok_ads' | 'google_ads' | 'mercadolivre_ads' | 'shopee_ads' | 'amazon_ads';
 
 const platformConfig: Record<AdsPlatformType, {
   label: string;
@@ -35,6 +39,27 @@ const platformConfig: Record<AdsPlatformType, {
     border: 'border-green-500/20 dark:border-green-400/20',
     accent: 'text-green-600 dark:text-green-400',
   },
+  mercadolivre_ads: {
+    label: 'Mercado Livre Ads',
+    logo: '/logos/mercadolivre.svg',
+    gradient: 'from-yellow-500/10 to-yellow-600/5 dark:from-yellow-500/15 dark:to-yellow-600/5',
+    border: 'border-yellow-500/20 dark:border-yellow-400/20',
+    accent: 'text-yellow-600 dark:text-yellow-400',
+  },
+  shopee_ads: {
+    label: 'Shopee Ads',
+    logo: '/logos/shopee.svg',
+    gradient: 'from-orange-500/10 to-orange-600/5 dark:from-orange-500/15 dark:to-orange-600/5',
+    border: 'border-orange-500/20 dark:border-orange-400/20',
+    accent: 'text-orange-600 dark:text-orange-400',
+  },
+  amazon_ads: {
+    label: 'Amazon Ads',
+    logo: '/logos/amazon.svg',
+    gradient: 'from-amber-500/10 to-amber-600/5 dark:from-amber-500/15 dark:to-amber-600/5',
+    border: 'border-amber-500/20 dark:border-amber-400/20',
+    accent: 'text-amber-600 dark:text-amber-400',
+  },
 };
 
 interface AdsConnectionBannerProps {
@@ -45,6 +70,15 @@ interface AdsConnectionBannerProps {
   platform?: AdsPlatformType;
 }
 
+const syncHooksMap: Record<AdsPlatformType, () => ReturnType<typeof useSyncMetaAds>> = {
+  meta_ads: useSyncMetaAds,
+  tiktok_ads: useSyncTikTokAds,
+  google_ads: useSyncGoogleAds,
+  mercadolivre_ads: useSyncMercadoLivreAds,
+  shopee_ads: useSyncShopeeAds,
+  amazon_ads: useSyncAmazonAds,
+};
+
 export function AdsConnectionBanner({
   integration,
   isLoading,
@@ -52,10 +86,7 @@ export function AdsConnectionBanner({
   lastSyncDate,
   platform = 'meta_ads',
 }: AdsConnectionBannerProps) {
-  const metaSync = useSyncMetaAds();
-  const tiktokSync = useSyncTikTokAds();
-  const googleSync = useSyncGoogleAds();
-  const syncMutation = platform === 'tiktok_ads' ? tiktokSync : platform === 'google_ads' ? googleSync : metaSync;
+  const syncMutation = syncHooksMap[platform]();
   const config = platformConfig[platform];
 
   const handleSync = () => {
@@ -81,7 +112,7 @@ export function AdsConnectionBanner({
           <div>
             <p className="text-sm font-semibold">Nenhuma plataforma de Ads conectada</p>
             <p className="text-xs text-muted-foreground mt-0.5">
-              Conecte Meta Ads, Google Ads ou TikTok Ads para ver métricas reais
+              Conecte plataformas externas ou marketplaces para ver métricas reais
             </p>
           </div>
         </div>
@@ -100,25 +131,14 @@ export function AdsConnectionBanner({
 
   return (
     <div className={`flex items-center gap-4 p-4 rounded-xl bg-gradient-to-r ${config.gradient} border ${config.border} transition-all duration-200 hover:shadow-sm`}>
-      {/* Platform logo */}
       <div className="shrink-0">
-        <img
-          src={config.logo}
-          alt={`${config.label} logo`}
-          className="w-8 h-8 object-contain"
-        />
+        <img src={config.logo} alt={`${config.label} logo`} className="w-8 h-8 object-contain" />
       </div>
-
-      {/* Info */}
       <div className="flex-1 min-w-0">
         <div className="flex items-center gap-2 flex-wrap">
-          <span className={`text-sm font-semibold ${config.accent}`}>
-            {config.label}
-          </span>
+          <span className={`text-sm font-semibold ${config.accent}`}>{config.label}</span>
           {integration.account_name && (
-            <span className="text-xs text-muted-foreground truncate">
-              {integration.account_name}
-            </span>
+            <span className="text-xs text-muted-foreground truncate">{integration.account_name}</span>
           )}
           {hasRealData ? (
             <Badge variant="success" className="text-[10px] px-1.5 py-0">Dados reais</Badge>
@@ -139,23 +159,9 @@ export function AdsConnectionBanner({
           )}
         </p>
       </div>
-
-      {/* Sync button */}
-      <Button
-        variant="outline"
-        size="sm"
-        onClick={handleSync}
-        disabled={syncMutation.isPending}
-        className="shrink-0"
-      >
-        {syncMutation.isPending ? (
-          <Loader2 className="h-4 w-4 animate-spin" />
-        ) : (
-          <RefreshCw className="h-4 w-4" />
-        )}
-        <span className="hidden sm:inline ml-2">
-          {syncMutation.isPending ? 'Sincronizando...' : 'Sincronizar'}
-        </span>
+      <Button variant="outline" size="sm" onClick={handleSync} disabled={syncMutation.isPending} className="shrink-0">
+        {syncMutation.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : <RefreshCw className="h-4 w-4" />}
+        <span className="hidden sm:inline ml-2">{syncMutation.isPending ? 'Sincronizando...' : 'Sincronizar'}</span>
       </Button>
     </div>
   );

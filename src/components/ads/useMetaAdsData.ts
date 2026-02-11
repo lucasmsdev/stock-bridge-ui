@@ -38,9 +38,10 @@ export interface AggregatedMetrics {
   roas: number;
 }
 
-export function useMetaAdsIntegration() {
+// Generic integration hook factory
+function useAdsIntegration(platform: string) {
   return useQuery({
-    queryKey: ['meta-ads-integration'],
+    queryKey: [`${platform}-integration`],
     queryFn: async () => {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) return null;
@@ -48,11 +49,11 @@ export function useMetaAdsIntegration() {
       const { data, error } = await supabase
         .from('integrations')
         .select('id, account_name, marketplace_id, token_expires_at, updated_at')
-        .eq('platform', 'meta_ads')
+        .eq('platform', platform)
         .maybeSingle();
 
       if (error) {
-        console.error('Error fetching Meta Ads integration:', error);
+        console.error(`Error fetching ${platform} integration:`, error);
         return null;
       }
 
@@ -60,6 +61,70 @@ export function useMetaAdsIntegration() {
     },
   });
 }
+
+// Generic sync hook factory
+function useSyncAds(functionName: string, platformLabel: string) {
+  const { toast } = useToast();
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async (days: number = 30) => {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session?.access_token) throw new Error('Não autenticado');
+
+      const response = await fetch(
+        `https://fcvwogaqarkuqvumyqqm.supabase.co/functions/v1/${functionName}`,
+        {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${session.access_token}`,
+          },
+          body: JSON.stringify({ days }),
+        }
+      );
+
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.error || 'Falha ao sincronizar');
+      }
+
+      return response.json();
+    },
+    onSuccess: () => {
+      toast({
+        title: 'Sincronização concluída',
+        description: `As métricas do ${platformLabel} foram atualizadas.`,
+      });
+      queryClient.invalidateQueries({ queryKey: ['ad-metrics'] });
+    },
+    onError: (error: Error) => {
+      toast({
+        title: 'Erro ao sincronizar',
+        description: error.message,
+        variant: 'destructive',
+      });
+    },
+  });
+}
+
+// External ad platforms
+export function useMetaAdsIntegration() { return useAdsIntegration('meta_ads'); }
+export function useTikTokAdsIntegration() { return useAdsIntegration('tiktok_ads'); }
+export function useGoogleAdsIntegration() { return useAdsIntegration('google_ads'); }
+
+// Marketplace ad integrations (reuse marketplace OAuth connection)
+export function useMercadoLivreAdsIntegration() { return useAdsIntegration('mercadolivre'); }
+export function useShopeeAdsIntegration() { return useAdsIntegration('shopee'); }
+export function useAmazonAdsIntegration() { return useAdsIntegration('amazon'); }
+
+// Sync hooks
+export function useSyncMetaAds() { return useSyncAds('sync-meta-ads', 'Meta Ads'); }
+export function useSyncTikTokAds() { return useSyncAds('sync-tiktok-ads', 'TikTok Ads'); }
+export function useSyncGoogleAds() { return useSyncAds('sync-google-ads', 'Google Ads'); }
+export function useSyncMercadoLivreAds() { return useSyncAds('sync-mercadolivre-ads', 'Mercado Livre Ads'); }
+export function useSyncShopeeAds() { return useSyncAds('sync-shopee-ads', 'Shopee Ads'); }
+export function useSyncAmazonAds() { return useSyncAds('sync-amazon-ads', 'Amazon Ads'); }
 
 export function useAdMetrics(daysFilter: number = 30) {
   return useQuery({
@@ -89,16 +154,7 @@ export function useAdMetrics(daysFilter: number = 30) {
 
 export function useAggregatedMetrics(metrics: AdMetric[]): AggregatedMetrics {
   if (!metrics.length) {
-    return {
-      totalSpend: 0,
-      totalImpressions: 0,
-      totalClicks: 0,
-      totalConversions: 0,
-      totalConversionValue: 0,
-      avgCtr: 0,
-      avgCpc: 0,
-      roas: 0,
-    };
+    return { totalSpend: 0, totalImpressions: 0, totalClicks: 0, totalConversions: 0, totalConversionValue: 0, avgCtr: 0, avgCpc: 0, roas: 0 };
   }
 
   const totalSpend = metrics.reduce((sum, m) => sum + (m.spend || 0), 0);
@@ -107,220 +163,24 @@ export function useAggregatedMetrics(metrics: AdMetric[]): AggregatedMetrics {
   const totalConversions = metrics.reduce((sum, m) => sum + (m.conversions || 0), 0);
   const totalConversionValue = metrics.reduce((sum, m) => sum + (m.conversion_value || 0), 0);
 
-  const avgCtr = totalImpressions > 0 ? (totalClicks / totalImpressions) * 100 : 0;
-  const avgCpc = totalClicks > 0 ? totalSpend / totalClicks : 0;
-  const roas = totalSpend > 0 ? totalConversionValue / totalSpend : 0;
-
   return {
     totalSpend,
     totalImpressions,
     totalClicks,
     totalConversions,
     totalConversionValue,
-    avgCtr,
-    avgCpc,
-    roas,
+    avgCtr: totalImpressions > 0 ? (totalClicks / totalImpressions) * 100 : 0,
+    avgCpc: totalClicks > 0 ? totalSpend / totalClicks : 0,
+    roas: totalSpend > 0 ? totalConversionValue / totalSpend : 0,
   };
-}
-
-export function useSyncMetaAds() {
-  const { toast } = useToast();
-  const queryClient = useQueryClient();
-
-  return useMutation({
-    mutationFn: async (days: number = 30) => {
-      const { data: { session } } = await supabase.auth.getSession();
-      if (!session?.access_token) {
-        throw new Error('Não autenticado');
-      }
-
-      const response = await fetch(
-        `https://fcvwogaqarkuqvumyqqm.supabase.co/functions/v1/sync-meta-ads`,
-        {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${session.access_token}`,
-          },
-          body: JSON.stringify({ days }),
-        }
-      );
-
-      if (!response.ok) {
-        const error = await response.json();
-        throw new Error(error.error || 'Falha ao sincronizar');
-      }
-
-      return response.json();
-    },
-    onSuccess: () => {
-      toast({
-        title: 'Sincronização concluída',
-        description: 'As métricas do Meta Ads foram atualizadas.',
-      });
-      queryClient.invalidateQueries({ queryKey: ['ad-metrics'] });
-    },
-    onError: (error: Error) => {
-      toast({
-        title: 'Erro ao sincronizar',
-        description: error.message,
-        variant: 'destructive',
-      });
-    },
-  });
-}
-
-export function useTikTokAdsIntegration() {
-  return useQuery({
-    queryKey: ['tiktok-ads-integration'],
-    queryFn: async () => {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) return null;
-
-      const { data, error } = await supabase
-        .from('integrations')
-        .select('id, account_name, marketplace_id, token_expires_at, updated_at')
-        .eq('platform', 'tiktok_ads')
-        .maybeSingle();
-
-      if (error) {
-        console.error('Error fetching TikTok Ads integration:', error);
-        return null;
-      }
-
-      return data as MetaIntegration | null;
-    },
-  });
-}
-
-export function useSyncTikTokAds() {
-  const { toast } = useToast();
-  const queryClient = useQueryClient();
-
-  return useMutation({
-    mutationFn: async (days: number = 30) => {
-      const { data: { session } } = await supabase.auth.getSession();
-      if (!session?.access_token) {
-        throw new Error('Não autenticado');
-      }
-
-      const response = await fetch(
-        `https://fcvwogaqarkuqvumyqqm.supabase.co/functions/v1/sync-tiktok-ads`,
-        {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${session.access_token}`,
-          },
-          body: JSON.stringify({ days }),
-        }
-      );
-
-      if (!response.ok) {
-        const error = await response.json();
-        throw new Error(error.error || 'Falha ao sincronizar');
-      }
-
-      return response.json();
-    },
-    onSuccess: () => {
-      toast({
-        title: 'Sincronização concluída',
-        description: 'As métricas do TikTok Ads foram atualizadas.',
-      });
-      queryClient.invalidateQueries({ queryKey: ['ad-metrics'] });
-    },
-    onError: (error: Error) => {
-      toast({
-        title: 'Erro ao sincronizar',
-        description: error.message,
-        variant: 'destructive',
-      });
-    },
-  });
-}
-
-export function useGoogleAdsIntegration() {
-  return useQuery({
-    queryKey: ['google-ads-integration'],
-    queryFn: async () => {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) return null;
-
-      const { data, error } = await supabase
-        .from('integrations')
-        .select('id, account_name, marketplace_id, token_expires_at, updated_at')
-        .eq('platform', 'google_ads')
-        .maybeSingle();
-
-      if (error) {
-        console.error('Error fetching Google Ads integration:', error);
-        return null;
-      }
-
-      return data as MetaIntegration | null;
-    },
-  });
-}
-
-export function useSyncGoogleAds() {
-  const { toast } = useToast();
-  const queryClient = useQueryClient();
-
-  return useMutation({
-    mutationFn: async (days: number = 30) => {
-      const { data: { session } } = await supabase.auth.getSession();
-      if (!session?.access_token) {
-        throw new Error('Não autenticado');
-      }
-
-      const response = await fetch(
-        `https://fcvwogaqarkuqvumyqqm.supabase.co/functions/v1/sync-google-ads`,
-        {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${session.access_token}`,
-          },
-          body: JSON.stringify({ days }),
-        }
-      );
-
-      if (!response.ok) {
-        const error = await response.json();
-        throw new Error(error.error || 'Falha ao sincronizar');
-      }
-
-      return response.json();
-    },
-    onSuccess: () => {
-      toast({
-        title: 'Sincronização concluída',
-        description: 'As métricas do Google Ads foram atualizadas.',
-      });
-      queryClient.invalidateQueries({ queryKey: ['ad-metrics'] });
-    },
-    onError: (error: Error) => {
-      toast({
-        title: 'Erro ao sincronizar',
-        description: error.message,
-        variant: 'destructive',
-      });
-    },
-  });
 }
 
 // Helper to group metrics by campaign
 export function groupMetricsByCampaign(metrics: AdMetric[]) {
   const campaignMap = new Map<string, {
-    campaign_id: string;
-    campaign_name: string;
-    platform: string;
-    totalSpend: number;
-    totalImpressions: number;
-    totalClicks: number;
-    totalConversions: number;
-    totalConversionValue: number;
+    campaign_id: string; campaign_name: string; platform: string;
+    totalSpend: number; totalImpressions: number; totalClicks: number;
+    totalConversions: number; totalConversionValue: number;
   }>();
 
   for (const metric of metrics) {
@@ -356,13 +216,7 @@ export function groupMetricsByCampaign(metrics: AdMetric[]) {
 
 // Helper to aggregate daily data for charts
 export function aggregateDailyData(metrics: AdMetric[]) {
-  const dailyMap = new Map<string, {
-    date: string;
-    spend: number;
-    impressions: number;
-    clicks: number;
-    conversions: number;
-  }>();
+  const dailyMap = new Map<string, { date: string; spend: number; impressions: number; clicks: number; conversions: number }>();
 
   for (const metric of metrics) {
     const existing = dailyMap.get(metric.date);
