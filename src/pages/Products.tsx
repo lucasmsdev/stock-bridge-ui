@@ -92,6 +92,9 @@ const platformNames: Record<string, string> = {
   mercadolivre: "Mercado Livre",
   shopify: "Shopify",
   amazon: "Amazon",
+  shopee: "Shopee",
+  magalu: "Magalu",
+  tiktokshop: "TikTok Shop",
   aliexpress: "AliExpress",
 };
 
@@ -100,6 +103,8 @@ const platformLogos: Record<string, { url: string; darkInvert?: boolean }> = {
   shopify: { url: "https://cdn3.iconfinder.com/data/icons/social-media-2068/64/_shopping-512.png" },
   amazon: { url: "https://upload.wikimedia.org/wikipedia/commons/d/de/Amazon_icon.png", darkInvert: true },
   shopee: { url: "https://www.freepnglogos.com/uploads/shopee-logo/shopee-bag-logo-free-transparent-icon-17.png" },
+  magalu: { url: "/logos/magalu.png" },
+  tiktokshop: { url: "/logos/tiktok-shop.png" },
 };
 
 export default function Products() {
@@ -503,8 +508,13 @@ export default function Products() {
     const matchesSearch = product.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
       product.sku.toLowerCase().includes(searchTerm.toLowerCase());
     
-    // For now, we don't filter by channel since we need to add channel info to products table
-    // This will be implemented in the next step when the database is updated
+    // Filter by channel using product_listings
+    if (selectedChannel !== "all") {
+      const listings = productListings[product.id];
+      if (!listings || !listings.some(l => l.platform === selectedChannel)) {
+        return false;
+      }
+    }
     return matchesSearch;
   });
 
@@ -723,7 +733,31 @@ export default function Products() {
               </div>
               <div className="flex gap-2">
                 {canDeleteItems && (
-                  <Button variant="outline" size="sm" className="hover:bg-destructive hover:text-destructive-foreground">
+                  <Button 
+                    variant="outline" 
+                    size="sm" 
+                    className="hover:bg-destructive hover:text-destructive-foreground"
+                    onClick={async () => {
+                      if (!confirm(`Tem certeza que deseja excluir ${selectedProducts.length} produto(s)? Esta ação não pode ser desfeita.`)) return;
+                      try {
+                        for (const productId of selectedProducts) {
+                          const { error } = await supabase.functions.invoke('delete-product', {
+                            body: { productId }
+                          });
+                          if (error) console.error('Error deleting product:', productId, error);
+                        }
+                        toast({
+                          title: "✅ Produtos excluídos!",
+                          description: `${selectedProducts.length} produto(s) removido(s) com sucesso.`,
+                        });
+                        setSelectedProducts([]);
+                        loadProducts();
+                      } catch (error) {
+                        console.error('Error bulk deleting:', error);
+                        toast({ title: "❌ Erro ao excluir", description: "Tente novamente.", variant: "destructive" });
+                      }
+                    }}
+                  >
                     Deletar Selecionados
                   </Button>
                 )}

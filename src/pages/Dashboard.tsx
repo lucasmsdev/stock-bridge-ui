@@ -36,6 +36,8 @@ interface Expense {
 interface DashboardMetrics {
   todayRevenue: number;
   todayOrders: number;
+  yesterdayRevenue: number;
+  yesterdayOrders: number;
   totalProducts: number;
   totalStock: number;
   periodRevenue: number;
@@ -56,6 +58,8 @@ interface MonthlyProfitData {
 const emptyMetrics: DashboardMetrics = {
   todayRevenue: 0,
   todayOrders: 0,
+  yesterdayRevenue: 0,
+  yesterdayOrders: 0,
   totalProducts: 0,
   totalStock: 0,
   periodRevenue: 0,
@@ -220,15 +224,17 @@ export default function Dashboard() {
     try {
       const now = new Date();
       const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate()).toISOString();
+      const yesterdayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate() - 1).toISOString();
       const sixMonthsAgo = new Date(now.getFullYear(), now.getMonth() - 5, 1).toISOString();
       
       const { startDate: periodStart, endDate: periodEnd } = calculateDateRange(
         filters.period, filters.startDate, filters.endDate
       );
 
-      const [productsRes, todayOrdersRes, periodOrdersRes, allOrdersRes, expensesRes] = await Promise.all([
+      const [productsRes, todayOrdersRes, yesterdayOrdersRes, periodOrdersRes, allOrdersRes, expensesRes] = await Promise.all([
         supabase.from('products').select('id, stock, cost_price, selling_price').eq('user_id', user.id),
         supabase.from('orders').select('id, total_value').eq('user_id', user.id).gte('order_date', todayStart),
+        supabase.from('orders').select('id, total_value').eq('user_id', user.id).gte('order_date', yesterdayStart).lt('order_date', todayStart),
         supabase.from('orders').select('order_date, total_value, platform, items').eq('user_id', user.id)
           .gte('order_date', periodStart.toISOString()).lte('order_date', periodEnd.toISOString())
           .order('order_date', { ascending: true }),
@@ -245,6 +251,10 @@ export default function Dashboard() {
       const todayOrders = todayOrdersRes.data || [];
       const todayOrdersCount = todayOrders.length;
       const todayRevenue = todayOrders.reduce((sum, o) => sum + Number(o.total_value || 0), 0);
+
+      const yesterdayOrders = yesterdayOrdersRes.data || [];
+      const yesterdayOrdersCount = yesterdayOrders.length;
+      const yesterdayRevenue = yesterdayOrders.reduce((sum, o) => sum + Number(o.total_value || 0), 0);
 
       let periodOrders = periodOrdersRes.data || [];
       if (filters.marketplace !== 'all') {
@@ -357,6 +367,8 @@ export default function Dashboard() {
       const metrics: DashboardMetrics = {
         todayRevenue,
         todayOrders: todayOrdersCount,
+        yesterdayRevenue,
+        yesterdayOrders: yesterdayOrdersCount,
         totalProducts,
         totalStock,
         periodRevenue,
@@ -398,6 +410,7 @@ export default function Dashboard() {
     const labels: Record<string, string> = {
       all: "Todos os Marketplaces", mercadolivre: "Mercado Livre",
       shopee: "Shopee", amazon: "Amazon", shopify: "Shopify",
+      magalu: "Magalu", tiktokshop: "TikTok Shop",
     };
     return labels[activeFilters.marketplace] || "Todos os Marketplaces";
   };
@@ -434,11 +447,21 @@ export default function Dashboard() {
     ? (netProfit / dashboardData.periodRevenue) * 100 
     : 0;
 
+  // Calculate real trends (today vs yesterday)
+  const calcTrend = (current: number, previous: number): string => {
+    if (previous === 0) return current > 0 ? "+100%" : "0%";
+    const pct = ((current - previous) / previous) * 100;
+    return `${pct >= 0 ? '+' : ''}${pct.toFixed(0)}%`;
+  };
+
+  const revenueTrend = calcTrend(dashboardData.todayRevenue, dashboardData.yesterdayRevenue || 0);
+  const ordersTrend = calcTrend(dashboardData.todayOrders, dashboardData.yesterdayOrders || 0);
+
   const metrics = [
-    { title: "Vendas Totais (Hoje)", value: formatCurrency(dashboardData.todayRevenue), icon: DollarSign, trend: "+0%", color: "text-success" },
-    { title: "Pedidos Recebidos (Hoje)", value: dashboardData.todayOrders.toString(), icon: ShoppingCart, trend: "+0%", color: "text-primary" },
-    { title: "Itens em Estoque", value: dashboardData.totalStock.toString(), icon: Package, trend: "0%", color: "text-warning" },
-    { title: "Produtos Cadastrados", value: dashboardData.totalProducts.toString(), icon: Plug2, trend: "0%", color: "text-muted-foreground" }
+    { title: "Vendas Totais (Hoje)", value: formatCurrency(dashboardData.todayRevenue), icon: DollarSign, trend: revenueTrend, color: "text-success" },
+    { title: "Pedidos Recebidos (Hoje)", value: dashboardData.todayOrders.toString(), icon: ShoppingCart, trend: ordersTrend, color: "text-primary" },
+    { title: "Itens em Estoque", value: dashboardData.totalStock.toString(), icon: Package, trend: "", color: "text-warning" },
+    { title: "Produtos Cadastrados", value: dashboardData.totalProducts.toString(), icon: Plug2, trend: "", color: "text-muted-foreground" }
   ];
 
   return (
