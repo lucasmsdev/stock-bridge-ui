@@ -476,8 +476,13 @@ export default function Integrations() {
 
       console.log('🔄 Redirecionando para TikTok Business...');
       window.location.href = authUrl;
+    } else if (platformId === "shopee") {
+      // Shopee - em desenvolvimento (API requer aprovação de parceiro)
+      toast({
+        title: "🟠 Shopee - Em breve",
+        description: "A integração com a Shopee está em fase de aprovação junto à plataforma. Você será notificado quando estiver disponível.",
+      });
     } else {
-      // Mock connection logic for other platforms
       toast({
         title: "Em desenvolvimento",
         description: `A integração com ${platformId} estará disponível em breve.`,

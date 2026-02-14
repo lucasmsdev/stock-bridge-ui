@@ -51,8 +51,17 @@ interface FormattedOrder {
   statusColor: string;
 }
 
-const channels = ["Todos os Canais", "mercadolivre", "shopify", "amazon"];
+const channels = ["Todos os Canais", "mercadolivre", "shopee", "amazon", "shopify", "magalu", "tiktokshop"];
 const statuses = ["Todos os Status", "pending", "paid", "processing", "shipped", "delivered", "cancelled", "refunded"];
+
+const channelNames: Record<string, string> = {
+  mercadolivre: "Mercado Livre",
+  shopee: "Shopee",
+  amazon: "Amazon",
+  shopify: "Shopify",
+  magalu: "Magalu",
+  tiktokshop: "TikTok Shop",
+};
 
 const platformLogos: Record<string, { url: string; darkInvert?: boolean }> = {
   'mercadolivre': { url: "https://vectorseek.com/wp-content/uploads/2023/08/Mercado-Livre-Icon-Logo-Vector.svg-.png" },
@@ -60,6 +69,8 @@ const platformLogos: Record<string, { url: string; darkInvert?: boolean }> = {
   'shopify': { url: "https://cdn3.iconfinder.com/data/icons/social-media-2068/64/_shopping-512.png" },
   'amazon': { url: "https://upload.wikimedia.org/wikipedia/commons/d/de/Amazon_icon.png", darkInvert: true },
   'shopee': { url: "https://www.freepnglogos.com/uploads/shopee-logo/shopee-bag-logo-free-transparent-icon-17.png" },
+  'magalu': { url: "/logos/magalu.png" },
+  'tiktokshop': { url: "/logos/tiktok-shop.png" },
 };
 
 // Status display configuration
@@ -419,7 +430,7 @@ export default function Orders() {
               <SelectContent>
                 {channels.map((channel) => (
                   <SelectItem key={channel} value={channel}>
-                    {channel === "Todos os Canais" ? channel : channel.charAt(0).toUpperCase() + channel.slice(1)}
+                    {channel === "Todos os Canais" ? channel : (channelNames[channel] || channel)}
                   </SelectItem>
                 ))}
               </SelectContent>
