@@ -52,6 +52,7 @@ const marketplaceIntegrations: IntegrationPlatform[] = [
     name: "Shopee",
     description: "Conecte-se ao maior marketplace de vendas online do Sudeste Asiático",
     logoUrl: "https://upload.wikimedia.org/wikipedia/commons/thumb/0/0e/Shopee_logo.svg/1442px-Shopee_logo.svg.png",
+    comingSoon: true,
   },
   {
     id: "amazon",
@@ -78,6 +79,7 @@ const marketplaceIntegrations: IntegrationPlatform[] = [
     name: "TikTok Shop",
     description: "Venda diretamente pelo TikTok com integração de catálogo e pedidos",
     logoUrl: "/logos/tiktok-shop.png",
+    comingSoon: true,
   },
   {
     id: "magalu",
