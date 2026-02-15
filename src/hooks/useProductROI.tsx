@@ -15,6 +15,7 @@ export interface ProductROIData {
   attributed_orders: number;
   roas: number;
   cost_per_acquisition: number;
+  platforms: string[];
 }
 
 export interface ROISummary {
@@ -71,6 +72,7 @@ export function useProductROI(dateRange?: { from: Date; to: Date }) {
 
       conversions?.forEach((conv: any) => {
         const productId = conv.product_id;
+        const platform = conv.platform || 'Desconhecido';
         const existing = productMap.get(productId);
 
         if (existing) {
@@ -78,6 +80,9 @@ export function useProductROI(dateRange?: { from: Date; to: Date }) {
           existing.total_attributed_spend += Number(conv.attributed_spend) || 0;
           existing.total_attributed_units += Number(conv.quantity) || 0;
           existing.attributed_orders += 1;
+          if (!existing.platforms.includes(platform)) {
+            existing.platforms.push(platform);
+          }
         } else {
           productMap.set(productId, {
             product_id: productId,
@@ -92,6 +97,7 @@ export function useProductROI(dateRange?: { from: Date; to: Date }) {
             attributed_orders: 1,
             roas: 0,
             cost_per_acquisition: 0,
+            platforms: [platform],
           });
         }
       });
