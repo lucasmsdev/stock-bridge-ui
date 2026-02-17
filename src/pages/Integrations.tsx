@@ -52,7 +52,6 @@ const marketplaceIntegrations: IntegrationPlatform[] = [
     name: "Shopee",
     description: "Conecte-se ao maior marketplace de vendas online do Sudeste Asiático",
     logoUrl: "https://upload.wikimedia.org/wikipedia/commons/thumb/0/0e/Shopee_logo.svg/1442px-Shopee_logo.svg.png",
-    comingSoon: true,
   },
   {
     id: "amazon",
@@ -479,11 +478,48 @@ export default function Integrations() {
       console.log('🔄 Redirecionando para TikTok Business...');
       window.location.href = authUrl;
     } else if (platformId === "shopee") {
-      // Shopee - em desenvolvimento (API requer aprovação de parceiro)
-      toast({
-        title: "🟠 Shopee - Em breve",
-        description: "A integração com a Shopee está em fase de aprovação junto à plataforma. Você será notificado quando estiver disponível.",
-      });
+      // Shopee OAuth flow via Edge Function
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
+
+      if (!user) {
+        toast({
+          title: "Erro de autenticação",
+          description: "Faça login para conectar integrações.",
+          variant: "destructive",
+        });
+        return;
+      }
+
+      console.log("🟠 Iniciando fluxo OAuth Shopee...");
+
+      try {
+        const { data: { session } } = await supabase.auth.getSession();
+        const { data, error } = await supabase.functions.invoke("shopee-auth", {
+          headers: { Authorization: `Bearer ${session?.access_token}` },
+        });
+
+        if (error || !data?.url) {
+          console.error("Shopee auth error:", error || data);
+          toast({
+            title: "Erro ao conectar Shopee",
+            description: "Não foi possível iniciar a autorização. Tente novamente.",
+            variant: "destructive",
+          });
+          return;
+        }
+
+        console.log("🔄 Redirecionando para Shopee...");
+        window.location.href = data.url;
+      } catch (err) {
+        console.error("Shopee auth error:", err);
+        toast({
+          title: "Erro ao conectar Shopee",
+          description: "Erro inesperado. Tente novamente.",
+          variant: "destructive",
+        });
+      }
     } else {
       toast({
         title: "Em desenvolvimento",
