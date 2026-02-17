@@ -53,8 +53,8 @@ serve(async (req) => {
     const path = "/api/v2/shop/auth_partner";
     const partnerId = parseInt(PARTNER_ID);
 
-    // Generate sign: SHA256(partner_key + path + timestamp)
-    const baseString = `${PARTNER_KEY}${path}${timestamp}`;
+    // Generate sign: HMAC-SHA256(partner_key, partner_id + path + timestamp)
+    const baseString = `${partnerId}${path}${timestamp}`;
     const encoder = new TextEncoder();
     const key = await crypto.subtle.importKey(
       "raw",
