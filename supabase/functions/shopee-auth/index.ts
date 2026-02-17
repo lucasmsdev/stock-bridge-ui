@@ -12,8 +12,8 @@ serve(async (req) => {
   }
 
   try {
-    const PARTNER_ID = Deno.env.get("SHOPEE_PARTNER_ID");
-    const PARTNER_KEY = Deno.env.get("SHOPEE_PARTNER_KEY");
+    const PARTNER_ID = Deno.env.get("SHOPEE_PARTNER_ID")?.trim();
+    const PARTNER_KEY = Deno.env.get("SHOPEE_PARTNER_KEY")?.trim();
     const APP_URL = Deno.env.get("APP_URL") || "https://id-preview--be7c1eba-2174-4e2e-a9f0-aa07602a3be7.lovable.app";
     const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
 
@@ -62,6 +62,9 @@ serve(async (req) => {
     console.log("🟠 Debug - timestamp:", timestamp);
     console.log("🟠 Debug - PARTNER_KEY length:", PARTNER_KEY.length);
     console.log("🟠 Debug - PARTNER_KEY starts with:", PARTNER_KEY.substring(0, 4));
+    console.log("🟠 Debug - PARTNER_KEY ends with:", JSON.stringify(PARTNER_KEY.slice(-4)));
+    console.log("🟠 Debug - PARTNER_KEY first char code:", PARTNER_KEY.charCodeAt(0));
+    console.log("🟠 Debug - PARTNER_KEY last char code:", PARTNER_KEY.charCodeAt(PARTNER_KEY.length - 1));
     
     const key = await crypto.subtle.importKey(
       "raw",
