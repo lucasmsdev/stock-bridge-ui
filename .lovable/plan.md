@@ -1,79 +1,44 @@
 
-# Configuracao da Integracao Shopee
+# Corrigir erro "Wrong sign" na autenticação Shopee
 
-## O que sera feito
+## Diagnóstico
 
-### 1. Adicionar secrets SHOPEE_PARTNER_ID e SHOPEE_PARTNER_KEY
-Solicitar ao usuario que insira os dois valores de forma segura nos secrets do projeto Supabase. Esses valores sao usados pelas Edge Functions `create-shopee-product`, `sync-shopee-ads` e `refresh-integration-tokens`.
+Pelos logs da Edge Function:
+- `baseString`: `1219413/api/v2/shop/auth_partner1771308479` -- formato correto
+- `PARTNER_KEY length`: 64 -- parece correto
+- `PARTNER_KEY starts with`: `shpk` -- formato Shopee OK
+- Algoritmo HMAC-SHA256 esta correto conforme documentacao Shopee v2
 
-### 2. Remover flag `comingSoon` da Shopee
-No arquivo `src/pages/Integrations.tsx`, remover `comingSoon: true` do objeto Shopee na lista `marketplaceIntegrations` para que o botao "Conectar" apareca normalmente.
+O problema mais provavel e que o secret `SHOPEE_PARTNER_KEY` contem **caracteres invissiveis** (espaco, newline, tab) no inicio ou fim da string. Isso e extremamente comum ao copiar/colar secrets e causa falha silenciosa na assinatura.
 
-### 3. Implementar fluxo de conexao OAuth da Shopee
-Atualizar o `handleConnect` para o case `shopee` (atualmente mostra um toast "em breve"). O novo fluxo:
-- Redireciona o usuario para a URL de autorizacao da Shopee Open Platform
-- URL: `https://partner.shopeemobile.com/api/v2/shop/auth_partner?partner_id={PARTNER_ID}&redirect={CALLBACK_URL}&sign={SIGN}&timestamp={TIMESTAMP}`
-- Como a assinatura (sign) requer a `partner_key` (que e um segredo), o redirecionamento sera feito via uma Edge Function `shopee-auth` que gera a URL assinada e redireciona.
+## Solucao
 
-### 4. Criar Edge Function `shopee-auth`
-Nova Edge Function que:
-- Recebe o `user_id` como parametro
-- Le `SHOPEE_PARTNER_ID` e `SHOPEE_PARTNER_KEY` do ambiente
-- Gera o `sign` (HMAC-SHA256) necessario para a URL de autorizacao
-- Redireciona o usuario para a pagina de autorizacao da Shopee
+### 1. Adicionar `.trim()` no PARTNER_KEY e PARTNER_ID
 
-### 5. Criar Edge Function `shopee-callback`
-Nova Edge Function que:
-- Recebe o callback da Shopee com `code` e `shop_id`
-- Troca o code por `access_token` e `refresh_token` via API da Shopee
-- Encripta e salva os tokens na tabela `integrations`
-- Redireciona o usuario de volta para `/app/integrations?status=success`
+No arquivo `supabase/functions/shopee-auth/index.ts`, aplicar `.trim()` em todas as variaveis de ambiente para remover whitespace:
 
-## Detalhes tecnicos
-
-### Secrets necessarios:
-| Secret | Descricao |
-|--------|-----------|
-| `SHOPEE_PARTNER_ID` | Partner ID (App ID) da Shopee Open Platform |
-| `SHOPEE_PARTNER_KEY` | Partner Key (Secret Key) da Shopee Open Platform |
-
-### Arquivos novos:
-| Arquivo | Descricao |
-|---------|-----------|
-| `supabase/functions/shopee-auth/index.ts` | Gera URL assinada e redireciona para Shopee OAuth |
-| `supabase/functions/shopee-callback/index.ts` | Processa callback, troca code por tokens, salva na DB |
-
-### Arquivos modificados:
-| Arquivo | Alteracao |
-|---------|-----------|
-| `src/pages/Integrations.tsx` | Remover `comingSoon: true` da Shopee; atualizar `handleConnect` para redirecionar via Edge Function `shopee-auth` |
-
-### Fluxo OAuth da Shopee:
-
-```text
-Usuario clica "Conectar Shopee"
-       |
-       v
-Frontend redireciona para Edge Function shopee-auth
-       |
-       v
-shopee-auth gera sign (HMAC-SHA256) com partner_key
-       |
-       v
-Redireciona para partner.shopeemobile.com/api/v2/shop/auth_partner
-       |
-       v
-Usuario autoriza na Shopee
-       |
-       v
-Shopee redireciona para shopee-callback com code + shop_id
-       |
-       v
-shopee-callback troca code por access_token + refresh_token
-       |
-       v
-Tokens encriptados salvos na tabela integrations
-       |
-       v
-Redireciona para /app/integrations?status=success
+```typescript
+const PARTNER_ID = Deno.env.get("SHOPEE_PARTNER_ID")?.trim();
+const PARTNER_KEY = Deno.env.get("SHOPEE_PARTNER_KEY")?.trim();
 ```
+
+### 2. Adicionar log de verificacao extra
+
+Adicionar log que mostra os ultimos 4 caracteres e os char codes dos primeiros/ultimos bytes para detectar caracteres invissiveis:
+
+```typescript
+console.log("PARTNER_KEY ends with:", JSON.stringify(PARTNER_KEY.slice(-4)));
+console.log("PARTNER_KEY first char code:", PARTNER_KEY.charCodeAt(0));
+console.log("PARTNER_KEY last char code:", PARTNER_KEY.charCodeAt(PARTNER_KEY.length - 1));
+```
+
+### 3. Redeployar a Edge Function
+
+Apos as alteracoes, redeployar `shopee-auth` e testar novamente.
+
+## Detalhes Tecnicos
+
+- A funcao `crypto.subtle.sign("HMAC", key, data)` e sensivel a cada byte da chave
+- Um unico espaco ou `\n` no final do PARTNER_KEY gera uma assinatura completamente diferente
+- O `.trim()` remove `\n`, `\r`, `\t`, e espacos do inicio e fim
+- Esta e a causa mais comum de "wrong sign" quando as credenciais parecem corretas visualmente
