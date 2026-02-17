@@ -56,6 +56,13 @@ serve(async (req) => {
     // Generate sign: HMAC-SHA256(partner_key, partner_id + path + timestamp)
     const baseString = `${partnerId}${path}${timestamp}`;
     const encoder = new TextEncoder();
+    
+    console.log("🟠 Debug - baseString:", baseString);
+    console.log("🟠 Debug - partnerId:", partnerId);
+    console.log("🟠 Debug - timestamp:", timestamp);
+    console.log("🟠 Debug - PARTNER_KEY length:", PARTNER_KEY.length);
+    console.log("🟠 Debug - PARTNER_KEY starts with:", PARTNER_KEY.substring(0, 4));
+    
     const key = await crypto.subtle.importKey(
       "raw",
       encoder.encode(PARTNER_KEY),
@@ -68,6 +75,8 @@ serve(async (req) => {
       .map(b => b.toString(16).padStart(2, "0"))
       .join("");
 
+    console.log("🟠 Debug - generated sign:", sign);
+
     // Encode user_id in the redirect URL so callback can associate the tokens
     const redirectUrl = `${callbackUrl}?state=${user.id}`;
 
@@ -79,7 +88,7 @@ serve(async (req) => {
       `&sign=${sign}` +
       `&redirect=${encodeURIComponent(redirectUrl)}`;
 
-    console.log("🟠 Shopee auth URL generated, returning to frontend");
+    console.log("🟠 Shopee auth URL generated");
 
     return new Response(JSON.stringify({ url: authUrl }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
