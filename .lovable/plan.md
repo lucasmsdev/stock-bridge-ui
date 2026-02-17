@@ -1,46 +1,79 @@
 
-
-# Painel Centralizado de Atribuicao na Aba ROI
+# Configuracao da Integracao Shopee
 
 ## O que sera feito
 
-### 1. Novo componente: AttributionManagerDialog
-Um dialog completo com duas abas:
+### 1. Adicionar secrets SHOPEE_PARTNER_ID e SHOPEE_PARTNER_KEY
+Solicitar ao usuario que insira os dois valores de forma segura nos secrets do projeto Supabase. Esses valores sao usados pelas Edge Functions `create-shopee-product`, `sync-shopee-ads` e `refresh-integration-tokens`.
 
-**Aba "Vinculos Ativos"** - Lista todos os vinculos campanha-produto existentes com:
-- Nome da campanha, plataforma de ads, SKU do produto
-- Toggle para ativar/desativar cada vinculo sem deletar
-- Botao para remover vinculo
-- Busca por campanha ou SKU
+### 2. Remover flag `comingSoon` da Shopee
+No arquivo `src/pages/Integrations.tsx`, remover `comingSoon: true` do objeto Shopee na lista `marketplaceIntegrations` para que o botao "Conectar" apareca normalmente.
 
-**Aba "Novo Vinculo"** - Formulario para criar novos vinculos:
-- Select de produto (com busca entre todos os produtos do catalogo)
-- Select de campanha (todas as campanhas sincronizadas de qualquer plataforma de ads)
-- Datas de inicio/fim opcionais
-- Preview do vinculo antes de salvar
+### 3. Implementar fluxo de conexao OAuth da Shopee
+Atualizar o `handleConnect` para o case `shopee` (atualmente mostra um toast "em breve"). O novo fluxo:
+- Redireciona o usuario para a URL de autorizacao da Shopee Open Platform
+- URL: `https://partner.shopeemobile.com/api/v2/shop/auth_partner?partner_id={PARTNER_ID}&redirect={CALLBACK_URL}&sign={SIGN}&timestamp={TIMESTAMP}`
+- Como a assinatura (sign) requer a `partner_key` (que e um segredo), o redirecionamento sera feito via uma Edge Function `shopee-auth` que gera a URL assinada e redireciona.
 
-### 2. Botoes na aba ROI (ProductROITab)
-- **"Configurar Atribuicoes"** - Abre o dialog de gestao
-- **"Processar Agora"** - Chama a Edge Function `attribute-conversions` sob demanda e atualiza a tabela
+### 4. Criar Edge Function `shopee-auth`
+Nova Edge Function que:
+- Recebe o `user_id` como parametro
+- Le `SHOPEE_PARTNER_ID` e `SHOPEE_PARTNER_KEY` do ambiente
+- Gera o `sign` (HMAC-SHA256) necessario para a URL de autorizacao
+- Redireciona o usuario para a pagina de autorizacao da Shopee
 
-### 3. Coluna "Fonte" na tabela de ROI
-Nova coluna mostrando a plataforma de ads que gerou o gasto (ex: "Meta Ads"), para o usuario ver exatamente de onde vem a atribuicao.
+### 5. Criar Edge Function `shopee-callback`
+Nova Edge Function que:
+- Recebe o callback da Shopee com `code` e `shop_id`
+- Troca o code por `access_token` e `refresh_token` via API da Shopee
+- Encripta e salva os tokens na tabela `integrations`
+- Redireciona o usuario de volta para `/app/integrations?status=success`
 
 ## Detalhes tecnicos
+
+### Secrets necessarios:
+| Secret | Descricao |
+|--------|-----------|
+| `SHOPEE_PARTNER_ID` | Partner ID (App ID) da Shopee Open Platform |
+| `SHOPEE_PARTNER_KEY` | Partner Key (Secret Key) da Shopee Open Platform |
 
 ### Arquivos novos:
 | Arquivo | Descricao |
 |---------|-----------|
-| `src/components/dashboard/AttributionManagerDialog.tsx` | Dialog com abas para gestao de vinculos e criacao de novos |
+| `supabase/functions/shopee-auth/index.ts` | Gera URL assinada e redireciona para Shopee OAuth |
+| `supabase/functions/shopee-callback/index.ts` | Processa callback, troca code por tokens, salva na DB |
 
 ### Arquivos modificados:
 | Arquivo | Alteracao |
 |---------|-----------|
-| `src/components/dashboard/ProductROITab.tsx` | Adicionar botoes "Configurar Atribuicoes" e "Processar Agora"; adicionar coluna "Fonte" na tabela |
-| `src/hooks/useProductROI.tsx` | Incluir campo `platform` (plataforma de ads) nos dados retornados da query de attributed_conversions |
+| `src/pages/Integrations.tsx` | Remover `comingSoon: true` da Shopee; atualizar `handleConnect` para redirecionar via Edge Function `shopee-auth` |
 
-### Reutilizacao:
-- `useCampaignLinks()` (sem productId) para listar todos os vinculos e campanhas disponiveis
-- `useProductROI()` para lista de produtos
-- Edge Function `attribute-conversions` ja existente para processamento sob demanda
+### Fluxo OAuth da Shopee:
 
+```text
+Usuario clica "Conectar Shopee"
+       |
+       v
+Frontend redireciona para Edge Function shopee-auth
+       |
+       v
+shopee-auth gera sign (HMAC-SHA256) com partner_key
+       |
+       v
+Redireciona para partner.shopeemobile.com/api/v2/shop/auth_partner
+       |
+       v
+Usuario autoriza na Shopee
+       |
+       v
+Shopee redireciona para shopee-callback com code + shop_id
+       |
+       v
+shopee-callback troca code por access_token + refresh_token
+       |
+       v
+Tokens encriptados salvos na tabela integrations
+       |
+       v
+Redireciona para /app/integrations?status=success
+```
