@@ -71,7 +71,9 @@ serve(async (req) => {
     // Encode user_id in the redirect URL so callback can associate the tokens
     const redirectUrl = `${callbackUrl}?state=${user.id}`;
 
-    const authUrl = `https://partner.shopeemobile.com${path}` +
+    // Use test endpoint while app is in "Developing" status
+    const baseHost = "partner.test-stable.shopeemobile.com";
+    const authUrl = `https://${baseHost}${path}` +
       `?partner_id=${partnerId}` +
       `&timestamp=${timestamp}` +
       `&sign=${sign}` +
