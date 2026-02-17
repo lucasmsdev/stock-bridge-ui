@@ -197,3 +197,9 @@ verify_jwt = false
 
 [functions.sync-tiktokshop-ads]
 verify_jwt = false
+
+[functions.shopee-auth]
+verify_jwt = false
+
+[functions.shopee-callback]
+verify_jwt = false
