@@ -16,10 +16,15 @@ serve(async (req) => {
     const PARTNER_KEY_RAW = Deno.env.get("SHOPEE_PARTNER_KEY")?.trim() || "";
     // Remove any invisible/zero-width characters, keep only valid hex + lowercase alpha
     const PARTNER_KEY = PARTNER_KEY_RAW.replace(/[\s\u200B\u200C\u200D\uFEFF\u00A0]/g, '');
+    // Remove "shpk" prefix - Shopee HMAC uses only the hex portion
+    const PARTNER_KEY_CLEAN = PARTNER_KEY.startsWith('shpk') 
+      ? PARTNER_KEY.slice(4) 
+      : PARTNER_KEY;
+
     const APP_URL = Deno.env.get("APP_URL") || "https://id-preview--be7c1eba-2174-4e2e-a9f0-aa07602a3be7.lovable.app";
     const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
 
-    if (!PARTNER_ID || !PARTNER_KEY) {
+    if (!PARTNER_ID || !PARTNER_KEY_CLEAN) {
       return new Response(JSON.stringify({ error: "Shopee credentials not configured" }), {
         status: 500,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
@@ -59,18 +64,15 @@ serve(async (req) => {
     const baseString = `${partnerId}${path}${timestamp}`;
     const encoder = new TextEncoder();
     
-    console.log("🟠 Debug - baseString:", baseString);
-    console.log("🟠 Debug - partnerId:", partnerId);
-    console.log("🟠 Debug - timestamp:", timestamp);
-    console.log("🟠 Debug - PARTNER_KEY length:", PARTNER_KEY.length);
-    console.log("🟠 Debug - PARTNER_KEY starts with:", PARTNER_KEY.substring(0, 4));
-    console.log("🟠 Debug - PARTNER_KEY ends with:", JSON.stringify(PARTNER_KEY.slice(-4)));
-    console.log("🟠 Debug - PARTNER_KEY first char code:", PARTNER_KEY.charCodeAt(0));
-    console.log("🟠 Debug - PARTNER_KEY last char code:", PARTNER_KEY.charCodeAt(PARTNER_KEY.length - 1));
+    console.log("🟠 PARTNER_KEY raw length:", PARTNER_KEY.length);
+    console.log("🟠 PARTNER_KEY clean (sem prefixo) length:", PARTNER_KEY_CLEAN.length);
+    console.log("🟠 baseString:", baseString);
+    console.log("🟠 partnerId:", partnerId);
+    console.log("🟠 timestamp:", timestamp);
     
     const key = await crypto.subtle.importKey(
       "raw",
-      encoder.encode(PARTNER_KEY),
+      encoder.encode(PARTNER_KEY_CLEAN),
       { name: "HMAC", hash: "SHA-256" },
       false,
       ["sign"]
@@ -93,7 +95,7 @@ serve(async (req) => {
       `&sign=${sign}` +
       `&redirect=${encodeURIComponent(redirectUrl)}`;
 
-    console.log("🟠 Shopee auth URL generated");
+    console.log("🟠 Shopee auth URL generated:", authUrl);
 
     return new Response(JSON.stringify({ url: authUrl }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },

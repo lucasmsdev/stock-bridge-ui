@@ -16,6 +16,10 @@ serve(async (req) => {
 
     const PARTNER_ID = Deno.env.get("SHOPEE_PARTNER_ID")?.trim()?.replace(/[^\d]/g, '') || "";
     const PARTNER_KEY = (Deno.env.get("SHOPEE_PARTNER_KEY")?.trim() || "").replace(/[\s\u200B\u200C\u200D\uFEFF\u00A0]/g, '');
+    // Remove "shpk" prefix - Shopee HMAC uses only the hex portion
+    const PARTNER_KEY_CLEAN = PARTNER_KEY.startsWith('shpk') 
+      ? PARTNER_KEY.slice(4) 
+      : PARTNER_KEY;
     const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
     const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
 
@@ -26,9 +30,13 @@ serve(async (req) => {
     const path = "/api/v2/auth/token/get";
     const baseString = `${partnerId}${path}${timestamp}`;
     const encoder = new TextEncoder();
+    
+    console.log("🟠 Callback - PARTNER_KEY raw length:", PARTNER_KEY.length);
+    console.log("🟠 Callback - PARTNER_KEY clean length:", PARTNER_KEY_CLEAN.length);
+    
     const key = await crypto.subtle.importKey(
       "raw",
-      encoder.encode(PARTNER_KEY),
+      encoder.encode(PARTNER_KEY_CLEAN),
       { name: "HMAC", hash: "SHA-256" },
       false,
       ["sign"]
