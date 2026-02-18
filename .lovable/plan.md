@@ -1,44 +1,73 @@
 
 
-# Corrigir sanitizacao do SHOPEE_PARTNER_KEY
+# Corrigir assinatura Shopee - Remover prefixo "shpk"
 
-## Problema Encontrado
+## Diagnostico
 
-O regex atual `replace(/[^a-f0-9]/gi, '')` remove TODAS as letras que nao sao hexadecimais (a-f, 0-9). Isso inclui as letras **s, h, p, k** do prefixo `shpk` da chave Shopee.
+Dos logs atuais:
+- PARTNER_KEY length: 64 (inclui prefixo "shpk" = 4 chars + 60 chars hex)
+- Base string esta correta: `1219413/api/v2/shop/auth_partner1771449671`
+- Host de teste esta correto: `partner.test-stable.shopeemobile.com`
+- A sanitizacao de caracteres invisiveis esta OK
 
-Resultado:
-- Chave original: `shpk...` (64 caracteres)
-- Apos regex: `5a65...` (60 caracteres) - 4 caracteres removidos (s, h, p, k)
-- Assinatura gerada com chave errada = `error_sign`
+O problema: a Shopee exige que o HMAC-SHA256 use apenas a parte hex da chave, **sem o prefixo "shpk"**. O codigo atual passa a chave completa (com "shpk") como secret do HMAC, gerando uma assinatura diferente da esperada pela API.
 
 ## Solucao
 
 ### Arquivo: `supabase/functions/shopee-auth/index.ts`
 
-Trocar o regex agressivo por um que apenas remove caracteres invisiveis (whitespace, zero-width spaces, newlines) mas preserva TODAS as letras e numeros:
+1. Apos sanitizar a PARTNER_KEY, remover o prefixo "shpk" se presente:
 
 ```typescript
-// ANTES (bugado - remove s,h,p,k):
-const PARTNER_KEY = PARTNER_KEY_RAW.replace(/[^a-f0-9]/gi, '');
-
-// DEPOIS (correto - remove apenas caracteres invisiveis):
-const PARTNER_KEY = PARTNER_KEY_RAW.replace(/[\s\u200B\u200C\u200D\uFEFF\u00A0]/g, '');
+const PARTNER_KEY_CLEAN = PARTNER_KEY.startsWith('shpk') 
+  ? PARTNER_KEY.slice(4) 
+  : PARTNER_KEY;
 ```
+
+2. Usar `PARTNER_KEY_CLEAN` no `crypto.subtle.importKey` em vez de `PARTNER_KEY`
+
+3. Adicionar logs mais claros:
+   - Log da chave com e sem prefixo (length apenas, nao o valor)
+   - Log da URL final completa para debug
 
 ### Arquivo: `supabase/functions/shopee-callback/index.ts`
 
-Aplicar a mesma correcao no callback.
+Aplicar a mesma logica de remocao de prefixo para manter consistencia no token exchange.
 
-### Redeployar ambas as funcoes e testar
+### Deploy
+
+Redeployar ambas as funcoes apos as alteracoes.
 
 ## Secao Tecnica
 
-O regex `[\s\u200B\u200C\u200D\uFEFF\u00A0]` remove:
-- `\s` - espacos, tabs, newlines
-- `\u200B` - zero-width space
-- `\u200C` - zero-width non-joiner
-- `\u200D` - zero-width joiner
-- `\uFEFF` - BOM (byte order mark)
-- `\u00A0` - non-breaking space
+### Alteracoes em `shopee-auth/index.ts`
 
-Isso preserva o prefixo `shpk` e todos os caracteres validos da chave.
+Linha 18 - Adicionar apos sanitizacao:
+```typescript
+const PARTNER_KEY_CLEAN = PARTNER_KEY.startsWith('shpk') 
+  ? PARTNER_KEY.slice(4) 
+  : PARTNER_KEY;
+```
+
+Linha 71-77 - Usar PARTNER_KEY_CLEAN no importKey:
+```typescript
+const key = await crypto.subtle.importKey(
+  "raw",
+  encoder.encode(PARTNER_KEY_CLEAN),
+  { name: "HMAC", hash: "SHA-256" },
+  false,
+  ["sign"]
+);
+```
+
+Logs adicionais:
+```typescript
+console.log("PARTNER_KEY raw length:", PARTNER_KEY.length);
+console.log("PARTNER_KEY clean (sem prefixo) length:", PARTNER_KEY_CLEAN.length);
+console.log("Auth URL final:", authUrl);
+```
+
+### Alteracoes em `shopee-callback/index.ts`
+
+Mesma logica na linha 18 e linhas 29-35 para o token exchange.
+
