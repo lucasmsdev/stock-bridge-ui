@@ -15,7 +15,7 @@ serve(async (req) => {
     }
 
     const PARTNER_ID = Deno.env.get("SHOPEE_PARTNER_ID")?.trim()?.replace(/[^\d]/g, '') || "";
-    const PARTNER_KEY = (Deno.env.get("SHOPEE_PARTNER_KEY")?.trim() || "").replace(/[^a-f0-9]/gi, '');
+    const PARTNER_KEY = (Deno.env.get("SHOPEE_PARTNER_KEY")?.trim() || "").replace(/[\s\u200B\u200C\u200D\uFEFF\u00A0]/g, '');
     const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
     const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
 
