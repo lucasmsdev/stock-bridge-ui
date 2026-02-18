@@ -14,17 +14,17 @@ serve(async (req) => {
       return Response.redirect(`${APP_URL}/app/integrations?status=error&message=missing_params`, 302);
     }
 
-    const PARTNER_ID = Deno.env.get("SHOPEE_PARTNER_ID")!;
-    const PARTNER_KEY = Deno.env.get("SHOPEE_PARTNER_KEY")!;
+    const PARTNER_ID = Deno.env.get("SHOPEE_PARTNER_ID")?.trim()?.replace(/[^\d]/g, '') || "";
+    const PARTNER_KEY = (Deno.env.get("SHOPEE_PARTNER_KEY")?.trim() || "").replace(/[^a-f0-9]/gi, '');
     const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
     const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
 
     const partnerId = parseInt(PARTNER_ID);
     const timestamp = Math.floor(Date.now() / 1000);
 
-    // Generate sign for token exchange: HMAC-SHA256(partner_key, path + timestamp)
+    // Generate sign for token exchange: HMAC-SHA256(partner_key, partner_id + path + timestamp)
     const path = "/api/v2/auth/token/get";
-    const baseString = `${PARTNER_KEY}${path}${timestamp}`;
+    const baseString = `${partnerId}${path}${timestamp}`;
     const encoder = new TextEncoder();
     const key = await crypto.subtle.importKey(
       "raw",
@@ -39,7 +39,7 @@ serve(async (req) => {
       .join("");
 
     // Exchange code for tokens
-    const tokenUrl = `https://partner.shopeemobile.com${path}?partner_id=${partnerId}&timestamp=${timestamp}&sign=${sign}`;
+    const tokenUrl = `https://partner.test-stable.shopeemobile.com${path}?partner_id=${partnerId}&timestamp=${timestamp}&sign=${sign}`;
 
     console.log("🟠 Exchanging Shopee auth code for tokens...");
 
