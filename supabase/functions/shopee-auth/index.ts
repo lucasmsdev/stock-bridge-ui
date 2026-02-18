@@ -70,6 +70,17 @@ serve(async (req) => {
     console.log("🟠 partnerId:", partnerId);
     console.log("🟠 timestamp:", timestamp);
     
+    // Preview seguro da chave para validacao visual
+    console.log("🔑 Key preview (raw):", PARTNER_KEY.substring(0, 6) + "..." + PARTNER_KEY.slice(-4));
+    console.log("🔑 Key preview (clean):", PARTNER_KEY_CLEAN.substring(0, 6) + "..." + PARTNER_KEY_CLEAN.slice(-4));
+    
+    // Verificar timezone do timestamp
+    console.log("🕐 Timestamp UTC:", new Date(timestamp * 1000).toUTCString());
+    
+    // Char codes dos primeiros 8 chars para detectar caracteres ocultos
+    const charCodes = Array.from(PARTNER_KEY.substring(0, 8)).map(c => c.charCodeAt(0));
+    console.log("🔍 Key first 8 char codes:", JSON.stringify(charCodes));
+    
     const key = await crypto.subtle.importKey(
       "raw",
       encoder.encode(PARTNER_KEY_CLEAN),
@@ -82,7 +93,19 @@ serve(async (req) => {
       .map(b => b.toString(16).padStart(2, "0"))
       .join("");
 
-    console.log("🟠 Debug - generated sign:", sign);
+    console.log("🟠 Sign SEM prefixo (usada):", sign);
+
+    // Testar sign com chave COM prefixo para comparacao
+    if (PARTNER_KEY_CLEAN !== PARTNER_KEY) {
+      const altCryptoKey = await crypto.subtle.importKey(
+        "raw", encoder.encode(PARTNER_KEY),
+        { name: "HMAC", hash: "SHA-256" }, false, ["sign"]
+      );
+      const altSig = await crypto.subtle.sign("HMAC", altCryptoKey, encoder.encode(baseString));
+      const altSign = Array.from(new Uint8Array(altSig))
+        .map(b => b.toString(16).padStart(2, "0")).join("");
+      console.log("🟠 Sign COM prefixo (alternativa):", altSign);
+    }
 
     // Encode user_id in the redirect URL so callback can associate the tokens
     const redirectUrl = `${callbackUrl}?state=${user.id}`;
