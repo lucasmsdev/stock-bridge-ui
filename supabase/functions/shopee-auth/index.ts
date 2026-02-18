@@ -15,7 +15,7 @@ serve(async (req) => {
     const PARTNER_ID = Deno.env.get("SHOPEE_PARTNER_ID")?.trim()?.replace(/[^\d]/g, '') || "";
     const PARTNER_KEY_RAW = Deno.env.get("SHOPEE_PARTNER_KEY")?.trim() || "";
     // Remove any invisible/zero-width characters, keep only valid hex + lowercase alpha
-    const PARTNER_KEY = PARTNER_KEY_RAW.replace(/[^a-f0-9]/gi, '');
+    const PARTNER_KEY = PARTNER_KEY_RAW.replace(/[\s\u200B\u200C\u200D\uFEFF\u00A0]/g, '');
     const APP_URL = Deno.env.get("APP_URL") || "https://id-preview--be7c1eba-2174-4e2e-a9f0-aa07602a3be7.lovable.app";
     const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
 
