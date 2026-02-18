@@ -1,58 +1,44 @@
 
 
-# Corrigir erro "Wrong sign" na autenticacao Shopee
+# Corrigir sanitizacao do SHOPEE_PARTNER_KEY
 
-## Diagnostico
+## Problema Encontrado
 
-Apos analise detalhada:
-- A formula da assinatura (`partner_id + path + timestamp`, HMAC-SHA256 com partner_key) esta **correta** conforme documentacao oficial da Shopee
-- O host de teste (`partner.test-stable.shopeemobile.com`) esta correto para status "Developing"
-- O Test Redirect URL Domain (`https://fcvwogaqarkuqvumyqqm.supabase.co`) esta correto
+O regex atual `replace(/[^a-f0-9]/gi, '')` remove TODAS as letras que nao sao hexadecimais (a-f, 0-9). Isso inclui as letras **s, h, p, k** do prefixo `shpk` da chave Shopee.
 
-**Causa mais provavel**: O secret `SHOPEE_PARTNER_KEY` armazenado nao corresponde exatamente a chave do painel. Caracteres invisiveis como zero-width spaces nao sao removidos por `.trim()`.
+Resultado:
+- Chave original: `shpk...` (64 caracteres)
+- Apos regex: `5a65...` (60 caracteres) - 4 caracteres removidos (s, h, p, k)
+- Assinatura gerada com chave errada = `error_sign`
 
-**Bug adicional encontrado**: O arquivo `shopee-callback/index.ts` tem um erro na geracao da assinatura - usa `PARTNER_KEY` em vez de `partnerId` na base string (linha 27). Isso quebrara o token exchange quando a auth funcionar.
-
-## Plano de Acao
-
-### Passo 1 - Atualizar o SHOPEE_PARTNER_KEY
-
-Solicitar que voce re-insira o Partner Key copiando diretamente do painel da Shopee, garantindo que nao haja caracteres extras.
-
-### Passo 2 - Adicionar verificacao inline na Edge Function
-
-Modificar `shopee-auth/index.ts` para:
-- Converter o PARTNER_KEY para hex e logar para comparacao visual com o painel
-- Fazer uma chamada de teste direta para a Shopee API e logar a resposta completa antes de retornar a URL
-
-### Passo 3 - Corrigir bug no shopee-callback
-
-Na funcao `shopee-callback/index.ts`, corrigir a base string de:
-```text
-ERRADO: ${PARTNER_KEY}${path}${timestamp}
-CORRETO: ${partnerId}${path}${timestamp}
-```
-
-### Passo 4 - Redeployar e testar
-
-Redeployar ambas as funcoes e testar a conexao novamente.
-
-## Secao Tecnica
+## Solucao
 
 ### Arquivo: `supabase/functions/shopee-auth/index.ts`
 
-- Adicionar sanitizacao agressiva do PARTNER_KEY: remover todos os caracteres nao-alfanumericos (exceto os esperados do formato shpk + hex)
-- Adicionar log do PARTNER_KEY convertido para hex bytes para comparacao definitiva
+Trocar o regex agressivo por um que apenas remove caracteres invisiveis (whitespace, zero-width spaces, newlines) mas preserva TODAS as letras e numeros:
 
 ```typescript
-// Sanitizar removendo qualquer caractere nao hex (exceto prefixo shpk)
-const PARTNER_KEY_CLEAN = PARTNER_KEY.replace(/[^a-fA-F0-9shpk]/g, '');
-console.log("Key length after sanitize:", PARTNER_KEY_CLEAN.length);
+// ANTES (bugado - remove s,h,p,k):
+const PARTNER_KEY = PARTNER_KEY_RAW.replace(/[^a-f0-9]/gi, '');
+
+// DEPOIS (correto - remove apenas caracteres invisiveis):
+const PARTNER_KEY = PARTNER_KEY_RAW.replace(/[\s\u200B\u200C\u200D\uFEFF\u00A0]/g, '');
 ```
 
 ### Arquivo: `supabase/functions/shopee-callback/index.ts`
 
-- Linha 27: Corrigir base string para usar `partnerId` em vez de `PARTNER_KEY`
-- Adicionar `.trim()` nas variaveis de ambiente
-- Usar host de teste (`partner.test-stable.shopeemobile.com`) em vez de producao
+Aplicar a mesma correcao no callback.
 
+### Redeployar ambas as funcoes e testar
+
+## Secao Tecnica
+
+O regex `[\s\u200B\u200C\u200D\uFEFF\u00A0]` remove:
+- `\s` - espacos, tabs, newlines
+- `\u200B` - zero-width space
+- `\u200C` - zero-width non-joiner
+- `\u200D` - zero-width joiner
+- `\uFEFF` - BOM (byte order mark)
+- `\u00A0` - non-breaking space
+
+Isso preserva o prefixo `shpk` e todos os caracteres validos da chave.
