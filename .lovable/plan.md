@@ -1,73 +1,81 @@
 
 
-# Corrigir assinatura Shopee - Remover prefixo "shpk"
+# Diagnostico Definitivo - Shopee error_sign
 
-## Diagnostico
+## Situacao Atual
 
-Dos logs atuais:
-- PARTNER_KEY length: 64 (inclui prefixo "shpk" = 4 chars + 60 chars hex)
-- Base string esta correta: `1219413/api/v2/shop/auth_partner1771449671`
-- Host de teste esta correto: `partner.test-stable.shopeemobile.com`
-- A sanitizacao de caracteres invisiveis esta OK
+Dos logs mais recentes:
+- `PARTNER_KEY raw length: 64` (chave começa com "shpk" + 60 chars hex)
+- `PARTNER_KEY clean length: 60` (apos remover "shpk")
+- Base string correta: `1219413/api/v2/shop/auth_partner{timestamp}`
+- Host correto: `partner.test-stable.shopeemobile.com`
+- Sign gerada COM prefixo: `38a350b5...` -> error_sign
+- Sign gerada SEM prefixo: `9c2b021a...` -> error_sign
 
-O problema: a Shopee exige que o HMAC-SHA256 use apenas a parte hex da chave, **sem o prefixo "shpk"**. O codigo atual passa a chave completa (com "shpk") como secret do HMAC, gerando uma assinatura diferente da esperada pela API.
+Ambas as abordagens falham, o que indica que o problema nao esta no prefixo, mas na **propria chave armazenada**.
 
-## Solucao
+## Plano de Acao
 
-### Arquivo: `supabase/functions/shopee-auth/index.ts`
+### Passo 1 - Adicionar logs de diagnostico avancado
 
-1. Apos sanitizar a PARTNER_KEY, remover o prefixo "shpk" se presente:
+Modificar `shopee-auth/index.ts` para logar:
+- Preview da chave (primeiros 6 + ultimos 4 caracteres) para validacao visual
+- Timestamp em formato UTC legivel para verificar timezone
+- Gerar AMBAS as assinaturas (com e sem prefixo) em uma unica chamada para comparacao definitiva
+- Logar o char code de cada caractere dos primeiros 8 chars da chave para detectar caracteres invisíveis nao cobertos pelo regex atual
 
-```typescript
-const PARTNER_KEY_CLEAN = PARTNER_KEY.startsWith('shpk') 
-  ? PARTNER_KEY.slice(4) 
-  : PARTNER_KEY;
-```
+### Passo 2 - Re-inserir o secret SHOPEE_PARTNER_KEY
 
-2. Usar `PARTNER_KEY_CLEAN` no `crypto.subtle.importKey` em vez de `PARTNER_KEY`
+Solicitar re-insercao do secret com a **Test Partner Key** copiada diretamente do painel Shopee (open.shopee.com > App > App Credentials > Test Partner Key).
 
-3. Adicionar logs mais claros:
-   - Log da chave com e sem prefixo (length apenas, nao o valor)
-   - Log da URL final completa para debug
+### Passo 3 - Redeployar e testar
 
-### Arquivo: `supabase/functions/shopee-callback/index.ts`
+Deploy da funcao atualizada e teste imediato.
 
-Aplicar a mesma logica de remocao de prefixo para manter consistencia no token exchange.
-
-### Deploy
-
-Redeployar ambas as funcoes apos as alteracoes.
+---
 
 ## Secao Tecnica
 
-### Alteracoes em `shopee-auth/index.ts`
+### Alteracoes em `supabase/functions/shopee-auth/index.ts`
 
-Linha 18 - Adicionar apos sanitizacao:
+Adicionar apos linha 71 (bloco de logs existente):
+
 ```typescript
-const PARTNER_KEY_CLEAN = PARTNER_KEY.startsWith('shpk') 
-  ? PARTNER_KEY.slice(4) 
-  : PARTNER_KEY;
+// Preview seguro da chave para validacao visual
+console.log("Key preview (raw):", PARTNER_KEY.substring(0, 6) + "..." + PARTNER_KEY.slice(-4));
+console.log("Key preview (clean):", PARTNER_KEY_CLEAN.substring(0, 6) + "..." + PARTNER_KEY_CLEAN.slice(-4));
+
+// Verificar timezone do timestamp
+console.log("Timestamp UTC:", new Date(timestamp * 1000).toUTCString());
+
+// Char codes dos primeiros 8 chars para detectar caracteres ocultos
+const charCodes = Array.from(PARTNER_KEY.substring(0, 8)).map(c => c.charCodeAt(0));
+console.log("Key first 8 char codes:", JSON.stringify(charCodes));
 ```
 
-Linha 71-77 - Usar PARTNER_KEY_CLEAN no importKey:
+Apos gerar a sign principal (linha 85), adicionar geracao da sign alternativa para comparacao:
+
 ```typescript
-const key = await crypto.subtle.importKey(
-  "raw",
-  encoder.encode(PARTNER_KEY_CLEAN),
-  { name: "HMAC", hash: "SHA-256" },
-  false,
-  ["sign"]
+// Testar sign com a outra variante da chave
+const altKey = PARTNER_KEY_CLEAN === PARTNER_KEY 
+  ? PARTNER_KEY  // ja sao iguais, nada a comparar
+  : PARTNER_KEY; // usar chave COM prefixo como alternativa
+const altCryptoKey = await crypto.subtle.importKey(
+  "raw", encoder.encode(altKey),
+  { name: "HMAC", hash: "SHA-256" }, false, ["sign"]
 );
+const altSig = await crypto.subtle.sign("HMAC", altCryptoKey, encoder.encode(baseString));
+const altSign = Array.from(new Uint8Array(altSig))
+  .map(b => b.toString(16).padStart(2, "0")).join("");
+console.log("Sign SEM prefixo (usada):", sign);
+console.log("Sign COM prefixo (alternativa):", altSign);
 ```
 
-Logs adicionais:
-```typescript
-console.log("PARTNER_KEY raw length:", PARTNER_KEY.length);
-console.log("PARTNER_KEY clean (sem prefixo) length:", PARTNER_KEY_CLEAN.length);
-console.log("Auth URL final:", authUrl);
-```
+### Secret a re-inserir
 
-### Alteracoes em `shopee-callback/index.ts`
+- `SHOPEE_PARTNER_KEY`: copiar a **Test Partner Key** do painel Shopee, caractere por caractere
 
-Mesma logica na linha 18 e linhas 29-35 para o token exchange.
+### Deploy
+
+Redeployar `shopee-auth` apos alteracoes.
 
