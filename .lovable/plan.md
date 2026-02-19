@@ -1,49 +1,23 @@
 
-# Adicionar Marketplaces e Plataformas de Ads na Landing Page
 
-## O que sera feito
+# Correcoes na secao de Integracao da Landing Page
 
-A secao "Nossos Partners" da Landing Page sera atualizada para mostrar **todos os marketplaces** e **todos os gerenciadores de anuncios** que o UniStock integra, utilizando as mesmas logos da pagina de Integracoes.
+## Problemas identificados
 
-## Secao atual
+1. **Marketplaces nao centralizados**: O grid de 4 colunas com 7 itens deixa a ultima linha (3 itens) alinhada a esquerda em vez de centralizada.
+2. **TikTok Ads sem logo**: A URL externa usada para o TikTok Ads provavelmente esta quebrada (dominio ttwstatic.com bloqueia hotlinking).
 
-Atualmente, a secao mostra apenas 4 marketplaces (Mercado Livre, Shopee, Amazon, Shopify) com logos inconsistentes e sem nenhuma referencia aos gerenciadores de anuncios.
+## Solucao
 
-## Nova estrutura
+### 1. Centralizar Marketplaces
+Trocar o layout de `grid` para `flex flex-wrap justify-center` para que os itens da ultima linha fiquem centralizados automaticamente. Cada card tera largura fixa para manter o alinhamento visual.
 
-A secao sera dividida em duas partes:
-
-### 1. Marketplaces (7 plataformas)
-| Plataforma | Logo (mesma da Integracoes) |
-|---|---|
-| Mercado Livre | vectorseek.com (icon oficial) |
-| Shopee | wikimedia Shopee logo |
-| Amazon | wikimedia icon (com variante dark) |
-| Shopify | cdn.freebiesupply.com (transparent) |
-| Magalu | /logos/magalu.png |
-| TikTok Shop | /logos/tiktok-shop.png (badge "Em breve") |
-| Shein | /logos/shein.png (badge "Em breve") |
-
-### 2. Gerenciadores de Anuncios (3 plataformas)
-| Plataforma | Logo (mesma da Integracoes) |
-|---|---|
-| Meta Ads | /logos/meta-ads.png |
-| Google Ads | wikimedia Google Ads logo |
-| TikTok Ads | ibytedtos.com TikTok icon |
-
-## Layout visual
-
-- Subtitulo "Marketplaces" com grid de logos (3-4 colunas)
-- Subtitulo "Gerenciadores de Anuncios" com grid de logos (3 colunas)
-- Plataformas "Em breve" (Shein, TikTok Shop) terao um badge discreto
-- Todas com hover scale e borda animada (mesmo estilo atual)
-- Nome da plataforma exibido abaixo de cada logo para clareza
-- Amazon com logo alternativa no modo dark (mesmo comportamento da pagina de Integracoes)
+### 2. Corrigir logo do TikTok Ads
+Usar o mesmo asset local `/logos/tiktok-shop.png` que ja existe no projeto (icone do TikTok), garantindo que a logo carregue corretamente.
 
 ## Detalhes tecnicos
 
-- Arquivo modificado: `src/pages/Landing.tsx`
-- Substituicao da secao "Partners" (linhas 375-428) pelo novo layout com duas subsecoes
-- Uso das mesmas URLs de logo definidas em `marketplaceIntegrations` e `adsIntegrations` da pagina de Integracoes
-- Suporte a dark mode para logo da Amazon (usando `isDark` ja disponivel no componente)
-- Sem novas dependencias necessarias
+- **Arquivo**: `src/pages/Landing.tsx`
+- **Marketplaces (linha 394)**: Substituir `grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4` por `flex flex-wrap justify-center` com largura fixa nos cards
+- **TikTok Ads (linha 430)**: Trocar URL externa quebrada por `/logos/tiktok-shop.png`
+
