@@ -378,50 +378,74 @@ const Landing = () => {
           <div className="text-center mb-16">
             <Badge variant="outline" className="mb-4 px-4 py-2 border-primary/30 text-primary bg-primary/5">
               <Sparkles className="w-4 h-4 mr-2" />
-              Nossos Partners
+              Integrações
             </Badge>
             <h2 className="font-heading text-3xl sm:text-4xl font-bold text-foreground mb-4">
-              Marketplaces que o UniStock integra
+              Plataformas que o UniStock conecta
             </h2>
             <p className="text-lg text-muted-foreground">
-              Conecte-se com as maiores plataformas de venda do Brasil
+              Gerencie marketplaces e anúncios em um só lugar
             </p>
           </div>
-          
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-8 max-w-5xl mx-auto">
-            <div className="flex items-center justify-center p-8 rounded-xl bg-card border-2 border-border hover:border-primary/40 hover:shadow-xl transition-all duration-300 group">
-              <img 
-                src="https://vectorseek.com/wp-content/uploads/2023/08/Mercado-Livre-Icon-Logo-Vector.svg-.png"
-                alt="Mercado Livre"
-                className="w-full h-16 object-contain group-hover:scale-110 transition-transform"
-              />
+
+          {/* Marketplaces */}
+          <div className="mb-16">
+            <h3 className="text-center text-xl font-semibold text-foreground mb-8">Marketplaces</h3>
+            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-6 max-w-5xl mx-auto">
+              {[
+                { name: 'Mercado Livre', logo: 'https://vectorseek.com/wp-content/uploads/2023/08/Mercado-Livre-Icon-Logo-Vector.svg-.png' },
+                { name: 'Shopee', logo: 'https://upload.wikimedia.org/wikipedia/commons/thumb/0/0e/Shopee_logo.svg/1442px-Shopee_logo.svg.png' },
+                { name: 'Amazon', logo: isDark ? 'https://www.pngmart.com/files/23/Amazon-Logo-White-PNG-Photos.png' : 'https://upload.wikimedia.org/wikipedia/commons/d/de/Amazon_icon.png' },
+                { name: 'Shopify', logo: 'https://cdn.freebiesupply.com/logos/large/2x/shopify-logo-png-transparent.png' },
+                { name: 'Magalu', logo: '/logos/magalu.png' },
+                { name: 'TikTok Shop', logo: '/logos/tiktok-shop.png', comingSoon: true },
+                { name: 'Shein', logo: '/logos/shein.png', comingSoon: true },
+              ].map((platform) => (
+                <div key={platform.name} className="relative flex flex-col items-center justify-center p-6 rounded-xl bg-card border-2 border-border hover:border-primary/40 hover:shadow-xl transition-all duration-300 group">
+                  {platform.comingSoon && (
+                    <Badge variant="secondary" className="absolute -top-2 -right-2 text-[10px] px-2 py-0.5">
+                      Em breve
+                    </Badge>
+                  )}
+                  <img
+                    src={platform.logo}
+                    alt={platform.name}
+                    className={`h-12 w-auto object-contain group-hover:scale-110 transition-transform ${platform.comingSoon ? 'opacity-60' : ''}`}
+                  />
+                  <span className={`mt-3 text-sm font-medium ${platform.comingSoon ? 'text-muted-foreground' : 'text-foreground'}`}>
+                    {platform.name}
+                  </span>
+                </div>
+              ))}
             </div>
-            <div className="flex items-center justify-center p-8 rounded-xl bg-card border-2 border-border hover:border-primary/40 hover:shadow-xl transition-all duration-300 group">
-              <img 
-                src="https://www.freepnglogos.com/uploads/shopee-logo/shopee-bag-logo-free-transparent-icon-17.png"
-                alt="Shopee"
-                className="w-full h-16 object-contain group-hover:scale-110 transition-transform"
-              />
-            </div>
-            <div className="flex items-center justify-center p-8 rounded-xl bg-card border-2 border-border hover:border-primary/40 hover:shadow-xl transition-all duration-300 group">
-              <img 
-                src={isDark ? "https://www.pngmart.com/files/23/Amazon-Logo-White-PNG-Photos.png" : "https://upload.wikimedia.org/wikipedia/commons/d/de/Amazon_icon.png"}
-                alt="Amazon"
-                className={`w-full object-contain group-hover:scale-110 transition-transform ${isDark ? 'h-16' : 'h-20'}`}
-              />
-            </div>
-            <div className="flex items-center justify-center p-8 rounded-xl bg-card border-2 border-border hover:border-primary/40 hover:shadow-xl transition-all duration-300 group">
-              <img 
-                src="https://cdn3.iconfinder.com/data/icons/social-media-2068/64/_shopping-512.png"
-                alt="Shopify"
-                className="w-full h-16 object-contain group-hover:scale-110 transition-transform"
-              />
+          </div>
+
+          {/* Ad Managers */}
+          <div>
+            <h3 className="text-center text-xl font-semibold text-foreground mb-8">Gerenciadores de Anúncios</h3>
+            <div className="grid grid-cols-2 sm:grid-cols-3 gap-6 max-w-3xl mx-auto">
+              {[
+                { name: 'Meta Ads', logo: '/logos/meta-ads.png' },
+                { name: 'Google Ads', logo: 'https://upload.wikimedia.org/wikipedia/commons/thumb/c/c7/Google_Ads_logo.svg/1200px-Google_Ads_logo.svg.png' },
+                { name: 'TikTok Ads', logo: 'https://sf16-website-login.neutral.ttwstatic.com/obj/tiktok_web_login_static/tiktok/webapp/main/webapp-desktop/47624c235266dedd8e4d.png' },
+              ].map((platform) => (
+                <div key={platform.name} className="flex flex-col items-center justify-center p-6 rounded-xl bg-card border-2 border-border hover:border-primary/40 hover:shadow-xl transition-all duration-300 group">
+                  <img
+                    src={platform.logo}
+                    alt={platform.name}
+                    className="h-12 w-auto object-contain group-hover:scale-110 transition-transform"
+                  />
+                  <span className="mt-3 text-sm font-medium text-foreground">
+                    {platform.name}
+                  </span>
+                </div>
+              ))}
             </div>
           </div>
 
           <div className="mt-12 text-center">
             <p className="text-sm text-muted-foreground">
-              Mais integrações em breve • Precisa de outra plataforma? <span className="text-primary font-semibold">Fale conosco</span>
+              Mais integrações em breve • Precisa de outra plataforma? <Link to="/contato" className="text-primary font-semibold hover:underline">Fale conosco</Link>
             </p>
           </div>
         </div>
