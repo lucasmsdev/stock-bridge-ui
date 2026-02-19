@@ -391,7 +391,7 @@ const Landing = () => {
           {/* Marketplaces */}
           <div className="mb-16">
             <h3 className="text-center text-xl font-semibold text-foreground mb-8">Marketplaces</h3>
-            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-6 max-w-5xl mx-auto">
+            <div className="flex flex-wrap justify-center gap-6 max-w-5xl mx-auto">
               {[
                 { name: 'Mercado Livre', logo: 'https://vectorseek.com/wp-content/uploads/2023/08/Mercado-Livre-Icon-Logo-Vector.svg-.png' },
                 { name: 'Shopee', logo: 'https://upload.wikimedia.org/wikipedia/commons/thumb/0/0e/Shopee_logo.svg/1442px-Shopee_logo.svg.png' },
@@ -401,7 +401,7 @@ const Landing = () => {
                 { name: 'TikTok Shop', logo: '/logos/tiktok-shop.png', comingSoon: true },
                 { name: 'Shein', logo: '/logos/shein.png', comingSoon: true },
               ].map((platform) => (
-                <div key={platform.name} className="relative flex flex-col items-center justify-center p-6 rounded-xl bg-card border-2 border-border hover:border-primary/40 hover:shadow-xl transition-all duration-300 group">
+                <div key={platform.name} className="relative flex flex-col items-center justify-center p-6 rounded-xl bg-card border-2 border-border hover:border-primary/40 hover:shadow-xl transition-all duration-300 group w-[calc(25%-18px)] min-w-[140px] sm:w-[calc(25%-18px)]">
                   {platform.comingSoon && (
                     <Badge variant="secondary" className="absolute -top-2 -right-2 text-[10px] px-2 py-0.5">
                       Em breve
@@ -427,7 +427,7 @@ const Landing = () => {
               {[
                 { name: 'Meta Ads', logo: '/logos/meta-ads.png' },
                 { name: 'Google Ads', logo: 'https://upload.wikimedia.org/wikipedia/commons/thumb/c/c7/Google_Ads_logo.svg/1200px-Google_Ads_logo.svg.png' },
-                { name: 'TikTok Ads', logo: 'https://sf16-website-login.neutral.ttwstatic.com/obj/tiktok_web_login_static/tiktok/webapp/main/webapp-desktop/47624c235266dedd8e4d.png' },
+                { name: 'TikTok Ads', logo: '/logos/tiktok-shop.png' },
               ].map((platform) => (
                 <div key={platform.name} className="flex flex-col items-center justify-center p-6 rounded-xl bg-card border-2 border-border hover:border-primary/40 hover:shadow-xl transition-all duration-300 group">
                   <img
