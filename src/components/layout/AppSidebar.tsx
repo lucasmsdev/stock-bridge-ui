@@ -115,6 +115,11 @@ const navItems: NavItem[] = [
     icon: Zap
   },
   { 
+    title: "Notas Fiscais", 
+    href: "/app/invoices", 
+    icon: Receipt
+  },
+  { 
     title: "Equipe", 
     href: "/app/team", 
     icon: Users,

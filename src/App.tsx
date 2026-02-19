@@ -42,6 +42,7 @@ import PrivacyPolicy from "./pages/PrivacyPolicy";
 
 import Tracking from "./pages/Tracking";
 import Automations from "./pages/Automations";
+import Invoices from "./pages/Invoices";
 
 const App = () => (
   <QueryClientProvider client={queryClient}>
@@ -88,6 +89,7 @@ const App = () => (
                 <Route path="team" element={<Team />} />
                 <Route path="product-roi" element={<Navigate to="/app/dashboard" replace />} />
                 <Route path="automations" element={<Automations />} />
+                <Route path="invoices" element={<Invoices />} />
                 {/* Redirect old stock-forecast route to products tab */}
                 <Route path="stock-forecast" element={<Navigate to="/app/products?tab=forecast" replace />} />
               </Route>
