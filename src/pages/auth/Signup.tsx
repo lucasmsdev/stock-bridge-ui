@@ -17,7 +17,7 @@ export default function Signup() {
     email: "",
     password: ""
   });
-  const [selectedPlan, setSelectedPlan] = useState<string>('estrategista');
+  const [selectedPlan, setSelectedPlan] = useState<string>('iniciante');
   const navigate = useNavigate();
   const { toast } = useToast();
   const [searchParams] = useSearchParams();
@@ -25,7 +25,7 @@ export default function Signup() {
   // Get plan from URL parameter and enforce plan selection
   useEffect(() => {
     const planParam = searchParams.get('plan');
-    if (!planParam || !['estrategista', 'competidor', 'dominador', 'unlimited'].includes(planParam)) {
+    if (!planParam || !['iniciante', 'profissional', 'enterprise', 'unlimited'].includes(planParam)) {
       // Se não há plano na URL ou é inválido, redireciona para landing page
       navigate('/?signup=true');
       return;
@@ -109,10 +109,10 @@ export default function Signup() {
     }));
   };
 
-  const planNames = {
-    estrategista: 'Iniciante',
-    competidor: 'Profissional', 
-    dominador: 'Enterprise',
+  const planNames: Record<string, string> = {
+    iniciante: 'Iniciante',
+    profissional: 'Profissional', 
+    enterprise: 'Enterprise',
     unlimited: 'Unlimited'
   };
 
