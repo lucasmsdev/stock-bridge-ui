@@ -16,28 +16,28 @@ interface UpgradeBannerProps {
   variant?: 'card' | 'inline' | 'modal';
 }
 
-const planIcons = {
-  estrategista: Crown,
-  competidor: Zap,
-  dominador: Star,
+const planIcons: Record<string, typeof Crown> = {
+  iniciante: Crown,
+  profissional: Zap,
+  enterprise: Star,
 };
 
-const planNames = {
-  estrategista: 'Estrategista',
-  competidor: 'Competidor', 
-  dominador: 'Dominador'
+const planNames: Record<string, string> = {
+  iniciante: 'Iniciante',
+  profissional: 'Profissional', 
+  enterprise: 'Enterprise'
 };
 
-const planColors = {
-  estrategista: 'border-blue-200 bg-gradient-to-br from-blue-50 to-blue-100 dark:border-blue-600 dark:from-blue-900/20 dark:to-blue-800/20',
-  competidor: 'border-green-200 bg-gradient-to-br from-green-50 to-green-100 dark:border-green-600 dark:from-green-900/20 dark:to-green-800/20',
-  dominador: 'border-purple-200 bg-gradient-to-br from-purple-50 to-purple-100 dark:border-purple-600 dark:from-purple-900/20 dark:to-purple-800/20',
+const planColors: Record<string, string> = {
+  iniciante: 'border-blue-200 bg-gradient-to-br from-blue-50 to-blue-100 dark:border-blue-600 dark:from-blue-900/20 dark:to-blue-800/20',
+  profissional: 'border-green-200 bg-gradient-to-br from-green-50 to-green-100 dark:border-green-600 dark:from-green-900/20 dark:to-green-800/20',
+  enterprise: 'border-purple-200 bg-gradient-to-br from-purple-50 to-purple-100 dark:border-purple-600 dark:from-purple-900/20 dark:to-purple-800/20',
 };
 
-const buttonColors = {
-  estrategista: 'bg-blue-600 hover:bg-blue-700',
-  competidor: 'bg-green-600 hover:bg-green-700',
-  dominador: 'bg-purple-600 hover:bg-purple-700',
+const buttonColors: Record<string, string> = {
+  iniciante: 'bg-blue-600 hover:bg-blue-700',
+  profissional: 'bg-green-600 hover:bg-green-700',
+  enterprise: 'bg-purple-600 hover:bg-purple-700',
 };
 
 export function UpgradeBanner({ 
@@ -55,7 +55,7 @@ export function UpgradeBanner({
   const planName = planNames[requiredPlan] || requiredPlan;
 
   const handleUpgradeClick = async () => {
-    if (isNavigating) return; // Prevent double clicks
+    if (isNavigating) return;
     
     try {
       setIsNavigating(true);
@@ -64,7 +64,6 @@ export function UpgradeBanner({
         description: "Você será levado para a página de planos.",
       });
       
-      // Small delay to show the toast
       await new Promise(resolve => setTimeout(resolve, 500));
       
       navigate('/app/billing', { 

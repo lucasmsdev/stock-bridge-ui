@@ -108,14 +108,14 @@ serve(async (req) => {
 
     // Define SKU limits per plan
     const skuLimits = {
-      'estrategista': 500,
-      'competidor': 2000,
-      'dominador': 10000,
+      'iniciante': 500,
+      'profissional': 2000,
+      'enterprise': 10000,
       'admin': Infinity // Admins don't have limits
     };
 
     const userPlan = userProfile.role === 'admin' ? 'admin' : userProfile.plan;
-    const limit = skuLimits[userPlan] || skuLimits['estrategista'];
+    const limit = skuLimits[userPlan] || skuLimits['iniciante'];
 
     // Check if user has reached their SKU limit
     if (currentProductCount >= limit) {
