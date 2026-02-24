@@ -194,7 +194,7 @@ export default function PendingPayment() {
               💳 Pagamento 100% seguro via Stripe
             </p>
             <p className="text-xs text-muted-foreground mt-1">
-              🎁 7 dias grátis para testar sem compromisso
+              🎁 14 dias grátis para testar sem compromisso
             </p>
           </div>
         </CardContent>
