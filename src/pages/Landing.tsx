@@ -270,6 +270,9 @@ const Landing = () => {
                   src="/images/dashboard-hero.png"
                   alt="Dashboard UniStock - Controle Total de Marketplaces"
                   className="relative rounded-xl shadow-[0_20px_60px_-15px_rgba(0,0,0,0.5)] hover:shadow-[0_30px_80px_-15px_rgba(0,0,0,0.6)] border border-border/50 hover:border-primary/30 w-full h-auto transition-all duration-500 hover:scale-[1.02] cursor-pointer"
+                  width={1200}
+                  height={675}
+                  fetchPriority="high"
                 />
               </div>
             </div>
@@ -295,8 +298,12 @@ const Landing = () => {
             <div className="group">
               <img
                 src="/images/dashboard-products.png"
-                alt="Visão geral do sistema"
+                alt="Gestão de produtos UniStock - Sincronização multi-marketplace"
                 className="rounded-xl shadow-lg border border-border group-hover:shadow-2xl group-hover:shadow-primary/10 group-hover:scale-[1.02] transition-all duration-300"
+                loading="lazy"
+                decoding="async"
+                width={600}
+                height={400}
               />
             </div>
             <div className="space-y-6">
@@ -409,8 +416,10 @@ const Landing = () => {
                   )}
                   <img
                     src={platform.logo}
-                    alt={platform.name}
+                    alt={`Logo ${platform.name}`}
                     className={`h-12 w-auto object-contain group-hover:scale-110 transition-transform ${platform.comingSoon ? 'opacity-60' : ''}`}
+                    loading="lazy"
+                    decoding="async"
                   />
                   <span className={`mt-3 text-sm font-medium ${platform.comingSoon ? 'text-muted-foreground' : 'text-foreground'}`}>
                     {platform.name}
@@ -432,8 +441,10 @@ const Landing = () => {
                 <div key={platform.name} className="flex flex-col items-center justify-center p-6 rounded-xl bg-card border-2 border-border hover:border-primary/40 hover:shadow-xl transition-all duration-300 group">
                   <img
                     src={platform.logo}
-                    alt={platform.name}
+                    alt={`Logo ${platform.name}`}
                     className="h-12 w-auto object-contain group-hover:scale-110 transition-transform"
+                    loading="lazy"
+                    decoding="async"
                   />
                   <span className="mt-3 text-sm font-medium text-foreground">
                     {platform.name}
