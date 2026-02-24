@@ -1,98 +1,73 @@
 
 
-# Correcao dos 3 Problemas Criticos (Plano Atualizado)
+# SEO e Performance: Lazy Loading de Rotas + Otimizacao de Imagens
 
-## Contexto importante
+## O que sera feito
 
-O projeto tem **dois sistemas de nomes** em conflito:
-- `usePlan.tsx` (enum): `iniciante`, `profissional`, `enterprise`, `unlimited`
-- Todo o resto (Stripe, Billing, Checkout, Landing, Signup): `estrategista`, `competidor`, `dominador`, `unlimited`
+### 1. Lazy Loading de todas as rotas
 
-Os 4 planos corretos sao: **Iniciante** (R$97), **Profissional** (R$197), **Enterprise** (R$297), **Unlimited** (R$397). O trial continua em 14 dias.
+Atualmente, **todas as 30+ paginas sao importadas no topo do `App.tsx`**, o que significa que o navegador baixa TODO o codigo de todas as paginas antes de mostrar qualquer coisa. Com lazy loading, cada pagina so e carregada quando o usuario acessa ela.
 
----
+**Arquivo**: `src/App.tsx`
 
-## 1. Unificar nomes dos planos em todo o projeto
+- Trocar todos os `import` estaticos por `React.lazy(() => import(...))`
+- Envolver as rotas com `<Suspense fallback={<LoadingSpinner />}>` para mostrar um loading enquanto carrega
+- Manter apenas os imports essenciais como estaticos (providers, layout)
 
-Todos os arquivos serao migrados para usar os nomes do enum: `iniciante`, `profissional`, `enterprise`, `unlimited`. Isso elimina a confusao entre nomes antigos e novos.
-
-### Backend (Edge Functions)
-
-| Arquivo | Mudanca |
-|---|---|
-| `supabase/functions/create-checkout/index.ts` | Trocar chaves do `planPriceMap` de `estrategista/competidor/dominador` para `iniciante/profissional/enterprise` |
-| `supabase/functions/stripe-webhook/index.ts` | Trocar valores dos dois `priceToPlantMap` para `iniciante/profissional/enterprise/unlimited`. Corrigir o Price ID do enterprise: de `price_1SPpumKRFmEnuZwjDVJSIOZ2` para `price_1SUaBhKdlB8Nu9cyPgDnMGtR` (mesmo do create-checkout) |
-| `supabase/functions/import-products/index.ts` | Trocar chaves do `skuLimits` para `iniciante/profissional/enterprise` |
-| `supabase/functions/check-subscription-compatibility/index.ts` | Atualizar comentarios dos Price IDs |
-
-### Frontend
-
-| Arquivo | Mudanca |
-|---|---|
-| `src/pages/Landing.tsx` | Trocar `id` dos planos: `estrategista` para `iniciante`, `competidor` para `profissional`, `dominador` para `enterprise` |
-| `src/pages/Checkout.tsx` | Remover `planMap` (nao precisa mais traduzir nomes). Usar `iniciante/profissional/enterprise/unlimited` diretamente em `planDetails` e validacoes |
-| `src/pages/Billing.tsx` | Trocar chaves de `planIcons`, `planColors`, `planGradients`, `planPrices` para `iniciante/profissional/enterprise/unlimited` |
-| `src/pages/auth/Signup.tsx` | Trocar validacao e `selectedPlan` default para usar `iniciante/profissional/enterprise/unlimited` |
-| `src/pages/Profile.tsx` | Trocar chaves de `planNames` e `planColors` para novos nomes |
-| `src/components/ui/upgrade-banner.tsx` | Trocar todas as chaves dos mapas (`planIcons`, `planNames`, `planColors`, `buttonColors`) para `iniciante/profissional/enterprise/unlimited` |
-
-### Migracao de dados existentes
-
-Usuarios que ja tem `estrategista`, `competidor` ou `dominador` gravado na tabela `organizations` precisam ser atualizados. Sera adicionada uma query SQL de migracao:
-
+Exemplo da mudanca:
 ```text
-UPDATE organizations SET plan = 'iniciante' WHERE plan = 'estrategista';
-UPDATE organizations SET plan = 'profissional' WHERE plan = 'competidor';
-UPDATE organizations SET plan = 'enterprise' WHERE plan = 'dominador';
+ANTES:  import Dashboard from "./pages/Dashboard";
+DEPOIS: const Dashboard = lazy(() => import("./pages/Dashboard"));
 ```
 
+### 2. Componente de Loading para o Suspense
+
+**Arquivo**: `src/components/ui/loading-spinner.tsx` (Novo)
+
+- Spinner simples e leve usando o logo do UniStock ou um indicador minimalista
+- Centralizado na tela com animacao suave
+
+### 3. Otimizacao de imagens na Landing Page
+
+**Arquivo**: `src/pages/Landing.tsx`
+
+- Adicionar `loading="lazy"` em todas as imagens abaixo do fold (seções Benefits, Features, Partners)
+- Adicionar `loading="eager"` + `fetchpriority="high"` na imagem hero (acima do fold)
+- Adicionar atributos `width` e `height` para evitar layout shift (CLS)
+- Adicionar `decoding="async"` nas imagens lazy
+
+### 4. Melhorias de SEO no `index.html`
+
+**Arquivo**: `index.html`
+
+- Trocar `lang="en"` para `lang="pt-BR"` (o site e em portugues)
+- Atualizar OG image para usar uma imagem propria do UniStock (em vez do placeholder do Lovable)
+- Adicionar meta tags: `theme-color`, `robots`, canonical URL
+- Adicionar structured data (JSON-LD) basico para Organization
+
+### 5. Meta tags por pagina (SEO dinamico)
+
+**Arquivo**: `src/components/seo/PageMeta.tsx` (Novo)
+
+- Componente reutilizavel que atualiza `document.title` e meta description por rota
+- Usar nas paginas principais (Landing, Login, Signup, Checkout, Contato)
+
 ---
 
-## 2. Pagina de Detalhes do Pedido
+## Resumo dos arquivos
 
-Criar uma pagina completa para visualizar um pedido individual:
-- Informacoes do pedido (ID, data, status, plataforma)
-- Dados do cliente (nome, email)
-- Lista de itens do pedido
-- Informacoes de rastreio
-- Botao de voltar
+| Arquivo | Tipo | Descricao |
+|---|---|---|
+| `src/App.tsx` | Edicao | Lazy loading de todas as rotas com React.lazy + Suspense |
+| `src/components/ui/loading-spinner.tsx` | Novo | Componente de loading para fallback do Suspense |
+| `src/pages/Landing.tsx` | Edicao | Atributos de lazy loading e dimensoes nas imagens |
+| `index.html` | Edicao | lang="pt-BR", meta tags SEO, structured data |
+| `src/components/seo/PageMeta.tsx` | Novo | Componente para title/description dinamico por pagina |
 
-| Arquivo | Tipo |
-|---|---|
-| `src/pages/OrderDetails.tsx` | Novo |
-| `src/App.tsx` | Edicao - adicionar rota `/app/orders/:id` |
-| `src/pages/Orders.tsx` | Edicao - adicionar `onClick` + `useNavigate` nas linhas da tabela |
+## Impacto esperado
 
----
-
-## 3. Paginacao na Listagem de Pedidos
-
-- Limite de 50 pedidos por pagina
-- Query com `.range(from, to)` e `{ count: 'exact' }`
-- Controles de paginacao na parte inferior da tabela
-- Reset para pagina 1 ao aplicar filtros
-
-| Arquivo | Tipo |
-|---|---|
-| `src/pages/Orders.tsx` | Edicao - refatorar query e adicionar controles de pagina |
-
----
-
-## Resumo de todos os arquivos
-
-| Arquivo | Tipo |
-|---|---|
-| `supabase/functions/create-checkout/index.ts` | Edicao |
-| `supabase/functions/stripe-webhook/index.ts` | Edicao |
-| `supabase/functions/import-products/index.ts` | Edicao |
-| `supabase/functions/check-subscription-compatibility/index.ts` | Edicao |
-| `src/pages/Landing.tsx` | Edicao |
-| `src/pages/Checkout.tsx` | Edicao |
-| `src/pages/Billing.tsx` | Edicao |
-| `src/pages/auth/Signup.tsx` | Edicao |
-| `src/pages/Profile.tsx` | Edicao |
-| `src/components/ui/upgrade-banner.tsx` | Edicao |
-| `src/pages/OrderDetails.tsx` | Novo |
-| `src/App.tsx` | Edicao |
-| `src/pages/Orders.tsx` | Edicao |
+- **Bundle inicial ~70% menor**: Apenas o codigo da pagina acessada e carregado
+- **LCP (Largest Contentful Paint) melhor**: Hero image com prioridade alta, demais com lazy
+- **CLS (Cumulative Layout Shift) reduzido**: Dimensoes explicitas nas imagens
+- **SEO**: Meta tags corretas em portugues, structured data para Google
 
