@@ -29,8 +29,7 @@ import {
   MessageCircle,
   HelpCircle,
   Menu,
-  X,
-  Quote
+  X
 } from "lucide-react";
 
 const pricingFeatureDescriptions: Record<string, string> = {
@@ -190,30 +189,6 @@ const Landing = () => {
     { before: "Lucro estimado \"no olho\"", after: "Lucro real calculado automaticamente" },
     { before: "Estoque desatualizado entre canais", after: "Estoque unificado e sempre correto" },
     { before: "Horas perdidas pulando entre plataformas", after: "Economize até 3h por dia" },
-  ];
-
-  const testimonials = [
-    {
-      name: "Rafael M.",
-      role: "Vendedor Mercado Livre & Shopee",
-      initials: "RM",
-      quote: "Antes eu gastava 3 horas por dia alternando entre marketplaces. Agora faço tudo em 20 minutos.",
-      stars: 5,
-    },
-    {
-      name: "Carla S.",
-      role: "Lojista multi-canal",
-      initials: "CS",
-      quote: "Finalmente sei meu lucro real. Descobri que alguns produtos davam prejuízo e eu nem sabia.",
-      stars: 5,
-    },
-    {
-      name: "André L.",
-      role: "Vendedor Amazon & Shopify",
-      initials: "AL",
-      quote: "A sincronização de estoque me salvou de vender sem estoque. Isso acontecia toda semana antes.",
-      stars: 5,
-    },
   ];
 
   const mobileNavLinks = [
@@ -624,57 +599,6 @@ const Landing = () => {
             <p className="text-sm text-muted-foreground">
               Mais integrações em breve • Precisa de outra plataforma? <Link to="/contato" className="text-primary font-semibold hover:underline">Fale conosco</Link>
             </p>
-          </div>
-        </div>
-      </section>
-
-      {/* Testimonials */}
-      <section className="py-20 px-4 sm:px-6 lg:px-8">
-        <div className="container mx-auto max-w-6xl">
-          <div className="text-center mb-12">
-            <Badge variant="outline" className="mb-4 px-4 py-2 border-accent/30 text-accent bg-accent/5">
-              <Star className="w-4 h-4 mr-2" />
-              O que dizem nossos usuários
-            </Badge>
-            <h2 className="font-heading text-3xl sm:text-4xl font-bold text-foreground mb-4">
-              Resultados reais de vendedores como você
-            </h2>
-            <p className="text-lg text-muted-foreground max-w-2xl mx-auto">
-              Veja como o UniStock transformou a rotina de quem vende em múltiplos canais.
-            </p>
-          </div>
-
-          <div className="grid md:grid-cols-3 gap-6">
-            {testimonials.map((testimonial, index) => (
-              <Card key={index} className="border-border hover:border-primary/30 hover:shadow-xl hover:shadow-primary/10 hover:-translate-y-1 transition-all duration-300">
-                <CardContent className="p-6 space-y-4">
-                  <Quote className="w-8 h-8 text-accent/30" />
-                  <p className="text-foreground font-medium leading-relaxed italic">
-                    "{testimonial.quote}"
-                  </p>
-                  <div className="flex items-center gap-1 pt-1">
-                    {Array.from({ length: testimonial.stars }).map((_, i) => (
-                      <Star key={i} className="w-4 h-4 fill-accent text-accent" />
-                    ))}
-                  </div>
-                  <div className="flex items-center gap-3 pt-2 border-t border-border">
-                    <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center">
-                      <span className="text-sm font-bold text-primary">{testimonial.initials}</span>
-                    </div>
-                    <div>
-                      <p className="text-sm font-semibold text-foreground">{testimonial.name}</p>
-                      <p className="text-xs text-muted-foreground">{testimonial.role}</p>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-            ))}
-          </div>
-
-          <div className="text-center mt-6">
-            <Badge variant="secondary" className="text-xs">
-              Depoimentos ilustrativos baseados em casos de uso reais
-            </Badge>
           </div>
         </div>
       </section>
