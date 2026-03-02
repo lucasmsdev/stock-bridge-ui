@@ -1,73 +1,111 @@
 
+# Melhorias de Design na Landing Page
 
-# SEO e Performance: Lazy Loading de Rotas + Otimizacao de Imagens
+## Visao Geral
 
-## O que sera feito
-
-### 1. Lazy Loading de todas as rotas
-
-Atualmente, **todas as 30+ paginas sao importadas no topo do `App.tsx`**, o que significa que o navegador baixa TODO o codigo de todas as paginas antes de mostrar qualquer coisa. Com lazy loading, cada pagina so e carregada quando o usuario acessa ela.
-
-**Arquivo**: `src/App.tsx`
-
-- Trocar todos os `import` estaticos por `React.lazy(() => import(...))`
-- Envolver as rotas com `<Suspense fallback={<LoadingSpinner />}>` para mostrar um loading enquanto carrega
-- Manter apenas os imports essenciais como estaticos (providers, layout)
-
-Exemplo da mudanca:
-```text
-ANTES:  import Dashboard from "./pages/Dashboard";
-DEPOIS: const Dashboard = lazy(() => import("./pages/Dashboard"));
-```
-
-### 2. Componente de Loading para o Suspense
-
-**Arquivo**: `src/components/ui/loading-spinner.tsx` (Novo)
-
-- Spinner simples e leve usando o logo do UniStock ou um indicador minimalista
-- Centralizado na tela com animacao suave
-
-### 3. Otimizacao de imagens na Landing Page
-
-**Arquivo**: `src/pages/Landing.tsx`
-
-- Adicionar `loading="lazy"` em todas as imagens abaixo do fold (seções Benefits, Features, Partners)
-- Adicionar `loading="eager"` + `fetchpriority="high"` na imagem hero (acima do fold)
-- Adicionar atributos `width` e `height` para evitar layout shift (CLS)
-- Adicionar `decoding="async"` nas imagens lazy
-
-### 4. Melhorias de SEO no `index.html`
-
-**Arquivo**: `index.html`
-
-- Trocar `lang="en"` para `lang="pt-BR"` (o site e em portugues)
-- Atualizar OG image para usar uma imagem propria do UniStock (em vez do placeholder do Lovable)
-- Adicionar meta tags: `theme-color`, `robots`, canonical URL
-- Adicionar structured data (JSON-LD) basico para Organization
-
-### 5. Meta tags por pagina (SEO dinamico)
-
-**Arquivo**: `src/components/seo/PageMeta.tsx` (Novo)
-
-- Componente reutilizavel que atualiza `document.title` e meta description por rota
-- Usar nas paginas principais (Landing, Login, Signup, Checkout, Contato)
+5 melhorias principais na landing page: menu mobile hamburger, secao antes/depois, bento grid nos features, secao de testemunhos, e correcao do copyright para 2026.
 
 ---
 
-## Resumo dos arquivos
+## 1. Menu Mobile Hamburger
 
-| Arquivo | Tipo | Descricao |
-|---|---|---|
-| `src/App.tsx` | Edicao | Lazy loading de todas as rotas com React.lazy + Suspense |
-| `src/components/ui/loading-spinner.tsx` | Novo | Componente de loading para fallback do Suspense |
-| `src/pages/Landing.tsx` | Edicao | Atributos de lazy loading e dimensoes nas imagens |
-| `index.html` | Edicao | lang="pt-BR", meta tags SEO, structured data |
-| `src/components/seo/PageMeta.tsx` | Novo | Componente para title/description dinamico por pagina |
+**Problema**: A navegacao `hidden md:flex` desaparece completamente no mobile. O usuario so ve o logo e o botao "Comece agora".
 
-## Impacto esperado
+**Solucao**: Adicionar um botao hamburger (icone `Menu` / `X`) que abre um menu lateral (Sheet) com todos os links de navegacao.
 
-- **Bundle inicial ~70% menor**: Apenas o codigo da pagina acessada e carregado
-- **LCP (Largest Contentful Paint) melhor**: Hero image com prioridade alta, demais com lazy
-- **CLS (Cumulative Layout Shift) reduzido**: Dimensoes explicitas nas imagens
-- **SEO**: Meta tags corretas em portugues, structured data para Google
+**Detalhes tecnicos**:
+- Usar o componente `Sheet` ja existente no projeto (`src/components/ui/sheet.tsx`)
+- Botao hamburger visivel apenas em `md:hidden`
+- Menu lateral com links: Inicio, Funcoes, Planos, FAQ, Login
+- Fechar automaticamente ao clicar em um link
 
+---
+
+## 2. Secao Antes vs Depois
+
+**Posicao**: Entre o Hero e a secao de Benefits atual (linha ~284).
+
+**Conceito**: Dois cards lado a lado mostrando o contraste visual entre a vida SEM e COM o UniStock.
+
+```text
++----------------------------+----------------------------+
+|   ANTES (vermelho/cinza)   |   DEPOIS (verde/accent)    |
++----------------------------+----------------------------+
+| x 4+ abas abertas          | v 1 painel unico           |
+| x Planilhas manuais        | v Sincronizacao automatica |
+| x Lucro estimado "no olho" | v Lucro real calculado     |
+| x Estoque desatualizado    | v Estoque em tempo real    |
+| x Horas perdidas por dia   | v Economize 3h/dia         |
++----------------------------+----------------------------+
+```
+
+**Detalhes tecnicos**:
+- Dois `Card` com icones `X` (vermelho) e `CheckCircle` (verde/accent)
+- Layout `grid md:grid-cols-2` com gap
+- Card "Antes" com borda/fundo sutilmente avermelhado, card "Depois" com borda accent
+- Animacao de entrada com CSS (fade-in)
+
+---
+
+## 3. Bento Grid nos Features
+
+**Problema atual**: Os 6 cards de features sao todos iguais (`grid lg:grid-cols-3`), sem hierarquia visual.
+
+**Solucao**: Transformar em Bento Grid onde os 2 features mais importantes (Sincronizacao Automatica e Analise de Lucro Real) ocupam mais espaco.
+
+```text
++------------------+----------+
+|  Sincronizacao   |   IA     |
+|  (grande, 2 col) |          |
++--------+---------+----------+
+| Vendas | Dashboards| Mais   |
+|        |           | Vendidos|
++--------+-----------+--------+
+```
+
+**Detalhes tecnicos**:
+- Manter os mesmos 6 features, mas os 2 primeiros com `md:col-span-2` ou tamanho maior
+- Cards maiores com icone maior e descricao mais visivel
+- Cards menores mantem o layout atual compacto
+- Hover effects diferenciados por tamanho
+
+---
+
+## 4. Secao de Testemunhos
+
+**Posicao**: Entre a secao de Integracoes e a secao de Pricing.
+
+**Conceito**: 3 depoimentos de personas ficticias (como placeholder ate ter depoimentos reais), com badge "Depoimento ilustrativo" para transparencia.
+
+**Conteudo dos depoimentos**:
+1. "Antes eu gastava 3 horas por dia alternando entre marketplaces. Agora faco tudo em 20 minutos." - Vendedor Mercado Livre/Shopee
+2. "Finalmente sei meu lucro real. Descobri que alguns produtos davam prejuizo e eu nem sabia." - Lojista multi-canal
+3. "A sincronizacao de estoque me salvou de vender sem estoque. Isso acontecia toda semana antes." - Vendedor Amazon/Shopify
+
+**Detalhes tecnicos**:
+- Grid de 3 cards com avatar (iniciais), nome, cargo/contexto e depoimento
+- Badge "Depoimento ilustrativo" discreto para transparencia
+- Icone de aspas (`Quote`) ou estrelas para visual
+- Layout responsivo: 1 coluna mobile, 3 colunas desktop
+
+---
+
+## 5. Copyright 2026
+
+**Mudanca simples**: Linha 800, alterar `2025` para `2026`.
+
+---
+
+## Arquivo modificado
+
+| Arquivo | Mudancas |
+|---|---|
+| `src/pages/Landing.tsx` | Menu mobile, secao antes/depois, bento grid, testemunhos, copyright |
+
+## Ordem de implementacao
+
+1. Menu mobile hamburger (header)
+2. Secao antes vs depois (apos hero)
+3. Bento grid nos features
+4. Secao de testemunhos (antes do pricing)
+5. Copyright 2026 (footer)
