@@ -10,6 +10,7 @@ import { PlatformLogo } from "@/components/ui/platform-logo";
 import { useThemeProvider } from "@/components/layout/ThemeProvider";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { AnimatedSection } from "@/components/ui/animated-section";
+import { SectionDivider } from "@/components/ui/section-divider";
 import { 
   ArrowRight, 
   CheckCircle, 
@@ -446,6 +447,9 @@ const Landing = () => {
         </div>
       </section>
 
+      {/* Divider: Hero -> Before vs After */}
+      <SectionDivider variant="wave" fromColor="bg-background" toColor="bg-background" />
+
       {/* Before vs After Section */}
       <section className="py-20 px-4 sm:px-6 lg:px-8">
         <div className="container mx-auto max-w-5xl">
@@ -516,6 +520,9 @@ const Landing = () => {
         </div>
       </section>
 
+      {/* Divider: Before vs After -> Benefits */}
+      <SectionDivider variant="curve" flip fromColor="bg-background" toColor="bg-background" />
+
       {/* Benefits */}
       <section className="py-20 px-4 sm:px-6 lg:px-8">
         <div className="container mx-auto max-w-7xl">
@@ -570,6 +577,9 @@ const Landing = () => {
         </div>
       </section>
 
+      {/* Divider: Benefits -> Features */}
+      <SectionDivider variant="wave" fromColor="bg-background" toColor="bg-muted/30" />
+
       {/* Features - Bento Grid */}
       <section id="funcoes" className="py-20 bg-muted/30 scroll-mt-16">
         <div className="container mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
@@ -613,6 +623,9 @@ const Landing = () => {
           </div>
         </div>
       </section>
+
+      {/* Divider: Features -> Partners */}
+      <SectionDivider variant="curve" flip fromColor="bg-muted/30" toColor="bg-muted/30" />
 
       {/* Partners - with Marquee */}
       <section className="py-20 bg-gradient-to-b from-muted/30 to-background">
@@ -674,6 +687,9 @@ const Landing = () => {
           </AnimatedSection>
         </div>
       </section>
+
+      {/* Divider: Partners -> Pricing */}
+      <SectionDivider variant="wave" fromColor="bg-background" toColor="bg-background" />
 
       {/* Pricing */}
       <section id="planos" className="py-20 scroll-mt-16 px-4 sm:px-6 lg:px-8">
@@ -784,6 +800,9 @@ const Landing = () => {
       </section>
 
 
+      {/* Divider: Pricing -> Final CTA */}
+      <SectionDivider variant="curve" flip fromColor="bg-background" toColor="bg-background" />
+
       {/* Final CTA */}
       <section className="py-20 px-4 sm:px-6 lg:px-8 relative overflow-hidden">
         <div className="absolute inset-0 bg-gradient-to-br from-primary/5 via-transparent to-accent/5 animate-pulse" style={{ animationDuration: '8s' }} />
@@ -827,6 +846,9 @@ const Landing = () => {
           </AnimatedSection>
         </div>
       </section>
+
+      {/* Divider: Final CTA -> FAQ */}
+      <SectionDivider variant="wave" fromColor="bg-background" toColor="bg-muted/30" />
 
       {/* FAQ Section */}
       <section id="faq" className="py-20 px-4 sm:px-6 lg:px-8 bg-muted/30">
@@ -934,8 +956,11 @@ const Landing = () => {
         </div>
       </section>
 
+      {/* Divider: FAQ -> Footer */}
+      <SectionDivider variant="curve" flip fromColor="bg-muted/30" toColor="bg-muted/20" />
+
       {/* Footer */}
-      <footer className="border-t border-border py-12 bg-muted/20">
+      <footer className="border-t-0 border-border py-12 bg-muted/20">
         <div className="container mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
           <div className="grid md:grid-cols-3 gap-8 mb-8">
             <div className="space-y-4">
