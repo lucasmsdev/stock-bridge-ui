@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useRef, useEffect, useCallback } from "react";
 import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -69,6 +69,82 @@ const pricingFeatureDescriptions: Record<string, string> = {
   "Análise de mercado ilimitada": "No Enterprise há limites de consultas. No Unlimited, use análises de mercado e concorrência sem restrições.",
   "Automação avançada": "EXCLUSIVO do Unlimited. Automatize tarefas repetitivas: atualização de preços, respostas, e fluxos operacionais.",
   "API de Integração Completa e Gerente de Sucesso Dedicado": "EXCLUSIVO do Unlimited. Integre com seu ERP ou sistemas internos via API. Além disso, você tem um gerente de sucesso dedicado para acompanhar sua conta e ajudar a crescer.",
+};
+
+// Reusable JS-driven infinite marquee
+const MarqueeCarousel = ({ items, prefix }: { items: { name: string; logo: string; comingSoon?: boolean }[]; prefix: string }) => {
+  const scrollRef = useRef<HTMLDivElement>(null);
+  const offsetRef = useRef(0);
+  const pausedRef = useRef(false);
+  const rafRef = useRef<number>(0);
+
+  useEffect(() => {
+    const el = scrollRef.current;
+    if (!el) return;
+
+    // Wait for images/layout to settle
+    const startAnimation = () => {
+      const firstSet = el.children[0] as HTMLElement;
+      if (!firstSet) return;
+      const setWidth = firstSet.offsetWidth + 32; // 32 = gap-8
+
+      const step = () => {
+        if (!pausedRef.current) {
+          offsetRef.current += 0.5;
+          if (offsetRef.current >= setWidth) {
+            offsetRef.current = 0;
+          }
+          el.style.transform = `translateX(-${offsetRef.current}px)`;
+        }
+        rafRef.current = requestAnimationFrame(step);
+      };
+      rafRef.current = requestAnimationFrame(step);
+    };
+
+    // Small delay to ensure layout is computed
+    const timer = setTimeout(startAnimation, 100);
+    return () => {
+      clearTimeout(timer);
+      cancelAnimationFrame(rafRef.current);
+    };
+  }, []);
+
+  const renderItem = (platform: { name: string; logo: string; comingSoon?: boolean }, i: number, keyPrefix: string) => (
+    <div key={`${keyPrefix}-${i}`} className="relative flex flex-col items-center justify-center p-6 rounded-xl bg-card border-2 border-border hover:border-primary/40 hover:shadow-xl transition-all duration-300 group flex-shrink-0 w-40">
+      {platform.comingSoon && (
+        <Badge variant="secondary" className="absolute -top-2 -right-2 text-[10px] px-2 py-0.5">
+          Em breve
+        </Badge>
+      )}
+      <img
+        src={platform.logo}
+        alt={`Logo ${platform.name}`}
+        className={`h-12 w-auto object-contain group-hover:scale-110 transition-transform ${platform.comingSoon ? 'opacity-60' : ''}`}
+        loading="lazy"
+        decoding="async"
+      />
+      <span className={`mt-3 text-sm font-medium ${platform.comingSoon ? 'text-muted-foreground' : 'text-foreground'}`}>
+        {platform.name}
+      </span>
+    </div>
+  );
+
+  return (
+    <div
+      className="marquee-container"
+      onMouseEnter={() => (pausedRef.current = true)}
+      onMouseLeave={() => (pausedRef.current = false)}
+    >
+      <div ref={scrollRef} className="flex gap-8" style={{ willChange: 'transform' }}>
+        <div className="flex gap-8 shrink-0">
+          {items.map((p, i) => renderItem(p, i, `${prefix}-a`))}
+        </div>
+        <div className="flex gap-8 shrink-0" aria-hidden="true">
+          {items.map((p, i) => renderItem(p, i, `${prefix}-b`))}
+        </div>
+      </div>
+    </div>
+  );
 };
 
 const Landing = () => {
@@ -561,52 +637,7 @@ const Landing = () => {
             <AnimatedSection animation="fade-up" delay={100}>
               <h3 className="text-center text-xl font-semibold text-foreground mb-8">Marketplaces</h3>
             </AnimatedSection>
-            <div className="marquee-container">
-              <div className="animate-marquee gap-8">
-                <div className="flex gap-8 shrink-0">
-                  {marketplaces.map((platform, i) => (
-                    <div key={`mk-a-${i}`} className="relative flex flex-col items-center justify-center p-6 rounded-xl bg-card border-2 border-border hover:border-primary/40 hover:shadow-xl transition-all duration-300 group flex-shrink-0 w-40">
-                      {platform.comingSoon && (
-                        <Badge variant="secondary" className="absolute -top-2 -right-2 text-[10px] px-2 py-0.5">
-                          Em breve
-                        </Badge>
-                      )}
-                      <img
-                        src={platform.logo}
-                        alt={`Logo ${platform.name}`}
-                        className={`h-12 w-auto object-contain group-hover:scale-110 transition-transform ${platform.comingSoon ? 'opacity-60' : ''}`}
-                        loading="lazy"
-                        decoding="async"
-                      />
-                      <span className={`mt-3 text-sm font-medium ${platform.comingSoon ? 'text-muted-foreground' : 'text-foreground'}`}>
-                        {platform.name}
-                      </span>
-                    </div>
-                  ))}
-                </div>
-                <div className="flex gap-8 shrink-0" aria-hidden="true">
-                  {marketplaces.map((platform, i) => (
-                    <div key={`mk-b-${i}`} className="relative flex flex-col items-center justify-center p-6 rounded-xl bg-card border-2 border-border hover:border-primary/40 hover:shadow-xl transition-all duration-300 group flex-shrink-0 w-40">
-                      {platform.comingSoon && (
-                        <Badge variant="secondary" className="absolute -top-2 -right-2 text-[10px] px-2 py-0.5">
-                          Em breve
-                        </Badge>
-                      )}
-                      <img
-                        src={platform.logo}
-                        alt={`Logo ${platform.name}`}
-                        className={`h-12 w-auto object-contain group-hover:scale-110 transition-transform ${platform.comingSoon ? 'opacity-60' : ''}`}
-                        loading="lazy"
-                        decoding="async"
-                      />
-                      <span className={`mt-3 text-sm font-medium ${platform.comingSoon ? 'text-muted-foreground' : 'text-foreground'}`}>
-                        {platform.name}
-                      </span>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            </div>
+            <MarqueeCarousel items={marketplaces} prefix="mk" />
           </div>
 
           {/* Ad Managers */}
