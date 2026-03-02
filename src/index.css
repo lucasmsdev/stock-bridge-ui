@@ -9,6 +9,11 @@ All colors MUST be HSL.
 @layer base {
   html {
     scroll-behavior: smooth;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  * {
+    scroll-behavior: smooth;
   }
   
   :root {
@@ -179,10 +184,14 @@ All colors MUST be HSL.
   100% { transform: translateX(-50%); }
 }
 .animate-marquee {
-  animation: marquee 25s linear infinite;
+  display: flex;
+  animation: marquee 30s linear infinite;
+  will-change: transform;
 }
 .animate-marquee-reverse {
-  animation: marquee 25s linear infinite reverse;
+  display: flex;
+  animation: marquee 30s linear infinite reverse;
+  will-change: transform;
 }
 
 /* Highlight sweep for text */
