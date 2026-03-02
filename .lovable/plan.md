@@ -1,60 +1,30 @@
 
 
-# Transicoes Suaves entre Secoes da Landing Page
+# Transicoes Clean entre Secoes
 
-## Objetivo
-Adicionar divisores visuais modernos e suaves entre cada secao da landing page, criando um fluxo visual elegante e continuo.
+## O que muda
+
+Remover todos os `SectionDivider` com ondas SVG (visual pesado e datado) e substituir por **gradientes CSS sutis** entre secoes. Essa abordagem e usada por sites como Linear, Vercel e Stripe - minimalista e moderna.
 
 ## Abordagem
 
-Criar um componente `SectionDivider` reutilizavel que renderiza uma onda SVG com gradiente sutil entre as secoes. Esse padrao e amplamente usado em landing pages modernas (Stripe, Linear, Vercel).
+Em vez de formas SVG entre secoes, cada secao tera um **gradiente de fundo suave** que faz a transicao naturalmente para a proxima. O efeito e quase invisivel, mas elimina cortes bruscos.
 
-## Secoes da Landing Page (em ordem)
-1. Hero
-2. Before vs After
-3. Benefits
-4. Features (Bento Grid)
-5. Partners (Marquee)
-6. Pricing
-7. Final CTA
-8. FAQ
-9. Footer
+### Mudancas
 
-Serao inseridos divisores entre cada par de secoes (7-8 divisores no total).
+**1. Deletar `src/components/ui/section-divider.tsx`** - nao sera mais necessario.
 
-## Mudancas
+**2. Editar `src/pages/Landing.tsx`:**
+- Remover todas as 8 instancias de `<SectionDivider ... />`
+- Remover o import do `SectionDivider`
+- Adicionar classes de gradiente sutil nas secoes que fazem transicao de cor:
+  - Secoes com fundo `bg-muted/30` recebem `bg-gradient-to-b from-background to-muted/30` no inicio e `bg-gradient-to-b from-muted/30 to-background` no final
+  - Isso cria um fade suave entre cores de fundo, sem elementos visuais extras
+- Restaurar `border-t` no footer
 
-### 1. Criar componente `src/components/ui/section-divider.tsx`
+### Resultado visual
+- Zero elementos decorativos entre secoes
+- Transicoes de cor acontecem naturalmente via gradiente CSS
+- Visual limpo, moderno e profissional
+- Funciona perfeitamente em light e dark mode
 
-Componente simples que renderiza um SVG com curva suave (wave) e cores que fazem a transicao entre o fundo da secao anterior e o fundo da proxima. Props:
-- `variant`: "wave" | "curve" | "angle" (diferentes formas de transicao)
-- `flip`: boolean (inverter verticalmente para alternar direcao)
-- `fromColor` / `toColor`: cores de fundo (usando classes Tailwind como `bg-background`, `bg-muted/30`)
-- `className`: customizacao adicional
-
-O SVG usa `viewBox` e `preserveAspectRatio` para ser responsivo, com altura de ~48-80px.
-
-### 2. Modificar `src/pages/Landing.tsx`
-
-Inserir o componente `SectionDivider` entre cada secao com variantes alternadas para criar ritmo visual:
-
-- Hero -> Before vs After: wave
-- Before vs After -> Benefits: curve (flip)
-- Benefits -> Features: wave
-- Features -> Partners: curve (flip)
-- Partners -> Pricing: wave
-- Pricing -> Final CTA: curve (flip)
-- Final CTA -> FAQ: wave
-- FAQ -> Footer: curve (flip)
-
-As cores serao ajustadas automaticamente para combinar com o fundo de cada secao (ex: `background` -> `muted/30` -> `background`).
-
-### 3. Adicionar CSS em `src/index.css`
-
-Estilos minimos para o divisor:
-- `width: 100%`, sem margin/padding entre secoes
-- Cor do SVG path usa `fill: currentColor` com classes Tailwind
-- Transicao suave de cor no dark mode
-
-## Resultado Visual
-Cada secao tera uma transicao suave em formato de onda/curva, eliminando as bordas retas entre secoes e criando um fluxo visual moderno e profissional.
