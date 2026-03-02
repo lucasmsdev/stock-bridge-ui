@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useState } from "react";
 import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -8,6 +8,7 @@ import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/
 import { ThemeToggle } from "@/components/ui/theme-toggle";
 import { PlatformLogo } from "@/components/ui/platform-logo";
 import { useThemeProvider } from "@/components/layout/ThemeProvider";
+import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { 
   ArrowRight, 
   CheckCircle, 
@@ -26,7 +27,10 @@ import {
   Activity,
   Instagram,
   MessageCircle,
-  HelpCircle
+  HelpCircle,
+  Menu,
+  X,
+  Quote
 } from "lucide-react";
 
 const pricingFeatureDescriptions: Record<string, string> = {
@@ -70,6 +74,8 @@ const pricingFeatureDescriptions: Record<string, string> = {
 const Landing = () => {
   const { theme } = useThemeProvider();
   const isDark = theme === 'dark';
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+
   const plans = [
     {
       id: "iniciante",
@@ -143,35 +149,79 @@ const Landing = () => {
     {
       icon: Package,
       title: "Sincronização Automática",
-      description: "Nunca mais perca uma venda por estoque desatualizado. Sincronização automática e instantânea em todos os seus marketplaces."
+      description: "Nunca mais perca uma venda por estoque desatualizado. Sincronização automática e instantânea em todos os seus marketplaces.",
+      featured: true
     },
     {
       icon: TrendingUp,
       title: "Análise de Lucro Real",
-      description: "UniStock calcula automaticamente todas as taxas, fretes, devoluções e custos. Você vê o lucro real em tempo real. Nada escondido."
+      description: "UniStock calcula automaticamente todas as taxas, fretes, devoluções e custos. Você vê o lucro real em tempo real. Nada escondido.",
+      featured: true
     },
     {
       icon: Sparkles,
       title: "IA Inteligente",
-      description: "O Agente Uni otimiza seus anúncios, monitora preços da concorrência e garante a melhor margem, sem você precisar mexer um dedo."
+      description: "O Agente Uni otimiza seus anúncios, monitora preços da concorrência e garante a melhor margem, sem você precisar mexer um dedo.",
+      featured: false
     },
     {
       icon: ShoppingBag,
       title: "Análise de Vendas",
-      description: "Veja todos os pedidos com detalhes: itens, comissões, frete e mais."
+      description: "Veja todos os pedidos com detalhes: itens, comissões, frete e mais.",
+      featured: false
     },
     {
       icon: BarChart3,
       title: "Dashboards Inteligentes",
-      description: "Acompanhe seu lucro diário, semanal e mensal em segundos."
+      description: "Acompanhe seu lucro diário, semanal e mensal em segundos.",
+      featured: false
     },
     {
       icon: LineChart,
       title: "Mais Vendidos",
-      description: "Saiba quais produtos estão vendendo mais em poucos cliques."
+      description: "Saiba quais produtos estão vendendo mais em poucos cliques.",
+      featured: false
     }
   ];
 
+  const beforeAfterItems = [
+    { before: "4+ abas abertas ao mesmo tempo", after: "1 painel único e centralizado" },
+    { before: "Planilhas manuais e desatualizadas", after: "Sincronização automática em tempo real" },
+    { before: "Lucro estimado \"no olho\"", after: "Lucro real calculado automaticamente" },
+    { before: "Estoque desatualizado entre canais", after: "Estoque unificado e sempre correto" },
+    { before: "Horas perdidas pulando entre plataformas", after: "Economize até 3h por dia" },
+  ];
+
+  const testimonials = [
+    {
+      name: "Rafael M.",
+      role: "Vendedor Mercado Livre & Shopee",
+      initials: "RM",
+      quote: "Antes eu gastava 3 horas por dia alternando entre marketplaces. Agora faço tudo em 20 minutos.",
+      stars: 5,
+    },
+    {
+      name: "Carla S.",
+      role: "Lojista multi-canal",
+      initials: "CS",
+      quote: "Finalmente sei meu lucro real. Descobri que alguns produtos davam prejuízo e eu nem sabia.",
+      stars: 5,
+    },
+    {
+      name: "André L.",
+      role: "Vendedor Amazon & Shopify",
+      initials: "AL",
+      quote: "A sincronização de estoque me salvou de vender sem estoque. Isso acontecia toda semana antes.",
+      stars: 5,
+    },
+  ];
+
+  const mobileNavLinks = [
+    { label: "Início", href: "#inicio" },
+    { label: "Funções", href: "#funcoes" },
+    { label: "Planos", href: "#planos" },
+    { label: "FAQ", href: "#faq" },
+  ];
 
   return (
     <div className="min-h-screen bg-background font-body">
@@ -202,17 +252,68 @@ const Landing = () => {
                 Login
               </Link>
             </nav>
-            <div className="flex items-center space-x-4">
-              <a href="#planos">
+            <div className="flex items-center space-x-3">
+              <a href="#planos" className="hidden sm:inline-block">
                 <Button className="bg-accent hover:bg-accent/90 text-accent-foreground font-semibold">
                   Comece agora
                 </Button>
               </a>
               <ThemeToggle />
+              <Button
+                variant="ghost"
+                size="icon"
+                className="md:hidden"
+                onClick={() => setMobileMenuOpen(true)}
+                aria-label="Abrir menu"
+              >
+                <Menu className="h-6 w-6" />
+              </Button>
             </div>
           </div>
         </div>
       </header>
+
+      {/* Mobile Menu Sheet */}
+      <Sheet open={mobileMenuOpen} onOpenChange={setMobileMenuOpen}>
+        <SheetContent side="right" className="w-[280px] p-0">
+          <SheetHeader className="p-6 pb-2">
+            <SheetTitle>
+              <img 
+                src={`/logos/unistock-${theme}.png`}
+                alt="UniStock Logo"
+                className="h-16 w-auto"
+              />
+            </SheetTitle>
+          </SheetHeader>
+          <nav className="flex flex-col px-6 py-4 space-y-1">
+            {mobileNavLinks.map((link) => (
+              <a
+                key={link.href}
+                href={link.href}
+                onClick={() => setMobileMenuOpen(false)}
+                className="flex items-center py-3 px-4 rounded-lg text-base font-medium text-foreground hover:bg-accent/10 hover:text-primary transition-colors"
+              >
+                {link.label}
+              </a>
+            ))}
+            <Link
+              to="/login"
+              onClick={() => setMobileMenuOpen(false)}
+              className="flex items-center py-3 px-4 rounded-lg text-base font-medium text-foreground hover:bg-accent/10 hover:text-primary transition-colors"
+            >
+              Login
+            </Link>
+            <div className="pt-4">
+              <a href="#planos" onClick={() => setMobileMenuOpen(false)}>
+                <Button className="w-full bg-accent hover:bg-accent/90 text-accent-foreground font-semibold">
+                  Comece agora
+                  <ArrowRight className="ml-2 h-4 w-4" />
+                </Button>
+              </a>
+            </div>
+          </nav>
+        </SheetContent>
+      </Sheet>
 
       {/* Hero Section */}
       <section id="inicio" className="relative pt-24 pb-16 lg:pt-32 lg:pb-24 px-4 sm:px-6 lg:px-8 scroll-mt-16 overflow-hidden">
@@ -261,10 +362,7 @@ const Landing = () => {
 
             {/* Dashboard Image */}
             <div className="relative w-full max-w-5xl animate-fade-in" style={{ animationDelay: '0.3s' }}>
-              {/* Subtle glow effect behind image */}
               <div className="absolute inset-0 bg-gradient-to-br from-primary/20 to-accent/20 rounded-2xl blur-3xl opacity-50" />
-              
-              {/* Image Container */}
               <div className="relative w-full group">
                 <img
                   src="/images/dashboard-hero.png"
@@ -280,6 +378,65 @@ const Landing = () => {
         </div>
       </section>
 
+      {/* Before vs After Section */}
+      <section className="py-20 px-4 sm:px-6 lg:px-8">
+        <div className="container mx-auto max-w-5xl">
+          <div className="text-center mb-12">
+            <Badge variant="outline" className="mb-4 px-4 py-2 border-primary/30 text-primary bg-primary/5">
+              <Activity className="w-4 h-4 mr-2" />
+              Compare e decida
+            </Badge>
+            <h2 className="font-heading text-3xl sm:text-4xl font-bold text-foreground mb-4">
+              Antes vs Depois do UniStock
+            </h2>
+            <p className="text-lg text-muted-foreground max-w-2xl mx-auto">
+              Veja como sua rotina muda quando você centraliza tudo em um só lugar.
+            </p>
+          </div>
+
+          <div className="grid md:grid-cols-2 gap-6">
+            {/* ANTES */}
+            <Card className="border-destructive/30 bg-destructive/5 hover:shadow-lg transition-all duration-300">
+              <CardContent className="p-6 sm:p-8">
+                <div className="flex items-center gap-3 mb-6">
+                  <div className="w-10 h-10 rounded-full bg-destructive/10 flex items-center justify-center">
+                    <X className="w-5 h-5 text-destructive" />
+                  </div>
+                  <h3 className="font-heading text-xl font-bold text-destructive">Sem UniStock</h3>
+                </div>
+                <div className="space-y-4">
+                  {beforeAfterItems.map((item, idx) => (
+                    <div key={idx} className="flex items-start gap-3">
+                      <X className="w-5 h-5 text-destructive flex-shrink-0 mt-0.5" />
+                      <span className="text-sm text-muted-foreground">{item.before}</span>
+                    </div>
+                  ))}
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* DEPOIS */}
+            <Card className="border-accent/30 bg-accent/5 hover:shadow-lg hover:shadow-accent/10 transition-all duration-300">
+              <CardContent className="p-6 sm:p-8">
+                <div className="flex items-center gap-3 mb-6">
+                  <div className="w-10 h-10 rounded-full bg-accent/10 flex items-center justify-center">
+                    <CheckCircle className="w-5 h-5 text-accent" />
+                  </div>
+                  <h3 className="font-heading text-xl font-bold text-accent">Com UniStock</h3>
+                </div>
+                <div className="space-y-4">
+                  {beforeAfterItems.map((item, idx) => (
+                    <div key={idx} className="flex items-start gap-3">
+                      <CheckCircle className="w-5 h-5 text-accent flex-shrink-0 mt-0.5" />
+                      <span className="text-sm text-foreground font-medium">{item.after}</span>
+                    </div>
+                  ))}
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+        </div>
+      </section>
 
       {/* Benefits */}
       <section className="py-20 px-4 sm:px-6 lg:px-8">
@@ -347,7 +504,7 @@ const Landing = () => {
         </div>
       </section>
 
-      {/* Features */}
+      {/* Features - Bento Grid */}
       <section id="funcoes" className="py-20 bg-muted/30 scroll-mt-16">
         <div className="container mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
           <div className="text-center mb-16">
@@ -359,17 +516,26 @@ const Landing = () => {
             </p>
           </div>
 
-          <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-8">
+          <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
             {features.map((feature, index) => (
-              <Card key={index} className="border-border hover:border-primary/30 transition-all hover:shadow-xl hover:shadow-primary/10 hover:-translate-y-2 duration-300 group">
-                <CardContent className="p-6 space-y-4">
-                  <div className="w-12 h-12 rounded-lg bg-primary/10 flex items-center justify-center group-hover:bg-primary/20 group-hover:scale-110 transition-all duration-300">
-                    <feature.icon className="w-6 h-6 text-primary" />
+              <Card 
+                key={index} 
+                className={`border-border hover:border-primary/30 transition-all hover:shadow-xl hover:shadow-primary/10 hover:-translate-y-2 duration-300 group ${
+                  feature.featured ? 'md:col-span-1 lg:col-span-1 lg:row-span-1 md:first:col-span-2 lg:first:col-span-2' : ''
+                } ${index === 0 ? 'md:col-span-2 lg:col-span-2' : ''}`}
+              >
+                <CardContent className={`space-y-4 ${index === 0 ? 'p-8' : 'p-6'}`}>
+                  <div className={`rounded-lg bg-primary/10 flex items-center justify-center group-hover:bg-primary/20 group-hover:scale-110 transition-all duration-300 ${
+                    index === 0 ? 'w-16 h-16' : 'w-12 h-12'
+                  }`}>
+                    <feature.icon className={`text-primary ${index === 0 ? 'w-8 h-8' : 'w-6 h-6'}`} />
                   </div>
-                  <h3 className="font-heading font-semibold text-foreground text-lg group-hover:text-primary transition-colors">
+                  <h3 className={`font-heading font-semibold text-foreground group-hover:text-primary transition-colors ${
+                    index === 0 ? 'text-xl' : 'text-lg'
+                  }`}>
                     {feature.title}
                   </h3>
-                  <p className="text-muted-foreground">
+                  <p className={`text-muted-foreground ${index === 0 ? 'text-base' : ''}`}>
                     {feature.description}
                   </p>
                 </CardContent>
@@ -458,6 +624,57 @@ const Landing = () => {
             <p className="text-sm text-muted-foreground">
               Mais integrações em breve • Precisa de outra plataforma? <Link to="/contato" className="text-primary font-semibold hover:underline">Fale conosco</Link>
             </p>
+          </div>
+        </div>
+      </section>
+
+      {/* Testimonials */}
+      <section className="py-20 px-4 sm:px-6 lg:px-8">
+        <div className="container mx-auto max-w-6xl">
+          <div className="text-center mb-12">
+            <Badge variant="outline" className="mb-4 px-4 py-2 border-accent/30 text-accent bg-accent/5">
+              <Star className="w-4 h-4 mr-2" />
+              O que dizem nossos usuários
+            </Badge>
+            <h2 className="font-heading text-3xl sm:text-4xl font-bold text-foreground mb-4">
+              Resultados reais de vendedores como você
+            </h2>
+            <p className="text-lg text-muted-foreground max-w-2xl mx-auto">
+              Veja como o UniStock transformou a rotina de quem vende em múltiplos canais.
+            </p>
+          </div>
+
+          <div className="grid md:grid-cols-3 gap-6">
+            {testimonials.map((testimonial, index) => (
+              <Card key={index} className="border-border hover:border-primary/30 hover:shadow-xl hover:shadow-primary/10 hover:-translate-y-1 transition-all duration-300">
+                <CardContent className="p-6 space-y-4">
+                  <Quote className="w-8 h-8 text-accent/30" />
+                  <p className="text-foreground font-medium leading-relaxed italic">
+                    "{testimonial.quote}"
+                  </p>
+                  <div className="flex items-center gap-1 pt-1">
+                    {Array.from({ length: testimonial.stars }).map((_, i) => (
+                      <Star key={i} className="w-4 h-4 fill-accent text-accent" />
+                    ))}
+                  </div>
+                  <div className="flex items-center gap-3 pt-2 border-t border-border">
+                    <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center">
+                      <span className="text-sm font-bold text-primary">{testimonial.initials}</span>
+                    </div>
+                    <div>
+                      <p className="text-sm font-semibold text-foreground">{testimonial.name}</p>
+                      <p className="text-xs text-muted-foreground">{testimonial.role}</p>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            ))}
+          </div>
+
+          <div className="text-center mt-6">
+            <Badge variant="secondary" className="text-xs">
+              Depoimentos ilustrativos baseados em casos de uso reais
+            </Badge>
           </div>
         </div>
       </section>
@@ -559,7 +776,6 @@ const Landing = () => {
                         <ArrowRight className="ml-2 h-4 w-4 group-hover:translate-x-1 transition-transform" />
                       </Button>
                     </Link>
-
                   </div>
                 </CardContent>
               </Card>
@@ -571,7 +787,6 @@ const Landing = () => {
 
       {/* Final CTA */}
       <section className="py-20 px-4 sm:px-6 lg:px-8 relative overflow-hidden">
-        {/* Animated background */}
         <div className="absolute inset-0 bg-gradient-to-br from-primary/5 via-transparent to-accent/5 animate-pulse" style={{ animationDuration: '8s' }} />
         
         <div className="container mx-auto max-w-4xl relative z-10">
@@ -597,7 +812,6 @@ const Landing = () => {
                 </Button>
               </a>
               
-              {/* Security Badges */}
               <div className="flex flex-wrap justify-center items-center gap-4 mt-8 text-sm text-muted-foreground">
                 <div className="flex items-center gap-2 bg-background/50 px-4 py-2 rounded-full border border-border/50">
                   <CheckCircle className="w-4 h-4 text-green-500" />
@@ -719,7 +933,6 @@ const Landing = () => {
       <footer className="border-t border-border py-12 bg-muted/20">
         <div className="container mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
           <div className="grid md:grid-cols-3 gap-8 mb-8">
-            {/* Logo e Descrição */}
             <div className="space-y-4">
               <img 
                 key={`footer-logo-${theme}`}
@@ -732,7 +945,6 @@ const Landing = () => {
               </p>
             </div>
 
-            {/* Contato */}
             <div className="space-y-4">
               <h4 className="font-semibold text-foreground">Contato</h4>
               <div className="space-y-2 text-sm text-muted-foreground">
@@ -751,7 +963,6 @@ const Landing = () => {
               </div>
             </div>
 
-            {/* Links */}
             <div className="space-y-4">
               <h4 className="font-semibold text-foreground">Links</h4>
               <div className="space-y-2 text-sm">
@@ -797,7 +1008,7 @@ const Landing = () => {
                 </a>
               </div>
               <p className="text-sm text-muted-foreground text-center">
-                &copy; 2025 UniStock. Todos os direitos reservados.
+                &copy; 2026 UniStock. Todos os direitos reservados.
               </p>
             </div>
           </div>
