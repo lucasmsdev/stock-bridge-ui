@@ -1,111 +1,126 @@
 
-# Melhorias de Design na Landing Page
+# Animacoes Modernas para a Landing Page UniStock
 
 ## Visao Geral
 
-5 melhorias principais na landing page: menu mobile hamburger, secao antes/depois, bento grid nos features, secao de testemunhos, e correcao do copyright para 2026.
+Implementar 8 tipos de animacao usando apenas CSS + IntersectionObserver nativo do React (sem dependencia externa), mantendo performance e acessibilidade.
 
 ---
 
-## 1. Menu Mobile Hamburger
+## 1. Hook useScrollReveal - Base de tudo
 
-**Problema**: A navegacao `hidden md:flex` desaparece completamente no mobile. O usuario so ve o logo e o botao "Comece agora".
+Criar um hook customizado `useScrollReveal` que usa `IntersectionObserver` para detectar quando elementos entram na viewport e aplicar classes CSS de animacao.
 
-**Solucao**: Adicionar um botao hamburger (icone `Menu` / `X`) que abre um menu lateral (Sheet) com todos os links de navegacao.
+**Arquivo novo**: `src/hooks/useScrollReveal.ts`
 
-**Detalhes tecnicos**:
-- Usar o componente `Sheet` ja existente no projeto (`src/components/ui/sheet.tsx`)
-- Botao hamburger visivel apenas em `md:hidden`
-- Menu lateral com links: Inicio, Funcoes, Planos, FAQ, Login
-- Fechar automaticamente ao clicar em um link
+- Recebe `threshold` (0.1 default) e `triggerOnce` (true default)
+- Retorna `ref` e `isVisible`
+- Usa `IntersectionObserver` nativo, sem bibliotecas externas
 
 ---
 
-## 2. Secao Antes vs Depois
+## 2. Componente AnimatedSection
 
-**Posicao**: Entre o Hero e a secao de Benefits atual (linha ~284).
+Criar componente wrapper reutilizavel que aplica animacoes de scroll.
 
-**Conceito**: Dois cards lado a lado mostrando o contraste visual entre a vida SEM e COM o UniStock.
+**Arquivo novo**: `src/components/ui/animated-section.tsx`
 
-```text
-+----------------------------+----------------------------+
-|   ANTES (vermelho/cinza)   |   DEPOIS (verde/accent)    |
-+----------------------------+----------------------------+
-| x 4+ abas abertas          | v 1 painel unico           |
-| x Planilhas manuais        | v Sincronizacao automatica |
-| x Lucro estimado "no olho" | v Lucro real calculado     |
-| x Estoque desatualizado    | v Estoque em tempo real    |
-| x Horas perdidas por dia   | v Economize 3h/dia         |
-+----------------------------+----------------------------+
-```
-
-**Detalhes tecnicos**:
-- Dois `Card` com icones `X` (vermelho) e `CheckCircle` (verde/accent)
-- Layout `grid md:grid-cols-2` com gap
-- Card "Antes" com borda/fundo sutilmente avermelhado, card "Depois" com borda accent
-- Animacao de entrada com CSS (fade-in)
+Props:
+- `animation`: "fade-up" | "fade-left" | "fade-right" | "scale" | "none"
+- `delay`: numero em ms para stagger
+- `children`: conteudo
 
 ---
 
-## 3. Bento Grid nos Features
+## 3. Componente AnimatedCounter
 
-**Problema atual**: Os 6 cards de features sao todos iguais (`grid lg:grid-cols-3`), sem hierarquia visual.
+Contador animado que conta de 0 ate o valor alvo quando entra na viewport.
 
-**Solucao**: Transformar em Bento Grid onde os 2 features mais importantes (Sincronizacao Automatica e Analise de Lucro Real) ocupam mais espaco.
+**Arquivo novo**: `src/components/ui/animated-counter.tsx`
 
-```text
-+------------------+----------+
-|  Sincronizacao   |   IA     |
-|  (grande, 2 col) |          |
-+--------+---------+----------+
-| Vendas | Dashboards| Mais   |
-|        |           | Vendidos|
-+--------+-----------+--------+
-```
-
-**Detalhes tecnicos**:
-- Manter os mesmos 6 features, mas os 2 primeiros com `md:col-span-2` ou tamanho maior
-- Cards maiores com icone maior e descricao mais visivel
-- Cards menores mantem o layout atual compacto
-- Hover effects diferenciados por tamanho
+- Usa `useScrollReveal` para detectar entrada
+- `requestAnimationFrame` para animacao suave
+- Suporta prefixo/sufixo (ex: "3h", "R$ 97", "14 dias")
 
 ---
 
-## 4. Secao de Testemunhos
+## 4. Novas keyframes CSS
 
-**Posicao**: Entre a secao de Integracoes e a secao de Pricing.
+**Arquivo modificado**: `src/index.css`
 
-**Conceito**: 3 depoimentos de personas ficticias (como placeholder ate ter depoimentos reais), com badge "Depoimento ilustrativo" para transparencia.
-
-**Conteudo dos depoimentos**:
-1. "Antes eu gastava 3 horas por dia alternando entre marketplaces. Agora faco tudo em 20 minutos." - Vendedor Mercado Livre/Shopee
-2. "Finalmente sei meu lucro real. Descobri que alguns produtos davam prejuizo e eu nem sabia." - Lojista multi-canal
-3. "A sincronizacao de estoque me salvou de vender sem estoque. Isso acontecia toda semana antes." - Vendedor Amazon/Shopify
-
-**Detalhes tecnicos**:
-- Grid de 3 cards com avatar (iniciais), nome, cargo/contexto e depoimento
-- Badge "Depoimento ilustrativo" discreto para transparencia
-- Icone de aspas (`Quote`) ou estrelas para visual
-- Layout responsivo: 1 coluna mobile, 3 colunas desktop
+Adicionar keyframes:
+- `fade-up`: opacity 0 + translateY(30px) para opacity 1 + translateY(0)
+- `fade-left`: translateX(-30px) para 0
+- `fade-right`: translateX(30px) para 0
+- `float`: translateY oscilante para efeito de flutuacao
+- `marquee`: translateX(0) para translateX(-50%) para loop infinito de logos
+- `highlight-sweep`: background-position animado para efeito de destaque no texto
+- `scroll-progress`: para a barra de progresso no header
+- `glow-pulse`: box-shadow pulsante para hover em cards
 
 ---
 
-## 5. Copyright 2026
+## 5. Landing Page - Aplicar animacoes
 
-**Mudanca simples**: Linha 800, alterar `2025` para `2026`.
+**Arquivo modificado**: `src/pages/Landing.tsx`
+
+### 5.1 Header - Barra de progresso de scroll
+- Adicionar `div` fino no topo do header com width baseada em `scrollY / documentHeight`
+- Cor primary, height 3px, transicao suave
+
+### 5.2 Hero - Efeitos especiais
+- Titulo com highlight animado no trecho "em um so lugar" (gradient sweep)
+- Imagem do dashboard com animacao `float` (sobe e desce suavemente, 3s loop)
+- Botoes CTA com hover glow pulsante
+
+### 5.3 Before vs After - Staggered reveal
+- Envolver cada card em `AnimatedSection` com delay diferente
+- Itens da lista aparecem com stagger de 100ms cada
+
+### 5.4 Benefits - Slide lateral
+- Imagem entra da esquerda (`fade-left`)
+- Lista de beneficios entra da direita (`fade-right`), com stagger por item
+
+### 5.5 Features Bento Grid - Cascade reveal
+- Cada card aparece com delay progressivo (index * 100ms)
+- Hover com glow-pulse na borda
+
+### 5.6 Integracoes - Logo Marquee
+- Substituir grid estatico por marquee infinito horizontal
+- Duas fileiras se movendo em direcoes opostas (opcional)
+- Pause on hover
+
+### 5.7 Pricing - Scale-in com stagger
+- Cards de pricing aparecem com scale-in, delay progressivo
+- Card "Mais vendido" com animacao de glow permanente na borda
+
+### 5.8 FAQ - Accordion ja animado
+- Manter animacoes existentes, apenas envolver secao em `AnimatedSection`
 
 ---
 
-## Arquivo modificado
+## 6. Acessibilidade
 
-| Arquivo | Mudancas |
+- Respeitar `prefers-reduced-motion`: desativar todas as animacoes quando o usuario prefere movimento reduzido
+- Adicionar `@media (prefers-reduced-motion: reduce)` no CSS para desativar keyframes
+- Todas as animacoes sao decorativas, nao bloqueiam conteudo
+
+---
+
+## Resumo de arquivos
+
+| Arquivo | Acao |
 |---|---|
-| `src/pages/Landing.tsx` | Menu mobile, secao antes/depois, bento grid, testemunhos, copyright |
+| `src/hooks/useScrollReveal.ts` | Novo - hook IntersectionObserver |
+| `src/components/ui/animated-section.tsx` | Novo - wrapper de animacao |
+| `src/components/ui/animated-counter.tsx` | Novo - contador animado |
+| `src/index.css` | Modificar - novas keyframes e classes |
+| `src/pages/Landing.tsx` | Modificar - aplicar animacoes em todas as secoes |
 
-## Ordem de implementacao
+## Performance
 
-1. Menu mobile hamburger (header)
-2. Secao antes vs depois (apos hero)
-3. Bento grid nos features
-4. Secao de testemunhos (antes do pricing)
-5. Copyright 2026 (footer)
+- Zero dependencias externas (sem Framer Motion, sem GSAP)
+- IntersectionObserver nativo com `triggerOnce` para evitar re-renders
+- CSS keyframes rodam na GPU (transform + opacity)
+- Marquee usa CSS puro com `animation` infinito
+- Estimativa de impacto no bundle: menos de 3KB adicionais
