@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState } from "react";
 import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -75,18 +75,6 @@ const Landing = () => {
   const { theme } = useThemeProvider();
   const isDark = theme === 'dark';
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
-  const [scrollProgress, setScrollProgress] = useState(0);
-
-  // Scroll progress bar
-  useEffect(() => {
-    const handleScroll = () => {
-      const scrollTop = window.scrollY;
-      const docHeight = document.documentElement.scrollHeight - window.innerHeight;
-      setScrollProgress(docHeight > 0 ? (scrollTop / docHeight) * 100 : 0);
-    };
-    window.addEventListener("scroll", handleScroll, { passive: true });
-    return () => window.removeEventListener("scroll", handleScroll);
-  }, []);
 
   const plans = [
     {
@@ -231,11 +219,6 @@ const Landing = () => {
     <div className="min-h-screen bg-background font-body">
       {/* Header */}
       <header className="fixed top-0 left-0 right-0 z-50 bg-background/95 backdrop-blur-sm border-b border-border">
-        {/* Scroll progress bar */}
-        <div
-          className="absolute top-0 left-0 h-[3px] bg-primary transition-[width] duration-150 ease-out z-50"
-          style={{ width: `${scrollProgress}%` }}
-        />
         <div className="container mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex items-center justify-between h-16 md:h-20">
             <img 
@@ -578,10 +561,10 @@ const Landing = () => {
             <AnimatedSection animation="fade-up" delay={100}>
               <h3 className="text-center text-xl font-semibold text-foreground mb-8">Marketplaces</h3>
             </AnimatedSection>
-            <div className="marquee-container">
-              <div className="flex animate-marquee w-max gap-6">
-                {[...marketplaces, ...marketplaces].map((platform, i) => (
-                  <div key={`${platform.name}-${i}`} className="relative flex flex-col items-center justify-center p-6 rounded-xl bg-card border-2 border-border hover:border-primary/40 hover:shadow-xl transition-all duration-300 group min-w-[160px]">
+            <div className="marquee-container relative overflow-hidden">
+              <div className="flex animate-marquee gap-8" style={{ width: 'max-content' }}>
+                {[...marketplaces, ...marketplaces, ...marketplaces, ...marketplaces].map((platform, i) => (
+                  <div key={`${platform.name}-${i}`} className="relative flex flex-col items-center justify-center p-6 rounded-xl bg-card border-2 border-border hover:border-primary/40 hover:shadow-xl transition-all duration-300 group" style={{ minWidth: '160px' }}>
                     {platform.comingSoon && (
                       <Badge variant="secondary" className="absolute -top-2 -right-2 text-[10px] px-2 py-0.5">
                         Em breve
