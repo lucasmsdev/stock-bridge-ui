@@ -282,8 +282,8 @@ const Landing = () => {
     { name: 'Amazon', logo: isDark ? 'https://www.pngmart.com/files/23/Amazon-Logo-White-PNG-Photos.png' : 'https://upload.wikimedia.org/wikipedia/commons/d/de/Amazon_icon.png' },
     { name: 'Shopify', logo: 'https://cdn.freebiesupply.com/logos/large/2x/shopify-logo-png-transparent.png' },
     { name: 'Magalu', logo: '/logos/magalu.png' },
-    { name: 'TikTok Shop', logo: '/logos/tiktok-shop.png', comingSoon: true },
-    { name: 'Shein', logo: '/logos/shein.png', comingSoon: true },
+    { name: 'TikTok Shop', logo: '/logos/tiktok-shop.png' },
+    { name: 'Shein', logo: '/logos/shein.png' },
   ];
 
   const adPlatforms = [
