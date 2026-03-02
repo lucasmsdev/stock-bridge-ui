@@ -229,9 +229,7 @@ export default function Expenses() {
         </TabsContent>
 
         <TabsContent value="settings">
-          <div className="max-w-md">
-            <FinancialSettings onSettingsChange={setFinancialSettings} />
-          </div>
+          <FinancialSettings onSettingsChange={setFinancialSettings} />
         </TabsContent>
       </Tabs>
     </div>

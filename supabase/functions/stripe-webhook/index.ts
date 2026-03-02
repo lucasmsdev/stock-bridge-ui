@@ -75,9 +75,9 @@ serve(async (req) => {
 
       // Map Stripe price IDs to plan types (PRODUCTION)
       const priceToPlantMap = {
-        'price_1SPocGKdlB8Nu9cynoGjpe2V': 'estrategista',
-        'price_1SPocVKdlB8Nu9cyHYEa8b2m': 'competidor', 
-        'price_1SPpumKRFmEnuZwjDVJSIOZ2': 'dominador',
+        'price_1SPocGKdlB8Nu9cynoGjpe2V': 'iniciante',
+        'price_1SPocVKdlB8Nu9cyHYEa8b2m': 'profissional', 
+        'price_1SUaBhKdlB8Nu9cyPgDnMGtR': 'enterprise',
         'price_1SPodWKdlB8Nu9cyShTWmTES': 'unlimited'
       };
 
@@ -151,9 +151,9 @@ serve(async (req) => {
         // Get the price ID from the subscription
         const priceId = subscription.items.data[0]?.price?.id;
         const priceToPlantMap = {
-          'price_1SPocGKdlB8Nu9cynoGjpe2V': 'estrategista',
-          'price_1SPocVKdlB8Nu9cyHYEa8b2m': 'competidor', 
-          'price_1SPpumKRFmEnuZwjDVJSIOZ2': 'dominador',
+          'price_1SPocGKdlB8Nu9cynoGjpe2V': 'iniciante',
+          'price_1SPocVKdlB8Nu9cyHYEa8b2m': 'profissional', 
+          'price_1SUaBhKdlB8Nu9cyPgDnMGtR': 'enterprise',
           'price_1SPodWKdlB8Nu9cyShTWmTES': 'unlimited'
         };
         newPlan = priceToPlantMap[priceId as keyof typeof priceToPlantMap] || 'iniciante';

@@ -594,6 +594,62 @@ export type Database = {
           },
         ]
       }
+      marketplace_fee_profiles: {
+        Row: {
+          commission_percent: number
+          created_at: string
+          fixed_fee_amount: number
+          id: string
+          is_active: boolean
+          notes: string | null
+          organization_id: string
+          payment_fee_percent: number
+          platform: string
+          shipping_subsidy: number
+          tax_percent: number
+          tax_regime: string
+          updated_at: string
+        }
+        Insert: {
+          commission_percent?: number
+          created_at?: string
+          fixed_fee_amount?: number
+          id?: string
+          is_active?: boolean
+          notes?: string | null
+          organization_id: string
+          payment_fee_percent?: number
+          platform: string
+          shipping_subsidy?: number
+          tax_percent?: number
+          tax_regime?: string
+          updated_at?: string
+        }
+        Update: {
+          commission_percent?: number
+          created_at?: string
+          fixed_fee_amount?: number
+          id?: string
+          is_active?: boolean
+          notes?: string | null
+          organization_id?: string
+          payment_fee_percent?: number
+          platform?: string
+          shipping_subsidy?: number
+          tax_percent?: number
+          tax_regime?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "marketplace_fee_profiles_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       monthly_financial_history: {
         Row: {
           created_at: string

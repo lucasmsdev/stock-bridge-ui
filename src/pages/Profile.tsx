@@ -103,17 +103,19 @@ export default function Profile() {
     'prod_TMXi6ibUp81vUz': { name: 'Unlimited', color: 'bg-gradient-to-r from-gold-500 to-orange-500' },
   };
 
-  const planNames = {
-    estrategista: 'Estrategista (Legacy)',
-    competidor: 'Competidor (Legacy)',
-    dominador: 'Dominador (Legacy)',
+  const planNames: Record<string, string> = {
+    iniciante: 'Iniciante',
+    profissional: 'Profissional',
+    enterprise: 'Enterprise',
+    unlimited: 'Unlimited',
     admin: 'Administrador ✨'
   };
 
-  const planColors = {
-    estrategista: 'bg-blue-500',
-    competidor: 'bg-purple-500',
-    dominador: 'bg-gold-500',
+  const planColors: Record<string, string> = {
+    iniciante: 'bg-blue-500',
+    profissional: 'bg-purple-500',
+    enterprise: 'bg-gold-500',
+    unlimited: 'bg-gradient-to-r from-gold-500 to-orange-500',
     admin: 'bg-gradient-to-r from-purple-500 to-pink-500'
   };
 

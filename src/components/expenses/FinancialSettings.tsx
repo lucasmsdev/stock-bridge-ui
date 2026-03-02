@@ -1,13 +1,35 @@
-import { useState, useEffect } from "react";
-import { useAuth } from "@/hooks/useAuth";
-import { supabase } from "@/integrations/supabase/client";
+import { useState } from "react";
 import { useToast } from "@/hooks/use-toast";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Slider } from "@/components/ui/slider";
-import { Settings, Save, Loader2, Percent, Store } from "lucide-react";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+import {
+  Settings,
+  Loader2,
+  Percent,
+  CreditCard,
+  Receipt,
+  Landmark,
+  TrendingDown,
+  TrendingUp,
+  BarChart3,
+  RefreshCw,
+  Info,
+  Zap,
+  PenLine,
+} from "lucide-react";
+import { Badge } from "@/components/ui/badge";
+import { PlatformLogo } from "@/components/ui/platform-logo";
+import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
+import {
+  useMarketplaceFees,
+  PLATFORM_LABELS,
+  TAX_REGIMES,
+  DEFAULT_FEES,
+  MarketplaceFeeProfile,
+} from "@/hooks/useMarketplaceFees";
+import { Input } from "@/components/ui/input";
 
 export interface FinancialSettingsData {
   marketplaceFeePercent: number;
@@ -18,193 +40,418 @@ interface FinancialSettingsProps {
   onSettingsChange?: (settings: FinancialSettingsData) => void;
 }
 
-export function FinancialSettings({ onSettingsChange }: FinancialSettingsProps) {
-  const { user } = useAuth();
-  const { toast } = useToast();
-  const [loading, setLoading] = useState(true);
-  const [saving, setSaving] = useState(false);
-  const [settings, setSettings] = useState<FinancialSettingsData>({
-    marketplaceFeePercent: 12,
-    targetMarginPercent: 30,
-  });
+const MANUAL_PLATFORM_REASONS: Record<string, string> = {
+  amazon: "A Amazon não disponibiliza API pública de taxas. As comissões variam por categoria e programa (FBA/FBM). Consulte o Seller Central.",
+  shopee: "A Shopee não oferece API de consulta de taxas. As comissões dependem do nível do vendedor e campanhas ativas.",
+  shopify: "O Shopify não cobra comissão sobre vendas, apenas taxa do gateway de pagamento. Ajuste conforme seu plano.",
+  magalu: "A API do Magalu não expõe estrutura de comissões. Verifique os valores no painel do vendedor.",
+  shein: "A SHEIN é uma plataforma fechada, sem documentação pública de APIs de taxas.",
+  tiktok_shop: "A API do TikTok Shop não inclui endpoint de consulta de taxas. Verifique no painel do vendedor.",
+};
 
-  useEffect(() => {
-    loadSettings();
-  }, [user]);
+function FeeMetric({ icon: Icon, label, value }: { icon: React.ElementType; label: string; value: string }) {
+  return (
+    <div className="flex items-center gap-3 p-3 rounded-lg bg-muted/40">
+      <div className="flex items-center justify-center h-8 w-8 rounded-md bg-primary/10">
+        <Icon className="h-4 w-4 text-primary" />
+      </div>
+      <div>
+        <p className="text-xs text-muted-foreground">{label}</p>
+        <p className="text-sm font-semibold text-foreground">{value}</p>
+      </div>
+    </div>
+  );
+}
 
-  const loadSettings = async () => {
-    if (!user) return;
+function getProfileTotalFee(profile: MarketplaceFeeProfile) {
+  const defaults = DEFAULT_FEES[profile.platform];
+  const commission = defaults?.commission ?? profile.commission_percent;
+  const paymentFee = defaults?.payment_fee ?? profile.payment_fee_percent;
+  return commission + paymentFee + profile.tax_percent;
+}
 
-    try {
-      setLoading(true);
-      const { data, error } = await supabase
-        .from('user_financial_settings')
-        .select('*')
-        .eq('user_id', user.id)
-        .maybeSingle();
+function FeeSourceBadge({ platform }: { platform: string }) {
+  const isML = platform === "mercadolivre";
+  const reason = MANUAL_PLATFORM_REASONS[platform];
 
-      if (error) throw error;
-
-      if (data) {
-        const newSettings = {
-          marketplaceFeePercent: Number(data.marketplace_fee_percent) || 12,
-          targetMarginPercent: Number(data.target_margin_percent) || 30,
-        };
-        setSettings(newSettings);
-        onSettingsChange?.(newSettings);
-      }
-    } catch (error) {
-      console.error('Error loading financial settings:', error);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const saveSettings = async () => {
-    if (!user) return;
-
-    try {
-      setSaving(true);
-
-      const { error } = await supabase
-        .from('user_financial_settings')
-        .upsert({
-          user_id: user.id,
-          marketplace_fee_percent: settings.marketplaceFeePercent,
-          target_margin_percent: settings.targetMarginPercent,
-        }, {
-          onConflict: 'user_id',
-        });
-
-      if (error) throw error;
-
-      toast({
-        title: "Configurações salvas",
-        description: "Suas taxas foram atualizadas com sucesso.",
-      });
-
-      onSettingsChange?.(settings);
-    } catch (error: any) {
-      console.error('Error saving financial settings:', error);
-      toast({
-        title: "Erro ao salvar",
-        description: error.message,
-        variant: "destructive",
-      });
-    } finally {
-      setSaving(false);
-    }
-  };
-
-  if (loading) {
+  if (isML) {
     return (
-      <Card>
-        <CardContent className="flex items-center justify-center py-8">
-          <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
-        </CardContent>
-      </Card>
+      <TooltipProvider>
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <Badge className="bg-green-500/10 text-green-700 dark:text-green-400 border-green-500/30 hover:bg-green-500/20 gap-1 text-[10px]">
+              <Zap className="h-3 w-3" />
+              Automático
+            </Badge>
+          </TooltipTrigger>
+          <TooltipContent className="max-w-xs">
+            <p>Taxas consultadas automaticamente via API oficial do Mercado Livre com base na categoria e preço dos seus produtos.</p>
+          </TooltipContent>
+        </Tooltip>
+      </TooltipProvider>
     );
   }
 
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle className="flex items-center gap-2">
-          <Settings className="h-5 w-5 text-primary" />
-          Configurar Taxas
-        </CardTitle>
-        <CardDescription>
-          Ajuste as taxas padrão usadas nos cálculos de lucratividade.
-        </CardDescription>
-      </CardHeader>
-      <CardContent className="space-y-6">
-        {/* Marketplace Fee */}
-        <div className="space-y-3">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-2">
-              <Store className="h-4 w-4 text-muted-foreground" />
-              <Label>Taxa de Marketplace</Label>
+    <TooltipProvider>
+      <Tooltip>
+        <TooltipTrigger asChild>
+          <Badge variant="outline" className="bg-amber-500/10 text-amber-700 dark:text-amber-400 border-amber-500/30 hover:bg-amber-500/20 gap-1 text-[10px]">
+            <PenLine className="h-3 w-3" />
+            Manual
+          </Badge>
+        </TooltipTrigger>
+        <TooltipContent className="max-w-xs">
+          <p>{reason || "Esta plataforma não disponibiliza API pública para consulta automática de taxas. Verifique os valores no painel do vendedor."}</p>
+        </TooltipContent>
+      </Tooltip>
+    </TooltipProvider>
+  );
+}
+
+interface PlatformAccordionItemProps {
+  profile: MarketplaceFeeProfile;
+  onRegimeChange: (profileId: string, regime: string, taxPercent: number) => void;
+  onFetchMLFees: (categoryId: string, price: number) => void;
+  isFetchingML: boolean;
+  isPending: boolean;
+}
+
+function PlatformAccordionItem({ profile, onRegimeChange, onFetchMLFees, isFetchingML, isPending }: PlatformAccordionItemProps) {
+  const platform = profile.platform;
+  const label = PLATFORM_LABELS[platform] || platform;
+  const defaults = DEFAULT_FEES[platform];
+  const isML = platform === "mercadolivre";
+
+  const [mlCategoryId, setMlCategoryId] = useState("MLB1051"); // Default: Celulares
+  const [mlPrice, setMlPrice] = useState("100");
+
+  const commission = defaults?.commission ?? profile.commission_percent;
+  const paymentFee = defaults?.payment_fee ?? profile.payment_fee_percent;
+  const fixedFee = defaults?.fixed_fee ?? profile.fixed_fee_amount;
+  const totalFee = getProfileTotalFee(profile);
+  const currentRegimeData = TAX_REGIMES[profile.tax_regime];
+
+  return (
+    <AccordionItem
+      value={profile.id}
+      className="border rounded-lg px-4 data-[state=open]:bg-muted/20 transition-colors"
+    >
+      <AccordionTrigger className="hover:no-underline py-4">
+        <div className="flex items-center gap-3 flex-1 min-w-0">
+          <PlatformLogo platform={platform} size="md" className="shrink-0" />
+          <span className="font-semibold text-foreground text-base">{label}</span>
+          <FeeSourceBadge platform={platform} />
+          <Badge variant="outline" className="ml-auto mr-2 font-bold text-primary border-primary/30">
+            {totalFee.toFixed(1)}%
+          </Badge>
+          <Badge variant="secondary" className="text-xs">
+            {currentRegimeData?.label || profile.tax_regime}
+          </Badge>
+        </div>
+      </AccordionTrigger>
+      <AccordionContent className="pb-5">
+        <div className="space-y-4">
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+            <FeeMetric icon={Percent} label="Comissão" value={`${commission}%`} />
+            <FeeMetric icon={CreditCard} label="Taxa de Pgto" value={`${paymentFee}%`} />
+            <FeeMetric icon={Receipt} label="Taxa Fixa" value={`R$ ${fixedFee.toFixed(2)}`} />
+            <FeeMetric icon={Landmark} label="Imposto" value={`${profile.tax_percent}%`} />
+          </div>
+
+          {/* ML automatic fee fetch */}
+          {isML && (
+            <div className="p-4 rounded-lg border border-green-500/20 bg-green-500/5 space-y-3">
+              <div className="flex items-center gap-2">
+                <Zap className="h-4 w-4 text-green-600 dark:text-green-400" />
+                <span className="text-sm font-semibold text-foreground">Consultar taxas via API oficial</span>
+              </div>
+              <p className="text-xs text-muted-foreground">
+                Informe a categoria e preço para consultar a comissão real do Mercado Livre. Requer conta conectada na página de Integrações.
+              </p>
+              <div className="flex flex-col sm:flex-row gap-3">
+                <div className="flex-1">
+                  <label className="text-xs text-muted-foreground mb-1 block">Categoria (ID)</label>
+                  <Input
+                    value={mlCategoryId}
+                    onChange={(e) => setMlCategoryId(e.target.value)}
+                    placeholder="Ex: MLB1051"
+                    className="h-9"
+                  />
+                </div>
+                <div className="w-full sm:w-32">
+                  <label className="text-xs text-muted-foreground mb-1 block">Preço (R$)</label>
+                  <Input
+                    type="number"
+                    value={mlPrice}
+                    onChange={(e) => setMlPrice(e.target.value)}
+                    placeholder="100"
+                    className="h-9"
+                  />
+                </div>
+                <div className="flex items-end">
+                  <Button
+                    size="sm"
+                    onClick={() => onFetchMLFees(mlCategoryId, Number(mlPrice))}
+                    disabled={isFetchingML || !mlCategoryId || !mlPrice}
+                    className="gap-2 h-9"
+                  >
+                    {isFetchingML ? (
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                    ) : (
+                      <RefreshCw className="h-4 w-4" />
+                    )}
+                    Atualizar taxas
+                  </Button>
+                </div>
+              </div>
             </div>
-            <span className="text-sm font-medium text-primary">
-              {settings.marketplaceFeePercent}%
-            </span>
-          </div>
-          <Slider
-            value={[settings.marketplaceFeePercent]}
-            onValueChange={([value]) => 
-              setSettings(prev => ({ ...prev, marketplaceFeePercent: value }))
-            }
-            min={0}
-            max={30}
-            step={0.5}
-          />
-          <p className="text-xs text-muted-foreground">
-            Comissão média cobrada pelas plataformas de venda (ML, Shopee, Amazon).
-          </p>
-        </div>
-
-        {/* Target Margin */}
-        <div className="space-y-3">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-2">
-              <Percent className="h-4 w-4 text-muted-foreground" />
-              <Label>Margem Bruta Alvo</Label>
-            </div>
-            <span className="text-sm font-medium text-primary">
-              {settings.targetMarginPercent}%
-            </span>
-          </div>
-          <Slider
-            value={[settings.targetMarginPercent]}
-            onValueChange={([value]) => 
-              setSettings(prev => ({ ...prev, targetMarginPercent: value }))
-            }
-            min={5}
-            max={60}
-            step={1}
-          />
-          <p className="text-xs text-muted-foreground">
-            Margem bruta esperada após custos do produto e taxas.
-          </p>
-        </div>
-
-        {/* Quick Presets */}
-        <div className="space-y-2">
-          <Label className="text-xs text-muted-foreground">Presets rápidos</Label>
-          <div className="flex flex-wrap gap-2">
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => setSettings({ marketplaceFeePercent: 11, targetMarginPercent: 25 })}
-            >
-              Mercado Livre (11%)
-            </Button>
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => setSettings({ marketplaceFeePercent: 14, targetMarginPercent: 25 })}
-            >
-              Shopee (14%)
-            </Button>
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => setSettings({ marketplaceFeePercent: 15, targetMarginPercent: 30 })}
-            >
-              Amazon (15%)
-            </Button>
-          </div>
-        </div>
-
-        <Button onClick={saveSettings} disabled={saving} className="w-full">
-          {saving ? (
-            <Loader2 className="h-4 w-4 animate-spin mr-2" />
-          ) : (
-            <Save className="h-4 w-4 mr-2" />
           )}
-          Salvar Configurações
-        </Button>
-      </CardContent>
-    </Card>
+
+          {/* Manual platform notice */}
+          {!isML && MANUAL_PLATFORM_REASONS[platform] && (
+            <div className="p-3 rounded-lg border border-amber-500/20 bg-amber-500/5 flex items-start gap-3">
+              <Info className="h-4 w-4 text-amber-600 dark:text-amber-400 mt-0.5 shrink-0" />
+              <p className="text-xs text-muted-foreground leading-relaxed">
+                {MANUAL_PLATFORM_REASONS[platform]}
+              </p>
+            </div>
+          )}
+
+          {/* Simulação rápida */}
+          <div className="p-3 rounded-lg bg-primary/5 border border-primary/10">
+            <p className="text-xs text-muted-foreground mb-1">Simulação: venda de R$ 100,00</p>
+            <div className="flex items-center gap-4">
+              <span className="text-sm text-destructive font-medium">- R$ {totalFee.toFixed(2)} em taxas</span>
+              <span className="text-sm text-foreground font-bold">= R$ {(100 - totalFee).toFixed(2)} líquido</span>
+            </div>
+          </div>
+
+          <div className="flex flex-col sm:flex-row sm:items-center gap-3 pt-2 border-t border-border">
+            <div className="flex-1 min-w-0">
+              <p className="text-sm font-medium text-foreground">Regime Tributário</p>
+              <p className="text-xs text-muted-foreground">{currentRegimeData?.description || "Selecione o regime"}</p>
+            </div>
+            <Select
+              value={profile.tax_regime}
+              onValueChange={(regime) => {
+                const regimeData = TAX_REGIMES[regime];
+                if (regimeData) onRegimeChange(profile.id, regime, regimeData.defaultPercent);
+              }}
+              disabled={isPending}
+            >
+              <SelectTrigger className="w-full sm:w-[220px] shrink-0">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {Object.entries(TAX_REGIMES).map(([key, regime]) => (
+                  <SelectItem key={key} value={key}>
+                    {regime.label} — {regime.defaultPercent}%
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+        </div>
+      </AccordionContent>
+    </AccordionItem>
+  );
+}
+
+function ComparisonPanel({ profiles }: { profiles: MarketplaceFeeProfile[] }) {
+  if (profiles.length === 0) return null;
+
+  const sorted = [...profiles]
+    .map((p) => ({ profile: p, totalFee: getProfileTotalFee(p) }))
+    .sort((a, b) => a.totalFee - b.totalFee);
+
+  const cheapest = sorted[0];
+  const mostExpensive = sorted[sorted.length - 1];
+  const avgFee = sorted.reduce((sum, s) => sum + s.totalFee, 0) / sorted.length;
+  const maxFee = mostExpensive.totalFee;
+
+  return (
+    <div className="space-y-4">
+      {/* Summary cards */}
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+        <Card className="border-green-500/20 bg-green-500/5">
+          <CardContent className="p-4">
+            <div className="flex items-center gap-2 mb-2">
+              <TrendingDown className="h-4 w-4 text-green-600 dark:text-green-400" />
+              <span className="text-xs font-medium text-muted-foreground">Menor taxa</span>
+            </div>
+            <div className="flex items-center gap-2">
+              <PlatformLogo platform={cheapest.profile.platform} size="sm" />
+              <div>
+                <p className="text-sm font-bold text-foreground">{PLATFORM_LABELS[cheapest.profile.platform]}</p>
+                <p className="text-lg font-bold text-green-600 dark:text-green-400">{cheapest.totalFee.toFixed(1)}%</p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card className="border-red-500/20 bg-red-500/5">
+          <CardContent className="p-4">
+            <div className="flex items-center gap-2 mb-2">
+              <TrendingUp className="h-4 w-4 text-red-600 dark:text-red-400" />
+              <span className="text-xs font-medium text-muted-foreground">Maior taxa</span>
+            </div>
+            <div className="flex items-center gap-2">
+              <PlatformLogo platform={mostExpensive.profile.platform} size="sm" />
+              <div>
+                <p className="text-sm font-bold text-foreground">{PLATFORM_LABELS[mostExpensive.profile.platform]}</p>
+                <p className="text-lg font-bold text-red-600 dark:text-red-400">{mostExpensive.totalFee.toFixed(1)}%</p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardContent className="p-4">
+            <div className="flex items-center gap-2 mb-2">
+              <BarChart3 className="h-4 w-4 text-primary" />
+              <span className="text-xs font-medium text-muted-foreground">Média geral</span>
+            </div>
+            <p className="text-2xl font-bold text-primary mt-1">{avgFee.toFixed(1)}%</p>
+            <p className="text-xs text-muted-foreground">entre {profiles.length} plataformas</p>
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* Horizontal bar chart ranking */}
+      <Card>
+        <CardHeader className="pb-3">
+          <CardTitle className="text-sm font-semibold text-foreground">Ranking de Taxas Totais</CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-3">
+          {sorted.map(({ profile, totalFee }) => {
+            const barWidth = maxFee > 0 ? (totalFee / maxFee) * 100 : 0;
+            const isLowest = profile.id === cheapest.profile.id;
+            const isHighest = profile.id === mostExpensive.profile.id;
+
+            return (
+              <div key={profile.id} className="flex items-center gap-3">
+                <PlatformLogo platform={profile.platform} size="sm" className="shrink-0" />
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center justify-between mb-1">
+                    <span className="text-xs font-medium text-foreground truncate">
+                      {PLATFORM_LABELS[profile.platform]}
+                    </span>
+                    <span
+                      className={`text-xs font-bold ${
+                        isLowest
+                          ? "text-green-600 dark:text-green-400"
+                          : isHighest
+                            ? "text-red-600 dark:text-red-400"
+                            : "text-foreground"
+                      }`}
+                    >
+                      {totalFee.toFixed(1)}%
+                    </span>
+                  </div>
+                  <div className="h-2 rounded-full bg-muted overflow-hidden">
+                    <div
+                      className={`h-full rounded-full transition-all duration-500 ${
+                        isLowest ? "bg-green-500" : isHighest ? "bg-red-500" : "bg-primary"
+                      }`}
+                      style={{ width: `${barWidth}%` }}
+                    />
+                  </div>
+                </div>
+              </div>
+            );
+          })}
+        </CardContent>
+      </Card>
+    </div>
+  );
+}
+
+export function FinancialSettings({ onSettingsChange }: FinancialSettingsProps) {
+  const { feeProfiles, isLoading, updateFeeProfile, updateMLFeesFromAPI } = useMarketplaceFees();
+  const { toast } = useToast();
+
+  const handleRegimeChange = (profileId: string, regime: string, taxPercent: number) => {
+    updateFeeProfile.mutate(
+      { id: profileId, tax_regime: regime, tax_percent: taxPercent },
+      {
+        onSuccess: () => {
+          const regimeData = TAX_REGIMES[regime];
+          toast({ title: "Regime atualizado", description: `Alterado para ${regimeData?.label || regime}.` });
+        },
+        onError: () => {
+          toast({ title: "Erro ao atualizar regime", variant: "destructive" });
+        },
+      },
+    );
+  };
+
+  const handleFetchMLFees = (categoryId: string, price: number) => {
+    updateMLFeesFromAPI.mutate({ categoryId, price });
+  };
+
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center py-16">
+        <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+      </div>
+    );
+  }
+
+  return (
+    <div className="w-full space-y-8 p-0">
+      <div>
+        <h2 className="text-2xl font-bold text-foreground flex items-center gap-3 mb-2">
+          <Settings className="h-6 w-6 text-primary" />
+          Taxas por Marketplace
+        </h2>
+        <p className="text-base text-muted-foreground max-w-2xl leading-relaxed">
+          Taxas automáticas por plataforma. O Mercado Livre atualiza via API oficial. Demais plataformas requerem ajuste manual.
+        </p>
+      </div>
+      {feeProfiles.length === 0 ? (
+        <div className="flex flex-col items-center justify-center py-24 text-center border-2 border-dashed border-border rounded-2xl bg-muted/20 min-h-[500px]">
+          <Settings className="h-16 w-16 text-muted-foreground mb-6 opacity-50" />
+          <p className="text-xl text-muted-foreground font-semibold mb-2">Nenhum perfil de taxas encontrado</p>
+          <p className="text-lg text-muted-foreground max-w-lg">
+            Os perfis são criados automaticamente ao configurar sua organização.
+          </p>
+        </div>
+      ) : (
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 w-full h-auto">
+          <div className="lg:col-span-2 h-auto">
+            <div className="sticky top-6">
+              <div className="bg-background border rounded-2xl p-6 mb-6">
+                <h3 className="text-lg font-bold text-foreground mb-4 flex items-center gap-2">
+                  <BarChart3 className="h-5 w-5" />
+                  Detalhes dos Marketplaces
+                </h3>
+                <Accordion type="multiple" className="w-full space-y-3">
+                  {feeProfiles.map((profile) => (
+                    <PlatformAccordionItem
+                      key={profile.id}
+                      profile={profile}
+                      onRegimeChange={handleRegimeChange}
+                      onFetchMLFees={handleFetchMLFees}
+                      isFetchingML={updateMLFeesFromAPI.isPending}
+                      isPending={updateFeeProfile.isPending}
+                    />
+                  ))}
+                </Accordion>
+              </div>
+            </div>
+          </div>
+          <div className="lg:col-span-1 h-auto">
+            <div className="bg-background border rounded-2xl p-6 sticky top-6 h-fit">
+              <h3 className="text-lg font-bold text-foreground mb-6 flex items-center gap-2">
+                <TrendingDown className="h-5 w-5 text-primary" />
+                Comparativo
+              </h3>
+              <ComparisonPanel profiles={feeProfiles} />
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
   );
 }

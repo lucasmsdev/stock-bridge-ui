@@ -76,9 +76,9 @@ serve(async (req) => {
 
     // Valid modern price IDs (PRODUCTION)
     const modernPriceIds = [
-      'price_1SPocGKdlB8Nu9cynoGjpe2V', // Estrategista
-      'price_1SPocVKdlB8Nu9cyHYEa8b2m', // Competidor
-      'price_1SPocnKRFmEnuZwj3lTe3k2n', // Dominador
+      'price_1SPocGKdlB8Nu9cynoGjpe2V', // Iniciante
+      'price_1SPocVKdlB8Nu9cyHYEa8b2m', // Profissional
+      'price_1SUaBhKdlB8Nu9cyPgDnMGtR', // Enterprise
       'price_1SPodWKdlB8Nu9cyShTWmTES'  // Unlimited
     ];
 

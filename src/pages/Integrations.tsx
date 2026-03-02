@@ -78,6 +78,7 @@ const marketplaceIntegrations: IntegrationPlatform[] = [
     name: "TikTok Shop",
     description: "Venda diretamente pelo TikTok com integração de catálogo e pedidos",
     logoUrl: "/logos/tiktok-shop.png",
+    comingSoon: true,
   },
   {
     id: "magalu",
@@ -476,8 +477,50 @@ export default function Integrations() {
 
       console.log('🔄 Redirecionando para TikTok Business...');
       window.location.href = authUrl;
+    } else if (platformId === "shopee") {
+      // Shopee OAuth flow via Edge Function
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
+
+      if (!user) {
+        toast({
+          title: "Erro de autenticação",
+          description: "Faça login para conectar integrações.",
+          variant: "destructive",
+        });
+        return;
+      }
+
+      console.log("🟠 Iniciando fluxo OAuth Shopee...");
+
+      try {
+        const { data: { session } } = await supabase.auth.getSession();
+        const { data, error } = await supabase.functions.invoke("shopee-auth", {
+          headers: { Authorization: `Bearer ${session?.access_token}` },
+        });
+
+        if (error || !data?.url) {
+          console.error("Shopee auth error:", error || data);
+          toast({
+            title: "Erro ao conectar Shopee",
+            description: "Não foi possível iniciar a autorização. Tente novamente.",
+            variant: "destructive",
+          });
+          return;
+        }
+
+        console.log("🔄 Redirecionando para Shopee...");
+        window.location.href = data.url;
+      } catch (err) {
+        console.error("Shopee auth error:", err);
+        toast({
+          title: "Erro ao conectar Shopee",
+          description: "Erro inesperado. Tente novamente.",
+          variant: "destructive",
+        });
+      }
     } else {
-      // Mock connection logic for other platforms
       toast({
         title: "Em desenvolvimento",
         description: `A integração com ${platformId} estará disponível em breve.`,

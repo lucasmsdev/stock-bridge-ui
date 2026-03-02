@@ -13,6 +13,9 @@ import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useProductROI } from "@/hooks/useProductROI";
+import { AttributionManagerDialog } from "./AttributionManagerDialog";
+import { supabase } from "@/integrations/supabase/client";
+import { useToast } from "@/hooks/use-toast";
 import { 
   TrendingUp, 
   TrendingDown, 
@@ -26,7 +29,9 @@ import {
   AlertTriangle,
   CheckCircle,
   BarChart3,
-  RefreshCcw
+  RefreshCcw,
+  Play,
+  Loader2,
 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 
@@ -44,7 +49,30 @@ export function ProductROITab() {
   const [search, setSearch] = useState("");
   const [sortBy, setSortBy] = useState<SortField>('roas');
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc');
+  const [isProcessing, setIsProcessing] = useState(false);
   const navigate = useNavigate();
+  const { toast } = useToast();
+
+  const handleProcessNow = async () => {
+    setIsProcessing(true);
+    try {
+      const { data, error } = await supabase.functions.invoke('attribute-conversions');
+      if (error) throw error;
+      toast({
+        title: "Atribuições processadas",
+        description: `Processamento concluído com sucesso.`,
+      });
+      refetch();
+    } catch (err: any) {
+      toast({
+        title: "Erro ao processar",
+        description: err.message || "Falha ao processar atribuições.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsProcessing(false);
+    }
+  };
 
   const getSortValue = (p: typeof roiData[number], field: SortField) => {
     switch (field) {
@@ -233,7 +261,7 @@ export function ProductROITab() {
                 Clique em um produto para ver detalhes e vincular campanhas
               </CardDescription>
             </div>
-            <div className="flex items-center gap-2">
+            <div className="flex flex-wrap items-center gap-2">
               <div className="relative w-full md:w-64">
                 <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
                 <Input
@@ -243,6 +271,21 @@ export function ProductROITab() {
                   className="pl-9"
                 />
               </div>
+              <AttributionManagerDialog />
+              <Button 
+                onClick={handleProcessNow} 
+                variant="outline" 
+                size="sm" 
+                className="gap-2"
+                disabled={isProcessing}
+              >
+                {isProcessing ? (
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                ) : (
+                  <Play className="h-4 w-4" />
+                )}
+                Processar Agora
+              </Button>
               <Button onClick={() => refetch()} variant="outline" size="icon" title="Atualizar">
                 <RefreshCcw className="h-4 w-4" />
               </Button>
@@ -317,6 +360,7 @@ export function ProductROITab() {
                         <SortIcon field="roas" />
                       </div>
                     </TableHead>
+                    <TableHead>Fonte</TableHead>
                     <TableHead className="text-center">Status</TableHead>
                   </TableRow>
                 </TableHeader>
@@ -346,6 +390,17 @@ export function ProductROITab() {
                         </TableCell>
                         <TableCell className="text-right font-bold">
                           {product.roas.toFixed(2)}x
+                        </TableCell>
+                        <TableCell>
+                          <div className="flex flex-wrap gap-1">
+                            {product.platforms.length > 0 ? product.platforms.map((p) => (
+                              <Badge key={p} variant="outline" className="text-xs">
+                                {p}
+                              </Badge>
+                            )) : (
+                              <span className="text-xs text-muted-foreground">—</span>
+                            )}
+                          </div>
                         </TableCell>
                         <TableCell className="text-center">
                           <Badge variant={status.variant} className="gap-1">

@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
-import { Search, Download, ShoppingCart, Loader2, RefreshCw } from "lucide-react";
+import { useNavigate } from "react-router-dom";
+import { Search, Download, ShoppingCart, Loader2, RefreshCw, ChevronLeft, ChevronRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -23,24 +24,9 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { useToast } from "@/hooks/use-toast";
 
-interface Order {
-  id: string;
-  user_id: string;
-  order_id_channel: string;
-  platform: string;
-  total_value: number;
-  order_date: string;
-  items: any;
-  status: string | null;
-  customer_name: string | null;
-  customer_email: string | null;
-  last_sync_at: string | null;
-  created_at: string;
-  updated_at: string;
-}
-
 interface FormattedOrder {
   id: string;
+  dbId: string;
   channel: string;
   date: string;
   customer: string;
@@ -51,8 +37,19 @@ interface FormattedOrder {
   statusColor: string;
 }
 
-const channels = ["Todos os Canais", "mercadolivre", "shopify", "amazon"];
+const ITEMS_PER_PAGE = 50;
+
+const channels = ["Todos os Canais", "mercadolivre", "shopee", "amazon", "shopify", "magalu", "tiktokshop"];
 const statuses = ["Todos os Status", "pending", "paid", "processing", "shipped", "delivered", "cancelled", "refunded"];
+
+const channelNames: Record<string, string> = {
+  mercadolivre: "Mercado Livre",
+  shopee: "Shopee",
+  amazon: "Amazon",
+  shopify: "Shopify",
+  magalu: "Magalu",
+  tiktokshop: "TikTok Shop",
+};
 
 const platformLogos: Record<string, { url: string; darkInvert?: boolean }> = {
   'mercadolivre': { url: "https://vectorseek.com/wp-content/uploads/2023/08/Mercado-Livre-Icon-Logo-Vector.svg-.png" },
@@ -60,9 +57,10 @@ const platformLogos: Record<string, { url: string; darkInvert?: boolean }> = {
   'shopify': { url: "https://cdn3.iconfinder.com/data/icons/social-media-2068/64/_shopping-512.png" },
   'amazon': { url: "https://upload.wikimedia.org/wikipedia/commons/d/de/Amazon_icon.png", darkInvert: true },
   'shopee': { url: "https://www.freepnglogos.com/uploads/shopee-logo/shopee-bag-logo-free-transparent-icon-17.png" },
+  'magalu': { url: "/logos/magalu.png" },
+  'tiktokshop': { url: "/logos/tiktok-shop.png" },
 };
 
-// Status display configuration
 const statusConfig: Record<string, { label: string; color: string }> = {
   'pending': { label: 'Aguardando Pagamento', color: 'bg-primary text-primary-foreground' },
   'paid': { label: 'Pago', color: 'bg-[#10B981] text-white' },
@@ -74,10 +72,7 @@ const statusConfig: Record<string, { label: string; color: string }> = {
 };
 
 const formatCurrency = (value: number) => {
-  return new Intl.NumberFormat('pt-BR', {
-    style: 'currency',
-    currency: 'BRL'
-  }).format(value);
+  return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(value);
 };
 
 const exportOrdersToCSV = (orders: FormattedOrder[]) => {
@@ -105,6 +100,7 @@ const exportOrdersToCSV = (orders: FormattedOrder[]) => {
 };
 
 export default function Orders() {
+  const navigate = useNavigate();
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedChannel, setSelectedChannel] = useState("Todos os Canais");
   const [selectedStatus, setSelectedStatus] = useState("Todos os Status");
@@ -113,8 +109,12 @@ export default function Orders() {
   const [isSyncing, setIsSyncing] = useState(false);
   const [isEmpty, setIsEmpty] = useState(false);
   const [lastSyncAt, setLastSyncAt] = useState<string | null>(null);
+  const [currentPage, setCurrentPage] = useState(1);
+  const [totalCount, setTotalCount] = useState(0);
   const { user } = useAuth();
   const { toast } = useToast();
+
+  const totalPages = Math.ceil(totalCount / ITEMS_PER_PAGE);
 
   const loadOrders = async () => {
     if (!user) return;
@@ -123,19 +123,39 @@ export default function Orders() {
       setIsLoading(true);
       setIsEmpty(false);
 
-      const { data, error } = await supabase
+      // Build query with server-side filters
+      let query = supabase
         .from('orders')
-        .select('*')
+        .select('*', { count: 'exact' })
         .eq('user_id', user.id)
         .order('order_date', { ascending: false });
+
+      // Apply server-side filters
+      if (selectedChannel !== "Todos os Canais") {
+        query = query.eq('platform', selectedChannel);
+      }
+      if (selectedStatus !== "Todos os Status") {
+        query = query.eq('status', selectedStatus);
+      }
+
+      // Apply pagination
+      const from = (currentPage - 1) * ITEMS_PER_PAGE;
+      const to = from + ITEMS_PER_PAGE - 1;
+      query = query.range(from, to);
+
+      const { data, error, count } = await query;
 
       if (error) {
         console.error('Error loading orders:', error);
         throw error;
       }
 
+      setTotalCount(count || 0);
+
       if (!data || data.length === 0) {
-        setIsEmpty(true);
+        if (currentPage === 1 && selectedChannel === "Todos os Canais" && selectedStatus === "Todos os Status") {
+          setIsEmpty(true);
+        }
         setOrders([]);
         setIsLoading(false);
         return;
@@ -150,22 +170,22 @@ export default function Orders() {
       }, null as string | null);
       setLastSyncAt(latestSync);
 
-      // Format orders for display
       const formattedOrders: FormattedOrder[] = data.map((order) => {
         const status = order.status || 'pending';
-        const statusInfo = statusConfig[status] || statusConfig['pending'];
+        const info = statusConfig[status] || statusConfig['pending'];
         const itemsArray = Array.isArray(order.items) ? order.items : (order.items ? [order.items] : []);
         
         return {
           id: `#${order.order_id_channel}`,
+          dbId: order.id,
           channel: order.platform,
           date: order.order_date,
           customer: order.customer_name || 'Cliente não identificado',
           items: itemsArray.length,
           total: formatCurrency(order.total_value),
           totalRaw: order.total_value,
-          status: statusInfo.label,
-          statusColor: statusInfo.color
+          status: info.label,
+          statusColor: info.color
         };
       });
 
@@ -221,7 +241,7 @@ export default function Orders() {
         description: `${data.synced} pedidos sincronizados, ${data.new_orders} novos.`,
       });
 
-      // Reload orders
+      setCurrentPage(1);
       await loadOrders();
 
     } catch (error) {
@@ -240,23 +260,29 @@ export default function Orders() {
     if (user) {
       loadOrders();
     }
-  }, [user]);
+  }, [user, currentPage, selectedChannel, selectedStatus]);
 
+  // Reset page when filters change
+  const handleChannelChange = (value: string) => {
+    setSelectedChannel(value);
+    setCurrentPage(1);
+  };
+
+  const handleStatusChange = (value: string) => {
+    setSelectedStatus(value);
+    setCurrentPage(1);
+  };
+
+  // Client-side search filter (on already loaded page data)
   const filteredOrders = orders.filter(order => {
-    const matchesSearch = order.id.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         order.customer.toLowerCase().includes(searchTerm.toLowerCase());
-    const matchesChannel = selectedChannel === "Todos os Canais" || order.channel === selectedChannel;
-    
-    // Map display status back to filter
-    const statusKey = Object.entries(statusConfig).find(([, v]) => v.label === order.status)?.[0];
-    const matchesStatus = selectedStatus === "Todos os Status" || statusKey === selectedStatus;
-    
-    return matchesSearch && matchesChannel && matchesStatus;
+    if (!searchTerm) return true;
+    return order.id.toLowerCase().includes(searchTerm.toLowerCase()) ||
+           order.customer.toLowerCase().includes(searchTerm.toLowerCase());
   });
 
   const totalValue = filteredOrders.reduce((sum, order) => sum + (order.totalRaw || 0), 0);
 
-  if (isLoading) {
+  if (isLoading && orders.length === 0) {
     return (
       <div className="flex items-center justify-center min-h-[400px]">
         <div className="flex items-center gap-2 text-muted-foreground">
@@ -278,50 +304,24 @@ export default function Orders() {
             </p>
           </div>
           <div className="flex gap-2">
-            <Button 
-              variant="default" 
-              className="gap-2"
-              onClick={handleSyncOrders}
-              disabled={isSyncing}
-            >
-              {isSyncing ? (
-                <Loader2 className="h-4 w-4 animate-spin" />
-              ) : (
-                <RefreshCw className="h-4 w-4" />
-              )}
+            <Button variant="default" className="gap-2" onClick={handleSyncOrders} disabled={isSyncing}>
+              {isSyncing ? <Loader2 className="h-4 w-4 animate-spin" /> : <RefreshCw className="h-4 w-4" />}
               Sincronizar
-            </Button>
-            <Button 
-              variant="outline" 
-              className="gap-2"
-              onClick={() => exportOrdersToCSV(filteredOrders)}
-              disabled={filteredOrders.length === 0}
-            >
-              <Download className="h-4 w-4" />
-              Exportar
             </Button>
           </div>
         </div>
 
         <div className="flex flex-col items-center justify-center min-h-[400px] text-center">
           <ShoppingCart className="h-16 w-16 text-muted-foreground/50 mb-4" />
-          <h3 className="text-xl font-semibold text-foreground mb-2">
-            Nenhum pedido encontrado
-          </h3>
+          <h3 className="text-xl font-semibold text-foreground mb-2">Nenhum pedido encontrado</h3>
           <p className="text-muted-foreground max-w-md mb-4">
             Clique em "Sincronizar" para buscar pedidos dos marketplaces conectados.
           </p>
           <Button onClick={handleSyncOrders} disabled={isSyncing}>
             {isSyncing ? (
-              <>
-                <Loader2 className="h-4 w-4 animate-spin mr-2" />
-                Sincronizando...
-              </>
+              <><Loader2 className="h-4 w-4 animate-spin mr-2" />Sincronizando...</>
             ) : (
-              <>
-                <RefreshCw className="h-4 w-4 mr-2" />
-                Sincronizar Pedidos
-              </>
+              <><RefreshCw className="h-4 w-4 mr-2" />Sincronizar Pedidos</>
             )}
           </Button>
         </div>
@@ -345,25 +345,11 @@ export default function Orders() {
           </p>
         </div>
         <div className="flex gap-2">
-          <Button 
-            variant="default" 
-            className="gap-2"
-            onClick={handleSyncOrders}
-            disabled={isSyncing}
-          >
-            {isSyncing ? (
-              <Loader2 className="h-4 w-4 animate-spin" />
-            ) : (
-              <RefreshCw className="h-4 w-4" />
-            )}
+          <Button variant="default" className="gap-2" onClick={handleSyncOrders} disabled={isSyncing}>
+            {isSyncing ? <Loader2 className="h-4 w-4 animate-spin" /> : <RefreshCw className="h-4 w-4" />}
             Sincronizar
           </Button>
-          <Button 
-            variant="outline" 
-            className="gap-2"
-            onClick={() => exportOrdersToCSV(filteredOrders)}
-            disabled={filteredOrders.length === 0}
-          >
+          <Button variant="outline" className="gap-2" onClick={() => exportOrdersToCSV(filteredOrders)} disabled={filteredOrders.length === 0}>
             <Download className="h-4 w-4" />
             Exportar
           </Button>
@@ -374,10 +360,8 @@ export default function Orders() {
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         <Card className="shadow-soft">
           <CardContent className="pt-6">
-            <div className="text-2xl font-bold text-foreground">
-              {filteredOrders.length}
-            </div>
-            <p className="text-sm text-muted-foreground">Pedidos Filtrados</p>
+            <div className="text-2xl font-bold text-foreground">{totalCount}</div>
+            <p className="text-sm text-muted-foreground">Total de Pedidos</p>
           </CardContent>
         </Card>
         <Card className="shadow-soft">
@@ -385,7 +369,7 @@ export default function Orders() {
             <div className="text-2xl font-bold text-primary">
               R$ {totalValue.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}
             </div>
-            <p className="text-sm text-muted-foreground">Valor Total</p>
+            <p className="text-sm text-muted-foreground">Valor da Página</p>
           </CardContent>
         </Card>
         <Card className="shadow-soft">
@@ -393,7 +377,7 @@ export default function Orders() {
             <div className="text-2xl font-bold text-primary">
               {filteredOrders.reduce((sum, order) => sum + order.items, 0)}
             </div>
-            <p className="text-sm text-muted-foreground">Itens Totais</p>
+            <p className="text-sm text-muted-foreground">Itens na Página</p>
           </CardContent>
         </Card>
       </div>
@@ -412,20 +396,20 @@ export default function Orders() {
               />
             </div>
             
-            <Select value={selectedChannel} onValueChange={setSelectedChannel}>
+            <Select value={selectedChannel} onValueChange={handleChannelChange}>
               <SelectTrigger className="w-full sm:w-[200px]">
                 <SelectValue placeholder="Filtrar por Canal" />
               </SelectTrigger>
               <SelectContent>
                 {channels.map((channel) => (
                   <SelectItem key={channel} value={channel}>
-                    {channel === "Todos os Canais" ? channel : channel.charAt(0).toUpperCase() + channel.slice(1)}
+                    {channel === "Todos os Canais" ? channel : (channelNames[channel] || channel)}
                   </SelectItem>
                 ))}
               </SelectContent>
             </Select>
 
-            <Select value={selectedStatus} onValueChange={setSelectedStatus}>
+            <Select value={selectedStatus} onValueChange={handleStatusChange}>
               <SelectTrigger className="w-full sm:w-[200px]">
                 <SelectValue placeholder="Filtrar por Status" />
               </SelectTrigger>
@@ -464,6 +448,7 @@ export default function Orders() {
                 <TableRow 
                   key={order.id} 
                   className="cursor-pointer hover:bg-muted/50 transition-colors hover:shadow-soft"
+                  onClick={() => navigate(`/app/orders/${order.dbId}`)}
                 >
                   <TableCell>
                     <code className="text-sm bg-muted px-2 py-1 rounded font-medium hover:bg-muted/80 transition-colors">
@@ -504,9 +489,7 @@ export default function Orders() {
                     <span className="font-medium text-primary">{order.total}</span>
                   </TableCell>
                   <TableCell>
-                    <Badge 
-                      className={`${order.statusColor} border-0`}
-                    >
+                    <Badge className={`${order.statusColor} border-0`}>
                       {order.status}
                     </Badge>
                   </TableCell>
@@ -514,6 +497,35 @@ export default function Orders() {
               ))}
             </TableBody>
           </Table>
+
+          {/* Pagination Controls */}
+          {totalPages > 1 && (
+            <div className="flex items-center justify-between mt-6 pt-4 border-t">
+              <p className="text-sm text-muted-foreground">
+                Página {currentPage} de {totalPages} ({totalCount} pedidos)
+              </p>
+              <div className="flex items-center gap-2">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+                  disabled={currentPage === 1 || isLoading}
+                >
+                  <ChevronLeft className="h-4 w-4" />
+                  Anterior
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
+                  disabled={currentPage === totalPages || isLoading}
+                >
+                  Próxima
+                  <ChevronRight className="h-4 w-4" />
+                </Button>
+              </div>
+            </div>
+          )}
         </CardContent>
       </Card>
     </div>

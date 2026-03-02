@@ -1,51 +1,30 @@
 
-# Separar plataformas de Ads das de Marketplace e melhorar o banner de sync
 
-## Problema
+# Transicoes Clean entre Secoes
 
-1. Na pagina de Integracoes, as plataformas de Ads (Meta Ads, Google Ads, TikTok Ads) mostram botoes de "Importar Produtos" e "Sincronizar Pedidos" -- funcoes que nao fazem sentido pois elas sincronizam apenas metricas de anuncios.
+## O que muda
 
-2. Na pagina de Produtos, o dropdown "Importar" lista TODAS as integracoes conectadas, incluindo as de Ads, o que confunde o usuario.
+Remover todos os `SectionDivider` com ondas SVG (visual pesado e datado) e substituir por **gradientes CSS sutis** entre secoes. Essa abordagem e usada por sites como Linear, Vercel e Stripe - minimalista e moderna.
 
-3. O banner de sincronizacao no Dashboard de Ads esta visualmente simples demais, com cards empilhados sem identidade visual.
+## Abordagem
 
-## Mudancas
+Em vez de formas SVG entre secoes, cada secao tera um **gradiente de fundo suave** que faz a transicao naturalmente para a proxima. O efeito e quase invisivel, mas elimina cortes bruscos.
 
-### 1. Pagina de Integracoes (`src/pages/Integrations.tsx`)
+### Mudancas
 
-**Cards de Ads conectados**: Remover os botoes "Importar Produtos" e "Sincronizar Pedidos" dos cards de integracao quando a plataforma for `meta_ads`, `google_ads` ou `tiktok_ads`. Em vez disso, mostrar um botao "Sincronizar Metricas" que redireciona para a aba Ads do Dashboard (`/app/dashboard?tab=ads`), deixando claro que essas plataformas servem para metricas, nao para produtos.
+**1. Deletar `src/components/ui/section-divider.tsx`** - nao sera mais necessario.
 
-**Botao "Sincronizar Todos os Pedidos" no header**: Contar apenas integracoes de marketplace (excluir ads) para decidir se mostra o botao.
+**2. Editar `src/pages/Landing.tsx`:**
+- Remover todas as 8 instancias de `<SectionDivider ... />`
+- Remover o import do `SectionDivider`
+- Adicionar classes de gradiente sutil nas secoes que fazem transicao de cor:
+  - Secoes com fundo `bg-muted/30` recebem `bg-gradient-to-b from-background to-muted/30` no inicio e `bg-gradient-to-b from-muted/30 to-background` no final
+  - Isso cria um fade suave entre cores de fundo, sem elementos visuais extras
+- Restaurar `border-t` no footer
 
-### 2. Pagina de Produtos (`src/pages/Products.tsx`)
+### Resultado visual
+- Zero elementos decorativos entre secoes
+- Transicoes de cor acontecem naturalmente via gradiente CSS
+- Visual limpo, moderno e profissional
+- Funciona perfeitamente em light e dark mode
 
-Filtrar a lista de integracoes para mostrar apenas plataformas de marketplace no dropdown de importacao. Adicionar uma lista de plataformas de ads para exclusao:
-
-```text
-const adsPlatforms = ['meta_ads', 'google_ads', 'tiktok_ads'];
-```
-
-Filtrar tanto no dropdown do header quanto no empty state, exibindo apenas integracoes cujo `platform` nao esta na lista de ads.
-
-### 3. Banner de Ads no Dashboard (`src/components/ads/AdsConnectionBanner.tsx`)
-
-Redesenhar o banner para ficar mais atraente e profissional:
-
-- Quando conectado: layout horizontal com logo da plataforma, nome da conta, badge de status, data do ultimo sync e botao de sincronizar -- tudo em um design mais compacto e estilizado com gradiente sutil
-- Quando nao conectado: card com icone de alerta, mensagem clara e botao "Conectar" com visual mais destacado
-- Adicionar os logos das plataformas (Meta azul, Google colorido, TikTok rosa) ao lado do nome
-- Usar cores de fundo sutis por plataforma (azul para Meta, verde para Google, rosa para TikTok)
-- Melhorar espacamento, tipografia e hierarquia visual
-
-### 4. Dashboard de Ads (`src/components/ads/AdsDashboard.tsx`)
-
-Ajustar o layout dos banners para que multiplas integracoes aparecam em grid horizontal (lado a lado em desktop) em vez de empilhadas verticalmente, aproveitando melhor o espaco.
-
-## Resumo das alteracoes
-
-| Arquivo | O que muda |
-|---------|-----------|
-| `src/pages/Integrations.tsx` | Remove "Importar Produtos" e "Sincronizar Pedidos" de cards de Ads; adiciona "Sincronizar Metricas" com redirect |
-| `src/pages/Products.tsx` | Filtra integracoes de ads do dropdown de importacao |
-| `src/components/ads/AdsConnectionBanner.tsx` | Redesign visual com logos, cores por plataforma e layout mais profissional |
-| `src/components/ads/AdsDashboard.tsx` | Layout grid horizontal para banners de integracoes conectadas |
