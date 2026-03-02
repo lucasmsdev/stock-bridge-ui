@@ -178,18 +178,7 @@ All colors MUST be HSL.
   animation: float 4s ease-in-out infinite;
 }
 
-/* Marquee for logos */
-@keyframes marquee {
-  0% { transform: translateX(0); }
-  100% { transform: translateX(-50%); }
-}
-.animate-marquee {
-  display: flex;
-  animation: marquee 30s linear infinite;
-  will-change: transform;
-  min-width: 100%;
-  width: max-content;
-}
+/* Marquee - now JS-driven, CSS class kept for reverse only */
 .animate-marquee-reverse {
   display: flex;
   animation: marquee 30s linear infinite reverse;
