@@ -1,4 +1,3 @@
-import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import {
   Select,
@@ -38,7 +37,7 @@ export function AdsFilters({
       
       <div className="flex flex-wrap gap-2">
         <Select value={platform} onValueChange={(v) => onPlatformChange(v as AdsPlatform)}>
-          <SelectTrigger className="w-[160px]">
+          <SelectTrigger className="w-[200px]">
             <SelectValue placeholder="Plataforma" />
           </SelectTrigger>
           <SelectContent>
@@ -53,6 +52,42 @@ export function AdsFilters({
               <div className="flex items-center gap-2">
                 <div className="w-3 h-3 rounded-full bg-green-500" />
                 Google Ads
+              </div>
+            </SelectItem>
+            <SelectItem value="tiktok_ads">
+              <div className="flex items-center gap-2">
+                <div className="w-3 h-3 rounded-full bg-pink-500" />
+                TikTok Ads
+              </div>
+            </SelectItem>
+            <SelectItem value="mercadolivre_ads">
+              <div className="flex items-center gap-2">
+                <div className="w-3 h-3 rounded-full" style={{ backgroundColor: '#FFE600' }} />
+                Mercado Livre Ads
+              </div>
+            </SelectItem>
+            <SelectItem value="shopee_ads">
+              <div className="flex items-center gap-2">
+                <div className="w-3 h-3 rounded-full" style={{ backgroundColor: '#EE4D2D' }} />
+                Shopee Ads
+              </div>
+            </SelectItem>
+            <SelectItem value="amazon_ads">
+              <div className="flex items-center gap-2">
+                <div className="w-3 h-3 rounded-full" style={{ backgroundColor: '#FF9900' }} />
+                Amazon Ads
+              </div>
+            </SelectItem>
+            <SelectItem value="magalu_ads">
+              <div className="flex items-center gap-2">
+                <div className="w-3 h-3 rounded-full" style={{ backgroundColor: '#0086FF' }} />
+                Magalu Ads
+              </div>
+            </SelectItem>
+            <SelectItem value="tiktokshop_ads">
+              <div className="flex items-center gap-2">
+                <div className="w-3 h-3 rounded-full" style={{ backgroundColor: '#25F4EE' }} />
+                TikTok Shop Ads
               </div>
             </SelectItem>
           </SelectContent>

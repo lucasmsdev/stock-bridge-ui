@@ -130,6 +130,44 @@ export type Database = {
           },
         ]
       }
+      ai_insights: {
+        Row: {
+          created_at: string
+          expires_at: string
+          generated_at: string
+          id: string
+          insights: Json
+          organization_id: string | null
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          expires_at?: string
+          generated_at?: string
+          id?: string
+          insights?: Json
+          organization_id?: string | null
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          expires_at?: string
+          generated_at?: string
+          id?: string
+          insights?: Json
+          organization_id?: string | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ai_insights_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       ai_usage: {
         Row: {
           created_at: string | null
@@ -167,6 +205,24 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      app_config: {
+        Row: {
+          created_at: string | null
+          key: string
+          value: string
+        }
+        Insert: {
+          created_at?: string | null
+          key: string
+          value: string
+        }
+        Update: {
+          created_at?: string | null
+          key?: string
+          value?: string
+        }
+        Relationships: []
       }
       attributed_conversions: {
         Row: {
@@ -253,6 +309,92 @@ export type Database = {
             columns: ["product_id"]
             isOneToOne: false
             referencedRelation: "products"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      automation_logs: {
+        Row: {
+          action_taken: string
+          automation_rule_id: string | null
+          created_at: string | null
+          details: Json | null
+          id: string
+          organization_id: string | null
+        }
+        Insert: {
+          action_taken: string
+          automation_rule_id?: string | null
+          created_at?: string | null
+          details?: Json | null
+          id?: string
+          organization_id?: string | null
+        }
+        Update: {
+          action_taken?: string
+          automation_rule_id?: string | null
+          created_at?: string | null
+          details?: Json | null
+          id?: string
+          organization_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "automation_logs_automation_rule_id_fkey"
+            columns: ["automation_rule_id"]
+            isOneToOne: false
+            referencedRelation: "automation_rules"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "automation_logs_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      automation_rules: {
+        Row: {
+          config: Json | null
+          created_at: string | null
+          id: string
+          is_active: boolean | null
+          last_triggered_at: string | null
+          organization_id: string | null
+          rule_type: string
+          updated_at: string | null
+          user_id: string
+        }
+        Insert: {
+          config?: Json | null
+          created_at?: string | null
+          id?: string
+          is_active?: boolean | null
+          last_triggered_at?: string | null
+          organization_id?: string | null
+          rule_type: string
+          updated_at?: string | null
+          user_id: string
+        }
+        Update: {
+          config?: Json | null
+          created_at?: string | null
+          id?: string
+          is_active?: boolean | null
+          last_triggered_at?: string | null
+          organization_id?: string | null
+          rule_type?: string
+          updated_at?: string | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "automation_rules_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
             referencedColumns: ["id"]
           },
         ]
@@ -452,6 +594,62 @@ export type Database = {
           },
         ]
       }
+      marketplace_fee_profiles: {
+        Row: {
+          commission_percent: number
+          created_at: string
+          fixed_fee_amount: number
+          id: string
+          is_active: boolean
+          notes: string | null
+          organization_id: string
+          payment_fee_percent: number
+          platform: string
+          shipping_subsidy: number
+          tax_percent: number
+          tax_regime: string
+          updated_at: string
+        }
+        Insert: {
+          commission_percent?: number
+          created_at?: string
+          fixed_fee_amount?: number
+          id?: string
+          is_active?: boolean
+          notes?: string | null
+          organization_id: string
+          payment_fee_percent?: number
+          platform: string
+          shipping_subsidy?: number
+          tax_percent?: number
+          tax_regime?: string
+          updated_at?: string
+        }
+        Update: {
+          commission_percent?: number
+          created_at?: string
+          fixed_fee_amount?: number
+          id?: string
+          is_active?: boolean
+          notes?: string | null
+          organization_id?: string
+          payment_fee_percent?: number
+          platform?: string
+          shipping_subsidy?: number
+          tax_percent?: number
+          tax_regime?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "marketplace_fee_profiles_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       monthly_financial_history: {
         Row: {
           created_at: string
@@ -598,6 +796,7 @@ export type Database = {
       }
       orders: {
         Row: {
+          carrier: string | null
           created_at: string
           customer_email: string | null
           customer_name: string | null
@@ -609,12 +808,18 @@ export type Database = {
           organization_id: string | null
           platform: string
           shipping_address: Json | null
+          shipping_history: Json | null
+          shipping_status: string | null
+          shipping_updated_at: string | null
           status: string | null
           total_value: number
+          tracking_code: string | null
+          tracking_url: string | null
           updated_at: string
           user_id: string
         }
         Insert: {
+          carrier?: string | null
           created_at?: string
           customer_email?: string | null
           customer_name?: string | null
@@ -626,12 +831,18 @@ export type Database = {
           organization_id?: string | null
           platform: string
           shipping_address?: Json | null
+          shipping_history?: Json | null
+          shipping_status?: string | null
+          shipping_updated_at?: string | null
           status?: string | null
           total_value: number
+          tracking_code?: string | null
+          tracking_url?: string | null
           updated_at?: string
           user_id: string
         }
         Update: {
+          carrier?: string | null
           created_at?: string
           customer_email?: string | null
           customer_name?: string | null
@@ -643,8 +854,13 @@ export type Database = {
           organization_id?: string | null
           platform?: string
           shipping_address?: Json | null
+          shipping_history?: Json | null
+          shipping_status?: string | null
+          shipping_updated_at?: string | null
           status?: string | null
           total_value?: number
+          tracking_code?: string | null
+          tracking_url?: string | null
           updated_at?: string
           user_id?: string
         }
@@ -1031,6 +1247,7 @@ export type Database = {
           created_at: string
           email: string
           full_name: string | null
+          has_completed_onboarding: boolean | null
           id: string
           plan: Database["public"]["Enums"]["subscription_plan"] | null
           role: string
@@ -1043,6 +1260,7 @@ export type Database = {
           created_at?: string
           email: string
           full_name?: string | null
+          has_completed_onboarding?: boolean | null
           id: string
           plan?: Database["public"]["Enums"]["subscription_plan"] | null
           role?: string
@@ -1055,6 +1273,7 @@ export type Database = {
           created_at?: string
           email?: string
           full_name?: string | null
+          has_completed_onboarding?: boolean | null
           id?: string
           plan?: Database["public"]["Enums"]["subscription_plan"] | null
           role?: string

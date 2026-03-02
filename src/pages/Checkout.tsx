@@ -24,23 +24,12 @@ export default function Checkout() {
   const { toast } = useToast();
   const { user } = useAuth();
 
-  // Mapear nomes da landing para IDs dos planos
-  const planMap: Record<string, string> = {
-    'iniciante': 'estrategista',
-    'profissional': 'competidor',
-    'enterprise': 'dominador',
-    'unlimited': 'unlimited',
-    'estrategista': 'estrategista',
-    'competidor': 'competidor',
-    'dominador': 'dominador'
-  };
-
   const planParam = searchParams.get('plan')?.toLowerCase() || 'profissional';
-  const selectedPlan = planMap[planParam] || 'competidor';
+  const selectedPlan = ['iniciante', 'profissional', 'enterprise', 'unlimited'].includes(planParam) ? planParam : 'profissional';
 
   // Verificar se o plano é válido
   useEffect(() => {
-    if (!['estrategista', 'competidor', 'dominador', 'unlimited'].includes(selectedPlan)) {
+    if (!['iniciante', 'profissional', 'enterprise', 'unlimited'].includes(selectedPlan)) {
       navigate('/');
       return;
     }
@@ -49,38 +38,34 @@ export default function Checkout() {
   // Se usuário já está logado, processar checkout imediatamente
   useEffect(() => {
     if (user && !isProcessingCheckout) {
-      // Aguardar um pouco para garantir que a autenticação está completa
       const timer = setTimeout(() => {
         handleCheckoutForLoggedUser();
       }, 1000);
       
       return () => clearTimeout(timer);
     }
-  }, [user?.id, selectedPlan]); // Dependências específicas para evitar loops
+  }, [user?.id, selectedPlan]);
 
-  const planDetails = {
-    estrategista: { name: 'Iniciante', price: 'R$ 97', description: 'Essencial para gerenciar vendas em múltiplas plataformas' },
-    competidor: { name: 'Profissional', price: 'R$ 197', description: 'Para escalar operações e aumentar eficiência' },
-    dominador: { name: 'Enterprise', price: 'R$ 297', description: 'Solução completa com análise avançada e IA' },
+  const planDetails: Record<string, { name: string; price: string; description: string }> = {
+    iniciante: { name: 'Iniciante', price: 'R$ 97', description: 'Essencial para gerenciar vendas em múltiplas plataformas' },
+    profissional: { name: 'Profissional', price: 'R$ 197', description: 'Para escalar operações e aumentar eficiência' },
+    enterprise: { name: 'Enterprise', price: 'R$ 297', description: 'Solução completa com análise avançada e IA' },
     unlimited: { name: 'Unlimited', price: 'R$ 397', description: 'SKUs ilimitados, todas features + API e automação' }
   };
 
-  const currentPlan = planDetails[selectedPlan as keyof typeof planDetails];
+  const currentPlan = planDetails[selectedPlan];
 
   const handleCheckoutForLoggedUser = useCallback(async () => {
-    if (isProcessingCheckout) return; // Prevenir múltiplas execuções
+    if (isProcessingCheckout) return;
     
     setIsProcessingCheckout(true);
     
     try {
       console.log('Starting checkout for logged user with plan:', selectedPlan);
-      console.log('User details:', { id: user?.id, email: user?.email });
       
       const { data, error } = await supabase.functions.invoke('create-checkout', {
         body: { planType: selectedPlan }
       });
-
-      console.log('Checkout response:', { data, error });
 
       if (error) {
         console.error('Edge function error:', error);
@@ -88,7 +73,6 @@ export default function Checkout() {
       }
 
       if (data?.url) {
-        console.log('Redirecting to Stripe URL:', data.url);
         window.open(data.url, '_blank');
         navigate('/billing');
       } else {
@@ -108,7 +92,6 @@ export default function Checkout() {
         variant: "destructive",
       });
       
-      // Se for erro de autenticação, limpar sessão e redirecionar
       if (errorMessage.includes('sessão') || errorMessage.includes('authentication') || errorMessage.includes('login') || errorMessage.includes('usuário')) {
         await supabase.auth.signOut();
         setTimeout(() => {
@@ -175,7 +158,6 @@ export default function Checkout() {
           description: "Redirecionando para o checkout...",
         });
 
-        // Aguardar um pouco para garantir que a sessão foi criada
         setTimeout(async () => {
           try {
             const { data: checkoutData, error: checkoutError } = await supabase.functions.invoke('create-checkout', {
@@ -258,7 +240,7 @@ export default function Checkout() {
             <div>
               <CardTitle className="text-2xl font-bold">Finalizar Assinatura</CardTitle>
               <CardDescription className="text-muted-foreground">
-                Crie sua conta e inicie seu teste de 7 dias grátis
+                Crie sua conta e inicie seu teste de 14 dias grátis
               </CardDescription>
               <div className="flex justify-center mt-4">
                 <Badge variant="secondary" className="text-sm">
@@ -326,10 +308,10 @@ export default function Checkout() {
 
               <div className="bg-muted/50 p-4 rounded-lg text-center">
                 <p className="text-sm text-muted-foreground mb-2">
-                  <strong>Teste gratuito de 7 dias</strong>
+                  <strong>Teste gratuito de 14 dias</strong>
                 </p>
                 <p className="text-xs text-muted-foreground">
-                  Sem cobrança nos primeiros 7 dias. Cancele quando quiser.
+                  Sem cobrança nos primeiros 14 dias. Cancele quando quiser.
                 </p>
               </div>
 

@@ -337,6 +337,7 @@ export default function Reports() {
 
   const formatOptions = [
     { value: "CSV", label: "CSV" },
+    { value: "XLSX", label: "XLSX (Excel)" },
     { value: "PDF", label: "PDF" }
   ];
 

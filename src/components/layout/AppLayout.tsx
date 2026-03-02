@@ -9,6 +9,7 @@ import { useThemeProvider } from "@/components/layout/ThemeProvider";
 import { usePlan } from "@/hooks/usePlan";
 import { NotificationsPopover } from "@/components/notifications/NotificationsPopover";
 import { PushNotificationPrompt } from "@/components/notifications/PushNotificationPrompt";
+import { OnboardingWizard } from "@/components/onboarding/OnboardingWizard";
 import { supabase } from "@/integrations/supabase/client";
 import { useIsMobile } from "@/hooks/use-mobile";
 
@@ -162,6 +163,12 @@ export const AppLayout = () => {
 
       {/* Push Notification Prompt */}
       <PushNotificationPrompt />
+
+      {/* Onboarding Wizard - shows only once for new users */}
+      <OnboardingWizard 
+        userName={user?.user_metadata?.full_name || user?.user_metadata?.name} 
+        userId={user?.id} 
+      />
     </div>
   );
 };

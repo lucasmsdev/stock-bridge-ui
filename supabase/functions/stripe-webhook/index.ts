@@ -2,9 +2,9 @@ import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import Stripe from "https://esm.sh/stripe@18.5.0";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.57.2";
 
+// Webhooks are server-to-server calls - no CORS headers needed
 const corsHeaders = {
-  "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
+  "Content-Type": "application/json",
 };
 
 const logStep = (step: string, details?: any) => {
@@ -13,8 +13,9 @@ const logStep = (step: string, details?: any) => {
 };
 
 serve(async (req) => {
+  // Webhooks don't need CORS preflight handling
   if (req.method === "OPTIONS") {
-    return new Response(null, { headers: corsHeaders });
+    return new Response(null, { status: 204 });
   }
 
   try {
@@ -56,7 +57,7 @@ serve(async (req) => {
       logStep("Event verified and parsed", { type: event.type, id: event.id });
     } catch (err) {
       logStep("ERROR: Webhook signature verification failed", { error: err.message });
-      return new Response(`Webhook signature verification failed: ${err.message}`, { status: 400 });
+      return new Response(JSON.stringify({ error: "Webhook verification failed" }), { status: 400, headers: corsHeaders });
     }
 
     // Handle the checkout completed event
@@ -74,9 +75,9 @@ serve(async (req) => {
 
       // Map Stripe price IDs to plan types (PRODUCTION)
       const priceToPlantMap = {
-        'price_1SPocGKdlB8Nu9cynoGjpe2V': 'estrategista',
-        'price_1SPocVKdlB8Nu9cyHYEa8b2m': 'competidor', 
-        'price_1SPpumKRFmEnuZwjDVJSIOZ2': 'dominador',
+        'price_1SPocGKdlB8Nu9cynoGjpe2V': 'iniciante',
+        'price_1SPocVKdlB8Nu9cyHYEa8b2m': 'profissional', 
+        'price_1SUaBhKdlB8Nu9cyPgDnMGtR': 'enterprise',
         'price_1SPodWKdlB8Nu9cyShTWmTES': 'unlimited'
       };
 
@@ -119,7 +120,7 @@ serve(async (req) => {
 
       if (updateError) {
         logStep("ERROR updating organization plan", { error: updateError });
-        return new Response(`Database error: ${updateError.message}`, { status: 500 });
+        return new Response(JSON.stringify({ error: "Failed to update subscription" }), { status: 500, headers: corsHeaders });
       }
 
       logStep("Organization plan updated successfully", { orgId: memberData.organization_id, planType: finalPlanType });
@@ -150,9 +151,9 @@ serve(async (req) => {
         // Get the price ID from the subscription
         const priceId = subscription.items.data[0]?.price?.id;
         const priceToPlantMap = {
-          'price_1SPocGKdlB8Nu9cynoGjpe2V': 'estrategista',
-          'price_1SPocVKdlB8Nu9cyHYEa8b2m': 'competidor', 
-          'price_1SPpumKRFmEnuZwjDVJSIOZ2': 'dominador',
+          'price_1SPocGKdlB8Nu9cynoGjpe2V': 'iniciante',
+          'price_1SPocVKdlB8Nu9cyHYEa8b2m': 'profissional', 
+          'price_1SUaBhKdlB8Nu9cyPgDnMGtR': 'enterprise',
           'price_1SPodWKdlB8Nu9cyShTWmTES': 'unlimited'
         };
         newPlan = priceToPlantMap[priceId as keyof typeof priceToPlantMap] || 'iniciante';
@@ -167,7 +168,7 @@ serve(async (req) => {
 
       if (updateError) {
         logStep("ERROR updating organization plan", { error: updateError });
-        return new Response(`Database error: ${updateError.message}`, { status: 500 });
+        return new Response(JSON.stringify({ error: "Failed to update subscription" }), { status: 500, headers: corsHeaders });
       }
 
       logStep("Organization plan updated from subscription event", { orgId: orgData.id, newPlan });
@@ -180,8 +181,8 @@ serve(async (req) => {
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : String(error);
     logStep("ERROR in stripe-webhook", { message: errorMessage });
-    return new Response(JSON.stringify({ error: errorMessage }), {
-      headers: { ...corsHeaders, "Content-Type": "application/json" },
+    return new Response(JSON.stringify({ error: "Internal server error" }), {
+      headers: corsHeaders,
       status: 500,
     });
   }

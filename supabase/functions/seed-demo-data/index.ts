@@ -28,8 +28,8 @@ const brazilianLastNames = [
   'Mendes', 'Freitas', 'Cardoso', 'Ramos', 'Gonçalves', 'Santana', 'Teixeira'
 ];
 
-const platforms = ['mercadolivre', 'shopee', 'amazon', 'shopify'];
-const platformWeights = [0.40, 0.30, 0.20, 0.10]; // 40% ML, 30% Shopee, 20% Amazon, 10% Shopify
+const platforms = ['mercadolivre', 'shopee', 'amazon', 'shopify', 'magalu'];
+const platformWeights = [0.35, 0.25, 0.18, 0.10, 0.12]; // 35% ML, 25% Shopee, 18% Amazon, 10% Shopify, 12% Magalu
 
 const getWeightedPlatform = () => {
   const rand = Math.random();
@@ -43,32 +43,81 @@ const getWeightedPlatform = () => {
 
 const orderStatuses = ['completed', 'completed', 'completed', 'completed', 'shipped', 'pending'];
 
+// Tracking helpers
+const carriers = ['Correios', 'Correios', 'Correios', 'Jadlog', 'Total Express', 'Sequoia']; // 50% Correios
+const generateTrackingCode = (carrier: string) => {
+  if (carrier === 'Correios') {
+    const digits = Array.from({ length: 9 }, () => Math.floor(Math.random() * 10)).join('');
+    return `BR${digits}BR`;
+  }
+  if (carrier === 'Jadlog') {
+    return `JADLOG${Array.from({ length: 8 }, () => Math.floor(Math.random() * 10)).join('')}`;
+  }
+  if (carrier === 'Total Express') {
+    return `TEX${Array.from({ length: 10 }, () => Math.floor(Math.random() * 10)).join('')}`;
+  }
+  return `SEQ${Array.from({ length: 9 }, () => Math.floor(Math.random() * 10)).join('')}`;
+};
+
+const shippingStatusWeights = ['in_transit', 'in_transit', 'in_transit', 'in_transit', 'shipped', 'shipped', 'shipped', 'out_for_delivery', 'out_for_delivery', 'delivered'];
+
+const generateShippingHistory = (status: string, orderDate: Date): { date: string; status: string; description: string; location: string }[] => {
+  const events: { date: string; status: string; description: string; location: string }[] = [];
+  const cities = ['São Paulo, SP', 'Curitiba, PR', 'Rio de Janeiro, RJ', 'Belo Horizonte, MG', 'Campinas, SP', 'Florianópolis, SC', 'Porto Alegre, RS'];
+  const originCity = randomItem(cities);
+  const destCity = randomItem(cities.filter(c => c !== originCity));
+  
+  const baseDate = new Date(orderDate);
+  
+  // Posted
+  baseDate.setHours(baseDate.getHours() + randomInt(2, 24));
+  events.push({ date: baseDate.toISOString(), status: 'shipped', description: 'Objeto postado', location: originCity });
+  
+  if (status === 'shipped') return events.reverse();
+  
+  // In transit
+  baseDate.setHours(baseDate.getHours() + randomInt(6, 48));
+  events.push({ date: baseDate.toISOString(), status: 'in_transit', description: 'Objeto em trânsito - por favor aguarde', location: `Centro de Distribuição - ${randomItem(cities)}` });
+  
+  baseDate.setHours(baseDate.getHours() + randomInt(12, 36));
+  events.push({ date: baseDate.toISOString(), status: 'in_transit', description: 'Objeto encaminhado para unidade de destino', location: `Unidade de Tratamento - ${randomItem(cities)}` });
+  
+  if (status === 'in_transit') return events.reverse();
+  
+  // Out for delivery
+  baseDate.setHours(baseDate.getHours() + randomInt(6, 24));
+  events.push({ date: baseDate.toISOString(), status: 'out_for_delivery', description: 'Objeto saiu para entrega ao destinatário', location: destCity });
+  
+  if (status === 'out_for_delivery') return events.reverse();
+  
+  // Delivered
+  baseDate.setHours(baseDate.getHours() + randomInt(1, 8));
+  events.push({ date: baseDate.toISOString(), status: 'delivered', description: 'Objeto entregue ao destinatário', location: destCity });
+  
+  return events.reverse();
+};
+
 const products = [
-  { name: 'Monitor Gamer 27" 165Hz IPS', category: 'Tecnologia', price: 1899, cost: 1200, stock: 45 },
-  { name: 'iPhone 15 Pro Max 256GB', category: 'Smartphones', price: 8499, cost: 6800, stock: 12 },
-  { name: 'Notebook Gamer RTX 4060 16GB', category: 'Tecnologia', price: 5299, cost: 3800, stock: 8 },
-  { name: 'Fone Bluetooth ANC Premium', category: 'Áudio', price: 399, cost: 180, stock: 120 },
-  { name: 'Cadeira Gamer Ergonômica Pro', category: 'Móveis', price: 1199, cost: 650, stock: 25 },
-  { name: 'Teclado Mecânico RGB 60%', category: 'Periféricos', price: 349, cost: 150, stock: 85 },
-  { name: 'Mouse Gamer 25000 DPI Wireless', category: 'Periféricos', price: 449, cost: 200, stock: 95 },
-  { name: 'Webcam 4K Autofocus Pro', category: 'Tecnologia', price: 599, cost: 280, stock: 55 },
-  { name: 'SSD NVMe 1TB Gen4', category: 'Componentes', price: 499, cost: 280, stock: 150 },
-  { name: 'Memória RAM DDR5 32GB Kit', category: 'Componentes', price: 899, cost: 550, stock: 40 },
-  { name: 'Smartwatch Fitness Premium', category: 'Wearables', price: 699, cost: 350, stock: 70 },
-  { name: 'Tablet 11" 128GB WiFi', category: 'Tecnologia', price: 2499, cost: 1700, stock: 18 },
-  { name: 'Carregador Turbo 65W GaN', category: 'Acessórios', price: 189, cost: 65, stock: 200 },
-  { name: 'Cabo USB-C 100W 2m Premium', category: 'Acessórios', price: 79, cost: 25, stock: 300 },
-  { name: 'Suporte Monitor Articulado', category: 'Acessórios', price: 249, cost: 110, stock: 65 },
-  { name: 'Ring Light Profissional 18"', category: 'Foto/Vídeo', price: 299, cost: 130, stock: 45 },
-  { name: 'Microfone Condensador USB', category: 'Áudio', price: 449, cost: 200, stock: 55 },
-  { name: 'Hub USB-C 7 em 1', category: 'Acessórios', price: 199, cost: 75, stock: 130 },
-  { name: 'Mousepad XL RGB 90x40cm', category: 'Periféricos', price: 149, cost: 50, stock: 110 },
-  { name: 'Headset Gamer 7.1 Wireless', category: 'Áudio', price: 599, cost: 280, stock: 40 },
-  { name: 'Power Bank 20000mAh 65W', category: 'Acessórios', price: 299, cost: 130, stock: 90 },
-  { name: 'Caixa de Som Bluetooth 40W', category: 'Áudio', price: 349, cost: 150, stock: 60 },
-  { name: 'Cooler Notebook RGB', category: 'Acessórios', price: 129, cost: 45, stock: 140 },
-  { name: 'Controle Gamer Bluetooth Pro', category: 'Games', price: 299, cost: 140, stock: 75 },
-  { name: 'Placa de Captura 4K60 USB', category: 'Streaming', price: 899, cost: 500, stock: 20 }
+  { name: 'Capinha Silicone Premium', category: 'Acessórios', price: 39, cost: 12, stock: 250 },
+  { name: 'Camiseta Algodão Estampada', category: 'Vestuário', price: 59, cost: 22, stock: 180 },
+  { name: 'Fone de Ouvido Bluetooth', category: 'Áudio', price: 89, cost: 35, stock: 120 },
+  { name: 'Organizador de Mesa MDF', category: 'Casa', price: 79, cost: 30, stock: 90 },
+  { name: 'Película Vidro Temperado Kit 3', category: 'Acessórios', price: 29, cost: 8, stock: 400 },
+  { name: 'Luminária LED USB Flexível', category: 'Casa', price: 49, cost: 18, stock: 150 },
+  { name: 'Mochila Notebook Impermeável', category: 'Acessórios', price: 149, cost: 65, stock: 60 },
+  { name: 'Kit Pincéis Maquiagem 12pcs', category: 'Beleza', price: 69, cost: 25, stock: 130 },
+  { name: 'Garrafa Térmica 500ml', category: 'Casa', price: 59, cost: 22, stock: 140 },
+  { name: 'Relógio Digital Esportivo', category: 'Acessórios', price: 99, cost: 40, stock: 85 },
+  { name: 'Mouse Sem Fio Ergonômico', category: 'Periféricos', price: 79, cost: 30, stock: 110 },
+  { name: 'Suporte Celular Carro', category: 'Acessórios', price: 39, cost: 12, stock: 200 },
+  { name: 'Hub USB 4 Portas', category: 'Periféricos', price: 59, cost: 20, stock: 160 },
+  { name: 'Capa Kindle/Tablet', category: 'Acessórios', price: 69, cost: 25, stock: 100 },
+  { name: 'Ring Light 10" com Tripé', category: 'Foto/Vídeo', price: 119, cost: 45, stock: 70 },
+  { name: 'Teclado Bluetooth Compacto', category: 'Periféricos', price: 129, cost: 50, stock: 55 },
+  { name: 'Pochete Esportiva', category: 'Vestuário', price: 49, cost: 18, stock: 170 },
+  { name: 'Cabo USB-C 2m Reforçado', category: 'Acessórios', price: 34, cost: 10, stock: 300 },
+  { name: 'Caixa de Som Portátil', category: 'Áudio', price: 99, cost: 38, stock: 80 },
+  { name: 'Power Bank 10000mAh', category: 'Acessórios', price: 89, cost: 35, stock: 95 },
 ];
 
 const suppliers = [
@@ -83,51 +132,47 @@ const suppliers = [
 ];
 
 const expenses = [
-  { name: 'Aluguel Escritório', category: 'Infraestrutura', amount: 3500, recurrence: 'monthly' },
-  { name: 'Contabilidade', category: 'Administrativo', amount: 890, recurrence: 'monthly' },
-  { name: 'Internet Fibra 500MB', category: 'Infraestrutura', amount: 199, recurrence: 'monthly' },
-  { name: 'Energia Elétrica', category: 'Infraestrutura', amount: 450, recurrence: 'monthly' },
-  { name: 'UniStock Pro', category: 'Ferramentas', amount: 297, recurrence: 'monthly' },
-  { name: 'Google Ads', category: 'Marketing', amount: 5000, recurrence: 'monthly' },
-  { name: 'Meta Ads', category: 'Marketing', amount: 3500, recurrence: 'monthly' },
-  { name: 'Embalagens e Materiais', category: 'Operacional', amount: 1200, recurrence: 'monthly' },
-  { name: 'Funcionário - Operações', category: 'Pessoal', amount: 2800, recurrence: 'monthly' },
-  { name: 'Funcionário - Atendimento', category: 'Pessoal', amount: 2200, recurrence: 'monthly' },
-  { name: 'Seguro Empresarial', category: 'Administrativo', amount: 350, recurrence: 'monthly' },
-  { name: 'Telefonia/WhatsApp Business', category: 'Operacional', amount: 150, recurrence: 'monthly' }
+  // Fixed costs (~R$986)
+  { name: 'Aluguel Escritório', category: 'fixed', amount: 650, recurrence: 'monthly' },
+  { name: 'Contabilidade', category: 'fixed', amount: 150, recurrence: 'monthly' },
+  { name: 'Internet Fibra', category: 'fixed', amount: 89, recurrence: 'monthly' },
+  { name: 'UniStock Pro', category: 'fixed', amount: 97, recurrence: 'monthly' },
+  // Variable costs - Ads (~R$1.550)
+  { name: 'Google Ads', category: 'variable', amount: 800, recurrence: 'monthly' },
+  { name: 'Meta Ads', category: 'variable', amount: 500, recurrence: 'monthly' },
+  { name: 'TikTok Ads', category: 'variable', amount: 250, recurrence: 'monthly' },
+  // Operational costs (~R$550)
+  { name: 'Embalagens e Materiais', category: 'operational', amount: 200, recurrence: 'monthly' },
+  { name: 'Frete Correios', category: 'operational', amount: 350, recurrence: 'monthly' },
 ];
 
 const notifications = [
-  { type: 'price_alert', title: '🔥 Concorrente baixou preço!', message: 'O Monitor Gamer 27" está R$150 mais barato na loja XYZ. Considere ajustar seu preço.' },
-  { type: 'stock_alert', title: '⚠️ Estoque baixo', message: 'iPhone 15 Pro Max está com apenas 12 unidades. Faça novo pedido ao fornecedor.' },
-  { type: 'sales_alert', title: '🚀 Vendas em alta!', message: 'Você vendeu 47 produtos hoje! Seu melhor dia do mês.' },
+  { type: 'price_alert', title: '🔥 Concorrente baixou preço!', message: 'A Capinha Silicone Premium está R$8 mais barata na loja XYZ. Considere ajustar seu preço.' },
+  { type: 'stock_alert', title: '⚠️ Estoque baixo', message: 'Teclado Bluetooth Compacto está com apenas 55 unidades. Considere reabastecer.' },
+  { type: 'sales_alert', title: '🚀 Vendas em alta!', message: 'Você vendeu 15 produtos hoje! Seu melhor dia da semana.' },
   { type: 'sync_success', title: '✅ Sincronização concluída', message: 'Todos os produtos foram sincronizados com Mercado Livre com sucesso.' },
-  { type: 'price_alert', title: '📈 Oportunidade de preço', message: 'Fone Bluetooth ANC está com demanda alta. Considere aumentar R$30 o preço.' },
-  { type: 'order_alert', title: '🎉 Novo pedido grande!', message: 'Pedido de R$4.299 recebido via Amazon. Cliente premium identificado.' },
-  { type: 'stock_alert', title: '📦 Produto esgotando', message: 'Notebook Gamer RTX 4060 com apenas 8 unidades. Média de vendas: 3/semana.' },
-  { type: 'sync_success', title: '✅ Shopee atualizada', message: '25 produtos tiveram preços atualizados na Shopee automaticamente.' },
-  { type: 'sales_alert', title: '💰 Meta batida!', message: 'Parabéns! Você atingiu R$150.000 em vendas este mês, 20% acima da meta.' },
-  { type: 'price_alert', title: '🔔 Alerta de margem', message: 'SSD NVMe 1TB está com margem de apenas 18%. Revise o custo ou preço.' }
+  { type: 'price_alert', title: '📈 Oportunidade de preço', message: 'Fone de Ouvido Bluetooth está com demanda alta. Considere aumentar R$10 o preço.' },
+  { type: 'order_alert', title: '🎉 Novo pedido!', message: 'Pedido de R$298 recebido via Amazon. 2x Mochila Notebook Impermeável.' },
+  { type: 'stock_alert', title: '📦 Produto esgotando', message: 'Ring Light 10" com Tripé com apenas 70 unidades. Média de vendas: 8/semana.' },
+  { type: 'sync_success', title: '✅ Shopee atualizada', message: '20 produtos tiveram preços atualizados na Shopee automaticamente.' },
+  { type: 'sales_alert', title: '💰 Meta batida!', message: 'Parabéns! Você atingiu R$30.000 em vendas este mês, 15% acima da meta.' },
+  { type: 'price_alert', title: '🔔 Alerta de margem', message: 'Película Vidro Temperado está com margem de apenas 20%. Revise o custo ou preço.' }
 ];
 
 // Ad campaigns demo data (Meta Ads, Google Ads, TikTok Ads)
 const adCampaigns = [
-  // Meta Ads campaigns
-  { platform: 'meta_ads', name: 'Black Friday 2025', status: 'active', dailyBudget: 280, roas: 4.2 },
-  { platform: 'meta_ads', name: 'Remarketing Site', status: 'active', dailyBudget: 180, roas: 3.8 },
-  { platform: 'meta_ads', name: 'Stories Verão', status: 'active', dailyBudget: 95, roas: 1.8 },
-  { platform: 'meta_ads', name: 'Feed Produtos', status: 'active', dailyBudget: 150, roas: 2.4 },
-  { platform: 'meta_ads', name: 'Lookalike Clientes', status: 'paused', dailyBudget: 60, roas: 3.1 },
-  // Google Ads campaigns
-  { platform: 'google_ads', name: 'Search - Produtos', status: 'active', dailyBudget: 350, roas: 2.9 },
-  { platform: 'google_ads', name: 'Display - Marca', status: 'active', dailyBudget: 120, roas: 2.1 },
-  { platform: 'google_ads', name: 'Shopping Feed', status: 'active', dailyBudget: 85, roas: 3.5 },
-  { platform: 'google_ads', name: 'Performance Max', status: 'paused', dailyBudget: 70, roas: 2.8 },
-  // TikTok Ads campaigns
-  { platform: 'tiktok_ads', name: 'Spark Ads - Influencers', status: 'active', dailyBudget: 200, roas: 3.6 },
-  { platform: 'tiktok_ads', name: 'In-Feed Produtos', status: 'active', dailyBudget: 150, roas: 2.8 },
-  { platform: 'tiktok_ads', name: 'TopView Lançamento', status: 'active', dailyBudget: 300, roas: 2.2 },
-  { platform: 'tiktok_ads', name: 'Hashtag Challenge', status: 'paused', dailyBudget: 180, roas: 3.0 },
+  // Meta Ads campaigns (~R$17/day = R$500/month)
+  { platform: 'meta_ads', name: 'Remarketing Site', status: 'active', dailyBudget: 7, roas: 3.8 },
+  { platform: 'meta_ads', name: 'Feed Catálogo', status: 'active', dailyBudget: 5, roas: 2.4 },
+  { platform: 'meta_ads', name: 'Stories Produtos', status: 'active', dailyBudget: 3, roas: 1.8 },
+  { platform: 'meta_ads', name: 'Lookalike Clientes', status: 'paused', dailyBudget: 2, roas: 3.1 },
+  // Google Ads campaigns (~R$27/day = R$800/month)
+  { platform: 'google_ads', name: 'Search - Produtos', status: 'active', dailyBudget: 12, roas: 2.9 },
+  { platform: 'google_ads', name: 'Shopping Feed', status: 'active', dailyBudget: 8, roas: 3.5 },
+  { platform: 'google_ads', name: 'Performance Max', status: 'paused', dailyBudget: 7, roas: 2.8 },
+  // TikTok Ads campaigns (~R$8/day = R$250/month)
+  { platform: 'tiktok_ads', name: 'In-Feed Produtos', status: 'active', dailyBudget: 5, roas: 2.8 },
+  { platform: 'tiktok_ads', name: 'Spark Ads', status: 'paused', dailyBudget: 3, roas: 3.0 },
 ];
 
 serve(async (req) => {
@@ -198,6 +243,8 @@ serve(async (req) => {
     await supabase.from('purchase_orders').delete().eq('user_id', user.id);
     await supabase.from('suppliers').delete().eq('user_id', user.id);
     await supabase.from('expenses').delete().eq('user_id', user.id);
+    // Remove demo integrations (only platform 'magalu' to avoid removing real connections)
+    await supabase.from('integrations').delete().eq('user_id', user.id).eq('platform', 'magalu').like('account_name', '%Demo%');
 
     // Insert suppliers
     console.log('Inserindo fornecedores...');
@@ -225,7 +272,7 @@ serve(async (req) => {
       stock: p.stock + randomInt(-10, 30),
       cost_price: p.cost,
       selling_price: p.price,
-      ad_spend: randomInt(50, 500),
+      ad_spend: randomInt(10, 80),
       supplier_id: insertedSuppliers ? insertedSuppliers[randomInt(0, insertedSuppliers.length - 1)].id : null,
       condition: 'new',
       weight: randomFloat(0.1, 5).toFixed(2),
@@ -233,36 +280,93 @@ serve(async (req) => {
     }));
     const { data: insertedProducts } = await supabase.from('products').insert(productInserts).select();
 
+    // ============================================
+    // MAGALU: Fake integration + product listings
+    // ============================================
+    console.log('Criando integração Magalu demo...');
+    
+    // Create a fake Magalu integration
+    const fakeToken = 'demo-magalu-token-' + crypto.randomUUID();
+    const { data: encryptedToken } = await supabase.rpc('encrypt_token', { token: fakeToken });
+    
+    const { data: magaluIntegration } = await supabase.from('integrations').insert({
+      user_id: user.id,
+      organization_id: organizationId,
+      platform: 'magalu',
+      encrypted_access_token: encryptedToken,
+      encrypted_refresh_token: encryptedToken,
+      account_name: 'Loja Demo Magalu',
+      account_nickname: 'Magalu Principal',
+      token_expires_at: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString(),
+    }).select().single();
+
+    // Create product listings on Magalu for ~8 products
+    if (magaluIntegration && insertedProducts) {
+      const magaluListings = insertedProducts.slice(0, 8).map((p, i) => ({
+        user_id: user.id,
+        organization_id: organizationId,
+        product_id: p.id,
+        integration_id: magaluIntegration.id,
+        platform: 'magalu',
+        platform_product_id: `MGLU-${String(i + 1).padStart(6, '0')}`,
+        sync_status: i < 6 ? 'active' : (i === 6 ? 'pending' : 'error'),
+        sync_error: i === 7 ? 'SKU não encontrado no catálogo Magalu' : null,
+        last_sync_at: i < 6 ? new Date().toISOString() : null,
+        platform_url: `https://www.magazineluiza.com.br/produto/p/MGLU${String(i + 1).padStart(6, '0')}`,
+      }));
+      
+      await supabase.from('product_listings').insert(magaluListings);
+      console.log(`✅ ${magaluListings.length} listings Magalu criados`);
+    }
+
     // Generate orders - 500+ orders over 90 days with concentration on recent days
     console.log('Gerando pedidos...');
     const now = new Date();
     const orders: any[] = [];
     
-    // Today: 35-45 orders (high volume day for impressive screenshot)
-    const todayOrders = randomInt(35, 45);
+    // Helper to build an order with tracking
+    const buildOrder = (product: any, quantity: number, orderDate: Date, status: string, channelSuffix: string) => {
+      const needsTracking = status === 'shipped' || status === 'completed';
+      const carrier = needsTracking ? randomItem(carriers) : null;
+      const shippingStatus = status === 'completed' ? 'delivered' : (status === 'shipped' ? randomItem(shippingStatusWeights) : (status === 'pending' ? 'pending_shipment' : 'pending_shipment'));
+      const trackingCode = needsTracking ? generateTrackingCode(carrier!) : null;
+      const shippingHistory = needsTracking ? generateShippingHistory(shippingStatus, orderDate) : [];
+      const shippingUpdatedAt = shippingHistory.length > 0 ? shippingHistory[0].date : null;
+      
+      return {
+        user_id: user.id,
+        organization_id: organizationId,
+        order_id_channel: `ORD-${Date.now()}-${randomInt(1000, 9999)}${channelSuffix}`,
+        platform: getWeightedPlatform(),
+        status,
+        total_value: product.selling_price * quantity,
+        order_date: orderDate.toISOString(),
+        customer_name: `${randomItem(brazilianFirstNames)} ${randomItem(brazilianLastNames)}`,
+        customer_email: `cliente${randomInt(1, 9999)}@email.com`,
+        items: [{ product_id: product.id, name: product.name, quantity, price: product.selling_price }],
+        tracking_code: trackingCode,
+        tracking_url: trackingCode ? `https://rastreamento.correios.com.br/app/index.php?objetos=${trackingCode}` : null,
+        carrier,
+        shipping_status: shippingStatus,
+        shipping_updated_at: shippingUpdatedAt,
+        shipping_history: shippingHistory,
+      };
+    };
+
+    // Today: 8-15 orders (realistic for small/medium e-commerce)
+    const todayOrders = randomInt(8, 15);
     for (let i = 0; i < todayOrders; i++) {
       const product = insertedProducts![randomInt(0, insertedProducts!.length - 1)];
       const quantity = randomInt(1, 3);
       const orderDate = new Date(now);
       orderDate.setHours(randomInt(0, 23), randomInt(0, 59), randomInt(0, 59));
       
-      orders.push({
-        user_id: user.id,
-        organization_id: organizationId,
-        order_id_channel: `ORD-${Date.now()}-${randomInt(1000, 9999)}`,
-        platform: getWeightedPlatform(),
-        status: randomItem(orderStatuses),
-        total_value: product.selling_price * quantity,
-        order_date: orderDate.toISOString(),
-        customer_name: `${randomItem(brazilianFirstNames)} ${randomItem(brazilianLastNames)}`,
-        customer_email: `cliente${randomInt(1, 9999)}@email.com`,
-        items: [{ product_id: product.id, name: product.name, quantity, price: product.selling_price }]
-      });
+      orders.push(buildOrder(product, quantity, orderDate, randomItem(orderStatuses), ''));
     }
 
-    // Last 7 days (excluding today): 20-30 orders per day
+    // Last 7 days (excluding today): 5-12 orders per day
     for (let day = 1; day <= 7; day++) {
-      const ordersPerDay = randomInt(20, 30);
+      const ordersPerDay = randomInt(5, 12);
       for (let i = 0; i < ordersPerDay; i++) {
         const product = insertedProducts![randomInt(0, insertedProducts!.length - 1)];
         const quantity = randomInt(1, 4);
@@ -270,24 +374,13 @@ serve(async (req) => {
         orderDate.setDate(orderDate.getDate() - day);
         orderDate.setHours(randomInt(0, 23), randomInt(0, 59), randomInt(0, 59));
         
-        orders.push({
-          user_id: user.id,
-          organization_id: organizationId,
-          order_id_channel: `ORD-${Date.now()}-${randomInt(1000, 9999)}-${day}-${i}`,
-          platform: getWeightedPlatform(),
-          status: randomItem(orderStatuses),
-          total_value: product.selling_price * quantity,
-          order_date: orderDate.toISOString(),
-          customer_name: `${randomItem(brazilianFirstNames)} ${randomItem(brazilianLastNames)}`,
-          customer_email: `cliente${randomInt(1, 9999)}@email.com`,
-          items: [{ product_id: product.id, name: product.name, quantity, price: product.selling_price }]
-        });
+        orders.push(buildOrder(product, quantity, orderDate, randomItem(orderStatuses), `-${day}-${i}`));
       }
     }
 
-    // Days 8-30: 10-20 orders per day
+    // Days 8-30: 3-8 orders per day
     for (let day = 8; day <= 30; day++) {
-      const ordersPerDay = randomInt(10, 20);
+      const ordersPerDay = randomInt(3, 8);
       for (let i = 0; i < ordersPerDay; i++) {
         const product = insertedProducts![randomInt(0, insertedProducts!.length - 1)];
         const quantity = randomInt(1, 3);
@@ -295,24 +388,13 @@ serve(async (req) => {
         orderDate.setDate(orderDate.getDate() - day);
         orderDate.setHours(randomInt(0, 23), randomInt(0, 59), randomInt(0, 59));
         
-        orders.push({
-          user_id: user.id,
-          organization_id: organizationId,
-          order_id_channel: `ORD-${Date.now()}-${randomInt(1000, 9999)}-${day}-${i}`,
-          platform: getWeightedPlatform(),
-          status: randomItem(orderStatuses),
-          total_value: product.selling_price * quantity,
-          order_date: orderDate.toISOString(),
-          customer_name: `${randomItem(brazilianFirstNames)} ${randomItem(brazilianLastNames)}`,
-          customer_email: `cliente${randomInt(1, 9999)}@email.com`,
-          items: [{ product_id: product.id, name: product.name, quantity, price: product.selling_price }]
-        });
+        orders.push(buildOrder(product, quantity, orderDate, randomItem(orderStatuses), `-${day}-${i}`));
       }
     }
 
-    // Days 31-90: 5-12 orders per day
+    // Days 31-90: 1-5 orders per day
     for (let day = 31; day <= 90; day++) {
-      const ordersPerDay = randomInt(5, 12);
+      const ordersPerDay = randomInt(1, 5);
       for (let i = 0; i < ordersPerDay; i++) {
         const product = insertedProducts![randomInt(0, insertedProducts!.length - 1)];
         const quantity = randomInt(1, 2);
@@ -320,18 +402,7 @@ serve(async (req) => {
         orderDate.setDate(orderDate.getDate() - day);
         orderDate.setHours(randomInt(0, 23), randomInt(0, 59), randomInt(0, 59));
         
-        orders.push({
-          user_id: user.id,
-          organization_id: organizationId,
-          order_id_channel: `ORD-${Date.now()}-${randomInt(1000, 9999)}-${day}-${i}`,
-          platform: getWeightedPlatform(),
-          status: 'completed',
-          total_value: product.selling_price * quantity,
-          order_date: orderDate.toISOString(),
-          customer_name: `${randomItem(brazilianFirstNames)} ${randomItem(brazilianLastNames)}`,
-          customer_email: `cliente${randomInt(1, 9999)}@email.com`,
-          items: [{ product_id: product.id, name: product.name, quantity, price: product.selling_price }]
-        });
+        orders.push(buildOrder(product, quantity, orderDate, 'completed', `-${day}-${i}`));
       }
     }
 
@@ -418,7 +489,7 @@ serve(async (req) => {
         
         // Calculate metrics based on ROAS and spend
         const conversionValue = spend * campaign.roas * randomFloat(0.85, 1.15);
-        const avgOrderValue = 350; // Average order value
+        const avgOrderValue = 75; // Average order value for affordable products
         const conversions = Math.max(1, Math.round(conversionValue / avgOrderValue));
         const cpc = randomFloat(1.0, 3.5);
         const clicks = Math.round(spend / cpc);
@@ -444,23 +515,33 @@ serve(async (req) => {
         });
       }
       
-      // Link each campaign to 2-4 products
-      const numProducts = randomInt(2, 4);
-      const linkedProducts = insertedProducts!.slice(idx % 20, (idx % 20) + numProducts);
+      // Link each campaign to 3-5 products, spread across all 20 products
+      // Use different offsets per campaign to maximize coverage
+      const numProducts = randomInt(3, 5);
+      const startIdx = (idx * 3) % 20; // spread starting index
+      const linkedProductIds = new Set<string>();
+      for (let p = 0; p < numProducts; p++) {
+        const pIdx = (startIdx + p * 2) % insertedProducts!.length;
+        linkedProductIds.add(insertedProducts![pIdx].id);
+      }
       
-      linkedProducts.forEach(product => {
-        campaignLinks.push({
-          user_id: user.id,
-          organization_id: organizationId,
-          campaign_id: campaignId,
-          campaign_name: campaign.name,
-          platform: campaign.platform,
-          product_id: product.id,
-          sku: product.sku,
-          is_active: campaign.status === 'active',
-          link_type: 'manual',
-          start_date: new Date(now.getTime() - 60 * 24 * 60 * 60 * 1000).toISOString().split('T')[0]
-        });
+      linkedProductIds.forEach(productId => {
+        const product = insertedProducts!.find(p => p.id === productId)!;
+        // Avoid duplicate links for same campaign+product
+        if (!campaignLinks.some(l => l.campaign_id === campaignId && l.product_id === productId)) {
+          campaignLinks.push({
+            user_id: user.id,
+            organization_id: organizationId,
+            campaign_id: campaignId,
+            campaign_name: campaign.name,
+            platform: campaign.platform,
+            product_id: product.id,
+            sku: product.sku,
+            is_active: campaign.status === 'active',
+            link_type: 'manual',
+            start_date: new Date(now.getTime() - 60 * 24 * 60 * 60 * 1000).toISOString().split('T')[0]
+          });
+        }
       });
     });
 
@@ -478,23 +559,42 @@ serve(async (req) => {
     // Generate attributed conversions based on orders and campaign links
     console.log('Gerando atribuições de conversão...');
     
-    // For each order, check if the product has a linked campaign and create attribution
-    const ordersWithAttribution = orders.slice(0, Math.floor(orders.length * 0.35)); // ~35% of orders attributed
+    // Assign a performance tier to each product for realistic ROAS distribution
+    // ~30% excellent (3x-6x), ~40% good (1.5x-3x), ~20% neutral (0.8x-1.2x), ~10% poor (0.3x-0.8x)
+    const linkedProductIds = [...new Set(campaignLinks.map(l => l.product_id))];
+    const productTiers: Record<string, { minRoas: number; maxRoas: number; label: string }> = {};
+    
+    linkedProductIds.forEach((productId, i) => {
+      const ratio = i / linkedProductIds.length;
+      if (ratio < 0.3) {
+        productTiers[productId] = { minRoas: 3.0, maxRoas: 6.0, label: 'excellent' };
+      } else if (ratio < 0.7) {
+        productTiers[productId] = { minRoas: 1.5, maxRoas: 3.0, label: 'good' };
+      } else if (ratio < 0.9) {
+        productTiers[productId] = { minRoas: 0.8, maxRoas: 1.2, label: 'neutral' };
+      } else {
+        productTiers[productId] = { minRoas: 0.3, maxRoas: 0.8, label: 'poor' };
+      }
+    });
+    
+    // ~40% of orders get attribution
+    const ordersWithAttribution = orders.slice(0, Math.floor(orders.length * 0.40));
     
     for (const order of ordersWithAttribution) {
       const orderItems = order.items as { product_id: string; name: string; quantity: number; price: number }[];
       
       for (const item of orderItems) {
-        // Find if this product has a linked campaign
         const linkedCampaign = campaignLinks.find(link => link.product_id === item.product_id);
         
         if (linkedCampaign) {
           const orderDate = new Date(order.order_date);
           const orderValue = item.price * item.quantity;
+          const tier = productTiers[item.product_id];
           
-          // Calculate attributed spend (proportional to campaign daily spend)
-          const campaign = adCampaigns.find(c => `demo-campaign-${adCampaigns.indexOf(c) + 1}` === linkedCampaign.campaign_id);
-          const attributedSpend = campaign ? campaign.dailyBudget * randomFloat(0.02, 0.08) : randomFloat(5, 20);
+          // Calculate attributed_spend = order_value / target_roas
+          // This produces realistic ROAS values
+          const targetRoas = tier ? randomFloat(tier.minRoas, tier.maxRoas) : randomFloat(1.5, 3.0);
+          const attributedSpend = orderValue / targetRoas;
           
           attributedConversions.push({
             user_id: user.id,
@@ -504,7 +604,7 @@ serve(async (req) => {
             platform: linkedCampaign.platform,
             product_id: item.product_id,
             sku: linkedCampaign.sku,
-            order_id: null, // We don't have the actual order ID at this point
+            order_id: null,
             order_value: orderValue,
             quantity: item.quantity,
             attributed_spend: Math.round(attributedSpend * 100) / 100,

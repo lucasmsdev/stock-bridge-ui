@@ -1,64 +1,30 @@
 
-# Plano: Corrigir 404 no Deploy Vercel para SPA React
 
-## Diagnóstico
+# Transicoes Clean entre Secoes
 
-O problema não está no `vite.config.ts` - a configuração atual está correta. O Vite já:
-- Gera a pasta `dist/` por padrão
-- Inclui `index.html` automaticamente
-- Usa `base: '/'` como padrão
+## O que muda
 
-**O problema real**: A Vercel não sabe que seu projeto é uma SPA (Single Page Application) e tenta servir arquivos estáticos para cada rota. Quando você acessa `/app/produto`, ela busca um arquivo que não existe.
+Remover todos os `SectionDivider` com ondas SVG (visual pesado e datado) e substituir por **gradientes CSS sutis** entre secoes. Essa abordagem e usada por sites como Linear, Vercel e Stripe - minimalista e moderna.
 
-## Solução
+## Abordagem
 
-Criar um arquivo `vercel.json` na raiz do projeto que instrui a Vercel a:
-1. Redirecionar todas as rotas para `index.html`
-2. Usar a pasta `dist` como output
-3. Configurar o comando de build correto
+Em vez de formas SVG entre secoes, cada secao tera um **gradiente de fundo suave** que faz a transicao naturalmente para a proxima. O efeito e quase invisivel, mas elimina cortes bruscos.
 
-## Implementação
+### Mudancas
 
-### Arquivo a ser criado: `vercel.json`
+**1. Deletar `src/components/ui/section-divider.tsx`** - nao sera mais necessario.
 
-```json
-{
-  "buildCommand": "npm run build",
-  "outputDirectory": "dist",
-  "framework": "vite",
-  "rewrites": [
-    {
-      "source": "/(.*)",
-      "destination": "/index.html"
-    }
-  ]
-}
-```
+**2. Editar `src/pages/Landing.tsx`:**
+- Remover todas as 8 instancias de `<SectionDivider ... />`
+- Remover o import do `SectionDivider`
+- Adicionar classes de gradiente sutil nas secoes que fazem transicao de cor:
+  - Secoes com fundo `bg-muted/30` recebem `bg-gradient-to-b from-background to-muted/30` no inicio e `bg-gradient-to-b from-muted/30 to-background` no final
+  - Isso cria um fade suave entre cores de fundo, sem elementos visuais extras
+- Restaurar `border-t` no footer
 
-## Detalhes Técnicos
+### Resultado visual
+- Zero elementos decorativos entre secoes
+- Transicoes de cor acontecem naturalmente via gradiente CSS
+- Visual limpo, moderno e profissional
+- Funciona perfeitamente em light e dark mode
 
-| Configuração | Propósito |
-|--------------|-----------|
-| `buildCommand` | Define explicitamente o comando de build |
-| `outputDirectory` | Aponta para a pasta `dist` gerada pelo Vite |
-| `framework` | Otimiza a Vercel para projetos Vite |
-| `rewrites` | Redireciona TODAS as rotas para `index.html`, permitindo que o React Router gerencie a navegação |
-
-## Por que isso resolve
-
-Quando um usuário acessa `/app/produto`:
-1. **Antes**: Vercel busca `/app/produto/index.html` → 404
-2. **Depois**: Vercel serve `/index.html` → React Router renderiza a rota `/app/produto`
-
-## Alternativa (se preferir Netlify)
-
-Para Netlify, seria necessário criar `public/_redirects`:
-```
-/*    /index.html   200
-```
-
-## Passos após implementação
-
-1. Commitar o `vercel.json` no repositório
-2. Fazer novo deploy na Vercel
-3. Testar as rotas `/app/dashboard`, `/app/produto`, etc.

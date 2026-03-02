@@ -303,7 +303,6 @@ const ShopeeProvider: MarketplaceOrderProvider = {
   platform: 'shopee',
   
   mapStatus(platformStatus: string): OrderStatus {
-    // TODO: Implement when Shopee integration is ready
     const statusMap: Record<string, OrderStatus> = {
       'unpaid': 'pending',
       'ready_to_ship': 'paid',
@@ -317,11 +316,211 @@ const ShopeeProvider: MarketplaceOrderProvider = {
   },
 
   async fetchOrders(accessToken: string, integration: any, since: Date): Promise<StandardOrder[]> {
-    // TODO: Implement when Shopee integration is ready
     console.log('Shopee provider not yet implemented');
     return [];
   }
 };
+
+// ================= MAGALU PROVIDER =================
+const MagaluProvider: MarketplaceOrderProvider = {
+  platform: 'magalu',
+  
+  mapStatus(platformStatus: string): OrderStatus {
+    const statusMap: Record<string, OrderStatus> = {
+      'new': 'pending',
+      'approved': 'paid',
+      'shipped': 'shipped',
+      'delivered': 'delivered',
+      'finished': 'delivered',
+      'cancelled': 'cancelled',
+      'refunded': 'refunded',
+    };
+    return statusMap[platformStatus.toLowerCase()] || 'pending';
+  },
+
+  async fetchOrders(accessToken: string, integration: any, since: Date): Promise<StandardOrder[]> {
+    const orders: StandardOrder[] = [];
+    
+    try {
+      const sinceStr = since.toISOString().split('T')[0]; // YYYY-MM-DD format
+      
+      const ordersUrl = `https://api.magalu.com/seller/v1/orders?purchased_at__gte=${sinceStr}&_limit=100`;
+      const ordersResponse = await fetch(ordersUrl, {
+        headers: {
+          'Authorization': `Bearer ${accessToken}`,
+          'Accept': 'application/json',
+        }
+      });
+      
+      if (!ordersResponse.ok) {
+        console.error('Failed to fetch Magalu orders:', await ordersResponse.text());
+        return orders;
+      }
+      
+      const ordersData = await ordersResponse.json();
+      const ordersList = Array.isArray(ordersData) ? ordersData : (ordersData.results || ordersData.data || []);
+      
+      for (const order of ordersList) {
+        const items = (order.items || order.order_items || []).map((item: any) => ({
+          id: item.id || item.sku,
+          seller_sku: item.sku || '',
+          title: item.title || item.name || '',
+          quantity: item.quantity || 1,
+          unit_price: item.unit_price || item.price || 0,
+        }));
+        
+        const totalValue = items.reduce((sum: number, item: any) => 
+          sum + (item.unit_price * item.quantity), 0) || order.total || order.total_value || 0;
+        
+        orders.push({
+          order_id_channel: String(order.id || order.code || order.order_id),
+          platform: 'magalu',
+          status: this.mapStatus(order.status || 'new'),
+          customer_name: order.customer?.name || order.buyer?.name || null,
+          customer_email: order.customer?.email || order.buyer?.email || null,
+          shipping_address: order.shipping_address || order.delivery_address || null,
+          total_value: totalValue,
+          order_date: order.purchased_at || order.created_at || new Date().toISOString(),
+          items,
+        });
+      }
+      
+      console.log(`Magalu: Fetched ${orders.length} orders`);
+    } catch (error) {
+      console.error('Error fetching Magalu orders:', error);
+    }
+    
+    return orders;
+  }
+};
+
+// ================= TIKTOK SHOP PROVIDER =================
+const TikTokShopProvider: MarketplaceOrderProvider = {
+  platform: 'tiktokshop',
+  
+  mapStatus(platformStatus: string): OrderStatus {
+    const statusMap: Record<string, OrderStatus> = {
+      'unpaid': 'pending',
+      'on_hold': 'paid',
+      'awaiting_shipment': 'paid',
+      'awaiting_collection': 'shipped',
+      'in_transit': 'shipped',
+      'delivered': 'delivered',
+      'completed': 'delivered',
+      'cancelled': 'cancelled',
+    };
+    return statusMap[platformStatus.toLowerCase()] || 'pending';
+  },
+
+  async fetchOrders(accessToken: string, integration: any, since: Date): Promise<StandardOrder[]> {
+    const orders: StandardOrder[] = [];
+    
+    try {
+      const appKey = Deno.env.get('TIKTOK_SHOP_APP_KEY');
+      const appSecret = Deno.env.get('TIKTOK_SHOP_APP_SECRET');
+      
+      if (!appKey || !appSecret) {
+        console.log('TikTok Shop credentials not configured');
+        return orders;
+      }
+
+      const shopCipher = integration.selling_partner_id;
+      if (!shopCipher) {
+        console.error('No shop_cipher found for TikTok Shop integration');
+        return orders;
+      }
+
+      const sinceTimestamp = Math.floor(since.getTime() / 1000);
+      const nowTimestamp = Math.floor(Date.now() / 1000);
+
+      // Generate sign
+      const path = '/api/orders/search';
+      const timestamp = Math.floor(Date.now() / 1000);
+      const queryParams: Record<string, string> = {
+        app_key: appKey,
+        timestamp: timestamp.toString(),
+        shop_cipher: shopCipher,
+      };
+
+      const sign = await generateTikTokSign(path, queryParams, appSecret);
+
+      const searchUrl = `https://open-api.tiktokglobalshop.com${path}?app_key=${appKey}&timestamp=${timestamp}&sign=${sign}&shop_cipher=${shopCipher}&access_token=${accessToken}`;
+
+      const searchResponse = await fetch(searchUrl, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          create_time_from: sinceTimestamp,
+          create_time_to: nowTimestamp,
+          page_size: 50,
+        }),
+      });
+
+      if (!searchResponse.ok) {
+        console.error('Failed to fetch TikTok Shop orders:', await searchResponse.text());
+        return orders;
+      }
+
+      const searchResult = await searchResponse.json();
+      const orderList = searchResult.data?.order_list || [];
+
+      for (const order of orderList) {
+        const items = (order.item_list || order.line_items || []).map((item: any) => ({
+          id: item.id || item.sku_id,
+          seller_sku: item.seller_sku || item.sku_id || '',
+          title: item.product_name || item.sku_name || '',
+          quantity: item.quantity || 1,
+          unit_price: parseFloat(item.sale_price || item.sku_price || '0'),
+        }));
+
+        const totalValue = items.reduce((sum: number, item: any) => 
+          sum + (item.unit_price * item.quantity), 0) || parseFloat(order.payment?.total_amount || '0');
+
+        orders.push({
+          order_id_channel: order.order_id || String(order.id),
+          platform: 'tiktokshop',
+          status: this.mapStatus(order.order_status || 'UNPAID'),
+          customer_name: order.recipient_address?.name || null,
+          customer_email: null, // TikTok Shop doesn't expose buyer email
+          shipping_address: order.recipient_address || null,
+          total_value: totalValue,
+          order_date: order.create_time ? new Date(order.create_time * 1000).toISOString() : new Date().toISOString(),
+          items,
+        });
+      }
+
+      console.log(`TikTok Shop: Fetched ${orders.length} orders`);
+    } catch (error) {
+      console.error('Error fetching TikTok Shop orders:', error);
+    }
+    
+    return orders;
+  }
+};
+
+// HMAC-SHA256 signature helper for TikTok Shop API
+async function generateTikTokSign(
+  path: string,
+  params: Record<string, string>,
+  appSecret: string
+): Promise<string> {
+  const sortedKeys = Object.keys(params).sort();
+  const paramString = sortedKeys.map(key => `${key}${params[key]}`).join('');
+  const baseString = `${appSecret}${path}${paramString}${appSecret}`;
+  
+  const encoder = new TextEncoder();
+  const keyData = encoder.encode(appSecret);
+  const messageData = encoder.encode(baseString);
+  
+  const cryptoKey = await crypto.subtle.importKey(
+    'raw', keyData, { name: 'HMAC', hash: 'SHA-256' }, false, ['sign']
+  );
+  const signature = await crypto.subtle.sign('HMAC', cryptoKey, messageData);
+  
+  return Array.from(new Uint8Array(signature))
+    .map(b => b.toString(16).padStart(2, '0'))
+    .join('');
+}
 
 // Provider registry - easy to extend
 const providers: Record<string, MarketplaceOrderProvider> = {
@@ -329,6 +528,8 @@ const providers: Record<string, MarketplaceOrderProvider> = {
   'amazon': AmazonProvider,
   'shopify': ShopifyProvider,
   'shopee': ShopeeProvider,
+  'magalu': MagaluProvider,
+  'tiktokshop': TikTokShopProvider,
 };
 
 // Helper function to refresh tokens before syncing

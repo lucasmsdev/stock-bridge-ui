@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { useSearchParams, useNavigate } from "react-router-dom";
-import { Plus, Settings, Unlink, ExternalLink, CheckCircle2, Plug, Loader2, Lock, Download, Key, RefreshCw, Clock, AlertTriangle, ShieldAlert } from "lucide-react";
+import { Plus, Settings, Unlink, ExternalLink, CheckCircle2, Plug, Loader2, Lock, Download, Key, RefreshCw, Clock, AlertTriangle, ShieldAlert, Megaphone } from "lucide-react";
 import { useThemeProvider } from "@/components/layout/ThemeProvider";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -27,6 +27,7 @@ import { AmazonSelfAuthDialog } from "@/components/integrations/AmazonSelfAuthDi
 import { AmazonSellerIdDialog } from "@/components/integrations/AmazonSellerIdDialog";
 import { TokenStatusBadge, getTimeUntilExpiry } from "@/components/integrations/TokenStatusBadge";
 import { useOrgRole } from "@/hooks/useOrgRole";
+import { TikTokSandboxDialog } from "@/components/integrations/TikTokSandboxDialog";
 
 // Integration type
 interface IntegrationPlatform {
@@ -72,6 +73,19 @@ const marketplaceIntegrations: IntegrationPlatform[] = [
     logoUrl: "/logos/shein.png",
     comingSoon: true,
   },
+  {
+    id: "tiktokshop",
+    name: "TikTok Shop",
+    description: "Venda diretamente pelo TikTok com integração de catálogo e pedidos",
+    logoUrl: "/logos/tiktok-shop.png",
+    comingSoon: true,
+  },
+  {
+    id: "magalu",
+    name: "Magalu",
+    description: "Conecte-se ao marketplace da Magazine Luiza e expanda suas vendas",
+    logoUrl: "/logos/magalu.png",
+  },
 ];
 
 const adsIntegrations: IntegrationPlatform[] = [
@@ -85,14 +99,12 @@ const adsIntegrations: IntegrationPlatform[] = [
     id: "google_ads",
     name: "Google Ads",
     description: "Métricas de campanhas do Google Ads - pesquisa, display e shopping",
-    comingSoon: true,
     logoUrl: "https://upload.wikimedia.org/wikipedia/commons/c/c7/Google_Ads_logo.svg",
   },
   {
     id: "tiktok_ads",
     name: "TikTok Ads",
     description: "Métricas de campanhas do TikTok Ads - vídeos e performance",
-    comingSoon: true,
     logoUrl: "https://sf-tb-sg.ibytedtos.com/obj/eden-sg/uhtyvueh7nulogpoguhm/tiktok-icon2.png",
   },
 ];
@@ -110,6 +122,7 @@ export default function Integrations() {
   const [connectedIntegrations, setConnectedIntegrations] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [amazonSelfAuthOpen, setAmazonSelfAuthOpen] = useState(false);
+  const [tiktokSandboxOpen, setTiktokSandboxOpen] = useState(false);
   const [amazonSellerIdDialog, setAmazonSellerIdDialog] = useState<{ open: boolean; integrationId: string; currentSellerId?: string | null }>({
     open: false,
     integrationId: "",
@@ -213,6 +226,22 @@ export default function Integrations() {
               const accountName = integration.shop_domain || "Loja Shopify";
               await supabase.from("integrations").update({ account_name: accountName }).eq("id", integration.id);
               integration.account_name = accountName;
+            } else if (integration.platform === "magalu") {
+              const accountName = "Conta Magalu";
+              await supabase.from("integrations").update({ account_name: accountName }).eq("id", integration.id);
+              integration.account_name = accountName;
+            } else if (integration.platform === "tiktokshop") {
+              const accountName = "Conta TikTok Shop";
+              await supabase.from("integrations").update({ account_name: accountName }).eq("id", integration.id);
+              integration.account_name = accountName;
+            } else if (integration.platform === "google_ads") {
+              const accountName = "Conta Google Ads";
+              await supabase.from("integrations").update({ account_name: accountName }).eq("id", integration.id);
+              integration.account_name = accountName;
+            } else if (integration.platform === "tiktok_ads") {
+              const accountName = "Conta TikTok Ads";
+              await supabase.from("integrations").update({ account_name: accountName }).eq("id", integration.id);
+              integration.account_name = accountName;
             }
           } catch (err) {
             console.error(`Error updating account name for ${integration.platform}:`, err);
@@ -296,6 +325,37 @@ export default function Integrations() {
 
       // Redirect to Shopify authorization page
       window.location.href = authUrl;
+    } else if (platformId === "magalu") {
+      // Magalu OAuth flow
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
+
+      if (!user) {
+        toast({
+          title: "Erro de autenticação",
+          description: "Faça login para conectar integrações.",
+          variant: "destructive",
+        });
+        return;
+      }
+
+      console.log("🟣 Iniciando fluxo OAuth Magalu...");
+
+      const magaluClientId = "857769e2-779c-4ebd-a9ac-2e3ee7337a5b";
+      const redirectUri = `${window.location.origin}/callback/magalu`;
+      const scopes = "portfolios:read portfolios:write orders:read conversations:read conversations:write";
+
+      const authUrl =
+        `https://id.magalu.com/login` +
+        `?client_id=${encodeURIComponent(magaluClientId)}` +
+        `&redirect_uri=${encodeURIComponent(redirectUri)}` +
+        `&scope=${encodeURIComponent(scopes)}` +
+        `&response_type=code` +
+        `&choose_tenants=true`;
+
+      console.log("🔄 Redirecionando para Magalu ID...");
+      window.location.href = authUrl;
     } else if (platformId === "meta_ads") {
       // Meta Ads OAuth flow
       const {
@@ -328,8 +388,139 @@ export default function Integrations() {
 
       console.log("🔄 Redirecionando para Facebook Login...");
       window.location.href = authUrl;
+    } else if (platformId === "google_ads") {
+      // Google Ads OAuth flow
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
+
+      if (!user) {
+        toast({
+          title: "Erro de autenticação",
+          description: "Faça login para conectar integrações.",
+          variant: "destructive",
+        });
+        return;
+      }
+
+      console.log("🟢 Iniciando fluxo OAuth Google Ads...");
+
+      const googleClientId = "92454322738-oukciv82rs0h2fg75hhg65hdl87h17rh.apps.googleusercontent.com";
+      const callbackUrl = `https://fcvwogaqarkuqvumyqqm.supabase.co/functions/v1/google-ads-auth`;
+      const scopes = "https://www.googleapis.com/auth/adwords";
+
+      const authUrl =
+        `https://accounts.google.com/o/oauth2/v2/auth` +
+        `?client_id=${googleClientId}` +
+        `&redirect_uri=${encodeURIComponent(callbackUrl)}` +
+        `&scope=${encodeURIComponent(scopes)}` +
+        `&response_type=code` +
+        `&access_type=offline` +
+        `&prompt=consent` +
+        `&state=${user.id}`;
+
+      console.log("🔄 Redirecionando para Google OAuth...");
+      window.location.href = authUrl;
+    } else if (platformId === "tiktokshop") {
+      // TikTok Shop OAuth flow
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
+
+      if (!user) {
+        toast({
+          title: "Erro de autenticação",
+          description: "Faça login para conectar integrações.",
+          variant: "destructive",
+        });
+        return;
+      }
+
+      console.log("🎵 Iniciando fluxo OAuth TikTok Shop...");
+
+      // TikTok Shop App Key - chave pública da aplicação UNISTOCK
+      const tiktokAppKey = "6j0biv1696bcn";
+
+      const authUrl =
+        `https://services.tiktokshop.com/open/authorize` +
+        `?service_id=${tiktokAppKey}`;
+
+      console.log("🔄 Redirecionando para TikTok Shop...");
+      window.location.href = authUrl;
+    } else if (platformId === "tiktok_ads") {
+      // TikTok Ads OAuth flow
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
+
+      if (!user) {
+        toast({
+          title: "Erro de autenticação",
+          description: "Faça login para conectar integrações.",
+          variant: "destructive",
+        });
+        return;
+      }
+
+      console.log("🎵 Iniciando fluxo TikTok Ads...");
+
+      // Fluxo OAuth de produção
+      const tiktokAdsAppId = "7604695140725751824";
+      const callbackUrl = `https://fcvwogaqarkuqvumyqqm.supabase.co/functions/v1/tiktok-ads-auth`;
+      const stateParam = `${user.id}`;
+
+      const authUrl =
+        `https://business-api.tiktok.com/portal/auth` +
+        `?app_id=${tiktokAdsAppId}` +
+        `&state=${stateParam}` +
+        `&redirect_uri=${encodeURIComponent(callbackUrl)}`;
+
+      console.log('🔄 Redirecionando para TikTok Business...');
+      window.location.href = authUrl;
+    } else if (platformId === "shopee") {
+      // Shopee OAuth flow via Edge Function
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
+
+      if (!user) {
+        toast({
+          title: "Erro de autenticação",
+          description: "Faça login para conectar integrações.",
+          variant: "destructive",
+        });
+        return;
+      }
+
+      console.log("🟠 Iniciando fluxo OAuth Shopee...");
+
+      try {
+        const { data: { session } } = await supabase.auth.getSession();
+        const { data, error } = await supabase.functions.invoke("shopee-auth", {
+          headers: { Authorization: `Bearer ${session?.access_token}` },
+        });
+
+        if (error || !data?.url) {
+          console.error("Shopee auth error:", error || data);
+          toast({
+            title: "Erro ao conectar Shopee",
+            description: "Não foi possível iniciar a autorização. Tente novamente.",
+            variant: "destructive",
+          });
+          return;
+        }
+
+        console.log("🔄 Redirecionando para Shopee...");
+        window.location.href = data.url;
+      } catch (err) {
+        console.error("Shopee auth error:", err);
+        toast({
+          title: "Erro ao conectar Shopee",
+          description: "Erro inesperado. Tente novamente.",
+          variant: "destructive",
+        });
+      }
     } else {
-      // Mock connection logic for other platforms
       toast({
         title: "Em desenvolvimento",
         description: `A integração com ${platformId} estará disponível em breve.`,
@@ -580,7 +771,7 @@ export default function Integrations() {
           <h1 className="text-2xl md:text-3xl font-bold">Integrações de Canais</h1>
           <p className="text-muted-foreground">Conecte e gerencie seus canais de venda em um só lugar</p>
         </div>
-        {connectedIntegrations.length > 0 && (
+        {connectedIntegrations.filter((i: any) => !['meta_ads', 'google_ads', 'tiktok_ads'].includes(i.platform)).length > 0 && (
           <Button
             onClick={handleSyncAllOrders}
             disabled={syncingAll || syncingId !== null}
@@ -753,59 +944,77 @@ export default function Integrations() {
                           </div>
                         )}
 
-                        <Separator />
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          className="w-full"
-                          onClick={() =>
-                            handleSyncOrders(
-                              integration.id,
-                              integration.platform,
-                              integration.account_nickname || integration.account_name,
-                            )
-                          }
-                          disabled={syncingId === integration.id || syncingAll}
-                        >
-                          {syncingId === integration.id ? (
-                            <>
-                              <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                              <span className="animate-pulse">Sincronizando...</span>
-                            </>
-                          ) : (
-                            <>
-                              <RefreshCw className="w-4 h-4 mr-2" />
-                              Sincronizar Pedidos
-                            </>
-                          )}
-                        </Button>
+                        {/* Ads platforms: show "Sincronizar Métricas" instead of import/sync */}
+                        {['meta_ads', 'google_ads', 'tiktok_ads'].includes(integration.platform) ? (
+                          <>
+                            <Separator />
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              className="w-full"
+                              onClick={() => navigate('/app/dashboard?tab=ads')}
+                            >
+                              <Megaphone className="w-4 h-4 mr-2" />
+                              Sincronizar Métricas
+                            </Button>
+                          </>
+                        ) : (
+                          <>
+                            <Separator />
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              className="w-full"
+                              onClick={() =>
+                                handleSyncOrders(
+                                  integration.id,
+                                  integration.platform,
+                                  integration.account_nickname || integration.account_name,
+                                )
+                              }
+                              disabled={syncingId === integration.id || syncingAll}
+                            >
+                              {syncingId === integration.id ? (
+                                <>
+                                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                                  <span className="animate-pulse">Sincronizando...</span>
+                                </>
+                              ) : (
+                                <>
+                                  <RefreshCw className="w-4 h-4 mr-2" />
+                                  Sincronizar Pedidos
+                                </>
+                              )}
+                            </Button>
 
-                        {/* Import Products Button for all platforms */}
-                        <Button
-                          variant="default"
-                          size="sm"
-                          className="w-full bg-gradient-primary relative overflow-hidden"
-                          onClick={() =>
-                            handleImportProducts(
-                              integration.id,
-                              integration.platform,
-                              integration.account_nickname || integration.account_name,
-                            )
-                          }
-                          disabled={importingId === integration.id}
-                        >
-                          {importingId === integration.id ? (
-                            <>
-                              <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                              <span className="animate-pulse">Importando...</span>
-                            </>
-                          ) : (
-                            <>
-                              <Download className="w-4 h-4 mr-2" />
-                              Importar Produtos
-                            </>
-                          )}
-                        </Button>
+                            {/* Import Products Button - only for marketplaces */}
+                            <Button
+                              variant="default"
+                              size="sm"
+                              className="w-full bg-gradient-primary relative overflow-hidden"
+                              onClick={() =>
+                                handleImportProducts(
+                                  integration.id,
+                                  integration.platform,
+                                  integration.account_nickname || integration.account_name,
+                                )
+                              }
+                              disabled={importingId === integration.id}
+                            >
+                              {importingId === integration.id ? (
+                                <>
+                                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                                  <span className="animate-pulse">Importando...</span>
+                                </>
+                              ) : (
+                                <>
+                                  <Download className="w-4 h-4 mr-2" />
+                                  Importar Produtos
+                                </>
+                              )}
+                            </Button>
+                          </>
+                        )}
 
                         <Separator />
 
@@ -922,10 +1131,10 @@ export default function Integrations() {
             return (
               <Card
                 key={platform.id}
-                className={`shadow-soft hover:shadow-medium transition-all duration-200 group hover:scale-[1.02] hover:-translate-y-1 ${platform.comingSoon ? 'opacity-70' : ''}`}
+                className={`shadow-soft hover:shadow-medium transition-all duration-200 group hover:scale-[1.02] hover:-translate-y-1 flex flex-col ${platform.comingSoon ? 'opacity-70' : ''}`}
                 style={{ animationDelay: `${index * 0.1}s` }}
               >
-                <CardHeader className="pb-3">
+                <CardHeader className="pb-3 flex-1">
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-3">
                       <div className="group-hover:scale-110 transition-transform">
@@ -955,7 +1164,7 @@ export default function Integrations() {
                   <CardDescription className="text-sm">{platform.description}</CardDescription>
                 </CardHeader>
 
-                <CardContent>
+                <CardContent className="mt-auto">
                   {platform.comingSoon ? (
                     <Button
                       disabled
@@ -996,10 +1205,10 @@ export default function Integrations() {
             return (
               <Card
                 key={platform.id}
-                className={`shadow-soft hover:shadow-medium transition-all duration-200 group hover:scale-[1.02] hover:-translate-y-1 ${platform.comingSoon ? 'opacity-70' : ''}`}
+                className={`shadow-soft hover:shadow-medium transition-all duration-200 group hover:scale-[1.02] hover:-translate-y-1 flex flex-col ${platform.comingSoon ? 'opacity-70' : ''}`}
                 style={{ animationDelay: `${index * 0.1}s` }}
               >
-                <CardHeader className="pb-3">
+                <CardHeader className="pb-3 flex-1">
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-3">
                       <div className="group-hover:scale-110 transition-transform">
@@ -1029,7 +1238,7 @@ export default function Integrations() {
                   <CardDescription className="text-sm">{platform.description}</CardDescription>
                 </CardHeader>
 
-                <CardContent>
+                <CardContent className="mt-auto">
                   {platform.comingSoon ? (
                     <Button
                       disabled
@@ -1091,6 +1300,13 @@ export default function Integrations() {
         onSuccess={loadConnectedIntegrations}
         integrationId={amazonSellerIdDialog.integrationId}
         currentSellerId={amazonSellerIdDialog.currentSellerId}
+      />
+
+      {/* TikTok Ads Sandbox Dialog */}
+      <TikTokSandboxDialog
+        open={tiktokSandboxOpen}
+        onOpenChange={setTiktokSandboxOpen}
+        onSuccess={loadConnectedIntegrations}
       />
     </div>
   );

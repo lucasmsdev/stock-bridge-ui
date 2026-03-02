@@ -42,10 +42,10 @@ serve(async (req) => {
 
     // Map plan types to Stripe price IDs (PRODUCTION)
     const planPriceMap = {
-      'estrategista': 'price_1SPocGKdlB8Nu9cynoGjpe2V',  // R$ 97 (Iniciante)
-      'competidor': 'price_1SPocVKdlB8Nu9cyHYEa8b2m',    // R$ 197 (Profissional)
-      'dominador': 'price_1SUaBhKdlB8Nu9cyPgDnMGtR',     // R$ 297 (Enterprise)
-      'unlimited': 'price_1SPodWKdlB8Nu9cyShTWmTES'      // R$ 397 (Unlimited)
+      'iniciante': 'price_1SPocGKdlB8Nu9cynoGjpe2V',      // R$ 97 (Iniciante)
+      'profissional': 'price_1SPocVKdlB8Nu9cyHYEa8b2m',   // R$ 197 (Profissional)
+      'enterprise': 'price_1SUaBhKdlB8Nu9cyPgDnMGtR',     // R$ 297 (Enterprise)
+      'unlimited': 'price_1SPodWKdlB8Nu9cyShTWmTES'       // R$ 397 (Unlimited)
     };
 
     const priceId = planPriceMap[planType as keyof typeof planPriceMap];

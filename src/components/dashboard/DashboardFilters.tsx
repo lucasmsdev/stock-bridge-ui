@@ -29,6 +29,8 @@ const marketplaces = [
   { value: "shopee", label: "Shopee" },
   { value: "amazon", label: "Amazon" },
   { value: "shopify", label: "Shopify" },
+  { value: "magalu", label: "Magalu" },
+  { value: "tiktokshop", label: "TikTok Shop" },
 ];
 
 const periods = [

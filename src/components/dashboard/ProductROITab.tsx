@@ -13,6 +13,9 @@ import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useProductROI } from "@/hooks/useProductROI";
+import { AttributionManagerDialog } from "./AttributionManagerDialog";
+import { supabase } from "@/integrations/supabase/client";
+import { useToast } from "@/hooks/use-toast";
 import { 
   TrendingUp, 
   TrendingDown, 
@@ -21,10 +24,14 @@ import {
   Package,
   Search,
   ArrowUpDown,
+  ArrowUp,
+  ArrowDown,
   AlertTriangle,
   CheckCircle,
   BarChart3,
-  RefreshCcw
+  RefreshCcw,
+  Play,
+  Loader2,
 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 
@@ -35,12 +42,47 @@ const formatCurrency = (value: number) => {
   }).format(value);
 };
 
-export default function ProductROI() {
+type SortField = 'roas' | 'revenue' | 'spend' | 'sales' | 'cpa';
+
+export function ProductROITab() {
   const { roiData, summary, isLoading, refetch } = useProductROI();
   const [search, setSearch] = useState("");
-  const [sortBy, setSortBy] = useState<'roas' | 'revenue' | 'spend'>('roas');
+  const [sortBy, setSortBy] = useState<SortField>('roas');
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc');
+  const [isProcessing, setIsProcessing] = useState(false);
   const navigate = useNavigate();
+  const { toast } = useToast();
+
+  const handleProcessNow = async () => {
+    setIsProcessing(true);
+    try {
+      const { data, error } = await supabase.functions.invoke('attribute-conversions');
+      if (error) throw error;
+      toast({
+        title: "Atribuições processadas",
+        description: `Processamento concluído com sucesso.`,
+      });
+      refetch();
+    } catch (err: any) {
+      toast({
+        title: "Erro ao processar",
+        description: err.message || "Falha ao processar atribuições.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsProcessing(false);
+    }
+  };
+
+  const getSortValue = (p: typeof roiData[number], field: SortField) => {
+    switch (field) {
+      case 'roas': return p.roas;
+      case 'revenue': return p.total_attributed_revenue;
+      case 'spend': return p.total_attributed_spend;
+      case 'sales': return p.total_attributed_units;
+      case 'cpa': return p.cost_per_acquisition;
+    }
+  };
 
   const filteredData = roiData
     .filter(p => 
@@ -48,18 +90,25 @@ export default function ProductROI() {
       p.sku.toLowerCase().includes(search.toLowerCase())
     )
     .sort((a, b) => {
-      const aVal = sortBy === 'roas' ? a.roas : sortBy === 'revenue' ? a.total_attributed_revenue : a.total_attributed_spend;
-      const bVal = sortBy === 'roas' ? b.roas : sortBy === 'revenue' ? b.total_attributed_revenue : b.total_attributed_spend;
+      const aVal = getSortValue(a, sortBy);
+      const bVal = getSortValue(b, sortBy);
       return sortOrder === 'desc' ? bVal - aVal : aVal - bVal;
     });
 
-  const toggleSort = (field: 'roas' | 'revenue' | 'spend') => {
+  const toggleSort = (field: SortField) => {
     if (sortBy === field) {
       setSortOrder(sortOrder === 'desc' ? 'asc' : 'desc');
     } else {
       setSortBy(field);
       setSortOrder('desc');
     }
+  };
+
+  const SortIcon = ({ field }: { field: SortField }) => {
+    if (sortBy !== field) return <ArrowUpDown className="h-3 w-3 text-muted-foreground/50" />;
+    return sortOrder === 'desc' 
+      ? <ArrowDown className="h-3 w-3 text-primary" /> 
+      : <ArrowUp className="h-3 w-3 text-primary" />;
   };
 
   const getRoasStatus = (roas: number) => {
@@ -72,10 +121,6 @@ export default function ProductROI() {
   if (isLoading) {
     return (
       <div className="space-y-6">
-        <div className="flex items-center justify-between">
-          <Skeleton className="h-8 w-48" />
-          <Skeleton className="h-10 w-32" />
-        </div>
         <div className="grid gap-4 md:grid-cols-4">
           {[1, 2, 3, 4].map(i => (
             <Card key={i}>
@@ -96,20 +141,6 @@ export default function ProductROI() {
 
   return (
     <div className="space-y-6">
-      {/* Header */}
-      <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
-        <div>
-          <h1 className="text-3xl font-bold tracking-tight">Análise de ROI por Produto</h1>
-          <p className="text-muted-foreground">
-            Visualize o retorno real dos seus investimentos em anúncios por SKU
-          </p>
-        </div>
-        <Button onClick={() => refetch()} variant="outline" className="gap-2">
-          <RefreshCcw className="h-4 w-4" />
-          Atualizar
-        </Button>
-      </div>
-
       {/* Summary Cards */}
       <div className="grid gap-4 md:grid-cols-4">
         <Card className="shadow-soft">
@@ -230,14 +261,34 @@ export default function ProductROI() {
                 Clique em um produto para ver detalhes e vincular campanhas
               </CardDescription>
             </div>
-            <div className="relative w-full md:w-64">
-              <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-              <Input
-                placeholder="Buscar por nome ou SKU..."
-                value={search}
-                onChange={(e) => setSearch(e.target.value)}
-                className="pl-9"
-              />
+            <div className="flex flex-wrap items-center gap-2">
+              <div className="relative w-full md:w-64">
+                <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+                <Input
+                  placeholder="Buscar por nome ou SKU..."
+                  value={search}
+                  onChange={(e) => setSearch(e.target.value)}
+                  className="pl-9"
+                />
+              </div>
+              <AttributionManagerDialog />
+              <Button 
+                onClick={handleProcessNow} 
+                variant="outline" 
+                size="sm" 
+                className="gap-2"
+                disabled={isProcessing}
+              >
+                {isProcessing ? (
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                ) : (
+                  <Play className="h-4 w-4" />
+                )}
+                Processar Agora
+              </Button>
+              <Button onClick={() => refetch()} variant="outline" size="icon" title="Atualizar">
+                <RefreshCcw className="h-4 w-4" />
+              </Button>
             </div>
           </div>
         </CardHeader>
@@ -265,34 +316,51 @@ export default function ProductROI() {
                     <TableHead>Produto</TableHead>
                     <TableHead>SKU</TableHead>
                     <TableHead 
-                      className="text-right cursor-pointer hover:bg-muted/50"
+                      className="text-right cursor-pointer select-none hover:bg-muted/50 transition-colors"
                       onClick={() => toggleSort('revenue')}
                     >
                       <div className="flex items-center justify-end gap-1">
                         Receita
-                        <ArrowUpDown className="h-3 w-3" />
+                        <SortIcon field="revenue" />
                       </div>
                     </TableHead>
                     <TableHead 
-                      className="text-right cursor-pointer hover:bg-muted/50"
+                      className="text-right cursor-pointer select-none hover:bg-muted/50 transition-colors"
                       onClick={() => toggleSort('spend')}
                     >
                       <div className="flex items-center justify-end gap-1">
                         Gasto Ads
-                        <ArrowUpDown className="h-3 w-3" />
+                        <SortIcon field="spend" />
                       </div>
                     </TableHead>
-                    <TableHead className="text-right">Vendas</TableHead>
-                    <TableHead className="text-right">CPA</TableHead>
                     <TableHead 
-                      className="text-right cursor-pointer hover:bg-muted/50"
+                      className="text-right cursor-pointer select-none hover:bg-muted/50 transition-colors"
+                      onClick={() => toggleSort('sales')}
+                    >
+                      <div className="flex items-center justify-end gap-1">
+                        Vendas
+                        <SortIcon field="sales" />
+                      </div>
+                    </TableHead>
+                    <TableHead 
+                      className="text-right cursor-pointer select-none hover:bg-muted/50 transition-colors"
+                      onClick={() => toggleSort('cpa')}
+                    >
+                      <div className="flex items-center justify-end gap-1">
+                        CPA
+                        <SortIcon field="cpa" />
+                      </div>
+                    </TableHead>
+                    <TableHead 
+                      className="text-right cursor-pointer select-none hover:bg-muted/50 transition-colors"
                       onClick={() => toggleSort('roas')}
                     >
                       <div className="flex items-center justify-end gap-1">
                         ROAS
-                        <ArrowUpDown className="h-3 w-3" />
+                        <SortIcon field="roas" />
                       </div>
                     </TableHead>
+                    <TableHead>Fonte</TableHead>
                     <TableHead className="text-center">Status</TableHead>
                   </TableRow>
                 </TableHeader>
@@ -322,6 +390,17 @@ export default function ProductROI() {
                         </TableCell>
                         <TableCell className="text-right font-bold">
                           {product.roas.toFixed(2)}x
+                        </TableCell>
+                        <TableCell>
+                          <div className="flex flex-wrap gap-1">
+                            {product.platforms.length > 0 ? product.platforms.map((p) => (
+                              <Badge key={p} variant="outline" className="text-xs">
+                                {p}
+                              </Badge>
+                            )) : (
+                              <span className="text-xs text-muted-foreground">—</span>
+                            )}
+                          </div>
                         </TableCell>
                         <TableCell className="text-center">
                           <Badge variant={status.variant} className="gap-1">

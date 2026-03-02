@@ -149,7 +149,7 @@ export const InviteCodeDialog = ({ organizationId }: InviteCodeDialogProps) => {
             </div>
 
             <p className="text-sm text-muted-foreground">
-              O código será válido por 7 dias. O novo membro poderá usá-lo ao fazer cadastro ou no perfil.
+              O código será válido por 14 dias. O novo membro poderá usá-lo ao fazer cadastro ou no perfil.
             </p>
           </div>
         ) : (

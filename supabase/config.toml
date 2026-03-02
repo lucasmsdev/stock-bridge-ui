@@ -146,3 +146,60 @@ verify_jwt = false
 
 [functions.sync-meta-ads]
 verify_jwt = false
+
+[functions.magalu-auth]
+verify_jwt = true
+
+[functions.sync-magalu-listing]
+verify_jwt = true
+
+[functions.create-magalu-product]
+verify_jwt = true
+
+[functions.sync-tracking]
+verify_jwt = true
+
+[functions.generate-ai-insights]
+verify_jwt = false
+
+[functions.process-automations]
+verify_jwt = false
+
+[functions.tiktok-shop-auth]
+verify_jwt = true
+
+[functions.create-tiktokshop-product]
+verify_jwt = true
+
+[functions.google-ads-auth]
+verify_jwt = false
+
+[functions.sync-google-ads]
+verify_jwt = false
+
+[functions.tiktok-ads-auth]
+verify_jwt = false
+
+[functions.sync-tiktok-ads]
+verify_jwt = false
+
+[functions.sync-mercadolivre-ads]
+verify_jwt = false
+
+[functions.sync-shopee-ads]
+verify_jwt = false
+
+[functions.sync-amazon-ads]
+verify_jwt = false
+
+[functions.sync-magalu-ads]
+verify_jwt = false
+
+[functions.sync-tiktokshop-ads]
+verify_jwt = false
+
+[functions.shopee-auth]
+verify_jwt = false
+
+[functions.shopee-callback]
+verify_jwt = false
