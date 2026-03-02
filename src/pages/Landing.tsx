@@ -562,26 +562,49 @@ const Landing = () => {
               <h3 className="text-center text-xl font-semibold text-foreground mb-8">Marketplaces</h3>
             </AnimatedSection>
             <div className="marquee-container">
-              <div className="animate-marquee gap-8" style={{ width: 'max-content' }}>
-                {[...marketplaces, ...marketplaces, ...marketplaces, ...marketplaces].map((platform, i) => (
-                  <div key={`mk-${i}`} className="relative flex flex-col items-center justify-center p-6 rounded-xl bg-card border-2 border-border hover:border-primary/40 hover:shadow-xl transition-all duration-300 group flex-shrink-0 w-40">
-                    {platform.comingSoon && (
-                      <Badge variant="secondary" className="absolute -top-2 -right-2 text-[10px] px-2 py-0.5">
-                        Em breve
-                      </Badge>
-                    )}
-                    <img
-                      src={platform.logo}
-                      alt={`Logo ${platform.name}`}
-                      className={`h-12 w-auto object-contain group-hover:scale-110 transition-transform ${platform.comingSoon ? 'opacity-60' : ''}`}
-                      loading="lazy"
-                      decoding="async"
-                    />
-                    <span className={`mt-3 text-sm font-medium ${platform.comingSoon ? 'text-muted-foreground' : 'text-foreground'}`}>
-                      {platform.name}
-                    </span>
-                  </div>
-                ))}
+              <div className="animate-marquee gap-8">
+                <div className="flex gap-8 shrink-0">
+                  {marketplaces.map((platform, i) => (
+                    <div key={`mk-a-${i}`} className="relative flex flex-col items-center justify-center p-6 rounded-xl bg-card border-2 border-border hover:border-primary/40 hover:shadow-xl transition-all duration-300 group flex-shrink-0 w-40">
+                      {platform.comingSoon && (
+                        <Badge variant="secondary" className="absolute -top-2 -right-2 text-[10px] px-2 py-0.5">
+                          Em breve
+                        </Badge>
+                      )}
+                      <img
+                        src={platform.logo}
+                        alt={`Logo ${platform.name}`}
+                        className={`h-12 w-auto object-contain group-hover:scale-110 transition-transform ${platform.comingSoon ? 'opacity-60' : ''}`}
+                        loading="lazy"
+                        decoding="async"
+                      />
+                      <span className={`mt-3 text-sm font-medium ${platform.comingSoon ? 'text-muted-foreground' : 'text-foreground'}`}>
+                        {platform.name}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+                <div className="flex gap-8 shrink-0" aria-hidden="true">
+                  {marketplaces.map((platform, i) => (
+                    <div key={`mk-b-${i}`} className="relative flex flex-col items-center justify-center p-6 rounded-xl bg-card border-2 border-border hover:border-primary/40 hover:shadow-xl transition-all duration-300 group flex-shrink-0 w-40">
+                      {platform.comingSoon && (
+                        <Badge variant="secondary" className="absolute -top-2 -right-2 text-[10px] px-2 py-0.5">
+                          Em breve
+                        </Badge>
+                      )}
+                      <img
+                        src={platform.logo}
+                        alt={`Logo ${platform.name}`}
+                        className={`h-12 w-auto object-contain group-hover:scale-110 transition-transform ${platform.comingSoon ? 'opacity-60' : ''}`}
+                        loading="lazy"
+                        decoding="async"
+                      />
+                      <span className={`mt-3 text-sm font-medium ${platform.comingSoon ? 'text-muted-foreground' : 'text-foreground'}`}>
+                        {platform.name}
+                      </span>
+                    </div>
+                  ))}
+                </div>
               </div>
             </div>
           </div>

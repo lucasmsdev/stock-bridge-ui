@@ -187,6 +187,8 @@ All colors MUST be HSL.
   display: flex;
   animation: marquee 30s linear infinite;
   will-change: transform;
+  min-width: 100%;
+  width: max-content;
 }
 .animate-marquee-reverse {
   display: flex;
