@@ -561,10 +561,10 @@ const Landing = () => {
             <AnimatedSection animation="fade-up" delay={100}>
               <h3 className="text-center text-xl font-semibold text-foreground mb-8">Marketplaces</h3>
             </AnimatedSection>
-            <div className="marquee-container relative overflow-hidden">
-              <div className="flex animate-marquee gap-8" style={{ width: 'max-content' }}>
+            <div className="marquee-container">
+              <div className="animate-marquee">
                 {[...marketplaces, ...marketplaces, ...marketplaces, ...marketplaces].map((platform, i) => (
-                  <div key={`${platform.name}-${i}`} className="relative flex flex-col items-center justify-center p-6 rounded-xl bg-card border-2 border-border hover:border-primary/40 hover:shadow-xl transition-all duration-300 group" style={{ minWidth: '160px' }}>
+                  <div key={`mk-${i}`} className="relative flex flex-col items-center justify-center p-6 rounded-xl bg-card border-2 border-border hover:border-primary/40 hover:shadow-xl transition-all duration-300 group flex-shrink-0 mx-4" style={{ minWidth: '160px' }}>
                     {platform.comingSoon && (
                       <Badge variant="secondary" className="absolute -top-2 -right-2 text-[10px] px-2 py-0.5">
                         Em breve
