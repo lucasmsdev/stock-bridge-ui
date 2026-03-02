@@ -1,48 +1,50 @@
 
-# Fix Infinite Marketplace Carousel
+# Corrigir Carrossel Infinito de Marketplaces - Abordagem JavaScript
 
-## Problem
-The marquee animation is not working. The logos appear static. After browser inspection, the items render (28 children = 7 marketplaces x 4) but the CSS animation isn't producing visible movement.
+## Problema Confirmado
+Testei no browser e confirmei: o carrossel esta completamente estatico. A animacao CSS com `translateX(-50%)` nao esta funcionando porque o navegador nao esta calculando corretamente a largura do container `width: max-content` dentro de um pai com `overflow: hidden`.
 
-## Root Cause
-The combination of `style={{ width: 'max-content' }}` with `overflow: hidden` on the parent creates a situation where the browser may not compute the animation properly. The `translateX(-50%)` percentage is relative to the element's own width, but the flex container may not be calculating its width correctly when constrained.
+## Solucao: Animacao com JavaScript (useEffect + requestAnimationFrame)
 
-## Solution - Complete Rewrite of Marquee Section
+Abandonar a abordagem CSS pura (que falhou em multiplas tentativas) e usar uma animacao JavaScript simples e confiavel.
 
-Replace the current approach with a proven infinite marquee pattern using two side-by-side divs that each contain the full set of items, both animated together.
+### Arquivo: `src/pages/Landing.tsx`
 
-### File: `src/pages/Landing.tsx` (lines ~564-586)
+**Mudancas na secao Marketplaces (linhas ~559-609):**
 
-**Changes:**
-1. Replace single `animate-marquee` div with TWO identical `animate-marquee` divs inside the `marquee-container`
-2. Each div contains only one copy of `marketplaces` (not 4x)
-3. Both divs are placed in a wrapper with `display: flex` and `width: fit-content`
-4. Remove the inline `style={{ width: 'max-content' }}` -- instead, the wrapper flex handles this
+1. Adicionar um `useRef` para o container do marquee e um `useEffect` que:
+   - Mede a largura real de um conjunto de itens
+   - Usa `requestAnimationFrame` para mover o container continuamente
+   - Quando o deslocamento atinge a largura de um conjunto, reseta para 0 (loop infinito)
+   - Pausa no hover
 
-Structure:
+2. Estrutura HTML simplificada:
 ```text
-marquee-container (overflow: hidden, w-full)
-  └── wrapper div (flex, animate-marquee)
-        ├── set div (flex, gap-8, shrink-0)
-        │     └── 7 marketplace cards
-        └── set div (flex, gap-8, shrink-0, aria-hidden)
-              └── 7 marketplace cards (duplicate)
+marquee-container (overflow: hidden, w-full, ref)
+  └── inner div (flex, gap-8, style transform via JS)
+        ├── set 1: 7 marketplace cards (shrink-0)
+        └── set 2: 7 marketplace cards (shrink-0, clone para loop)
 ```
 
-### File: `src/index.css`
+3. Logica do efeito:
+   - `scrollRef` aponta para o inner div
+   - `offset` incrementa a cada frame (~0.5px por frame = ~30px/s)
+   - Quando `offset >= largura de 1 conjunto`, reseta para 0
+   - `transform: translateX(-${offset}px)` aplicado via style
 
-**Changes to `.animate-marquee`:**
-- Keep `display: flex` and `animation: marquee 30s linear infinite`
-- Add `min-width: 100%` -- this is key: it forces the flex container to stretch beyond the viewport
-- The two children (each containing all items) sit side by side
+### Arquivo: `src/index.css`
 
-The animation `translateX(-50%)` moves the entire wrapper left by exactly half (one full set of items), creating a seamless loop since the second set is identical to the first.
+- Remover a classe `.animate-marquee` (nao sera mais usada para este carrossel)
+- Manter `.marquee-container` com `overflow: hidden` e a mascara de gradiente
+- Manter `.animate-marquee-reverse` caso seja usada em outro lugar
 
-### Why this works
-The classic infinite marquee pattern requires:
-1. Content duplicated exactly once (2 copies total)
-2. A flex wrapper containing both copies, animated with `translateX(-50%)`
-3. The wrapper must be wider than the viewport (guaranteed by having 2 sets of items)
-4. `overflow: hidden` on the parent clips the overflow
+### Por que esta abordagem funciona
+- `requestAnimationFrame` garante animacao fluida a 60fps
+- Calculo de largura em pixels reais (nao percentual) elimina o problema de calculo do navegador
+- Controle total sobre velocidade e pausa
+- Padrao amplamente usado em producao para marquees
 
-This is the standard approach used by production marquees.
+### Velocidade
+- ~0.5px por frame a 60fps = ~30px/s
+- 7 itens x 160px + gaps = ~1300px de largura por conjunto
+- Ciclo completo a cada ~43 segundos (similar aos 30s do CSS original)
