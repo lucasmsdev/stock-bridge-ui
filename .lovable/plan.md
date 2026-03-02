@@ -1,50 +1,60 @@
 
-# Corrigir Carrossel Infinito de Marketplaces - Abordagem JavaScript
 
-## Problema Confirmado
-Testei no browser e confirmei: o carrossel esta completamente estatico. A animacao CSS com `translateX(-50%)` nao esta funcionando porque o navegador nao esta calculando corretamente a largura do container `width: max-content` dentro de um pai com `overflow: hidden`.
+# Transicoes Suaves entre Secoes da Landing Page
 
-## Solucao: Animacao com JavaScript (useEffect + requestAnimationFrame)
+## Objetivo
+Adicionar divisores visuais modernos e suaves entre cada secao da landing page, criando um fluxo visual elegante e continuo.
 
-Abandonar a abordagem CSS pura (que falhou em multiplas tentativas) e usar uma animacao JavaScript simples e confiavel.
+## Abordagem
 
-### Arquivo: `src/pages/Landing.tsx`
+Criar um componente `SectionDivider` reutilizavel que renderiza uma onda SVG com gradiente sutil entre as secoes. Esse padrao e amplamente usado em landing pages modernas (Stripe, Linear, Vercel).
 
-**Mudancas na secao Marketplaces (linhas ~559-609):**
+## Secoes da Landing Page (em ordem)
+1. Hero
+2. Before vs After
+3. Benefits
+4. Features (Bento Grid)
+5. Partners (Marquee)
+6. Pricing
+7. Final CTA
+8. FAQ
+9. Footer
 
-1. Adicionar um `useRef` para o container do marquee e um `useEffect` que:
-   - Mede a largura real de um conjunto de itens
-   - Usa `requestAnimationFrame` para mover o container continuamente
-   - Quando o deslocamento atinge a largura de um conjunto, reseta para 0 (loop infinito)
-   - Pausa no hover
+Serao inseridos divisores entre cada par de secoes (7-8 divisores no total).
 
-2. Estrutura HTML simplificada:
-```text
-marquee-container (overflow: hidden, w-full, ref)
-  └── inner div (flex, gap-8, style transform via JS)
-        ├── set 1: 7 marketplace cards (shrink-0)
-        └── set 2: 7 marketplace cards (shrink-0, clone para loop)
-```
+## Mudancas
 
-3. Logica do efeito:
-   - `scrollRef` aponta para o inner div
-   - `offset` incrementa a cada frame (~0.5px por frame = ~30px/s)
-   - Quando `offset >= largura de 1 conjunto`, reseta para 0
-   - `transform: translateX(-${offset}px)` aplicado via style
+### 1. Criar componente `src/components/ui/section-divider.tsx`
 
-### Arquivo: `src/index.css`
+Componente simples que renderiza um SVG com curva suave (wave) e cores que fazem a transicao entre o fundo da secao anterior e o fundo da proxima. Props:
+- `variant`: "wave" | "curve" | "angle" (diferentes formas de transicao)
+- `flip`: boolean (inverter verticalmente para alternar direcao)
+- `fromColor` / `toColor`: cores de fundo (usando classes Tailwind como `bg-background`, `bg-muted/30`)
+- `className`: customizacao adicional
 
-- Remover a classe `.animate-marquee` (nao sera mais usada para este carrossel)
-- Manter `.marquee-container` com `overflow: hidden` e a mascara de gradiente
-- Manter `.animate-marquee-reverse` caso seja usada em outro lugar
+O SVG usa `viewBox` e `preserveAspectRatio` para ser responsivo, com altura de ~48-80px.
 
-### Por que esta abordagem funciona
-- `requestAnimationFrame` garante animacao fluida a 60fps
-- Calculo de largura em pixels reais (nao percentual) elimina o problema de calculo do navegador
-- Controle total sobre velocidade e pausa
-- Padrao amplamente usado em producao para marquees
+### 2. Modificar `src/pages/Landing.tsx`
 
-### Velocidade
-- ~0.5px por frame a 60fps = ~30px/s
-- 7 itens x 160px + gaps = ~1300px de largura por conjunto
-- Ciclo completo a cada ~43 segundos (similar aos 30s do CSS original)
+Inserir o componente `SectionDivider` entre cada secao com variantes alternadas para criar ritmo visual:
+
+- Hero -> Before vs After: wave
+- Before vs After -> Benefits: curve (flip)
+- Benefits -> Features: wave
+- Features -> Partners: curve (flip)
+- Partners -> Pricing: wave
+- Pricing -> Final CTA: curve (flip)
+- Final CTA -> FAQ: wave
+- FAQ -> Footer: curve (flip)
+
+As cores serao ajustadas automaticamente para combinar com o fundo de cada secao (ex: `background` -> `muted/30` -> `background`).
+
+### 3. Adicionar CSS em `src/index.css`
+
+Estilos minimos para o divisor:
+- `width: 100%`, sem margin/padding entre secoes
+- Cor do SVG path usa `fill: currentColor` com classes Tailwind
+- Transicao suave de cor no dark mode
+
+## Resultado Visual
+Cada secao tera uma transicao suave em formato de onda/curva, eliminando as bordas retas entre secoes e criando um fluxo visual moderno e profissional.
