@@ -467,7 +467,7 @@ const Landing = () => {
 
           <div className="grid md:grid-cols-2 gap-6">
             {/* ANTES */}
-            <AnimatedSection animation="fade-left" delay={100}>
+            <AnimatedSection animation="fade-up" delay={100}>
               <Card className="border-destructive/30 bg-destructive/5 hover:shadow-lg transition-all duration-300 h-full">
                 <CardContent className="p-6 sm:p-8">
                   <div className="flex items-center gap-3 mb-6">
@@ -478,7 +478,7 @@ const Landing = () => {
                   </div>
                   <div className="space-y-4">
                     {beforeAfterItems.map((item, idx) => (
-                      <AnimatedSection key={idx} animation="fade-left" delay={200 + idx * 100}>
+                      <AnimatedSection key={idx} animation="fade-up" delay={150 + idx * 50}>
                         <div className="flex items-start gap-3">
                           <X className="w-5 h-5 text-destructive flex-shrink-0 mt-0.5" />
                           <span className="text-sm text-muted-foreground">{item.before}</span>
@@ -491,7 +491,7 @@ const Landing = () => {
             </AnimatedSection>
 
             {/* DEPOIS */}
-            <AnimatedSection animation="fade-right" delay={200}>
+            <AnimatedSection animation="fade-up" delay={150}>
               <Card className="border-accent/30 bg-accent/5 hover:shadow-lg hover:shadow-accent/10 transition-all duration-300 h-full">
                 <CardContent className="p-6 sm:p-8">
                   <div className="flex items-center gap-3 mb-6">
@@ -502,7 +502,7 @@ const Landing = () => {
                   </div>
                   <div className="space-y-4">
                     {beforeAfterItems.map((item, idx) => (
-                      <AnimatedSection key={idx} animation="fade-right" delay={300 + idx * 100}>
+                      <AnimatedSection key={idx} animation="fade-up" delay={200 + idx * 50}>
                         <div className="flex items-start gap-3">
                           <CheckCircle className="w-5 h-5 text-accent flex-shrink-0 mt-0.5" />
                           <span className="text-sm text-foreground font-medium">{item.after}</span>
@@ -533,7 +533,7 @@ const Landing = () => {
           </AnimatedSection>
 
           <div className="grid md:grid-cols-2 gap-12 items-center mb-20">
-            <AnimatedSection animation="fade-left">
+            <AnimatedSection animation="fade-up">
               <div className="group">
                 <img
                   src="/images/dashboard-products.png"
@@ -552,8 +552,8 @@ const Landing = () => {
                 { icon: BarChart3, title: "Análise de Lucro Real", desc: "Dashboard mostra lucro real descontando todas as taxas e custos.", color: "primary" },
                 { icon: Clock, title: "Economize Tempo", desc: "3 horas por dia a menos gerenciando planilhas e plataformas.", color: "accent" },
               ].map((benefit, idx) => (
-                <AnimatedSection key={idx} animation="fade-right" delay={idx * 150}>
-                  <div className="flex gap-4 group hover:translate-x-2 transition-transform duration-300">
+                <AnimatedSection key={idx} animation="fade-up" delay={idx * 100}>
+                  <div className="flex gap-4 group hover:translate-x-1 transition-transform duration-300">
                     <div className="flex-shrink-0">
                       <div className={`w-12 h-12 rounded-lg bg-${benefit.color}/10 flex items-center justify-center group-hover:bg-${benefit.color}/20 group-hover:scale-110 transition-all duration-300`}>
                         <benefit.icon className={`w-6 h-6 text-${benefit.color}`} />
@@ -587,9 +587,9 @@ const Landing = () => {
 
           <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
             {features.map((feature, index) => (
-              <AnimatedSection key={index} animation="scale" delay={index * 100}>
+              <AnimatedSection key={index} animation="fade-up" delay={index * 80}>
                 <Card 
-                  className={`border-border hover:border-primary/30 transition-all hover:shadow-xl hover:shadow-primary/10 hover:-translate-y-2 duration-300 group hover-glow h-full ${
+                  className={`border-border hover:border-primary/30 transition-all hover:shadow-lg hover:shadow-primary/5 hover:-translate-y-1 duration-300 group h-full ${
                     feature.featured ? 'md:col-span-1 lg:col-span-1 lg:row-span-1 md:first:col-span-2 lg:first:col-span-2' : ''
                   } ${index === 0 ? 'md:col-span-2 lg:col-span-2' : ''}`}
                 >
@@ -648,7 +648,7 @@ const Landing = () => {
             </AnimatedSection>
             <div className="grid grid-cols-2 sm:grid-cols-3 gap-6 max-w-3xl mx-auto">
               {adPlatforms.map((platform, idx) => (
-                <AnimatedSection key={platform.name} animation="scale" delay={300 + idx * 100}>
+                <AnimatedSection key={platform.name} animation="fade-up" delay={idx * 80}>
                   <div className="flex flex-col items-center justify-center p-6 rounded-xl bg-card border-2 border-border hover:border-primary/40 hover:shadow-xl transition-all duration-300 group">
                     <img
                       src={platform.logo}
@@ -666,7 +666,7 @@ const Landing = () => {
             </div>
           </div>
 
-          <AnimatedSection animation="fade-up" delay={400}>
+          <AnimatedSection animation="fade-up" delay={200}>
             <div className="mt-12 text-center">
               <p className="text-sm text-muted-foreground">
                 Mais integrações em breve • Precisa de outra plataforma? <Link to="/contato" className="text-primary font-semibold hover:underline">Fale conosco</Link>
@@ -696,9 +696,9 @@ const Landing = () => {
           
           <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-6 max-w-7xl mx-auto">
             {plans.map((plan, index) => (
-              <AnimatedSection key={index} animation="scale" delay={index * 100}>
+              <AnimatedSection key={index} animation="fade-up" delay={index * 80}>
                 <Card 
-                  className={`relative border transition-all duration-300 hover:shadow-2xl hover:-translate-y-2 h-full ${
+                  className={`relative border transition-all duration-300 hover:shadow-xl hover:-translate-y-1 h-full ${
                     plan.popular 
                       ? 'border-primary ring-2 ring-primary/30 shadow-xl hover:shadow-primary/30 scale-105 bg-gradient-to-b from-primary/5 to-background glow-permanent' 
                       : 'border-border hover:border-primary/40 hover:shadow-primary/20'
@@ -847,7 +847,7 @@ const Landing = () => {
             </div>
           </AnimatedSection>
 
-          <AnimatedSection animation="fade-up" delay={200}>
+          <AnimatedSection animation="fade-up" delay={100}>
             <Accordion type="single" collapsible className="w-full space-y-4">
               <AccordionItem value="item-1" className="border border-border rounded-lg px-6 bg-card">
                 <AccordionTrigger className="text-left hover:no-underline">
