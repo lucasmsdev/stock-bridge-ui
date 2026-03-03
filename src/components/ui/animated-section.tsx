@@ -14,19 +14,19 @@ interface AnimatedSectionProps {
 
 const animationClasses: Record<Animation, { hidden: string; visible: string }> = {
   "fade-up": {
-    hidden: "opacity-0 translate-y-8",
+    hidden: "opacity-0 translate-y-4",
     visible: "opacity-100 translate-y-0",
   },
   "fade-left": {
-    hidden: "opacity-0 -translate-x-8",
+    hidden: "opacity-0 -translate-x-4",
     visible: "opacity-100 translate-x-0",
   },
   "fade-right": {
-    hidden: "opacity-0 translate-x-8",
+    hidden: "opacity-0 translate-x-4",
     visible: "opacity-100 translate-x-0",
   },
   scale: {
-    hidden: "opacity-0 scale-95",
+    hidden: "opacity-0 scale-[0.98]",
     visible: "opacity-100 scale-100",
   },
   none: {
@@ -49,7 +49,7 @@ export function AnimatedSection({
     <div
       ref={ref}
       className={cn(
-        "transition-all duration-700 ease-out motion-reduce:!opacity-100 motion-reduce:!transform-none motion-reduce:!transition-none",
+        "transition-all duration-500 ease-out motion-reduce:!opacity-100 motion-reduce:!transform-none motion-reduce:!transition-none",
         isVisible ? classes.visible : classes.hidden,
         className
       )}
