@@ -196,7 +196,7 @@ export function ProfitBreakdown({ expenses }: ProfitBreakdownProps) {
   }
 
   return (
-    <div className="grid gap-6 lg:grid-cols-2">
+    <div className="grid gap-6 grid-cols-1 lg:grid-cols-2">
       <div className="space-y-4">
         <Card className="border-l-4 border-l-primary">
           <CardContent className="pt-6">
@@ -222,23 +222,23 @@ export function ProfitBreakdown({ expenses }: ProfitBreakdownProps) {
             
             <div className="space-y-2">
               {platformBreakdowns.map(pb => (
-                <div key={pb.platform} className="flex items-center justify-between p-3 rounded-lg bg-red-500/10">
-                  <div className="flex items-center gap-3">
+                <div key={pb.platform} className="flex items-center justify-between gap-2 p-2 sm:p-3 rounded-lg bg-red-500/10">
+                  <div className="flex items-center gap-2 sm:gap-3 min-w-0">
                     {pb.logo ? (
-                      <img src={pb.logo} alt={pb.label} className="h-7 w-7 object-contain rounded" />
+                      <img src={pb.logo} alt={pb.label} className="h-6 w-6 sm:h-7 sm:w-7 object-contain rounded shrink-0" />
                     ) : (
-                      <div className="h-7 w-7 rounded-full bg-red-500/20 flex items-center justify-center">
-                        <Store className="h-4 w-4 text-red-500" />
+                      <div className="h-6 w-6 sm:h-7 sm:w-7 rounded-full bg-red-500/20 flex items-center justify-center shrink-0">
+                        <Store className="h-3 w-3 sm:h-4 sm:w-4 text-red-500" />
                       </div>
                     )}
-                    <div>
-                      <p className="text-sm font-medium text-foreground">{pb.label}</p>
+                    <div className="min-w-0">
+                      <p className="text-xs sm:text-sm font-medium text-foreground truncate">{pb.label}</p>
                       <p className="text-xs text-muted-foreground">{pb.orderCount} vendas</p>
                     </div>
                   </div>
-                  <div className="text-right">
-                    <p className="text-sm font-bold text-red-500">-{formatCurrency(pb.fees + pb.taxes)}</p>
-                    <p className="text-xs text-muted-foreground">
+                  <div className="text-right shrink-0">
+                    <p className="text-xs sm:text-sm font-bold text-red-500">-{formatCurrency(pb.fees + pb.taxes)}</p>
+                    <p className="text-xs text-muted-foreground hidden sm:block">
                       Taxas: {formatCurrency(pb.fees)} | Imp: {formatCurrency(pb.taxes)}
                     </p>
                   </div>

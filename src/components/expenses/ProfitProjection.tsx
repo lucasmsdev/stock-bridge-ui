@@ -177,7 +177,7 @@ export function ProfitProjection({ expenses, targetMarginPercent = 30 }: ProfitP
   return (
     <div className="space-y-6">
       {/* Metrics Overview */}
-      <div className="grid gap-4 md:grid-cols-4">
+      <div className="grid gap-4 grid-cols-2 md:grid-cols-4">
         <Card>
           <CardContent className="pt-6">
             <div className="flex items-center justify-between">

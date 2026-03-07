@@ -725,18 +725,18 @@ export default function Products() {
       {selectedProducts.length > 0 && (
         <Card className="shadow-soft bg-primary/5 border-primary/20 animate-slide-up">
           <CardContent className="pt-4 pb-4">
-            <div className="flex items-center justify-between">
+            <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2">
               <div className="flex items-center gap-2">
-                <span className="text-sm font-medium text-primary">
+                <span className="text-xs sm:text-sm font-medium text-primary">
                   {selectedProducts.length} produto{selectedProducts.length > 1 ? 's' : ''} selecionado{selectedProducts.length > 1 ? 's' : ''}
                 </span>
               </div>
-              <div className="flex gap-2">
+              <div className="flex flex-wrap gap-2">
                 {canDeleteItems && (
                   <Button 
                     variant="outline" 
                     size="sm" 
-                    className="hover:bg-destructive hover:text-destructive-foreground"
+                    className="hover:bg-destructive hover:text-destructive-foreground text-xs sm:text-sm"
                     onClick={async () => {
                       if (!confirm(`Tem certeza que deseja excluir ${selectedProducts.length} produto(s)? Esta ação não pode ser desfeita.`)) return;
                       try {

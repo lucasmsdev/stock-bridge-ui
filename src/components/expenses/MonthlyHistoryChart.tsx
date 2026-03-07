@@ -153,14 +153,14 @@ export function MonthlyHistoryChart({ expenses }: MonthlyHistoryChartProps) {
   return (
     <Card>
       <CardHeader>
-        <div className="flex items-center justify-between">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
           <div>
             <CardTitle className="flex items-center gap-2"><BarChart3 className="h-5 w-5 text-primary" />Histórico Mensal</CardTitle>
-            <CardDescription>Evolução de receitas, despesas e lucro com taxas reais por marketplace.</CardDescription>
+            <CardDescription className="text-xs sm:text-sm">Evolução de receitas, despesas e lucro com taxas reais.</CardDescription>
           </div>
           <div className="flex items-center gap-2">
             <Select value={periodMonths} onValueChange={setPeriodMonths}>
-              <SelectTrigger className="w-[140px]"><Calendar className="h-4 w-4 mr-2" /><SelectValue /></SelectTrigger>
+              <SelectTrigger className="w-[120px] sm:w-[140px]"><Calendar className="h-4 w-4 mr-2" /><SelectValue /></SelectTrigger>
               <SelectContent>
                 <SelectItem value="3">3 meses</SelectItem>
                 <SelectItem value="6">6 meses</SelectItem>
@@ -204,24 +204,24 @@ export function MonthlyHistoryChart({ expenses }: MonthlyHistoryChartProps) {
             </ResponsiveContainer>
 
             <div className="overflow-x-auto">
-              <table className="w-full text-sm">
+              <table className="w-full text-xs sm:text-sm">
                 <thead>
                   <tr className="border-b">
-                    <th className="text-left py-2 px-3 font-medium text-muted-foreground">Mês</th>
-                    <th className="text-right py-2 px-3 font-medium text-muted-foreground">Receita</th>
-                    <th className="text-right py-2 px-3 font-medium text-muted-foreground">Lucro Bruto</th>
-                    <th className="text-right py-2 px-3 font-medium text-muted-foreground">Despesas</th>
-                    <th className="text-right py-2 px-3 font-medium text-muted-foreground">Lucro Líquido</th>
+                    <th className="text-left py-2 px-2 sm:px-3 font-medium text-muted-foreground">Mês</th>
+                    <th className="text-right py-2 px-2 sm:px-3 font-medium text-muted-foreground">Receita</th>
+                    <th className="text-right py-2 px-2 sm:px-3 font-medium text-muted-foreground hidden sm:table-cell">L. Bruto</th>
+                    <th className="text-right py-2 px-2 sm:px-3 font-medium text-muted-foreground hidden sm:table-cell">Despesas</th>
+                    <th className="text-right py-2 px-2 sm:px-3 font-medium text-muted-foreground">Líquido</th>
                   </tr>
                 </thead>
                 <tbody>
                   {monthlyData.map((row) => (
                     <tr key={row.month} className="border-b border-border/50">
-                      <td className="py-2 px-3 font-medium">{row.monthLabel}</td>
-                      <td className="py-2 px-3 text-right">{formatCurrency(row.revenue)}</td>
-                      <td className="py-2 px-3 text-right text-green-600 dark:text-green-400">{formatCurrency(row.grossProfit)}</td>
-                      <td className="py-2 px-3 text-right text-amber-600 dark:text-amber-400">{formatCurrency(row.expenses)}</td>
-                      <td className={`py-2 px-3 text-right font-semibold ${row.netProfit >= 0 ? 'text-emerald-600 dark:text-emerald-400' : 'text-red-600 dark:text-red-400'}`}>
+                      <td className="py-2 px-2 sm:px-3 font-medium">{row.monthLabel}</td>
+                      <td className="py-2 px-2 sm:px-3 text-right">{formatCurrency(row.revenue)}</td>
+                      <td className="py-2 px-2 sm:px-3 text-right text-green-600 dark:text-green-400 hidden sm:table-cell">{formatCurrency(row.grossProfit)}</td>
+                      <td className="py-2 px-2 sm:px-3 text-right text-amber-600 dark:text-amber-400 hidden sm:table-cell">{formatCurrency(row.expenses)}</td>
+                      <td className={`py-2 px-2 sm:px-3 text-right font-semibold ${row.netProfit >= 0 ? 'text-emerald-600 dark:text-emerald-400' : 'text-red-600 dark:text-red-400'}`}>
                         {formatCurrency(row.netProfit)}
                       </td>
                     </tr>
