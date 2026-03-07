@@ -36,7 +36,7 @@ export default function PendingPayment() {
             title: "✅ Acesso Admin",
             description: "Bem-vindo de volta!",
           });
-          navigate('/dashboard');
+          navigate('/app/dashboard');
           return;
         }
       }
@@ -56,7 +56,7 @@ export default function PendingPayment() {
           title: "✅ Pagamento confirmado!",
           description: "Redirecionando para o dashboard...",
         });
-        navigate('/dashboard');
+        navigate('/app/dashboard');
         return;
       }
 

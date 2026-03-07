@@ -324,11 +324,11 @@ export default function Tracking() {
                 <TableRow>
                   <TableHead className="w-8"></TableHead>
                   <TableHead>Pedido</TableHead>
-                  <TableHead>Cliente</TableHead>
-                  <TableHead>Código de Rastreio</TableHead>
-                  <TableHead>Transportadora</TableHead>
+                  <TableHead className="hidden lg:table-cell">Cliente</TableHead>
+                  <TableHead className="hidden sm:table-cell">Rastreio</TableHead>
+                  <TableHead className="hidden md:table-cell">Transportadora</TableHead>
                   <TableHead>Status</TableHead>
-                  <TableHead>Atualização</TableHead>
+                  <TableHead className="hidden md:table-cell">Atualização</TableHead>
                   <TableHead className="w-10"></TableHead>
                 </TableRow>
               </TableHeader>
@@ -361,11 +361,14 @@ export default function Tracking() {
                               #{order.order_id_channel.slice(-8)}
                             </code>
                           </div>
+                          <div className="lg:hidden text-xs text-muted-foreground mt-1">
+                            {order.customer_name || "—"}
+                          </div>
                         </TableCell>
-                        <TableCell className="font-medium text-sm">
+                        <TableCell className="hidden lg:table-cell font-medium text-sm">
                           {order.customer_name || "—"}
                         </TableCell>
-                        <TableCell>
+                        <TableCell className="hidden sm:table-cell">
                           {order.tracking_code ? (
                             <div className="flex items-center gap-1.5">
                               <code className="text-xs font-mono bg-muted px-2 py-0.5 rounded">
@@ -387,14 +390,14 @@ export default function Tracking() {
                             <span className="text-muted-foreground text-sm">—</span>
                           )}
                         </TableCell>
-                        <TableCell className="text-sm">{order.carrier || "—"}</TableCell>
+                        <TableCell className="hidden md:table-cell text-sm">{order.carrier || "—"}</TableCell>
                         <TableCell>
                           <Badge variant="outline" className={`${statusInfo.color} border text-xs gap-1`}>
                             <StatusIcon className="h-3 w-3" />
                             {statusInfo.label}
                           </Badge>
                         </TableCell>
-                        <TableCell className="text-xs text-muted-foreground">
+                        <TableCell className="hidden md:table-cell text-xs text-muted-foreground">
                           {order.shipping_updated_at
                             ? formatDistanceToNow(new Date(order.shipping_updated_at), { addSuffix: true, locale: ptBR })
                             : "—"}

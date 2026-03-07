@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { Eye, EyeOff, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -19,8 +19,10 @@ export default function Login() {
   const [isLoading, setIsLoading] = useState(false);
   const [isCheckingSession, setIsCheckingSession] = useState(true);
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const { toast } = useToast();
   const { hasValidSession, registerLogin } = useAuthSession({ requireAuth: false });
+  const checkoutPlan = searchParams.get('checkout');
 
   // Verificar sessão ativa ao carregar a página
   useEffect(() => {
@@ -93,6 +95,12 @@ export default function Login() {
           .select('role')
           .eq('user_id', data.user.id)
           .maybeSingle();
+
+        // Se veio de checkout, redireciona de volta
+        if (checkoutPlan) {
+          navigate(`/checkout?plan=${checkoutPlan}`);
+          return;
+        }
 
         // Se for admin, libera acesso direto
         if (roleData?.role === 'admin') {
