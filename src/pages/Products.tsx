@@ -598,10 +598,10 @@ export default function Products() {
   return (
     <div className="space-y-4 md:space-y-6 animate-fade-in">
       {/* Page Header */}
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
           <h1 className="text-2xl md:text-3xl font-bold">Meus Produtos</h1>
-          <p className="text-muted-foreground">
+          <p className="text-muted-foreground text-sm">
             Gerencie seu catálogo e previsões de estoque
           </p>
         </div>
@@ -725,18 +725,18 @@ export default function Products() {
       {selectedProducts.length > 0 && (
         <Card className="shadow-soft bg-primary/5 border-primary/20 animate-slide-up">
           <CardContent className="pt-4 pb-4">
-            <div className="flex items-center justify-between">
+            <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2">
               <div className="flex items-center gap-2">
-                <span className="text-sm font-medium text-primary">
+                <span className="text-xs sm:text-sm font-medium text-primary">
                   {selectedProducts.length} produto{selectedProducts.length > 1 ? 's' : ''} selecionado{selectedProducts.length > 1 ? 's' : ''}
                 </span>
               </div>
-              <div className="flex gap-2">
+              <div className="flex flex-wrap gap-2">
                 {canDeleteItems && (
                   <Button 
                     variant="outline" 
                     size="sm" 
-                    className="hover:bg-destructive hover:text-destructive-foreground"
+                    className="hover:bg-destructive hover:text-destructive-foreground text-xs sm:text-sm"
                     onClick={async () => {
                       if (!confirm(`Tem certeza que deseja excluir ${selectedProducts.length} produto(s)? Esta ação não pode ser desfeita.`)) return;
                       try {
@@ -786,8 +786,8 @@ export default function Products() {
       {/* Filters and Search */}
       <Card className="shadow-soft">
         <CardContent className="pt-6">
-          <div className="flex items-center gap-4 flex-wrap">
-            <div className="relative flex-1 max-w-md">
+          <div className="flex flex-col sm:flex-row gap-4">
+            <div className="relative flex-1">
               <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground h-4 w-4" />
               <Input
                 placeholder="Buscar produtos ou SKU..."
@@ -797,7 +797,7 @@ export default function Products() {
               />
             </div>
             
-            <div className="min-w-[180px]">
+            <div className="w-full sm:w-[180px]">
               <Select value={selectedChannel} onValueChange={setSelectedChannel}>
                 <SelectTrigger>
                   <SelectValue placeholder="Filtrar por canal" />
@@ -812,11 +812,10 @@ export default function Products() {
                 </SelectContent>
               </Select>
             </div>
-            
-            <div className="flex items-center gap-2 text-sm text-muted-foreground">
-              <span>{filteredProducts.length} produtos encontrados</span>
-              <span>• Limite: {getMaxSkus() === Infinity ? '∞' : getMaxSkus()} produtos</span>
-            </div>
+          </div>
+          <div className="flex items-center gap-2 text-xs sm:text-sm text-muted-foreground mt-3">
+            <span>{filteredProducts.length} produtos encontrados</span>
+            <span>• Limite: {getMaxSkus() === Infinity ? '∞' : getMaxSkus()} produtos</span>
           </div>
         </CardContent>
       </Card>
@@ -848,18 +847,18 @@ export default function Products() {
               <Table>
                 <TableHeader>
                   <TableRow>
-                    <TableHead className="w-12">
+                    <TableHead className="w-10">
                       <Checkbox
                         checked={selectedProducts.length === filteredProducts.length && filteredProducts.length > 0}
                         onCheckedChange={toggleAllProducts}
                       />
                     </TableHead>
                     <TableHead>Produto</TableHead>
-                    <TableHead>SKU</TableHead>
+                    <TableHead className="hidden md:table-cell">SKU</TableHead>
                     <TableHead>Estoque</TableHead>
                     <TableHead>Preço</TableHead>
-                    <TableHead>Canais</TableHead>
-                    <TableHead className="w-12">Ações</TableHead>
+                    <TableHead className="hidden lg:table-cell">Canais</TableHead>
+                    <TableHead className="w-10">Ações</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -877,7 +876,7 @@ export default function Products() {
                       </TableCell>
                       <TableCell>
                         <div className="flex items-center gap-3">
-                          <div className="w-10 h-10 rounded-lg bg-muted flex items-center justify-center overflow-hidden">
+                          <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-lg bg-muted flex items-center justify-center overflow-hidden flex-shrink-0">
                             {product.image_url ? (
                               <img 
                                 src={product.image_url.replace('http://', 'https://')} 
@@ -885,17 +884,20 @@ export default function Products() {
                                 className="w-full h-full object-cover"
                               />
                             ) : (
-                              <Package className="h-5 w-5 text-muted-foreground" />
+                              <Package className="h-4 w-4 sm:h-5 sm:w-5 text-muted-foreground" />
                             )}
                           </div>
-                          <div>
-                            <span className="font-medium text-primary hover:text-primary-hover transition-colors">
+                          <div className="min-w-0">
+                            <span className="font-medium text-primary hover:text-primary-hover transition-colors text-sm line-clamp-2">
                               {product.name}
                             </span>
+                            <div className="md:hidden text-xs text-muted-foreground mt-0.5">
+                              {product.sku}
+                            </div>
                           </div>
                         </div>
                       </TableCell>
-                      <TableCell>
+                      <TableCell className="hidden md:table-cell">
                         <code className="text-sm bg-muted px-2 py-1 rounded">
                           {product.sku}
                         </code>
@@ -911,7 +913,7 @@ export default function Products() {
                       <TableCell className="font-medium">
                         {product.selling_price ? `R$ ${product.selling_price.toFixed(2)}` : '-'}
                       </TableCell>
-                      <TableCell>
+                      <TableCell className="hidden lg:table-cell">
                         <div className="flex items-center gap-1">
                           {productListings[product.id] && productListings[product.id].length > 0 ? (
                             productListings[product.id].map((listing) => {

@@ -137,17 +137,19 @@ function PlatformAccordionItem({ profile, onRegimeChange, onFetchMLFees, isFetch
       value={profile.id}
       className="border rounded-lg px-4 data-[state=open]:bg-muted/20 transition-colors"
     >
-      <AccordionTrigger className="hover:no-underline py-4">
-        <div className="flex items-center gap-3 flex-1 min-w-0">
+      <AccordionTrigger className="hover:no-underline py-3 sm:py-4">
+        <div className="flex items-center gap-2 sm:gap-3 flex-1 min-w-0 flex-wrap">
           <PlatformLogo platform={platform} size="md" className="shrink-0" />
-          <span className="font-semibold text-foreground text-base">{label}</span>
+          <span className="font-semibold text-foreground text-sm sm:text-base">{label}</span>
           <FeeSourceBadge platform={platform} />
-          <Badge variant="outline" className="ml-auto mr-2 font-bold text-primary border-primary/30">
-            {totalFee.toFixed(1)}%
-          </Badge>
-          <Badge variant="secondary" className="text-xs">
-            {currentRegimeData?.label || profile.tax_regime}
-          </Badge>
+          <div className="flex items-center gap-1.5 ml-auto mr-2">
+            <Badge variant="outline" className="font-bold text-primary border-primary/30 text-xs sm:text-sm">
+              {totalFee.toFixed(1)}%
+            </Badge>
+            <Badge variant="secondary" className="text-[10px] sm:text-xs hidden sm:inline-flex">
+              {currentRegimeData?.label || profile.tax_regime}
+            </Badge>
+          </div>
         </div>
       </AccordionTrigger>
       <AccordionContent className="pb-5">
@@ -219,11 +221,11 @@ function PlatformAccordionItem({ profile, onRegimeChange, onFetchMLFees, isFetch
           )}
 
           {/* Simulação rápida */}
-          <div className="p-3 rounded-lg bg-primary/5 border border-primary/10">
+          <div className="p-2 sm:p-3 rounded-lg bg-primary/5 border border-primary/10">
             <p className="text-xs text-muted-foreground mb-1">Simulação: venda de R$ 100,00</p>
-            <div className="flex items-center gap-4">
-              <span className="text-sm text-destructive font-medium">- R$ {totalFee.toFixed(2)} em taxas</span>
-              <span className="text-sm text-foreground font-bold">= R$ {(100 - totalFee).toFixed(2)} líquido</span>
+            <div className="flex flex-col sm:flex-row sm:items-center gap-1 sm:gap-4">
+              <span className="text-xs sm:text-sm text-destructive font-medium">- R$ {totalFee.toFixed(2)} em taxas</span>
+              <span className="text-xs sm:text-sm text-foreground font-bold">= R$ {(100 - totalFee).toFixed(2)} líquido</span>
             </div>
           </div>
 
@@ -399,13 +401,13 @@ export function FinancialSettings({ onSettingsChange }: FinancialSettingsProps) 
   }
 
   return (
-    <div className="w-full space-y-8 p-0">
+    <div className="w-full space-y-6 sm:space-y-8 p-0">
       <div>
-        <h2 className="text-2xl font-bold text-foreground flex items-center gap-3 mb-2">
-          <Settings className="h-6 w-6 text-primary" />
+        <h2 className="text-xl sm:text-2xl font-bold text-foreground flex items-center gap-2 sm:gap-3 mb-2">
+          <Settings className="h-5 w-5 sm:h-6 sm:w-6 text-primary shrink-0" />
           Taxas por Marketplace
         </h2>
-        <p className="text-base text-muted-foreground max-w-2xl leading-relaxed">
+        <p className="text-sm sm:text-base text-muted-foreground max-w-2xl leading-relaxed">
           Taxas automáticas por plataforma. O Mercado Livre atualiza via API oficial. Demais plataformas requerem ajuste manual.
         </p>
       </div>
@@ -418,11 +420,11 @@ export function FinancialSettings({ onSettingsChange }: FinancialSettingsProps) 
           </p>
         </div>
       ) : (
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 w-full h-auto">
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 lg:gap-8 w-full h-auto">
           <div className="lg:col-span-2 h-auto">
-            <div className="sticky top-6">
-              <div className="bg-background border rounded-2xl p-6 mb-6">
-                <h3 className="text-lg font-bold text-foreground mb-4 flex items-center gap-2">
+            <div className="lg:sticky lg:top-6">
+              <div className="bg-background border rounded-xl sm:rounded-2xl p-4 sm:p-6 mb-6">
+                <h3 className="text-base sm:text-lg font-bold text-foreground mb-4 flex items-center gap-2">
                   <BarChart3 className="h-5 w-5" />
                   Detalhes dos Marketplaces
                 </h3>
@@ -442,8 +444,8 @@ export function FinancialSettings({ onSettingsChange }: FinancialSettingsProps) 
             </div>
           </div>
           <div className="lg:col-span-1 h-auto">
-            <div className="bg-background border rounded-2xl p-6 sticky top-6 h-fit">
-              <h3 className="text-lg font-bold text-foreground mb-6 flex items-center gap-2">
+            <div className="bg-background border rounded-xl sm:rounded-2xl p-4 sm:p-6 lg:sticky lg:top-6 h-fit">
+              <h3 className="text-base sm:text-lg font-bold text-foreground mb-4 sm:mb-6 flex items-center gap-2">
                 <TrendingDown className="h-5 w-5 text-primary" />
                 Comparativo
               </h3>

@@ -125,38 +125,43 @@ export default function Expenses() {
   };
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4 sm:space-y-6 overflow-x-hidden">
       <div>
-        <h1 className="text-3xl font-bold text-foreground flex items-center gap-3">
-          <Receipt className="h-8 w-8 text-primary" />
+        <h1 className="text-2xl sm:text-3xl font-bold text-foreground flex items-center gap-2 sm:gap-3">
+          <Receipt className="h-6 w-6 sm:h-8 sm:w-8 text-primary shrink-0" />
           Centro de Custos
         </h1>
-        <p className="text-muted-foreground mt-1">
+        <p className="text-muted-foreground mt-1 text-sm sm:text-base">
           Registre suas despesas fixas e variáveis para calcular seu lucro líquido real.
         </p>
       </div>
 
       <Tabs defaultValue="register" className="space-y-6">
-        <TabsList className="grid w-full grid-cols-5 max-w-[800px]">
-          <TabsTrigger value="register" className="flex items-center gap-2">
-            <PlusCircle className="h-4 w-4" />
-            Registrar
+        <TabsList className="flex w-full overflow-x-auto no-scrollbar max-w-[800px]">
+          <TabsTrigger value="register" className="flex items-center gap-1.5 text-xs sm:text-sm whitespace-nowrap flex-1 min-w-0">
+            <PlusCircle className="h-4 w-4 shrink-0" />
+            <span className="hidden sm:inline">Registrar</span>
+            <span className="sm:hidden">Novo</span>
           </TabsTrigger>
-          <TabsTrigger value="overview" className="flex items-center gap-2">
-            <PieChart className="h-4 w-4" />
-            Visão Geral
+          <TabsTrigger value="overview" className="flex items-center gap-1.5 text-xs sm:text-sm whitespace-nowrap flex-1 min-w-0">
+            <PieChart className="h-4 w-4 shrink-0" />
+            <span className="hidden sm:inline">Visão Geral</span>
+            <span className="sm:hidden">Visão</span>
           </TabsTrigger>
-          <TabsTrigger value="history" className="flex items-center gap-2">
-            <BarChart3 className="h-4 w-4" />
-            Histórico
+          <TabsTrigger value="history" className="flex items-center gap-1.5 text-xs sm:text-sm whitespace-nowrap flex-1 min-w-0">
+            <BarChart3 className="h-4 w-4 shrink-0" />
+            <span className="hidden sm:inline">Histórico</span>
+            <span className="sm:hidden">Hist.</span>
           </TabsTrigger>
-          <TabsTrigger value="projection" className="flex items-center gap-2">
-            <TrendingUp className="h-4 w-4" />
-            Projeção
+          <TabsTrigger value="projection" className="flex items-center gap-1.5 text-xs sm:text-sm whitespace-nowrap flex-1 min-w-0">
+            <TrendingUp className="h-4 w-4 shrink-0" />
+            <span className="hidden sm:inline">Projeção</span>
+            <span className="sm:hidden">Proj.</span>
           </TabsTrigger>
-          <TabsTrigger value="settings" className="flex items-center gap-2">
-            <Settings className="h-4 w-4" />
-            Taxas
+          <TabsTrigger value="settings" className="flex items-center gap-1.5 text-xs sm:text-sm whitespace-nowrap flex-1 min-w-0">
+            <Settings className="h-4 w-4 shrink-0" />
+            <span className="hidden sm:inline">Taxas</span>
+            <span className="sm:hidden">Taxas</span>
           </TabsTrigger>
         </TabsList>
 
