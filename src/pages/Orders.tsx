@@ -332,26 +332,26 @@ export default function Orders() {
   return (
     <div className="space-y-4 md:space-y-6 animate-fade-in">
       {/* Page Header */}
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
           <h1 className="text-2xl md:text-3xl font-bold">Todos os Pedidos</h1>
-          <p className="text-muted-foreground">
+          <p className="text-muted-foreground text-sm">
             Visualize e gerencie pedidos de todos os seus canais
             {lastSyncAt && (
-              <span className="ml-2 text-xs">
+              <span className="ml-2 text-xs hidden sm:inline">
                 • Última sincronização: {new Date(lastSyncAt).toLocaleString('pt-BR')}
               </span>
             )}
           </p>
         </div>
         <div className="flex gap-2">
-          <Button variant="default" className="gap-2" onClick={handleSyncOrders} disabled={isSyncing}>
+          <Button variant="default" size="sm" className="gap-2" onClick={handleSyncOrders} disabled={isSyncing}>
             {isSyncing ? <Loader2 className="h-4 w-4 animate-spin" /> : <RefreshCw className="h-4 w-4" />}
-            Sincronizar
+            <span className="hidden sm:inline">Sincronizar</span>
           </Button>
-          <Button variant="outline" className="gap-2" onClick={() => exportOrdersToCSV(filteredOrders)} disabled={filteredOrders.length === 0}>
+          <Button variant="outline" size="sm" className="gap-2" onClick={() => exportOrdersToCSV(filteredOrders)} disabled={filteredOrders.length === 0}>
             <Download className="h-4 w-4" />
-            Exportar
+            <span className="hidden sm:inline">Exportar</span>
           </Button>
         </div>
       </div>
@@ -434,12 +434,12 @@ export default function Orders() {
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead>ID do Pedido</TableHead>
+                <TableHead>Pedido</TableHead>
                 <TableHead className="text-center">Canal</TableHead>
-                <TableHead>Data</TableHead>
-                <TableHead>Cliente</TableHead>
-                <TableHead>Itens</TableHead>
-                <TableHead>Valor Total</TableHead>
+                <TableHead className="hidden md:table-cell">Data</TableHead>
+                <TableHead className="hidden lg:table-cell">Cliente</TableHead>
+                <TableHead className="hidden sm:table-cell">Itens</TableHead>
+                <TableHead>Valor</TableHead>
                 <TableHead>Status</TableHead>
               </TableRow>
             </TableHeader>
@@ -451,9 +451,14 @@ export default function Orders() {
                   onClick={() => navigate(`/app/orders/${order.dbId}`)}
                 >
                   <TableCell>
-                    <code className="text-sm bg-muted px-2 py-1 rounded font-medium hover:bg-muted/80 transition-colors">
-                      {order.id}
-                    </code>
+                    <div>
+                      <code className="text-xs sm:text-sm bg-muted px-1.5 sm:px-2 py-0.5 sm:py-1 rounded font-medium">
+                        {order.id}
+                      </code>
+                      <div className="md:hidden text-xs text-muted-foreground mt-1">
+                        {new Date(order.date).toLocaleDateString('pt-BR')}
+                      </div>
+                    </div>
                   </TableCell>
                   <TableCell>
                     <div className="flex items-center justify-center">
@@ -464,7 +469,7 @@ export default function Orders() {
                           <img
                             src={logoConfig.url}
                             alt={`${order.channel} logo`}
-                            className={`h-6 w-auto object-contain ${logoConfig.darkInvert ? 'dark:invert' : ''}`}
+                            className={`h-5 sm:h-6 w-auto object-contain ${logoConfig.darkInvert ? 'dark:invert' : ''}`}
                           />
                         ) : (
                           <span className="text-lg">🛍️</span>
@@ -472,24 +477,24 @@ export default function Orders() {
                       })()}
                     </div>
                   </TableCell>
-                  <TableCell>
+                  <TableCell className="hidden md:table-cell">
                     <span className="text-sm">
                       {new Date(order.date).toLocaleDateString('pt-BR')}
                     </span>
                   </TableCell>
-                  <TableCell>
+                  <TableCell className="hidden lg:table-cell">
                     <div className="font-medium">{order.customer}</div>
                   </TableCell>
-                  <TableCell>
+                  <TableCell className="hidden sm:table-cell">
                     <Badge variant="outline">
                       {order.items} {order.items === 1 ? 'item' : 'itens'}
                     </Badge>
                   </TableCell>
                   <TableCell>
-                    <span className="font-medium text-primary">{order.total}</span>
+                    <span className="font-medium text-primary text-sm">{order.total}</span>
                   </TableCell>
                   <TableCell>
-                    <Badge className={`${order.statusColor} border-0`}>
+                    <Badge className={`${order.statusColor} border-0 text-xs`}>
                       {order.status}
                     </Badge>
                   </TableCell>
@@ -500,8 +505,8 @@ export default function Orders() {
 
           {/* Pagination Controls */}
           {totalPages > 1 && (
-            <div className="flex items-center justify-between mt-6 pt-4 border-t">
-              <p className="text-sm text-muted-foreground">
+            <div className="flex flex-col sm:flex-row items-center justify-between gap-2 mt-6 pt-4 border-t">
+              <p className="text-xs sm:text-sm text-muted-foreground">
                 Página {currentPage} de {totalPages} ({totalCount} pedidos)
               </p>
               <div className="flex items-center gap-2">
