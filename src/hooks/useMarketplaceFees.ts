@@ -1,3 +1,4 @@
+import { useCallback } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useOrganization } from "./useOrganization";
@@ -123,7 +124,7 @@ export function useMarketplaceFees() {
     return feeProfiles.find((fp) => fp.platform === platform.toLowerCase());
   };
 
-  const calculateFees = (platform: string, sellingPrice: number, costPrice = 0): FeeCalculation => {
+  const calculateFees = useCallback((platform: string, sellingPrice: number, costPrice = 0): FeeCalculation => {
     const profile = getFeeProfile(platform);
 
     if (!profile) {
@@ -168,7 +169,7 @@ export function useMarketplaceFees() {
       totalDeductions,
       netPerUnit: sellingPrice - costPrice - totalDeductions,
     };
-  };
+  }, [feeProfiles]);
 
   // Calculate total effective fee percent for a platform
   const getTotalFeePercent = (platform: string): number => {
